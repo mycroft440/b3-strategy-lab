@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 from dataclasses import asdict, replace
+from datetime import date, timedelta
 from pathlib import Path
 
 from .backtest import Summary, run_strategy_vs_buy_hold, write_comparison_curve, write_summary_csv
@@ -18,7 +19,7 @@ from .candles import (
     split_candles_by_year,
     validate_candles,
 )
-from .strategies import available_strategies, build_signals
+from .strategies import available_strategies, build_signals, strategies_by_family, strategy_parameters, sweep_strategies
 
 PARAM_FIELDS = [
     "fast",
@@ -48,34 +49,7 @@ PARAM_FIELDS = [
     "streak_length",
 ]
 
-SWEEP_STRATEGIES = [
-    "atr_breakout",
-    "bollinger_reversion",
-    "breakout",
-    "chandelier_breakout",
-    "connors_rsi_reversion",
-    "down_streak_reversion",
-    "ema_cross",
-    "ibs_reversion",
-    "keltner_breakout",
-    "macd",
-    "momentum",
-    "price_sma",
-    "range_expansion_breakout",
-    "roc_trend",
-    "rsi_bollinger",
-    "rsi_cross_reversion",
-    "rsi_ibs_reversion",
-    "rsi2_trend_reversion",
-    "rsi_reversion",
-    "rsi_reversion_atr",
-    "rsi_reversion_hold",
-    "rsi_reversion_trend_entry",
-    "sma_cross",
-    "sma_stop",
-    "supertrend_follow",
-    "trend_pullback",
-]
+SWEEP_STRATEGIES = sweep_strategies()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -194,8 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "train-test":
         return _train_test_command(args)
     if args.command == "list-strategies":
-        for strategy in available_strategies():
-            print(strategy)
+        _print_strategy_catalog()
         return 0
 
     parser.error("Comando invalido.")
@@ -342,8 +315,8 @@ def _train_test_command(args: argparse.Namespace) -> int:
         split_index = _split_index(candles, args.train_ratio)
         train_candles = candles[:split_index]
         test_candles = candles[split_index:]
-        train_actions = _actions_for_candles(actions, train_candles)
-        test_actions = _actions_for_candles(actions, test_candles)
+        train_actions = _actions_for_candles(actions, train_candles, args.interval)
+        test_actions = _actions_for_candles(actions, test_candles, args.interval)
         train_signal_candles = _signal_candles(train_candles, args.signal_mode)
         full_signal_candles = _signal_candles(candles, args.signal_mode)
         best_train: tuple[Summary, dict] | None = None
@@ -414,7 +387,7 @@ def _backtest_by_year_command(args: argparse.Namespace) -> int:
                 slippage_bps=args.slippage_bps,
                 lot_size=args.lot_size,
                 price_mode=args.price_mode,
-                actions=_actions_for_year(actions, year),
+                actions=_actions_for_candles(actions, candles, args.interval),
             )
             rows.append({"year": year, **asdict(summary)})
             curve_path = (
@@ -442,7 +415,7 @@ def _sweep_by_year_command(args: argparse.Namespace) -> int:
         actions = _load_actions_for_backtest(ticker, args)
         for year, candles in _iter_yearly_candle_windows(full_candles, args):
             signal_candles = _signal_candles(candles, args.signal_mode)
-            year_actions = _actions_for_year(actions, year)
+            year_actions = _actions_for_candles(actions, candles, args.interval)
             for params in _parameter_grid(args):
                 signals = build_signals(args.strategy, signal_candles, **params)
                 summary, _, _ = run_strategy_vs_buy_hold(
@@ -481,11 +454,11 @@ def _train_test_by_year_command(args: argparse.Namespace) -> int:
                 print(f"Aviso: {ticker.upper()} {year} ignorado no treino-teste: {error}")
                 continue
 
-            year_actions = _actions_for_year(actions, year)
+            year_actions = _actions_for_candles(actions, candles, args.interval)
             train_candles = candles[:split_index]
             test_candles = candles[split_index:]
-            train_actions = _actions_for_candles(year_actions, train_candles)
-            test_actions = _actions_for_candles(year_actions, test_candles)
+            train_actions = _actions_for_candles(year_actions, train_candles, args.interval)
+            test_actions = _actions_for_candles(year_actions, test_candles, args.interval)
             train_signal_candles = _signal_candles(train_candles, args.signal_mode)
             full_signal_candles = _signal_candles(candles, args.signal_mode)
             best_train: tuple[Summary, dict] | None = None
@@ -594,16 +567,19 @@ def _iter_yearly_candle_windows(candles, args: argparse.Namespace):
         yield year, year_candles
 
 
-def _actions_for_year(actions, year: int):
-    return [action for action in actions if int(action.date[:4]) == year]
-
-
-def _actions_for_candles(actions, candles):
+def _actions_for_candles(actions, candles, interval: str):
     if not candles:
         return []
-    start = _date_part(candles[0].date)
-    end = _date_part(candles[-1].date)
-    return [action for action in actions if start <= action.date <= end]
+    start = date.fromisoformat(_date_part(candles[0].date))
+    end = _action_window_end(candles[-1].date, interval)
+    return [action for action in actions if start <= date.fromisoformat(action.date) <= end]
+
+
+def _action_window_end(candle_date: str, interval: str) -> date:
+    end = date.fromisoformat(_date_part(candle_date))
+    if interval == "1wk":
+        return end + timedelta(days=6)
+    return end
 
 
 def _signal_candles(candles, signal_mode: str):
@@ -1012,6 +988,17 @@ def _print_fetch_result(ticker: str, path: Path, candles, action_path: Path, act
         )
     else:
         print(f"{ticker.upper():<7} nenhum candle salvo em {path}")
+
+
+def _print_strategy_catalog() -> None:
+    for family, strategies in strategies_by_family().items():
+        print(f"\n{family}")
+        rows = []
+        for info in strategies:
+            params = strategy_parameters(info.name)
+            defaults = ", ".join(f"{key}={value}" for key, value in params.items()) if params else "-"
+            rows.append([info.name, "sim" if info.sweepable else "nao", defaults, info.description])
+        _print_table(["Estrategia", "Sweep", "Parametros padrao", "Descricao"], rows)
 
 
 def _print_train_test_table(rows: list[dict]) -> None:

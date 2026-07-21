@@ -81,6 +81,12 @@ Filtrar anos especificos:
 python -m b3_strategy_lab sweep --by-year --years 2024 2025 --strategy breakout
 ```
 
+Gerar inventario organizado das estrategias:
+
+```powershell
+python scripts\organize_strategies.py
+```
+
 Arquivos gerados:
 
 - `data/candles/<ticker>_1d.csv`: candles OHLCV ajustados e crus.
@@ -91,6 +97,7 @@ Arquivos gerados:
 - `reports/summary_<strategy>_1d.csv`: resumo por ticker.
 - `reports/summary_<strategy>_<price_mode>_<signal_mode>_<intervalo>_by_year.csv`: resumo de backtest ano a ano.
 - `reports/yearly_data_status.csv`: inventario dos arquivos anuais.
+- `reports/strategy_inventory.csv`: inventario das estrategias, familias e parametros padrao.
 - `reports/<ticker>_<strategy>_1d_equity.csv`: curva da estrategia e do buy and hold.
 - `reports/sweep_<strategy>_1d.csv`: ranking de parametros testados.
 - `reports/train_test_<strategy>_<objective>_1d.csv`: melhores parametros no treino e resultado no teste.

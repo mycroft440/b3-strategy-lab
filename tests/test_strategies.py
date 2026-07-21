@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from b3_strategy_lab.candles import Candle
-from b3_strategy_lab.strategies import build_signals
+from b3_strategy_lab.strategies import STRATEGIES, STRATEGY_INFO, build_signals, sweep_strategies
 
 
 def candle(day: int, open_: float, high: float, low: float, close: float, volume: int = 1000) -> Candle:
@@ -26,6 +26,12 @@ def candle(day: int, open_: float, high: float, low: float, close: float, volume
 
 
 class StrategyInterfaceTests(unittest.TestCase):
+    def test_public_strategies_have_metadata_and_sweep_coverage(self) -> None:
+        public = set(STRATEGIES) - {"sma"}
+
+        self.assertEqual(set(STRATEGY_INFO), public)
+        self.assertEqual(set(sweep_strategies()), public - {"buy_and_hold"})
+
     def test_new_strategies_return_binary_signal_for_each_candle(self) -> None:
         candles = [
             candle(1, 10, 11, 9, 10),

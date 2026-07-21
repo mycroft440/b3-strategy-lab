@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import inspect
 import statistics
+from dataclasses import dataclass
 
 from .candles import Candle
+
+
+@dataclass(frozen=True)
+class StrategyInfo:
+    name: str
+    family: str
+    description: str
+    sweepable: bool = True
 
 
 def buy_and_hold(candles: list[Candle]) -> list[int]:
@@ -239,6 +248,8 @@ def rsi_reversion_hold(
     upper: float = 80.0,
     max_hold: int = 20,
 ) -> list[int]:
+    if lower >= upper:
+        raise ValueError("lower precisa ser menor que upper.")
     if max_hold <= 0:
         raise ValueError("max_hold precisa ser maior que zero.")
 
@@ -271,6 +282,8 @@ def rsi_reversion_atr(
     atr_period: int = 14,
     atr_mult: float = 3.0,
 ) -> list[int]:
+    if lower >= upper:
+        raise ValueError("lower precisa ser menor que upper.")
     if atr_period <= 0 or atr_mult <= 0:
         raise ValueError("atr_period e atr_mult precisam ser maiores que zero.")
 
@@ -313,6 +326,8 @@ def rsi_reversion_trend_entry(
 ) -> list[int]:
     if trend_window <= 0:
         raise ValueError("trend_window precisa ser maior que zero.")
+    if lower >= upper:
+        raise ValueError("lower precisa ser menor que upper.")
 
     closes = [candle.close for candle in candles]
     rsi_values = rsi(closes, rsi_period)
@@ -377,6 +392,10 @@ def rsi_bollinger(
 ) -> list[int]:
     if lower >= upper:
         raise ValueError("lower precisa ser menor que upper.")
+    if window <= 1:
+        raise ValueError("window precisa ser maior que 1.")
+    if num_std <= 0:
+        raise ValueError("num_std precisa ser maior que zero.")
 
     closes = [candle.close for candle in candles]
     rsi_values = rsi(closes, rsi_period)
@@ -900,8 +919,74 @@ STRATEGIES = {
 }
 
 
+STRATEGY_INFO = {
+    "buy_and_hold": StrategyInfo("buy_and_hold", "benchmark", "Compra no primeiro candle e mantem ate o fim.", sweepable=False),
+    "sma_cross": StrategyInfo("sma_cross", "tendencia", "Cruzamento de medias moveis simples."),
+    "ema_cross": StrategyInfo("ema_cross", "tendencia", "Cruzamento de medias moveis exponenciais."),
+    "macd": StrategyInfo("macd", "tendencia", "Segue a linha MACD contra a linha de sinal."),
+    "price_sma": StrategyInfo("price_sma", "tendencia", "Fica comprado quando o preco fecha acima da media simples."),
+    "sma_stop": StrategyInfo("sma_stop", "tendencia", "Segue media simples com stop percentual a partir do topo."),
+    "supertrend_follow": StrategyInfo("supertrend_follow", "tendencia", "Segue tendencia pelo indicador SuperTrend baseado em ATR."),
+    "momentum": StrategyInfo("momentum", "momentum", "Compra quando o fechamento supera o fechamento de N candles atras."),
+    "roc_trend": StrategyInfo("roc_trend", "momentum", "Momentum positivo com filtro de media movel."),
+    "breakout": StrategyInfo("breakout", "rompimento", "Compra rompimento de maxima e sai na perda de minima."),
+    "atr_breakout": StrategyInfo("atr_breakout", "rompimento", "Rompimento de maxima com stop movel por ATR."),
+    "chandelier_breakout": StrategyInfo("chandelier_breakout", "rompimento", "Rompimento com saida Chandelier/ATR e filtro opcional de volume."),
+    "keltner_breakout": StrategyInfo("keltner_breakout", "rompimento", "Rompimento de canal de Keltner com filtro opcional de tendencia."),
+    "range_expansion_breakout": StrategyInfo("range_expansion_breakout", "rompimento", "Compra expansao de range no fechamento com stop por ATR."),
+    "bollinger_reversion": StrategyInfo("bollinger_reversion", "reversao", "Compra na banda inferior de Bollinger e sai no retorno ao centro."),
+    "connors_rsi_reversion": StrategyInfo("connors_rsi_reversion", "reversao", "Reversao por Connors RSI."),
+    "down_streak_reversion": StrategyInfo("down_streak_reversion", "reversao", "Compra apos sequencia de quedas com IBS baixo."),
+    "ibs_reversion": StrategyInfo("ibs_reversion", "reversao", "Reversao curta por Internal Bar Strength."),
+    "rsi2_trend_reversion": StrategyInfo("rsi2_trend_reversion", "reversao", "Reversao por RSI curto com filtro de tendencia e saida por media curta."),
+    "rsi_bollinger": StrategyInfo("rsi_bollinger", "reversao", "Combina sobrevenda por RSI e Bollinger."),
+    "rsi_cross_reversion": StrategyInfo("rsi_cross_reversion", "reversao", "Entra quando o RSI recupera acima do limite inferior."),
+    "rsi_ibs_reversion": StrategyInfo("rsi_ibs_reversion", "reversao", "Combina RSI curto e IBS baixo para entrada."),
+    "rsi_reversion": StrategyInfo("rsi_reversion", "reversao", "Compra sobrevenda por RSI e sai em sobrecompra."),
+    "rsi_reversion_atr": StrategyInfo("rsi_reversion_atr", "reversao", "Reversao por RSI com stop de volatilidade por ATR."),
+    "rsi_reversion_hold": StrategyInfo("rsi_reversion_hold", "reversao", "Reversao por RSI com tempo maximo de permanencia."),
+    "rsi_reversion_trend_entry": StrategyInfo("rsi_reversion_trend_entry", "reversao", "Reversao por RSI com filtro de tendencia apenas na entrada."),
+    "trend_pullback": StrategyInfo("trend_pullback", "reversao", "Compra pullback em tendencia positiva."),
+}
+
+
 def available_strategies() -> list[str]:
     return sorted(name for name in STRATEGIES if name != "sma")
+
+
+def sweep_strategies() -> list[str]:
+    return sorted(name for name, info in STRATEGY_INFO.items() if info.sweepable)
+
+
+def strategy_info(strategy_name: str) -> StrategyInfo:
+    name = strategy_name.strip().lower()
+    if name == "sma":
+        name = "sma_cross"
+    if name not in STRATEGY_INFO:
+        available = ", ".join(available_strategies())
+        raise ValueError(f"Estrategia desconhecida: {strategy_name}. Disponiveis: {available}.")
+    return STRATEGY_INFO[name]
+
+
+def strategy_parameters(strategy_name: str) -> dict[str, object]:
+    name = strategy_name.strip().lower()
+    if name == "sma":
+        name = "sma_cross"
+    strategy = STRATEGIES[name]
+    parameters: dict[str, object] = {}
+    for key, parameter in inspect.signature(strategy).parameters.items():
+        if key == "candles":
+            continue
+        parameters[key] = "" if parameter.default is inspect.Signature.empty else parameter.default
+    return parameters
+
+
+def strategies_by_family() -> dict[str, list[StrategyInfo]]:
+    grouped: dict[str, list[StrategyInfo]] = {}
+    for name in available_strategies():
+        info = strategy_info(name)
+        grouped.setdefault(info.family, []).append(info)
+    return {family: grouped[family] for family in sorted(grouped)}
 
 
 def build_signals(strategy_name: str, candles: list[Candle], **params) -> list[int]:
