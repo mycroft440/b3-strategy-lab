@@ -63,11 +63,34 @@ Escolher parametros no periodo de treino e medir no futuro:
 python -m b3_strategy_lab train-test --strategy rsi_reversion --cost-bps 20 --slippage-bps 5 --lot-size 1 --train-ratio 0.7
 ```
 
+Organizar Heikin Ashi, inventario e historicos separados por ano:
+
+```powershell
+python scripts\organize_market_data.py
+```
+
+Rodar uma estrategia ano a ano, sem testar o historico inteiro como um unico periodo:
+
+```powershell
+python -m b3_strategy_lab backtest --by-year --strategy sma_cross --fast 20 --slow 50
+```
+
+Filtrar anos especificos:
+
+```powershell
+python -m b3_strategy_lab sweep --by-year --years 2024 2025 --strategy breakout
+```
+
 Arquivos gerados:
 
 - `data/candles/<ticker>_1d.csv`: candles OHLCV ajustados e crus.
+- `data/heikin_ashi/<ticker>_1d.csv`: candles Heikin Ashi derivados dos candles ajustados.
+- `data/yearly/<ano>/candles/<intervalo>/<ticker>_<intervalo>.csv`: candles separados por ano.
+- `data/yearly/<ano>/heikin_ashi/<intervalo>/<ticker>_<intervalo>.csv`: Heikin Ashi separado por ano.
 - `data/corporate_actions/<ticker>_actions.csv`: dividendos e splits vindos da fonte.
 - `reports/summary_<strategy>_1d.csv`: resumo por ticker.
+- `reports/summary_<strategy>_<price_mode>_<signal_mode>_<intervalo>_by_year.csv`: resumo de backtest ano a ano.
+- `reports/yearly_data_status.csv`: inventario dos arquivos anuais.
 - `reports/<ticker>_<strategy>_1d_equity.csv`: curva da estrategia e do buy and hold.
 - `reports/sweep_<strategy>_1d.csv`: ranking de parametros testados.
 - `reports/train_test_<strategy>_<objective>_1d.csv`: melhores parametros no treino e resultado no teste.

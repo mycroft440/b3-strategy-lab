@@ -2,10 +2,23 @@ from __future__ import annotations
 
 import unittest
 
-from b3_strategy_lab.candles import parse_yahoo_actions, parse_yahoo_chart, resample_to_4h, validate_candles
+from b3_strategy_lab.candles import Candle, parse_yahoo_actions, parse_yahoo_chart, resample_to_4h, split_candles_by_year, validate_candles
 
 
 class CandleParsingTests(unittest.TestCase):
+    def test_splits_candles_by_calendar_year(self) -> None:
+        candles = [
+            Candle("2023-12-29", "TEST3", "TEST3.SA", 10.0, 10.0, 10.0, 10.0, 10.0, 100, 10.0, 10.0, 10.0, 10.0, 1.0),
+            Candle("2024-01-02", "TEST3", "TEST3.SA", 11.0, 11.0, 11.0, 11.0, 11.0, 100, 11.0, 11.0, 11.0, 11.0, 1.0),
+            Candle("2024-01-02 14:00:00", "TEST3", "TEST3.SA", 12.0, 12.0, 12.0, 12.0, 12.0, 100, 12.0, 12.0, 12.0, 12.0, 1.0),
+        ]
+
+        by_year = split_candles_by_year(candles)
+
+        self.assertEqual(list(by_year), [2023, 2024])
+        self.assertEqual(len(by_year[2023]), 1)
+        self.assertEqual(len(by_year[2024]), 2)
+
     def test_repairs_impossible_high_low_and_keeps_source_values(self) -> None:
         payload = {
             "chart": {

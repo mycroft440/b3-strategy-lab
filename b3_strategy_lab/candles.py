@@ -29,6 +29,7 @@ DEFAULT_TICKERS = (
 SUPPORTED_INTERVALS = {"1d", "4h", "1wk", "1mo"}
 DEFAULT_DATA_DIR = Path("data/candles")
 DEFAULT_ACTIONS_DIR = Path("data/corporate_actions")
+DEFAULT_YEARLY_DATA_DIR = Path("data/yearly")
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 USER_AGENT = "Mozilla/5.0 (compatible; b3-strategy-lab/0.1)"
 
@@ -86,6 +87,27 @@ def cache_path(ticker: str, interval: str = "1d", data_dir: Path | str = DEFAULT
 
 def actions_path(ticker: str, data_dir: Path | str = DEFAULT_ACTIONS_DIR) -> Path:
     return Path(data_dir) / f"{normalize_ticker(ticker).lower()}_actions.csv"
+
+
+def yearly_cache_path(
+    ticker: str,
+    interval: str,
+    year: int | str,
+    chart_type: str = "candles",
+    data_dir: Path | str = DEFAULT_YEARLY_DATA_DIR,
+) -> Path:
+    return Path(data_dir) / str(year) / chart_type / interval / f"{normalize_ticker(ticker).lower()}_{interval}.csv"
+
+
+def candle_year(candle: Candle) -> int:
+    return int(_date_part(candle.date)[:4])
+
+
+def split_candles_by_year(candles: Iterable[Candle]) -> dict[int, list[Candle]]:
+    by_year: dict[int, list[Candle]] = {}
+    for candle in candles:
+        by_year.setdefault(candle_year(candle), []).append(candle)
+    return {year: by_year[year] for year in sorted(by_year)}
 
 
 def fetch_candles(

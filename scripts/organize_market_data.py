@@ -10,7 +10,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from b3_strategy_lab.candles import Candle, actions_path, load_actions, load_candles, save_candles, validate_candles
+from b3_strategy_lab.candles import (
+    DEFAULT_YEARLY_DATA_DIR,
+    Candle,
+    actions_path,
+    load_actions,
+    load_candles,
+    save_candles,
+    split_candles_by_year,
+    validate_candles,
+    yearly_cache_path,
+)
 
 
 INTERVAL_LABELS = {"4h": "4h", "1d": "1d", "1wk": "1sem"}
@@ -23,22 +33,31 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Organiza inventario de dados e gera Heikin Ashi derivado.")
     parser.add_argument("--candles-dir", default=str(DEFAULT_CANDLES_DIR))
     parser.add_argument("--heikin-ashi-dir", default=str(DEFAULT_HEIKIN_ASHI_DIR))
+    parser.add_argument("--yearly-dir", default=str(DEFAULT_YEARLY_DATA_DIR))
     parser.add_argument("--reports-dir", default=str(DEFAULT_REPORTS_DIR))
     args = parser.parse_args(argv)
 
     candles_dir = Path(args.candles_dir)
     heikin_ashi_dir = Path(args.heikin_ashi_dir)
+    yearly_dir = Path(args.yearly_dir)
     reports_dir = Path(args.reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     generated = generate_heikin_ashi_files(candles_dir, heikin_ashi_dir)
+    yearly_generated = generate_yearly_files(candles_dir, heikin_ashi_dir, yearly_dir)
     inventory = build_inventory(candles_dir, heikin_ashi_dir)
+    yearly_inventory = build_yearly_inventory(yearly_dir)
     write_inventory_csv(inventory, reports_dir / "data_status.csv")
     write_inventory_markdown(inventory, reports_dir / "data_status.md")
+    write_yearly_inventory_csv(yearly_inventory, reports_dir / "yearly_data_status.csv")
+    write_yearly_inventory_markdown(yearly_inventory, reports_dir / "yearly_data_status.md")
 
     print(f"Heikin Ashi gerado: {generated} arquivos em {heikin_ashi_dir}")
+    print(f"Arquivos anuais gerados: {yearly_generated} arquivos em {yearly_dir}")
     print(f"Inventario CSV: {reports_dir / 'data_status.csv'}")
     print(f"Inventario Markdown: {reports_dir / 'data_status.md'}")
+    print(f"Inventario anual CSV: {reports_dir / 'yearly_data_status.csv'}")
+    print(f"Inventario anual Markdown: {reports_dir / 'yearly_data_status.md'}")
     return 0
 
 
@@ -51,6 +70,18 @@ def generate_heikin_ashi_files(candles_dir: Path, output_dir: Path) -> int:
         output = output_dir / path.name
         save_candles(to_heikin_ashi(candles), output)
         count += 1
+    return count
+
+
+def generate_yearly_files(candles_dir: Path, heikin_ashi_dir: Path, output_dir: Path) -> int:
+    count = 0
+    for chart_type, directory in (("candles", candles_dir), ("heikin_ashi", heikin_ashi_dir)):
+        for path in sorted(directory.glob("*.csv")):
+            ticker, interval = _ticker_interval_from_path(path)
+            for year, candles in split_candles_by_year(load_candles(path)).items():
+                output = yearly_cache_path(ticker, interval, year, chart_type, output_dir)
+                save_candles(candles, output)
+                count += 1
     return count
 
 
@@ -92,6 +123,11 @@ def to_heikin_ashi(candles: list[Candle]) -> list[Candle]:
         previous_close = ha_close
 
     return result
+
+
+def _ticker_interval_from_path(path: Path) -> tuple[str, str]:
+    ticker, interval = path.stem.rsplit("_", 1)
+    return ticker.upper(), interval
 
 
 def build_inventory(candles_dir: Path, heikin_ashi_dir: Path) -> list[dict[str, str]]:
@@ -140,6 +176,36 @@ def _inventory_row(ticker: str, chart_type: str, interval: str, path: Path, acti
     }
 
 
+def build_yearly_inventory(yearly_dir: Path) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for path in sorted(yearly_dir.glob("*/*/*/*.csv")):
+        year, chart_type, interval = path.parts[-4:-1]
+        ticker, _path_interval = _ticker_interval_from_path(path)
+        rows.append(_yearly_inventory_row(year, ticker, chart_type, interval, path))
+    return rows
+
+
+def _yearly_inventory_row(year: str, ticker: str, chart_type: str, interval: str, path: Path) -> dict[str, str]:
+    candles = load_candles(path)
+    issues = validate_candles(candles)
+    if len(candles) < 2:
+        issues = [*issues, "menos de 2 candles para backtest"]
+    ready = len(candles) >= 2 and not issues
+    return {
+        "year": year,
+        "ticker": ticker,
+        "chart_type": chart_type,
+        "interval": INTERVAL_LABELS.get(interval, interval),
+        "status": "ok" if ready else "revisar",
+        "ready_for_backtest": "sim" if ready else "nao",
+        "rows": str(len(candles)),
+        "start": candles[0].date if candles else "",
+        "end": candles[-1].date if candles else "",
+        "file": str(path),
+        "issues": "; ".join(issues[:5]),
+    }
+
+
 def write_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
     fields = [
         "ticker",
@@ -151,6 +217,26 @@ def write_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
         "start",
         "end",
         "corporate_actions",
+        "file",
+        "issues",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
+
+
+def write_yearly_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
+    fields = [
+        "year",
+        "ticker",
+        "chart_type",
+        "interval",
+        "status",
+        "ready_for_backtest",
+        "rows",
+        "start",
+        "end",
         "file",
         "issues",
     ]
@@ -191,6 +277,24 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
         lines.append("")
         lines.append(f"Eventos corporativos baixados: {actions}")
         lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_yearly_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
+    lines = [
+        "# Inventario anual de dados",
+        "",
+        "Arquivos gerados a partir dos historicos completos em `data/candles` e `data/heikin_ashi`.",
+        "",
+        "| Ano | Ticker | Grafico | Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |",
+        "|---:|---|---|---|---|---|---:|---|---|---|",
+    ]
+    for row in sorted(rows, key=lambda item: (item["year"], item["ticker"], item["chart_type"], item["interval"])):
+        lines.append(
+            f"| {row['year']} | {row['ticker']} | {row['chart_type']} | {row['interval']} | "
+            f"{row['status']} | {row['ready_for_backtest']} | {row['rows']} | "
+            f"{row['start']} | {row['end']} | `{row['file']}` |"
+        )
     path.write_text("\n".join(lines), encoding="utf-8")
 
 

@@ -15,6 +15,7 @@ from .candles import (
     fetch_and_cache,
     load_actions,
     load_candles,
+    split_candles_by_year,
     validate_candles,
 )
 from .strategies import available_strategies, build_signals
@@ -89,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     list_parser.set_defaults(command="list-strategies")
 
     backtest_parser = subparsers.add_parser("backtest", help="Roda uma estrategia contra buy and hold por ativo.")
-    _add_common_data_args(backtest_parser)
+    _add_common_data_args(backtest_parser, include_yearly=True)
     backtest_parser.add_argument("--strategy", default="sma_cross", choices=available_strategies())
     backtest_parser.add_argument("--initial-cash", type=float, default=10_000.0)
     backtest_parser.add_argument("--cost-bps", type=float, default=0.0, help="Custo por ordem em basis points. 10 bps = 0,10 por cento.")
@@ -126,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     backtest_parser.add_argument("--streak-length", type=int, default=3, help="Sequencia minima de fechamentos negativos.")
 
     sweep_parser = subparsers.add_parser("sweep", help="Varre parametros por ativo contra buy and hold.")
-    _add_common_data_args(sweep_parser)
+    _add_common_data_args(sweep_parser, include_yearly=True)
     sweep_parser.add_argument(
         "--strategy",
         default="sma_cross",
@@ -168,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     sweep_parser.add_argument("--top", type=int, default=5, help="Quantidade de resultados exibidos por ticker.")
 
     train_test_parser = subparsers.add_parser("train-test", help="Escolhe parametros no treino e avalia no periodo futuro.")
-    _add_common_data_args(train_test_parser)
+    _add_common_data_args(train_test_parser, include_yearly=True)
     train_test_parser.add_argument("--strategy", default="sma_cross", choices=SWEEP_STRATEGIES)
     train_test_parser.add_argument("--initial-cash", type=float, default=10_000.0)
     train_test_parser.add_argument("--cost-bps", type=float, default=0.0)
@@ -201,13 +202,16 @@ def main(argv: list[str] | None = None) -> int:
     return 2
 
 
-def _add_common_data_args(parser: argparse.ArgumentParser) -> None:
+def _add_common_data_args(parser: argparse.ArgumentParser, *, include_yearly: bool = False) -> None:
     parser.add_argument("--tickers", nargs="+", default=list(DEFAULT_TICKERS), help="Tickers B3 sem .SA.")
     parser.add_argument("--interval", default="1d", choices=["1d", "4h", "1wk", "1mo"], help="Intervalo dos candles.")
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR), help="Diretorio de cache dos candles.")
     parser.add_argument("--actions-dir", default=str(DEFAULT_ACTIONS_DIR), help="Diretorio de cache de dividendos e splits.")
     parser.add_argument("--start", default=None, help="Data inicial YYYY-MM-DD.")
     parser.add_argument("--end", default=None, help="Data final YYYY-MM-DD.")
+    if include_yearly:
+        parser.add_argument("--by-year", action="store_true", help="Executa cada ano como um backtest independente.")
+        parser.add_argument("--years", nargs="+", type=int, default=None, help="Filtra anos especificos, exemplo: --years 2024 2025.")
 
 
 def _add_sweep_grid_args(parser: argparse.ArgumentParser) -> None:
@@ -254,6 +258,9 @@ def _fetch_command(args: argparse.Namespace) -> int:
 
 
 def _backtest_command(args: argparse.Namespace) -> int:
+    if args.by_year:
+        return _backtest_by_year_command(args)
+
     summaries = []
     reports_dir = Path(args.reports_dir)
 
@@ -287,6 +294,9 @@ def _backtest_command(args: argparse.Namespace) -> int:
 
 
 def _sweep_command(args: argparse.Namespace) -> int:
+    if args.by_year:
+        return _sweep_by_year_command(args)
+
     rows: list[dict] = []
     reports_dir = Path(args.reports_dir)
 
@@ -320,6 +330,9 @@ def _sweep_command(args: argparse.Namespace) -> int:
 
 
 def _train_test_command(args: argparse.Namespace) -> int:
+    if args.by_year:
+        return _train_test_by_year_command(args)
+
     rows: list[dict] = []
     reports_dir = Path(args.reports_dir)
 
@@ -329,6 +342,8 @@ def _train_test_command(args: argparse.Namespace) -> int:
         split_index = _split_index(candles, args.train_ratio)
         train_candles = candles[:split_index]
         test_candles = candles[split_index:]
+        train_actions = _actions_for_candles(actions, train_candles)
+        test_actions = _actions_for_candles(actions, test_candles)
         train_signal_candles = _signal_candles(train_candles, args.signal_mode)
         full_signal_candles = _signal_candles(candles, args.signal_mode)
         best_train: tuple[Summary, dict] | None = None
@@ -345,7 +360,7 @@ def _train_test_command(args: argparse.Namespace) -> int:
                 slippage_bps=args.slippage_bps,
                 lot_size=args.lot_size,
                 price_mode=args.price_mode,
-                actions=actions,
+                actions=train_actions,
             )
             if best_train is None or _objective_value(summary, args.objective) > _objective_value(best_train[0], args.objective):
                 best_train = (summary, params)
@@ -366,7 +381,7 @@ def _train_test_command(args: argparse.Namespace) -> int:
             slippage_bps=args.slippage_bps,
             lot_size=args.lot_size,
             price_mode=args.price_mode,
-            actions=actions,
+            actions=test_actions,
         )
         curve_path = reports_dir / f"{ticker.lower()}_{args.strategy}_{args.objective}_{args.price_mode}_{args.signal_mode}_{args.interval}_train_test_equity.csv"
         write_comparison_curve(strategy_curve, benchmark_curve, curve_path)
@@ -376,6 +391,153 @@ def _train_test_command(args: argparse.Namespace) -> int:
     _write_train_test_csv(rows, output)
     _print_train_test_table(rows)
     print(f"\nTreino-teste salvo em: {output}")
+    return 0
+
+
+def _backtest_by_year_command(args: argparse.Namespace) -> int:
+    rows: list[dict] = []
+    reports_dir = Path(args.reports_dir)
+
+    for ticker in args.tickers:
+        full_candles = _load_or_fetch_for_backtest(ticker, args)
+        actions = _load_actions_for_backtest(ticker, args)
+        for year, candles in _iter_yearly_candle_windows(full_candles, args):
+            signal_candles = _signal_candles(candles, args.signal_mode)
+            signals = build_signals(args.strategy, signal_candles, **_strategy_params_from_args(args))
+            summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
+                ticker.upper(),
+                args.strategy,
+                candles,
+                signals,
+                initial_cash=args.initial_cash,
+                cost_bps=args.cost_bps,
+                slippage_bps=args.slippage_bps,
+                lot_size=args.lot_size,
+                price_mode=args.price_mode,
+                actions=_actions_for_year(actions, year),
+            )
+            rows.append({"year": year, **asdict(summary)})
+            curve_path = (
+                reports_dir
+                / "yearly"
+                / str(year)
+                / f"{ticker.lower()}_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}_{year}_equity.csv"
+            )
+            write_comparison_curve(strategy_curve, benchmark_curve, curve_path)
+
+    output = reports_dir / f"summary_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}_by_year.csv"
+    _write_yearly_summary_csv(rows, output)
+    _print_yearly_summary_table(rows)
+    print(f"\nResumo anual salvo em: {output}")
+    print(f"Curvas anuais salvas em: {reports_dir / 'yearly'}")
+    return 0
+
+
+def _sweep_by_year_command(args: argparse.Namespace) -> int:
+    rows: list[dict] = []
+    reports_dir = Path(args.reports_dir)
+
+    for ticker in args.tickers:
+        full_candles = _load_or_fetch_for_backtest(ticker, args)
+        actions = _load_actions_for_backtest(ticker, args)
+        for year, candles in _iter_yearly_candle_windows(full_candles, args):
+            signal_candles = _signal_candles(candles, args.signal_mode)
+            year_actions = _actions_for_year(actions, year)
+            for params in _parameter_grid(args):
+                signals = build_signals(args.strategy, signal_candles, **params)
+                summary, _, _ = run_strategy_vs_buy_hold(
+                    ticker.upper(),
+                    args.strategy,
+                    candles,
+                    signals,
+                    initial_cash=args.initial_cash,
+                    cost_bps=args.cost_bps,
+                    slippage_bps=args.slippage_bps,
+                    lot_size=args.lot_size,
+                    price_mode=args.price_mode,
+                    actions=year_actions,
+                )
+                rows.append(_summary_row(summary, params, year=year))
+
+    rows.sort(key=lambda row: (row["ticker"], int(row["year"]), -float(row["excess_total_return"])))
+    output = reports_dir / f"sweep_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}_by_year.csv"
+    _write_sweep_csv(rows, output)
+    _print_sweep_table(rows, args.top)
+    print(f"\nVarredura anual salva em: {output}")
+    return 0
+
+
+def _train_test_by_year_command(args: argparse.Namespace) -> int:
+    rows: list[dict] = []
+    reports_dir = Path(args.reports_dir)
+
+    for ticker in args.tickers:
+        full_candles = _load_or_fetch_for_backtest(ticker, args)
+        actions = _load_actions_for_backtest(ticker, args)
+        for year, candles in _iter_yearly_candle_windows(full_candles, args):
+            try:
+                split_index = _split_index(candles, args.train_ratio)
+            except ValueError as error:
+                print(f"Aviso: {ticker.upper()} {year} ignorado no treino-teste: {error}")
+                continue
+
+            year_actions = _actions_for_year(actions, year)
+            train_candles = candles[:split_index]
+            test_candles = candles[split_index:]
+            train_actions = _actions_for_candles(year_actions, train_candles)
+            test_actions = _actions_for_candles(year_actions, test_candles)
+            train_signal_candles = _signal_candles(train_candles, args.signal_mode)
+            full_signal_candles = _signal_candles(candles, args.signal_mode)
+            best_train: tuple[Summary, dict] | None = None
+
+            for params in _parameter_grid(args):
+                signals = build_signals(args.strategy, train_signal_candles, **params)
+                summary, _, _ = run_strategy_vs_buy_hold(
+                    ticker.upper(),
+                    args.strategy,
+                    train_candles,
+                    signals,
+                    initial_cash=args.initial_cash,
+                    cost_bps=args.cost_bps,
+                    slippage_bps=args.slippage_bps,
+                    lot_size=args.lot_size,
+                    price_mode=args.price_mode,
+                    actions=train_actions,
+                )
+                if best_train is None or _objective_value(summary, args.objective) > _objective_value(best_train[0], args.objective):
+                    best_train = (summary, params)
+
+            if best_train is None:
+                continue
+
+            train_summary, best_params = best_train
+            full_signals = build_signals(args.strategy, full_signal_candles, **best_params)
+            test_signals = full_signals[split_index:]
+            test_summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
+                ticker.upper(),
+                args.strategy,
+                test_candles,
+                test_signals,
+                initial_cash=args.initial_cash,
+                cost_bps=args.cost_bps,
+                slippage_bps=args.slippage_bps,
+                lot_size=args.lot_size,
+                price_mode=args.price_mode,
+                actions=test_actions,
+            )
+            curve_path = (
+                reports_dir
+                / "yearly"
+                / str(year)
+                / f"{ticker.lower()}_{args.strategy}_{args.objective}_{args.price_mode}_{args.signal_mode}_{args.interval}_{year}_train_test_equity.csv"
+            )
+            write_comparison_curve(strategy_curve, benchmark_curve, curve_path)
+            rows.append(_train_test_row(train_summary, test_summary, best_params, args.objective, year=year))
+
+    output = reports_dir / f"train_test_{args.strategy}_{args.objective}_{args.price_mode}_{args.signal_mode}_{args.interval}_by_year.csv"
+    _write_train_test_csv(rows, output)
+    _print_train_test_table(rows)
+    print(f"\nTreino-teste anual salvo em: {output}")
     return 0
 
 
@@ -413,6 +575,35 @@ def _load_actions_for_backtest(ticker: str, args: argparse.Namespace):
         )
         return actions
     return load_actions(path, start=args.start, end=args.end)
+
+
+def _iter_yearly_candle_windows(candles, args: argparse.Namespace):
+    selected_years = set(args.years or [])
+    grouped = split_candles_by_year(candles)
+    missing_years = sorted(selected_years.difference(grouped))
+    for year in missing_years:
+        print(f"Aviso: ano {year} nao encontrado nos candles carregados.")
+
+    for year, year_candles in grouped.items():
+        if selected_years and year not in selected_years:
+            continue
+        if len(year_candles) < 2:
+            ticker = year_candles[0].ticker if year_candles else "ticker"
+            print(f"Aviso: {ticker} {year} ignorado: menos de 2 candles para backtest.")
+            continue
+        yield year, year_candles
+
+
+def _actions_for_year(actions, year: int):
+    return [action for action in actions if int(action.date[:4]) == year]
+
+
+def _actions_for_candles(actions, candles):
+    if not candles:
+        return []
+    start = _date_part(candles[0].date)
+    end = _date_part(candles[-1].date)
+    return [action for action in actions if start <= action.date <= end]
 
 
 def _signal_candles(candles, signal_mode: str):
@@ -707,14 +898,23 @@ def _parameter_grid(args: argparse.Namespace):
         raise ValueError(f"Estrategia sem varredura configurada: {args.strategy}")
 
 
-def _summary_row(summary: Summary, params: dict) -> dict:
+def _summary_row(summary: Summary, params: dict, *, year: int | None = None) -> dict:
     row = asdict(summary)
+    if year is not None:
+        row["year"] = year
     for field in PARAM_FIELDS:
         row[field] = params.get(field, "")
     return row
 
 
-def _train_test_row(train_summary: Summary, test_summary: Summary, params: dict, objective: str) -> dict:
+def _train_test_row(
+    train_summary: Summary,
+    test_summary: Summary,
+    params: dict,
+    objective: str,
+    *,
+    year: int | None = None,
+) -> dict:
     row = {
         "ticker": test_summary.ticker,
         "strategy": test_summary.strategy,
@@ -737,6 +937,8 @@ def _train_test_row(train_summary: Summary, test_summary: Summary, params: dict,
         "test_trades": test_summary.trades,
         "test_exposure": test_summary.exposure,
     }
+    if year is not None:
+        row["year"] = year
     for field in PARAM_FIELDS:
         row[field] = params.get(field, "")
     return row
@@ -745,7 +947,8 @@ def _train_test_row(train_summary: Summary, test_summary: Summary, params: dict,
 def _write_sweep_csv(rows: list[dict], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     summary_fields = [field for field in Summary.__dataclass_fields__ if field not in {"ticker", "strategy"}]
-    fields = ["ticker", "strategy", *PARAM_FIELDS, *summary_fields]
+    prefix_fields = ["year"] if any("year" in row for row in rows) else []
+    fields = [*prefix_fields, "ticker", "strategy", *PARAM_FIELDS, *summary_fields]
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fields)
         writer.writeheader()
@@ -754,9 +957,22 @@ def _write_sweep_csv(rows: list[dict], path: Path) -> Path:
     return path
 
 
+def _write_yearly_summary_csv(rows: list[dict], path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fields = ["year", *Summary.__dataclass_fields__]
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field, "") for field in fields})
+    return path
+
+
 def _write_train_test_csv(rows: list[dict], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
+    prefix_fields = ["year"] if any("year" in row for row in rows) else []
     fields = [
+        *prefix_fields,
         "ticker",
         "strategy",
         "objective",
@@ -803,11 +1019,13 @@ def _print_train_test_table(rows: list[dict]) -> None:
         print("Nenhum resultado gerado.")
         return
 
-    headers = ["Ticker", "Params", "Treino", "Treino B&H", "Teste", "Teste B&H", "Excesso", "MDD", "Trades"]
+    has_year = any("year" in row for row in rows)
+    headers = [*(["Ano"] if has_year else []), "Ticker", "Params", "Treino", "Treino B&H", "Teste", "Teste B&H", "Excesso", "MDD", "Trades"]
     table_rows = []
     for row in rows:
         table_rows.append(
             [
+                *([str(row["year"])] if has_year else []),
                 row["ticker"],
                 _params_label(row),
                 _pct(float(row["train_total_return"])),
@@ -827,13 +1045,16 @@ def _print_sweep_table(rows: list[dict], top: int) -> None:
         print("Nenhum resultado gerado.")
         return
 
-    headers = ["Ticker", "Params", "Ret", "B&H", "Excesso", "MDD", "Trades", "Expos."]
+    has_year = any("year" in row for row in rows)
+    headers = [*(["Ano"] if has_year else []), "Ticker", "Params", "Ret", "B&H", "Excesso", "MDD", "Trades", "Expos."]
     table_rows = []
-    for ticker in sorted({row["ticker"] for row in rows}):
-        ticker_rows = [row for row in rows if row["ticker"] == ticker]
-        for row in ticker_rows[:top]:
+    groups = sorted({(row.get("year", ""), row["ticker"]) for row in rows})
+    for year, ticker in groups:
+        ticker_rows = [row for row in rows if row["ticker"] == ticker and row.get("year", "") == year]
+        for row in sorted(ticker_rows, key=lambda item: -float(item["excess_total_return"]))[:top]:
             table_rows.append(
                 [
+                    *([str(row["year"])] if has_year else []),
                     row["ticker"],
                     _params_label(row),
                     _pct(float(row["total_return"])),
@@ -868,6 +1089,31 @@ def _print_summary_table(summaries) -> None:
     _print_table(headers, rows)
 
 
+def _print_yearly_summary_table(rows: list[dict]) -> None:
+    if not rows:
+        print("Nenhum resultado gerado.")
+        return
+
+    headers = ["Ano", "Ticker", "Ret", "B&H", "Excesso", "CAGR", "MDD", "Trades", "Expos."]
+    table_rows = []
+    for row in sorted(rows, key=lambda item: (int(item["year"]), item["ticker"])):
+        table_rows.append(
+            [
+                str(row["year"]),
+                row["ticker"],
+                _pct(float(row["total_return"])),
+                _pct(float(row["benchmark_total_return"])),
+                _pct(float(row["excess_total_return"])),
+                _pct(float(row["cagr"])),
+                _pct(float(row["max_drawdown"])),
+                str(row["trades"]),
+                _pct(float(row["exposure"])),
+            ]
+        )
+
+    _print_table(headers, table_rows)
+
+
 def _print_table(headers: list[str], rows: list[list[str]]) -> None:
     widths = [len(header) for header in headers]
     for row in rows:
@@ -886,6 +1132,10 @@ def _params_label(row: dict) -> str:
         if value not in ("", None):
             parts.append(f"{key}={value}")
     return ",".join(parts) if parts else "-"
+
+
+def _date_part(value: str) -> str:
+    return value.split("T", 1)[0].split(" ", 1)[0]
 
 
 def _split_index(candles, train_ratio: float) -> int:
