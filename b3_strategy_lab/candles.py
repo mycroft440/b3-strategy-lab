@@ -12,7 +12,20 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
-DEFAULT_TICKERS = ("BBSE3", "VALE3", "GGBR3", "LOGG3", "PETR4", "TUPY3", "MLAS3")
+DEFAULT_TICKERS = (
+    "BBSE3",
+    "BBDC3",
+    "CSMG3",
+    "FLRY3",
+    "GGBR3",
+    "IRBR3",
+    "JHSF3",
+    "LOGG3",
+    "MLAS3",
+    "PETR4",
+    "TUPY3",
+    "VALE3",
+)
 SUPPORTED_INTERVALS = {"1d", "4h", "1wk", "1mo"}
 DEFAULT_DATA_DIR = Path("data/candles")
 DEFAULT_ACTIONS_DIR = Path("data/corporate_actions")
@@ -111,7 +124,7 @@ def fetch_candles_and_actions(
 
     symbol = yahoo_symbol(ticker)
     yahoo_interval = "60m" if interval == "4h" else interval
-    effective_range = "730d" if interval == "4h" and range_name == "max" and not start and not end else range_name
+    effective_range = "2y" if interval == "4h" and range_name == "max" and not start and not end else range_name
     params = _chart_params(range_name=effective_range, interval=yahoo_interval, start=start, end=end)
     url = f"{YAHOO_CHART_URL.format(symbol=symbol)}?{urlencode(params)}"
     payload = _download_json(url)
@@ -227,11 +240,10 @@ def resample_to_4h(candles: list[Candle]) -> list[Candle]:
     result: list[Candle] = []
     for day in sorted(grouped):
         day_candles = sorted(grouped[day], key=lambda candle: candle.date)
-        if len(day_candles) < 8:
+        if len(day_candles) < 7:
             continue
-        for start in range(0, len(day_candles), 4):
-            bucket = day_candles[start : start + 4]
-            if len(bucket) < 4:
+        for bucket in (day_candles[:4], day_candles[4:]):
+            if len(bucket) < 3:
                 continue
             first = bucket[0]
             last = bucket[-1]

@@ -1,6 +1,6 @@
 # B3 Strategy Lab
 
-Base simples para baixar candles de BBSE3, VALE3, GGBR3, LOGG3, PETR4, TUPY3 e MLAS3 e testar estrategias
+Base simples para baixar candles de BBSE3, BBDC3, CSMG3, FLRY3, GGBR3, IRBR3, JHSF3, LOGG3, MLAS3, PETR4, TUPY3 e VALE3 e testar estrategias
 sempre em modo single-asset. Cada ticker e tratado como um backtest independente: a
 estrategia fica comprada ou em caixa naquele ativo, sem realocar capital entre papeis.
 

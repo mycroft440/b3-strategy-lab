@@ -146,6 +146,51 @@ class CandleParsingTests(unittest.TestCase):
         self.assertEqual(candles[1].raw_close, 17.5)
         self.assertEqual(candles[1].volume, 2600)
 
+    def test_resamples_b3_seven_hour_session_to_two_buckets(self) -> None:
+        payload = {
+            "chart": {
+                "result": [
+                    {
+                        "meta": {"exchangeTimezoneName": "America/Sao_Paulo"},
+                        "timestamp": [
+                            1704196800,
+                            1704200400,
+                            1704204000,
+                            1704207600,
+                            1704211200,
+                            1704214800,
+                            1704218400,
+                        ],
+                        "indicators": {
+                            "quote": [
+                                {
+                                    "open": [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0],
+                                    "high": [11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0],
+                                    "low": [9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0],
+                                    "close": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5],
+                                    "volume": [100, 200, 300, 400, 500, 600, 700],
+                                }
+                            ],
+                            "adjclose": [{"adjclose": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5]}],
+                        },
+                    }
+                ],
+                "error": None,
+            }
+        }
+
+        candles = resample_to_4h(parse_yahoo_chart(payload, "TEST3", "TEST3.SA", include_time=True))
+
+        self.assertEqual(len(candles), 2)
+        self.assertEqual(candles[0].raw_open, 10.0)
+        self.assertEqual(candles[0].raw_close, 13.5)
+        self.assertEqual(candles[0].volume, 1000)
+        self.assertEqual(candles[1].raw_open, 14.0)
+        self.assertEqual(candles[1].raw_high, 17.0)
+        self.assertEqual(candles[1].raw_low, 13.0)
+        self.assertEqual(candles[1].raw_close, 16.5)
+        self.assertEqual(candles[1].volume, 1800)
+
     def test_resample_skips_incomplete_intraday_day(self) -> None:
         payload = {
             "chart": {

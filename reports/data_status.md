@@ -4,6 +4,26 @@ Status gerado a partir de `data/candles`, `data/heikin_ashi` e `data/corporate_a
 
 Observacao: `VALE4` nao existe nos dados atuais; o ticker disponivel e `VALE3`.
 
+## BBDC3
+
+### Grafico de candles
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\candles\bbdc3_4h.csv` |
+| 1d | ok | sim | 6541 | 2000-01-03 | 2026-07-21 | `data\candles\bbdc3_1d.csv` |
+| 1sem | ok | sim | 1384 | 2000-01-03 | 2026-07-20 | `data\candles\bbdc3_1wk.csv` |
+
+### Grafico Heikin Ashi
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\heikin_ashi\bbdc3_4h.csv` |
+| 1d | ok | sim | 6541 | 2000-01-03 | 2026-07-21 | `data\heikin_ashi\bbdc3_1d.csv` |
+| 1sem | ok | sim | 1384 | 2000-01-03 | 2026-07-20 | `data\heikin_ashi\bbdc3_1wk.csv` |
+
+Eventos corporativos baixados: 282
+
 ## BBSE3
 
 ### Grafico de candles
@@ -24,6 +44,46 @@ Observacao: `VALE4` nao existe nos dados atuais; o ticker disponivel e `VALE3`.
 
 Eventos corporativos baixados: 28
 
+## CSMG3
+
+### Grafico de candles
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 986 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\candles\csmg3_4h.csv` |
+| 1d | ok | sim | 5053 | 2006-02-08 | 2026-07-21 | `data\candles\csmg3_1d.csv` |
+| 1sem | ok | sim | 1068 | 2006-02-06 | 2026-07-20 | `data\candles\csmg3_1wk.csv` |
+
+### Grafico Heikin Ashi
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 986 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\heikin_ashi\csmg3_4h.csv` |
+| 1d | ok | sim | 5053 | 2006-02-08 | 2026-07-21 | `data\heikin_ashi\csmg3_1d.csv` |
+| 1sem | ok | sim | 1068 | 2006-02-06 | 2026-07-20 | `data\heikin_ashi\csmg3_1wk.csv` |
+
+Eventos corporativos baixados: 68
+
+## FLRY3
+
+### Grafico de candles
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\candles\flry3_4h.csv` |
+| 1d | ok | sim | 4078 | 2009-12-17 | 2026-07-21 | `data\candles\flry3_1d.csv` |
+| 1sem | ok | sim | 867 | 2009-12-14 | 2026-07-20 | `data\candles\flry3_1wk.csv` |
+
+### Grafico Heikin Ashi
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\heikin_ashi\flry3_4h.csv` |
+| 1d | ok | sim | 4078 | 2009-12-17 | 2026-07-21 | `data\heikin_ashi\flry3_1d.csv` |
+| 1sem | ok | sim | 867 | 2009-12-14 | 2026-07-20 | `data\heikin_ashi\flry3_1wk.csv` |
+
+Eventos corporativos baixados: 42
+
 ## GGBR3
 
 ### Grafico de candles
@@ -43,6 +103,46 @@ Eventos corporativos baixados: 28
 | 1sem | ok | sim | 1316 | 2000-05-15 | 2026-07-13 | `data\heikin_ashi\ggbr3_1wk.csv` |
 
 Eventos corporativos baixados: 73
+
+## IRBR3
+
+### Grafico de candles
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\candles\irbr3_4h.csv` |
+| 1d | ok | sim | 2225 | 2017-07-31 | 2026-07-21 | `data\candles\irbr3_1d.csv` |
+| 1sem | ok | sim | 469 | 2017-07-31 | 2026-07-20 | `data\candles\irbr3_1wk.csv` |
+
+### Grafico Heikin Ashi
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\heikin_ashi\irbr3_4h.csv` |
+| 1d | ok | sim | 2225 | 2017-07-31 | 2026-07-21 | `data\heikin_ashi\irbr3_1d.csv` |
+| 1sem | ok | sim | 469 | 2017-07-31 | 2026-07-20 | `data\heikin_ashi\irbr3_1wk.csv` |
+
+Eventos corporativos baixados: 12
+
+## JHSF3
+
+### Grafico de candles
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\candles\jhsf3_4h.csv` |
+| 1d | ok | sim | 4744 | 2007-04-12 | 2026-07-21 | `data\candles\jhsf3_1d.csv` |
+| 1sem | ok | sim | 1006 | 2007-04-09 | 2026-07-20 | `data\candles\jhsf3_1wk.csv` |
+
+### Grafico Heikin Ashi
+
+| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---|---|---|---:|---|---|---|
+| 4h | ok | sim | 990 | 2024-07-22 10:00:00 | 2026-07-21 14:00:00 | `data\heikin_ashi\jhsf3_4h.csv` |
+| 1d | ok | sim | 4744 | 2007-04-12 | 2026-07-21 | `data\heikin_ashi\jhsf3_1d.csv` |
+| 1sem | ok | sim | 1006 | 2007-04-09 | 2026-07-20 | `data\heikin_ashi\jhsf3_1wk.csv` |
+
+Eventos corporativos baixados: 59
 
 ## LOGG3
 
