@@ -1,0 +1,2 @@
+ticker,strategy,start,end,candles,trades,exposure,final_equity,total_return,cagr,max_drawdown,annual_volatility,sharpe,benchmark_final_equity,benchmark_total_return,benchmark_cagr,benchmark_max_drawdown,excess_total_return
+VALE3,sma_cross,2000-01-03,2026-07-17,6662,23,0.6088261783248273,613684.9251856063,60.368492518560636,0.16783103425194024,-0.48536553055865606,0.270695396786628,0.7091925369282017,565406.162225116,55.5406162225116,0.1642304901277869,-0.8408029096476701,4.827876296049034

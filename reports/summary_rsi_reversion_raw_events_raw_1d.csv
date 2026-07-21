@@ -1,0 +1,2 @@
+ticker,strategy,start,end,candles,trades,exposure,final_equity,total_return,cagr,max_drawdown,annual_volatility,sharpe,benchmark_final_equity,benchmark_total_return,benchmark_cagr,benchmark_max_drawdown,excess_total_return
+LOGG3,rsi_reversion,2018-12-21,2026-07-17,1881,17,0.8277511961722488,33718.7295278114,2.3718729527811404,0.1741688238476169,-0.5363068371776875,0.38843572071283067,0.6067261568005926,23939.800300655643,1.3939800300655643,0.12222755962907006,-0.6031642100266548,0.9778929227155762

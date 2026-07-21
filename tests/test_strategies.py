@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import unittest
+
+from b3_strategy_lab.candles import Candle
+from b3_strategy_lab.strategies import build_signals
+
+
+def candle(day: int, open_: float, high: float, low: float, close: float, volume: int = 1000) -> Candle:
+    return Candle(
+        date=f"2024-01-{day:02d}",
+        ticker="TEST3",
+        source_symbol="TEST3.SA",
+        open=open_,
+        high=high,
+        low=low,
+        close=close,
+        adj_close=close,
+        volume=volume,
+        raw_open=open_,
+        raw_high=high,
+        raw_low=low,
+        raw_close=close,
+        adjustment_factor=1.0,
+    )
+
+
+class StrategyInterfaceTests(unittest.TestCase):
+    def test_new_strategies_return_binary_signal_for_each_candle(self) -> None:
+        candles = [
+            candle(1, 10, 11, 9, 10),
+            candle(2, 10, 12, 9, 9.2),
+            candle(3, 9.3, 10, 8.8, 8.9),
+            candle(4, 9, 11, 8.9, 10.8),
+            candle(5, 10.9, 12, 10.8, 11.8),
+            candle(6, 11.9, 13, 11.6, 12.8),
+            candle(7, 12.7, 14, 12.5, 13.9),
+            candle(8, 13.8, 15, 13.7, 14.8),
+        ]
+        strategies = [
+            ("ibs_reversion", {"ibs_lower": 0.3, "ibs_upper": 0.7, "max_hold": 3, "trend_window": 0}),
+            (
+                "rsi_ibs_reversion",
+                {
+                    "rsi_period": 2,
+                    "lower": 30,
+                    "upper": 70,
+                    "ibs_lower": 0.4,
+                    "ibs_upper": 0.8,
+                    "trend_window": 0,
+                    "max_hold": 3,
+                },
+            ),
+            (
+                "rsi2_trend_reversion",
+                {"rsi_period": 2, "lower": 30, "upper": 70, "trend_window": 0, "sma_window": 3, "max_hold": 3},
+            ),
+            (
+                "down_streak_reversion",
+                {"streak_length": 2, "ibs_lower": 0.4, "ibs_upper": 0.8, "trend_window": 0, "max_hold": 3},
+            ),
+            (
+                "range_expansion_breakout",
+                {
+                    "range_mult": 0.5,
+                    "atr_period": 3,
+                    "atr_mult": 2,
+                    "trend_window": 0,
+                    "volume_window": 0,
+                    "volume_mult": 0,
+                    "max_hold": 3,
+                },
+            ),
+            (
+                "chandelier_breakout",
+                {"lookback": 3, "atr_period": 3, "atr_mult": 2, "volume_window": 0, "volume_mult": 0},
+            ),
+            ("supertrend_follow", {"atr_period": 3, "atr_mult": 2}),
+            (
+                "keltner_breakout",
+                {"window": 3, "atr_period": 3, "atr_mult": 1.5, "exit_z": 0, "trend_window": 0},
+            ),
+        ]
+
+        for strategy, params in strategies:
+            with self.subTest(strategy=strategy):
+                signals = build_signals(strategy, candles, **params)
+                self.assertEqual(len(signals), len(candles))
+                self.assertTrue(all(signal in (0, 1) for signal in signals))
+
+
+if __name__ == "__main__":
+    unittest.main()

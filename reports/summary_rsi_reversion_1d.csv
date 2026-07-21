@@ -1,0 +1,2 @@
+ticker,strategy,start,end,candles,trades,exposure,final_equity,total_return,cagr,max_drawdown,annual_volatility,sharpe,benchmark_final_equity,benchmark_total_return,benchmark_cagr,benchmark_max_drawdown,excess_total_return
+VALE3,rsi_reversion,2000-01-03,2026-07-17,6662,807,0.46577604323026117,256283.64071983428,24.628364071983427,0.13002658569687342,-0.5808077658590406,0.2793245119494417,0.575837983608745,565406.162225116,55.5406162225116,0.1642304901277869,-0.8408029096476701,-30.912252150528175

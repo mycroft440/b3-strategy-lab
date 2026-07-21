@@ -1,0 +1,10 @@
+[project]
+name = "b3-strategy-lab"
+version = "0.1.0"
+description = "Single-asset candle downloader and backtest lab for B3 stocks."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

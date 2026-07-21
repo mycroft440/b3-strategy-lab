@@ -1,0 +1,2 @@
+ticker,strategy,start,end,candles,trades,exposure,final_equity,total_return,cagr,max_drawdown,annual_volatility,sharpe,benchmark_final_equity,benchmark_total_return,benchmark_cagr,benchmark_max_drawdown,excess_total_return
+BBSE3,rsi_reversion_atr,2013-04-29,2026-07-17,3289,46,0.8954089388871997,61958.09775207765,5.195809775207765,0.14798594177552893,-0.4070744228248354,0.2511480074797754,0.6752499632652359,42637.929143617876,3.2637929143617876,0.11597761967687426,-0.3895333542530355,1.9320168608459776

@@ -1,0 +1,2 @@
+ticker,strategy,start,end,candles,trades,exposure,final_equity,total_return,cagr,max_drawdown,annual_volatility,sharpe,benchmark_final_equity,benchmark_total_return,benchmark_cagr,benchmark_max_drawdown,excess_total_return
+GGBR3,breakout,2000-05-19,2026-07-17,5856,60,0.2494877049180328,44945.38818506999,3.4945388185069994,0.059130759109863096,-0.46701587352635787,0.1855699935160462,0.4018899439827054,352978.9038749614,34.297890387496146,0.14594648298089452,-0.9122995153080269,-30.803351568989147
