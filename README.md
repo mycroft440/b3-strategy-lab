@@ -87,6 +87,35 @@ Gerar inventario organizado das estrategias:
 python scripts\organize_strategies.py
 ```
 
+## Matriz completa de estrategia e gerenciamento
+
+O experimento final cruza 156 estrategias de compra e saida com 478
+gerenciamentos de carteira, totalizando 74.568 combinacoes. Ele usa o periodo
+comum de 2018-01-02 a 2026-07-22, sinais em serie normalizada por
+desdobramentos, execucao na abertura seguinte, dividendos/JCP excluidos e
+custos, impostos e slippage iguais a zero.
+
+```powershell
+python scripts\backtest_strategy_management_combinations.py --signal-mode adjusted --output reports\strategy_management_combinations_adjusted_no_dividends_1d_t252.csv
+```
+
+Artefatos da execucao corrigida:
+
+- [ranking completo das 74.568 combinacoes](reports/strategy_management_combinations_adjusted_no_dividends_1d_t252.csv);
+- [manifesto da execucao](reports/strategy_management_combinations_adjusted_no_dividends_1d_t252.manifest.json);
+- [retornos anuais das cinco melhores combinacoes](reports/strategy_management_combinations_adjusted_no_dividends_1d_t252_top5_annual.md).
+
+A primeira colocada foi `mfi_momentum_7_50_30_sma50` com
+`top1_roc_combo_roc12_6_3_w1_1_1_skip0_trend0_vol63_equal_monthly_posscore_adjusted`:
+retorno total de 2.946,56%, CAGR de 49,12%, media anual aritmetica de 55,14% e
+drawdown maximo de -39,26%.
+
+O ranking usa todo o periodo (`full_period`). Ele nao aplica divisao de treino e
+teste, embora o manifesto preserve o antigo valor `train_ratio=0.7` para
+registrar exatamente a linha de comando aceita na execucao. O campo
+`train_ratio_applied=false` elimina essa ambiguidade. Portanto, o resultado e
+uma comparacao historica integral, nao um holdout nem um walk-forward.
+
 Arquivos gerados:
 
 - `data/candles/<ticker>_1d.csv`: candles OHLCV ajustados e crus.

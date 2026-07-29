@@ -9756,5 +9756,8 @@
   "lot_size": 1,
   "ranking": "total_return_desc_then_cagr_desc",
   "train_ratio": 0.7,
+  "train_ratio_applied": false,
+  "evaluation_scope": "full_period",
+  "published_source_commit": "b142f697cb1f210b815fa5013147291cf9e8ca30",
   "elapsed_seconds": 1684.5490145660006
 }

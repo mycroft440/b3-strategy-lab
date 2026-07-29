@@ -69,7 +69,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cost-bps", type=float, default=0.0)
     parser.add_argument("--slippage-bps", type=float, default=0.0)
     parser.add_argument("--lot-size", type=int, default=1)
-    parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--top", type=int, default=5)
     parser.add_argument("--output", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--allow-unverified-data", action="store_true")
@@ -81,8 +80,6 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Custos e slippage nao podem ser negativos.")
     if args.lot_size < 0:
         parser.error("--lot-size nao pode ser negativo.")
-    if not 0 < args.train_ratio < 1:
-        parser.error("--train-ratio precisa estar entre zero e um.")
     if args.top <= 0:
         parser.error("--top precisa ser maior que zero.")
 
@@ -381,7 +378,8 @@ def _write_manifest(
         "slippage_bps": args.slippage_bps,
         "lot_size": args.lot_size,
         "ranking": "total_return_desc_then_cagr_desc",
-        "train_ratio": args.train_ratio,
+        "evaluation_scope": "full_period",
+        "train_ratio_applied": False,
         "elapsed_seconds": elapsed_seconds,
     }
     temporary = output.with_suffix(output.suffix + ".tmp")

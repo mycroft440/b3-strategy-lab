@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
 from b3_strategy_lab.candles import Candle
 from scripts.research_portfolio_allocation import (
@@ -77,6 +80,22 @@ def market_data() -> MarketData:
 
 
 class PortfolioCombinationTests(unittest.TestCase):
+    def test_full_matrix_cli_does_not_advertise_unused_train_ratio(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/backtest_strategy_management_combinations.py",
+                "--help",
+            ],
+            cwd=project_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotIn("--train-ratio", result.stdout)
+
     def test_catalog_has_478_management_strategies(self) -> None:
         configs = _configs("raw", "all")
         self.assertEqual(len(configs), 478)
