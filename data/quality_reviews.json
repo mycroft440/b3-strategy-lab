@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "warning_reviews": {
+    "IRBR3 2023-01-25: variacao de fechamento apos normalizacao de split de -20.93%.": "Confirmado no COTAHIST_A2023.ZIP da B3: o grupamento oficial de 30 para 1 levou o fechamento de R$ 0,93 em 24/01 para R$ 22,06 em 25/01; houve 16.862 negocios e volume financeiro de R$ 188.305.233 no primeiro dia pos-grupamento. A variacao normalizada de -20,93% e um preco oficial negociado, nao uma falha de escala.",
+    "TUPY3 2001-01-30: variacao de fechamento sem split de 69.81%.": "Confirmado no COTAHIST_A2001.ZIP da B3 (SHA-256 0386ca1b80d207ef9876fe64c2d48e9af1b827b3ecc0365c0e99db5cacf20eb5): um unico negocio de 100.000 acoes antigas, preco 0,018 e volume financeiro R$ 1.800. Movimento aceito como negocio oficial de ativo iliquido.",
+    "TUPY3 2001-02-01: variacao de fechamento sem split de 56.67%.": "Confirmado no COTAHIST_A2001.ZIP da B3 (SHA-256 0386ca1b80d207ef9876fe64c2d48e9af1b827b3ecc0365c0e99db5cacf20eb5): um unico negocio de 100.000 acoes antigas, preco 0,0235 e volume financeiro R$ 2.350. Movimento aceito como negocio oficial de ativo iliquido."
+  }
+}

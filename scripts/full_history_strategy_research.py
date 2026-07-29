@@ -12,10 +12,16 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.backtest import Summary
-from b3_strategy_lab.candles import DEFAULT_TICKERS, actions_path, cache_path, load_actions, load_candles
+from b3_strategy_lab.candles import DEFAULT_TICKERS, cache_path, load_candles
 from b3_strategy_lab.cli import PARAM_FIELDS
+from b3_strategy_lab.cotahist import load_verified_candles
 from b3_strategy_lab.strategies import build_signals
-from scripts.research_aggressive_strategies import _run_raw_events, _signal_candles, _strategy_grids, _window_context
+from scripts.research_aggressive_strategies import (
+    _run_price_only,
+    _signal_candles,
+    _strategy_grids,
+    _window_context,
+)
 
 
 REPORTS_DIR = Path("reports")
@@ -26,26 +32,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tickers", nargs="+", default=list(DEFAULT_TICKERS))
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--suffix", default="")
+    parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
 
     rows = []
     grids = _all_grids()
     for ticker in [item.upper() for item in args.tickers]:
-        candles = load_candles(cache_path(ticker, args.interval))
-        actions = load_actions(actions_path(ticker))
+        if args.allow_unverified_data:
+            candles = load_candles(cache_path(ticker, args.interval))
+        else:
+            candles, _manifest = load_verified_candles(ticker, args.interval)
         signal_candles = _signal_candles(candles)
-        context = _window_context(candles, actions)
+        context = _window_context(candles)
 
         for strategy, setups in grids.items():
             for label, params in setups:
                 signals = build_signals(strategy, signal_candles, **params)
-                summary = _run_raw_events(ticker, strategy, candles, signals, context)
+                summary = _run_price_only(ticker, strategy, candles, signals, context)
                 row = _row(summary, label, params)
                 rows.append(row)
         print(f"{ticker}: {sum(len(items) for items in grids.values())} setups no historico completo", flush=True)
 
     rows.sort(key=lambda row: float(row["total_return"]), reverse=True)
-    output = REPORTS_DIR / f"full_history_strategy_research_raw_events_raw_{args.interval}{args.suffix}.csv"
+    output = (
+        REPORTS_DIR
+        / f"full_history_strategy_research_price_only_raw_{args.interval}{args.suffix}.csv"
+    )
     _write(rows, output)
     _print_grouped(rows)
     return 0
@@ -158,7 +170,7 @@ def _write(rows: list[dict], output: Path) -> None:
         *PARAM_FIELDS,
     ]
     with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
     print(f"Salvo: {output} ({len(rows)} linhas)")

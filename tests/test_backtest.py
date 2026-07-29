@@ -4,7 +4,9 @@ import unittest
 
 from b3_strategy_lab.backtest import (
     _action_buckets,
+    run_strategy_vs_buy_hold,
     simulate_buy_and_hold,
+    simulate_buy_and_hold_price_only,
     simulate_buy_and_hold_raw_events,
     simulate_single_asset,
 )
@@ -54,6 +56,45 @@ class BacktestTests(unittest.TestCase):
         self.assertAlmostEqual(curve[0].shares, 10.0)
         self.assertAlmostEqual(curve[-1].equity, 1300.0)
 
+    def test_price_only_ignores_dividend_actions_completely(self) -> None:
+        candles = [
+            candle("2024-01-02", 100.0, 100.0),
+            candle("2024-01-03", 90.0, 90.0),
+        ]
+        actions = [
+            CorporateAction(
+                "2024-01-03",
+                "TEST3",
+                "TEST3.SA",
+                dividend=2.0,
+                split_ratio=1.0,
+            )
+        ]
+
+        _summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
+            "TEST3",
+            "buy_and_hold",
+            candles,
+            [1, 1],
+            initial_cash=1000.0,
+            actions=actions,
+        )
+
+        self.assertEqual(strategy_curve, benchmark_curve)
+        self.assertAlmostEqual(benchmark_curve[-1].dividend_cash, 0.0)
+        self.assertAlmostEqual(benchmark_curve[-1].cash, 0.0)
+        self.assertAlmostEqual(benchmark_curve[-1].equity, 900.0)
+
+    def test_price_only_buy_and_hold_uses_raw_ohlc(self) -> None:
+        candles = [
+            candle("2024-01-02", 100.0, 110.0),
+            candle("2024-01-03", 120.0, 130.0),
+        ]
+        curve = simulate_buy_and_hold_price_only(candles, initial_cash=1000.0)
+
+        self.assertAlmostEqual(curve[-1].equity, 1300.0)
+        self.assertTrue(all(point.dividend_cash == 0.0 for point in curve))
+
     def test_slippage_worsens_buy_execution_price(self) -> None:
         candles = [
             candle("2024-01-02", 100.0, 100.0),
@@ -91,7 +132,7 @@ class BacktestTests(unittest.TestCase):
         self.assertAlmostEqual(curve[1].cash, 20.0)
         self.assertAlmostEqual(curve[1].equity, 920.0)
 
-    def test_raw_events_does_not_apply_yahoo_split_twice(self) -> None:
+    def test_raw_events_does_not_apply_normalized_split_twice(self) -> None:
         candles = [
             candle("2024-01-02", 100.0, 100.0),
             candle("2024-01-03", 100.0, 100.0),

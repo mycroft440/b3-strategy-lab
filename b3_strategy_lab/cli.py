@@ -10,6 +10,8 @@ from .backtest import Summary, run_strategy_vs_buy_hold, write_comparison_curve,
 from .candles import (
     DEFAULT_ACTIONS_DIR,
     DEFAULT_DATA_DIR,
+    DEFAULT_LEGACY_ACTIONS_DIR,
+    DEFAULT_LEGACY_DATA_DIR,
     DEFAULT_TICKERS,
     actions_path,
     cache_path,
@@ -19,6 +21,7 @@ from .candles import (
     split_candles_by_year,
     validate_candles,
 )
+from .cotahist import DEFAULT_MANIFESTS_DIR, DataVerificationError, load_verified_candles
 from .strategies import available_strategies, build_signals, strategies_by_family, strategy_parameters, sweep_strategies
 
 PARAM_FIELDS = [
@@ -56,24 +59,55 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="B3 single-asset candle downloader and strategy lab.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    fetch_parser = subparsers.add_parser("fetch", help="Baixa candles e grava CSV ajustado.")
+    fetch_parser = subparsers.add_parser(
+        "fetch",
+        help="Baixa a fonte legada para uma area isolada; nao certifica os dados.",
+    )
     _add_common_data_args(fetch_parser)
+    fetch_parser.set_defaults(
+        data_dir=str(DEFAULT_LEGACY_DATA_DIR),
+        actions_dir=str(DEFAULT_LEGACY_ACTIONS_DIR),
+    )
     fetch_parser.add_argument("--range", dest="range_name", default="max", help="Range Yahoo, exemplo: max, 10y, 5y.")
+
+    verify_parser = subparsers.add_parser(
+        "verify-data",
+        help="Confere hashes, origem, anomalias revisadas e janela dos candles.",
+    )
+    _add_common_data_args(verify_parser)
+    verify_parser.add_argument("--manifests-dir", default=str(DEFAULT_MANIFESTS_DIR))
+    verify_parser.add_argument(
+        "--require-verified-actions",
+        action="store_true",
+        help="Exige proventos certificados para diagnosticos de retorno total.",
+    )
 
     list_parser = subparsers.add_parser("list-strategies", help="Lista estrategias disponiveis.")
     list_parser.set_defaults(command="list-strategies")
 
     backtest_parser = subparsers.add_parser("backtest", help="Roda uma estrategia contra buy and hold por ativo.")
-    _add_common_data_args(backtest_parser, include_yearly=True)
+    _add_common_data_args(backtest_parser, include_yearly=True, verified_options=True)
     backtest_parser.add_argument("--strategy", default="sma_cross", choices=available_strategies())
     backtest_parser.add_argument("--initial-cash", type=float, default=10_000.0)
     backtest_parser.add_argument("--cost-bps", type=float, default=0.0, help="Custo por ordem em basis points. 10 bps = 0,10 por cento.")
     backtest_parser.add_argument("--slippage-bps", type=float, default=0.0, help="Slippage adverso por ordem em basis points.")
-    backtest_parser.add_argument("--lot-size", type=int, default=0, help="0 usa fracao; 1 ou 100 força lote inteiro.")
-    backtest_parser.add_argument("--price-mode", choices=["adjusted", "raw_events"], default="adjusted")
-    backtest_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
+    backtest_parser.add_argument("--lot-size", type=int, default=1, help="1 permite mercado fracionario; 100 usa lote padrao; 0 permite fracao irreal.")
+    backtest_parser.add_argument(
+        "--price-mode",
+        choices=["price_only", "adjusted", "raw_events"],
+        default="price_only",
+        help=(
+            "price_only usa OHLC oficial normalizado por splits e ignora "
+            "dividendos/JCP; raw_events e diagnostico de retorno total."
+        ),
+    )
+    backtest_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
     backtest_parser.add_argument("--reports-dir", default="reports")
-    backtest_parser.add_argument("--refresh-data", action="store_true", help="Baixa dados novamente antes do backtest.")
+    backtest_parser.add_argument(
+        "--refresh-data",
+        action="store_true",
+        help="Atualiza pela fonte legada; exige --allow-unverified-data.",
+    )
     backtest_parser.add_argument("--fast", type=int, default=50, help="Media curta para sma_cross.")
     backtest_parser.add_argument("--slow", type=int, default=200, help="Media longa para sma_cross.")
     backtest_parser.add_argument("--lookback", type=int, default=126, help="Janela para momentum ou entrada do breakout.")
@@ -101,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     backtest_parser.add_argument("--streak-length", type=int, default=3, help="Sequencia minima de fechamentos negativos.")
 
     sweep_parser = subparsers.add_parser("sweep", help="Varre parametros por ativo contra buy and hold.")
-    _add_common_data_args(sweep_parser, include_yearly=True)
+    _add_common_data_args(sweep_parser, include_yearly=True, verified_options=True)
     sweep_parser.add_argument(
         "--strategy",
         default="sma_cross",
@@ -110,11 +144,19 @@ def main(argv: list[str] | None = None) -> int:
     sweep_parser.add_argument("--initial-cash", type=float, default=10_000.0)
     sweep_parser.add_argument("--cost-bps", type=float, default=0.0, help="Custo por ordem em basis points.")
     sweep_parser.add_argument("--slippage-bps", type=float, default=0.0, help="Slippage adverso por ordem em basis points.")
-    sweep_parser.add_argument("--lot-size", type=int, default=0, help="0 usa fracao; 1 ou 100 força lote inteiro.")
-    sweep_parser.add_argument("--price-mode", choices=["adjusted", "raw_events"], default="adjusted")
-    sweep_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
+    sweep_parser.add_argument("--lot-size", type=int, default=1, help="1 permite mercado fracionario; 100 usa lote padrao; 0 permite fracao irreal.")
+    sweep_parser.add_argument(
+        "--price-mode",
+        choices=["price_only", "adjusted", "raw_events"],
+        default="price_only",
+    )
+    sweep_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
     sweep_parser.add_argument("--reports-dir", default="reports")
-    sweep_parser.add_argument("--refresh-data", action="store_true", help="Baixa dados novamente antes da varredura.")
+    sweep_parser.add_argument(
+        "--refresh-data",
+        action="store_true",
+        help="Atualiza pela fonte legada; exige --allow-unverified-data.",
+    )
     sweep_parser.add_argument("--fast-values", nargs="+", type=int, default=[10, 20, 50])
     sweep_parser.add_argument("--slow-values", nargs="+", type=int, default=[100, 150, 200])
     sweep_parser.add_argument("--signal-window-values", nargs="+", type=int, default=[5, 9, 12])
@@ -143,14 +185,18 @@ def main(argv: list[str] | None = None) -> int:
     sweep_parser.add_argument("--top", type=int, default=5, help="Quantidade de resultados exibidos por ticker.")
 
     train_test_parser = subparsers.add_parser("train-test", help="Escolhe parametros no treino e avalia no periodo futuro.")
-    _add_common_data_args(train_test_parser, include_yearly=True)
+    _add_common_data_args(train_test_parser, include_yearly=True, verified_options=True)
     train_test_parser.add_argument("--strategy", default="sma_cross", choices=SWEEP_STRATEGIES)
     train_test_parser.add_argument("--initial-cash", type=float, default=10_000.0)
     train_test_parser.add_argument("--cost-bps", type=float, default=0.0)
     train_test_parser.add_argument("--slippage-bps", type=float, default=0.0)
-    train_test_parser.add_argument("--lot-size", type=int, default=0)
-    train_test_parser.add_argument("--price-mode", choices=["adjusted", "raw_events"], default="adjusted")
-    train_test_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
+    train_test_parser.add_argument("--lot-size", type=int, default=1)
+    train_test_parser.add_argument(
+        "--price-mode",
+        choices=["price_only", "adjusted", "raw_events"],
+        default="price_only",
+    )
+    train_test_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
     train_test_parser.add_argument("--reports-dir", default="reports")
     train_test_parser.add_argument("--refresh-data", action="store_true")
     train_test_parser.add_argument("--train-ratio", type=float, default=0.7)
@@ -159,27 +205,57 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if args.command == "fetch":
-        return _fetch_command(args)
-    if args.command == "backtest":
-        return _backtest_command(args)
-    if args.command == "sweep":
-        return _sweep_command(args)
-    if args.command == "train-test":
-        return _train_test_command(args)
-    if args.command == "list-strategies":
-        _print_strategy_catalog()
-        return 0
+    try:
+        if args.command == "fetch":
+            return _fetch_command(args)
+        if args.command == "verify-data":
+            return _verify_data_command(args)
+        if args.command == "backtest":
+            return _backtest_command(args)
+        if args.command == "sweep":
+            return _sweep_command(args)
+        if args.command == "train-test":
+            return _train_test_command(args)
+        if args.command == "list-strategies":
+            _print_strategy_catalog()
+            return 0
+    except DataVerificationError as error:
+        print(f"Dados rejeitados: {error}")
+        return 2
 
     parser.error("Comando invalido.")
     return 2
 
 
-def _add_common_data_args(parser: argparse.ArgumentParser, *, include_yearly: bool = False) -> None:
+def _add_common_data_args(
+    parser: argparse.ArgumentParser,
+    *,
+    include_yearly: bool = False,
+    verified_options: bool = False,
+) -> None:
     parser.add_argument("--tickers", nargs="+", default=list(DEFAULT_TICKERS), help="Tickers B3 sem .SA.")
     parser.add_argument("--interval", default="1d", choices=["1d", "4h", "1wk", "1mo"], help="Intervalo dos candles.")
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR), help="Diretorio de cache dos candles.")
     parser.add_argument("--actions-dir", default=str(DEFAULT_ACTIONS_DIR), help="Diretorio de cache de dividendos e splits.")
+    if verified_options:
+        parser.add_argument(
+            "--manifests-dir",
+            default=str(DEFAULT_MANIFESTS_DIR),
+            help="Diretorio dos manifestos de verificacao dos dados.",
+        )
+        parser.add_argument(
+            "--allow-unverified-actions",
+            action="store_true",
+            help=(
+                "Permite proventos nao certificados somente no modo raw_events. "
+                "Nao afeta o modo seguro price_only."
+            ),
+        )
+        parser.add_argument(
+            "--allow-unverified-data",
+            action="store_true",
+            help="Ignora manifestos e permite dados legados. Use apenas para diagnostico.",
+        )
     parser.add_argument("--start", default=None, help="Data inicial YYYY-MM-DD.")
     parser.add_argument("--end", default=None, help="Data final YYYY-MM-DD.")
     if include_yearly:
@@ -227,6 +303,32 @@ def _fetch_command(args: argparse.Namespace) -> int:
             end=args.end,
         )
         _print_fetch_result(ticker, path, candles, action_path, actions)
+    return 0
+
+
+def _verify_data_command(args: argparse.Namespace) -> int:
+    for ticker in args.tickers:
+        candles, manifest = load_verified_candles(
+            ticker,
+            args.interval,
+            data_dir=args.data_dir,
+            actions_dir=args.actions_dir,
+            manifests_dir=args.manifests_dir,
+            start=args.start,
+            end=args.end,
+            require_verified_actions=args.require_verified_actions,
+        )
+        if not candles:
+            raise DataVerificationError(
+                f"Nenhum candle de {ticker} {args.interval} no recorte solicitado."
+            )
+        print(
+            f"{ticker.upper()} {args.interval}: {len(candles)} candles, "
+            f"{candles[0].date} a {candles[-1].date}, "
+            f"precos={manifest.status}, price_only=ready, "
+            f"proventos={manifest.corporate_action_status}, "
+            f"avisos={len(manifest.warnings)}/{len(manifest.warning_reviews)} revisados"
+        )
     return 0
 
 
@@ -516,28 +618,68 @@ def _train_test_by_year_command(args: argparse.Namespace) -> int:
 
 def _load_or_fetch_for_backtest(ticker: str, args: argparse.Namespace):
     path = cache_path(ticker, args.interval, args.data_dir)
-    if args.refresh_data or not path.exists():
-        _, candles, _, _ = fetch_and_cache(
-            ticker,
-            interval=args.interval,
-            range_name="max",
-            data_dir=args.data_dir,
-            actions_dir=args.actions_dir,
-            start=args.start,
-            end=args.end,
-        )
+    if args.allow_unverified_data:
+        if args.refresh_data or not path.exists():
+            if Path(args.data_dir) == DEFAULT_DATA_DIR or Path(args.actions_dir) == DEFAULT_ACTIONS_DIR:
+                raise DataVerificationError(
+                    "A atualizacao legada nao pode sobrescrever a base oficial. Use "
+                    f"--data-dir {DEFAULT_LEGACY_DATA_DIR} "
+                    f"--actions-dir {DEFAULT_LEGACY_ACTIONS_DIR}."
+                )
+            _, candles, _, _ = fetch_and_cache(
+                ticker,
+                interval=args.interval,
+                range_name="max",
+                data_dir=args.data_dir,
+                actions_dir=args.actions_dir,
+                start=args.start,
+                end=args.end,
+            )
+            return candles
+        candles = load_candles(path, start=args.start, end=args.end)
+        issues = validate_candles(candles)
+        if issues:
+            raise DataVerificationError(
+                f"Dados legados invalidos para {ticker}: {len(issues)} problemas; primeiro: {issues[0]}"
+            )
         return candles
-    candles = load_candles(path, start=args.start, end=args.end)
+
+    if args.refresh_data:
+        raise DataVerificationError(
+            "--refresh-data usa a fonte legada e nao pode ser combinado com o modo seguro. "
+            "Atualize com scripts/build_verified_market_data.py."
+        )
+    if not path.exists():
+        raise DataVerificationError(
+            f"Dados verificados ausentes para {ticker} {args.interval}: {path}. "
+            "Execute scripts/build_verified_market_data.py."
+        )
+    candles, _manifest = load_verified_candles(
+        ticker,
+        args.interval,
+        data_dir=args.data_dir,
+        actions_dir=args.actions_dir,
+        manifests_dir=args.manifests_dir,
+        start=args.start,
+        end=args.end,
+        require_verified_actions=(
+            args.price_mode == "raw_events" and not args.allow_unverified_actions
+        ),
+    )
     issues = validate_candles(candles)
     if issues:
-        print(f"Aviso: {len(issues)} problemas de candles em {ticker}. Primeiro: {issues[0]}")
+        raise DataVerificationError(
+            f"Recorte de dados invalido para {ticker}: {len(issues)} problemas; primeiro: {issues[0]}"
+        )
     return candles
 
 
 def _load_actions_for_backtest(ticker: str, args: argparse.Namespace):
+    if args.price_mode != "raw_events":
+        return []
     path = actions_path(ticker, args.actions_dir)
-    if args.refresh_data or not path.exists():
-        _, _, _, actions = fetch_and_cache(
+    if args.allow_unverified_data and not path.exists():
+        fetch_and_cache(
             ticker,
             interval=args.interval,
             range_name="max",
@@ -546,7 +688,9 @@ def _load_actions_for_backtest(ticker: str, args: argparse.Namespace):
             start=args.start,
             end=args.end,
         )
-        return actions
+        return load_actions(path, start=args.start, end=args.end)
+    if not path.exists():
+        raise DataVerificationError(f"Eventos corporativos ausentes para {ticker}: {path}.")
     return load_actions(path, start=args.start, end=args.end)
 
 
@@ -926,7 +1070,7 @@ def _write_sweep_csv(rows: list[dict], path: Path) -> Path:
     prefix_fields = ["year"] if any("year" in row for row in rows) else []
     fields = [*prefix_fields, "ticker", "strategy", *PARAM_FIELDS, *summary_fields]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
@@ -937,7 +1081,7 @@ def _write_yearly_summary_csv(rows: list[dict], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = ["year", *Summary.__dataclass_fields__]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow({field: row.get(field, "") for field in fields})
@@ -972,7 +1116,7 @@ def _write_train_test_csv(rows: list[dict], path: Path) -> Path:
         "test_exposure",
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow(row)

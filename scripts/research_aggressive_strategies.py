@@ -13,21 +13,21 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from b3_strategy_lab.backtest import (
     Summary,
-    _action_buckets,
     metrics,
-    simulate_buy_and_hold_raw_events,
-    simulate_single_asset_raw_events,
+    simulate_buy_and_hold_price_only,
+    simulate_single_asset_price_only,
 )
-from b3_strategy_lab.candles import DEFAULT_TICKERS, actions_path, cache_path, load_actions, load_candles
+from b3_strategy_lab.candles import DEFAULT_TICKERS, cache_path, load_candles
 from b3_strategy_lab.cli import PARAM_FIELDS
+from b3_strategy_lab.cotahist import load_verified_candles
 from b3_strategy_lab.strategies import build_signals
 
 
 TICKERS = list(DEFAULT_TICKERS)
 INTERVAL = "1d"
 INITIAL_CASH = 10_000.0
-COST_BPS = 20.0
-SLIPPAGE_BPS = 5.0
+COST_BPS = 0.0
+SLIPPAGE_BPS = 0.0
 LOT_SIZE = 1
 TRAIN_RATIO = 0.7
 REPORTS_DIR = Path("reports")
@@ -37,38 +37,59 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Pesquisa estrategias agressivas em backtest single-asset.")
     parser.add_argument("--tickers", nargs="+", default=TICKERS)
     parser.add_argument("--suffix", default="")
+    parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
 
     screen_rows = []
     train_test_rows = []
 
     for ticker in [item.upper() for item in args.tickers]:
-        candles = load_candles(cache_path(ticker, INTERVAL))
-        actions = load_actions(actions_path(ticker))
+        if args.allow_unverified_data:
+            candles = load_candles(cache_path(ticker, INTERVAL))
+        else:
+            candles, _manifest = load_verified_candles(ticker, INTERVAL)
         split = max(2, min(len(candles) - 2, int(len(candles) * TRAIN_RATIO)))
         train_candles = candles[:split]
         test_candles = candles[split:]
         full_signal_candles = _signal_candles(candles)
         train_signal_candles = full_signal_candles[:split]
-        train_context = _window_context(train_candles, actions)
-        test_context = _window_context(test_candles, actions)
+        train_context = _window_context(train_candles)
+        test_context = _window_context(test_candles)
 
         for strategy, params_grid in _strategy_grids().items():
             best_train: tuple[Summary, dict] | None = None
             for params in params_grid:
                 full_signals = build_signals(strategy, full_signal_candles, **params)
-                test_summary = _run_raw_events(ticker, strategy, test_candles, full_signals[split:], test_context)
+                test_summary = _run_price_only(
+                    ticker,
+                    strategy,
+                    test_candles,
+                    full_signals[split:],
+                    test_context,
+                )
                 screen_rows.append(_result_row(test_summary, params, family=strategy, train_ratio=TRAIN_RATIO))
 
                 train_signals = build_signals(strategy, train_signal_candles, **params)
-                train_summary = _run_raw_events(ticker, strategy, train_candles, train_signals, train_context)
+                train_summary = _run_price_only(
+                    ticker,
+                    strategy,
+                    train_candles,
+                    train_signals,
+                    train_context,
+                )
                 if best_train is None or train_summary.cagr > best_train[0].cagr:
                     best_train = (train_summary, params)
 
             if best_train is not None:
                 train_summary, best_params = best_train
                 full_signals = build_signals(strategy, full_signal_candles, **best_params)
-                test_summary = _run_raw_events(ticker, strategy, test_candles, full_signals[split:], test_context)
+                test_summary = _run_price_only(
+                    ticker,
+                    strategy,
+                    test_candles,
+                    full_signals[split:],
+                    test_context,
+                )
                 row = _result_row(test_summary, best_params, family=strategy, train_ratio=TRAIN_RATIO)
                 row["train_cagr"] = train_summary.cagr
                 row["train_total_return"] = train_summary.total_return
@@ -80,8 +101,15 @@ def main(argv: list[str] | None = None) -> int:
     screen_rows.sort(key=lambda row: float(row["cagr"]), reverse=True)
     train_test_rows.sort(key=lambda row: float(row["cagr"]), reverse=True)
     suffix = args.suffix
-    _write_rows(screen_rows, REPORTS_DIR / f"aggressive_strategy_screen_70_30_raw_events_raw_1d{suffix}.csv")
-    _write_rows(train_test_rows, REPORTS_DIR / f"aggressive_strategy_train_selected_raw_events_raw_1d{suffix}.csv")
+    _write_rows(
+        screen_rows,
+        REPORTS_DIR / f"aggressive_strategy_screen_70_30_price_only_raw_1d{suffix}.csv",
+    )
+    _write_rows(
+        train_test_rows,
+        REPORTS_DIR
+        / f"aggressive_strategy_train_selected_price_only_raw_1d{suffix}.csv",
+    )
     _print_top("TOP screening 70/30 por CAGR da estrategia", screen_rows, limit=30)
     _print_top("TOP train-selected 70/30 por CAGR da estrategia", train_test_rows, limit=30)
     return 0
@@ -210,28 +238,23 @@ def _signal_candles(candles):
     ]
 
 
-def _window_context(candles, actions):
-    before_open_actions, after_open_actions = _action_buckets(candles, actions)
-    benchmark_curve = simulate_buy_and_hold_raw_events(
+def _window_context(candles):
+    benchmark_curve = simulate_buy_and_hold_price_only(
         candles,
-        before_open_actions,
-        after_open_actions,
         initial_cash=INITIAL_CASH,
         cost_bps=COST_BPS,
         slippage_bps=SLIPPAGE_BPS,
         lot_size=LOT_SIZE,
     )
     benchmark_metrics = metrics(benchmark_curve, INITIAL_CASH)
-    return before_open_actions, after_open_actions, benchmark_curve, benchmark_metrics
+    return benchmark_curve, benchmark_metrics
 
 
-def _run_raw_events(ticker: str, strategy: str, candles, signals, context) -> Summary:
-    before_open_actions, after_open_actions, benchmark_curve, benchmark_metrics = context
-    strategy_curve = simulate_single_asset_raw_events(
+def _run_price_only(ticker: str, strategy: str, candles, signals, context) -> Summary:
+    benchmark_curve, benchmark_metrics = context
+    strategy_curve = simulate_single_asset_price_only(
         candles,
         signals,
-        before_open_actions,
-        after_open_actions,
         initial_cash=INITIAL_CASH,
         cost_bps=COST_BPS,
         slippage_bps=SLIPPAGE_BPS,
@@ -308,7 +331,7 @@ def _write_rows(rows: list[dict], path: Path) -> None:
         *PARAM_FIELDS,
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
     print(f"Salvo: {path} ({len(rows)} linhas)")

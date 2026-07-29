@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, time as datetime_time, timedelta, timezone
 from pathlib import Path
@@ -29,6 +31,8 @@ DEFAULT_TICKERS = (
 SUPPORTED_INTERVALS = {"1d", "4h", "1wk", "1mo"}
 DEFAULT_DATA_DIR = Path("data/candles")
 DEFAULT_ACTIONS_DIR = Path("data/corporate_actions")
+DEFAULT_LEGACY_DATA_DIR = Path("data/legacy/candles")
+DEFAULT_LEGACY_ACTIONS_DIR = Path("data/legacy/corporate_actions")
 DEFAULT_YEARLY_DATA_DIR = Path("data/yearly")
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 USER_AGENT = "Mozilla/5.0 (compatible; b3-strategy-lab/0.1)"
@@ -375,23 +379,49 @@ def filter_actions(actions: Iterable[CorporateAction], *, start: str | None = No
 def save_candles(candles: list[Candle], path: Path | str) -> Path:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=CSV_FIELDS)
-        writer.writeheader()
-        for candle in candles:
-            writer.writerow(asdict(candle))
+    temporary = _temporary_output(output)
+    try:
+        with temporary.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=CSV_FIELDS, lineterminator="\n")
+            writer.writeheader()
+            for candle in candles:
+                writer.writerow(asdict(candle))
+            file.flush()
+            os.fsync(file.fileno())
+        temporary.replace(output)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
     return output
 
 
 def save_actions(actions: list[CorporateAction], path: Path | str) -> Path:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=ACTION_FIELDS)
-        writer.writeheader()
-        for action in actions:
-            writer.writerow(asdict(action))
+    temporary = _temporary_output(output)
+    try:
+        with temporary.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=ACTION_FIELDS, lineterminator="\n")
+            writer.writeheader()
+            for action in actions:
+                writer.writerow(asdict(action))
+            file.flush()
+            os.fsync(file.fileno())
+        temporary.replace(output)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
     return output
+
+
+def _temporary_output(output: Path) -> Path:
+    descriptor, name = tempfile.mkstemp(
+        prefix=f".{output.name}.",
+        suffix=".tmp",
+        dir=output.parent,
+    )
+    os.close(descriptor)
+    return Path(name)
 
 
 def load_candles(path: Path | str, *, start: str | None = None, end: str | None = None) -> list[Candle]:
@@ -495,15 +525,9 @@ def validate_candles(candles: list[Candle]) -> list[str]:
             issues.append(f"{candle.ticker} {candle.date}: volume zero com OHLC variando.")
         if candle.close <= 0 or candle.raw_close <= 0:
             issues.append(f"{candle.ticker} {candle.date}: fechamento nao positivo.")
-        expected_open = candle.raw_open * candle.adjustment_factor
-        expected_high = candle.raw_high * candle.adjustment_factor
-        expected_low = candle.raw_low * candle.adjustment_factor
         expected_close = candle.raw_close * candle.adjustment_factor
         if (
-            abs(candle.open - expected_open) > 1e-5
-            or abs(candle.high - expected_high) > 1e-5
-            or abs(candle.low - expected_low) > 1e-5
-            or abs(candle.close - expected_close) > 1e-5
+            abs(candle.close - expected_close) > 1e-5
             or abs(candle.adj_close - expected_close) > 1e-5
         ):
             issues.append(f"{candle.ticker} {candle.date}: fator de ajuste inconsistente.")

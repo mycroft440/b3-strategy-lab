@@ -1,11 +1,54 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from b3_strategy_lab.candles import Candle, parse_yahoo_actions, parse_yahoo_chart, resample_to_4h, split_candles_by_year, validate_candles
+from b3_strategy_lab.candles import (
+    Candle,
+    parse_yahoo_actions,
+    parse_yahoo_chart,
+    resample_to_4h,
+    save_candles,
+    split_candles_by_year,
+    validate_candles,
+)
 
 
 class CandleParsingTests(unittest.TestCase):
+    def test_failed_save_preserves_previous_complete_file(self) -> None:
+        candle = Candle(
+            "2024-01-02",
+            "TEST3",
+            "TEST3",
+            10.0,
+            10.0,
+            10.0,
+            10.0,
+            10.0,
+            100,
+            10.0,
+            10.0,
+            10.0,
+            10.0,
+            1.0,
+        )
+
+        class ExplodingCandles(list[Candle]):
+            def __iter__(self):
+                yield candle
+                raise RuntimeError("simulated interrupted write")
+
+        with TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "candles.csv"
+            output.write_bytes(b"previous complete file\n")
+
+            with self.assertRaises(RuntimeError):
+                save_candles(ExplodingCandles(), output)
+
+            self.assertEqual(output.read_bytes(), b"previous complete file\n")
+            self.assertEqual(list(output.parent.glob("*.tmp")), [])
+
     def test_splits_candles_by_calendar_year(self) -> None:
         candles = [
             Candle("2023-12-29", "TEST3", "TEST3.SA", 10.0, 10.0, 10.0, 10.0, 10.0, 100, 10.0, 10.0, 10.0, 10.0, 1.0),
