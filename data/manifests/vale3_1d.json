@@ -1,0 +1,184 @@
+{
+  "adjustment_method": "split normalization only; dividends and JCP ignored; no tax; no fees",
+  "candle_sha256": "8129665b0a71b1a1fd7e861df862924f178aee606914c207317d10d1c9bab57d",
+  "corporate_action_source": "Yahoo Chart events",
+  "corporate_action_status": "unverified",
+  "end": "2026-07-28",
+  "generated_at_utc": "2026-07-29T16:02:33+00:00",
+  "interval": "1d",
+  "price_basis": "B3 official per-share quotes normalized for splits; cash distributions excluded",
+  "price_source": "B3_COTAHIST",
+  "rows": 6580,
+  "schema_version": 4,
+  "source_archives": [
+    {
+      "filename": "COTAHIST_A2000.ZIP",
+      "sha256": "77ba58b5138e384be140759bf836e8cc22189cdfecdf80e4c13672c535f42bd6",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2000.ZIP",
+      "year": 2000
+    },
+    {
+      "filename": "COTAHIST_A2001.ZIP",
+      "sha256": "0386ca1b80d207ef9876fe64c2d48e9af1b827b3ecc0365c0e99db5cacf20eb5",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2001.ZIP",
+      "year": 2001
+    },
+    {
+      "filename": "COTAHIST_A2002.ZIP",
+      "sha256": "ee002b9a533d310351ed07ccb3a8cd3badd84993a4969c5b58088d738de59116",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2002.ZIP",
+      "year": 2002
+    },
+    {
+      "filename": "COTAHIST_A2003.ZIP",
+      "sha256": "bcd337ebc1d92c190c4d8b77f582d2ec0890a8705fd5c10d68b28fa1eb15a2f0",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2003.ZIP",
+      "year": 2003
+    },
+    {
+      "filename": "COTAHIST_A2004.ZIP",
+      "sha256": "f750ba8ee9e25299ed96811979befb29315d91667fedc3885c709440b4989467",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2004.ZIP",
+      "year": 2004
+    },
+    {
+      "filename": "COTAHIST_A2005.ZIP",
+      "sha256": "41eac6d743d9c3e812bb001c4d327582fa7c408dbc99ff4a1734698da8b18f52",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2005.ZIP",
+      "year": 2005
+    },
+    {
+      "filename": "COTAHIST_A2006.ZIP",
+      "sha256": "b5432089f8788ea122b4102cd1f09b1a0a3436c176b8f8c548eef50ec3e02687",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2006.ZIP",
+      "year": 2006
+    },
+    {
+      "filename": "COTAHIST_A2007.ZIP",
+      "sha256": "3c46f425112f838f3eb09023c987d7e5e81500610d3e5e40fedefb52d3dffd66",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2007.ZIP",
+      "year": 2007
+    },
+    {
+      "filename": "COTAHIST_A2008.ZIP",
+      "sha256": "b4d92bcea3c253ab9379ad6ddcb42115c8afb72fd94d39ded2b5912528cf3786",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2008.ZIP",
+      "year": 2008
+    },
+    {
+      "filename": "COTAHIST_A2009.ZIP",
+      "sha256": "bb9421050bfd98a91b6023c1df540e43f421734c6fa0834ab2891c30af581adc",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2009.ZIP",
+      "year": 2009
+    },
+    {
+      "filename": "COTAHIST_A2010.ZIP",
+      "sha256": "65637311ced65ba54a617ab9cc2543974fdd4ed0ce416a5235e01b2f1aae66f5",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2010.ZIP",
+      "year": 2010
+    },
+    {
+      "filename": "COTAHIST_A2011.ZIP",
+      "sha256": "0cf67787cc1b77dde67a4ff1a340123ab261ce252245d24b5d32ec5b8b162359",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2011.ZIP",
+      "year": 2011
+    },
+    {
+      "filename": "COTAHIST_A2012.ZIP",
+      "sha256": "98771b1248a3f19b547609ed4fd6c8da0eb396140afb6de91946db457c855465",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2012.ZIP",
+      "year": 2012
+    },
+    {
+      "filename": "COTAHIST_A2013.ZIP",
+      "sha256": "b6dfb0d73181a60cc65083c2b185a1cbb0c95b87b21f873cc151515c65e47636",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2013.ZIP",
+      "year": 2013
+    },
+    {
+      "filename": "COTAHIST_A2014.ZIP",
+      "sha256": "613d76f8a64c7ffba0406cb54c1fd187266f55ed8b6037cb85993b2071a5aae7",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2014.ZIP",
+      "year": 2014
+    },
+    {
+      "filename": "COTAHIST_A2015.ZIP",
+      "sha256": "593f8740ec1aa87c80c54c623f1759530b6b32cdadd34a64f0fc66a529f34e35",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2015.ZIP",
+      "year": 2015
+    },
+    {
+      "filename": "COTAHIST_A2016.ZIP",
+      "sha256": "ffc82a9b973cb5901e68dc11bea1bbc9bf0a2c46749e0efe5a7a89229bc0d81f",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2016.ZIP",
+      "year": 2016
+    },
+    {
+      "filename": "COTAHIST_A2017.ZIP",
+      "sha256": "af6aaa85187c1d58ec6565522644066da573a7dc5b579c1d4c906ae95a2dea86",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2017.ZIP",
+      "year": 2017
+    },
+    {
+      "filename": "COTAHIST_A2018.ZIP",
+      "sha256": "9d66136179d9822476c6035000167aecf2665f4396619e4d74c0011745a0c507",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2018.ZIP",
+      "year": 2018
+    },
+    {
+      "filename": "COTAHIST_A2019.ZIP",
+      "sha256": "5170d3f8f079c3306424b36c2fae9b467391f8fa37d16d389f487b4c5c28edb9",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2019.ZIP",
+      "year": 2019
+    },
+    {
+      "filename": "COTAHIST_A2020.ZIP",
+      "sha256": "86442168939b9da7b3cc1ec1662c333ee5ab4c75f2be1865b5bf55ba4c52168f",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2020.ZIP",
+      "year": 2020
+    },
+    {
+      "filename": "COTAHIST_A2021.ZIP",
+      "sha256": "b0d4aed17d609c7ba615a23320c2fd513b580a251ae7d884a5015ef8a3fe4705",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2021.ZIP",
+      "year": 2021
+    },
+    {
+      "filename": "COTAHIST_A2022.ZIP",
+      "sha256": "a4f9015b755f797d9c08b0d13f19dbfab18a6c75f379c0271a1cf1b5f6323cd8",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2022.ZIP",
+      "year": 2022
+    },
+    {
+      "filename": "COTAHIST_A2023.ZIP",
+      "sha256": "ad1603788d78aaa1de806498572277f1d9443f88ae116452751b5800cb23523e",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2023.ZIP",
+      "year": 2023
+    },
+    {
+      "filename": "COTAHIST_A2024.ZIP",
+      "sha256": "96a003d10fab0fa2ace0c64cdc2b892b4c111adf9da8e538aa0b28437bd2a172",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2024.ZIP",
+      "year": 2024
+    },
+    {
+      "filename": "COTAHIST_A2025.ZIP",
+      "sha256": "6cc0ad851c8f605ca30418acac48be81f1767f6ed05b4f563772d06ae448047d",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2025.ZIP",
+      "year": 2025
+    },
+    {
+      "filename": "COTAHIST_A2026.ZIP",
+      "sha256": "637af0dcbad3f64a3ed15f8e04c0f30385c333532ce003dc934efd9d1dfe5166",
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2026.ZIP",
+      "year": 2026
+    }
+  ],
+  "split_actions_sha256": "da6c6bb5fa905de7301e75550672e3306a6a9ac7d9db2078e5214cf144116638",
+  "start": "2000-01-03",
+  "status": "price_verified",
+  "ticker": "VALE3",
+  "validation_issues": [],
+  "warning_reviews": [],
+  "warnings": []
+}

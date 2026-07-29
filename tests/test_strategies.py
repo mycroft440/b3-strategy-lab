@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date, timedelta
 
 from b3_strategy_lab.candles import Candle
-from b3_strategy_lab.strategies import STRATEGIES, STRATEGY_INFO, build_signals, sweep_strategies
+from b3_strategy_lab.strategies import (
+    STRATEGIES,
+    STRATEGY_INFO,
+    build_signals,
+    strategy_parameters,
+    sweep_strategies,
+)
 
 
 def candle(day: int, open_: float, high: float, low: float, close: float, volume: int = 1000) -> Candle:
@@ -26,6 +33,9 @@ def candle(day: int, open_: float, high: float, low: float, close: float, volume
 
 
 class StrategyInterfaceTests(unittest.TestCase):
+    def test_complete_catalog_has_156_buy_strategies(self) -> None:
+        self.assertEqual(len(sweep_strategies()), 156)
+
     def test_public_strategies_have_metadata_and_sweep_coverage(self) -> None:
         public = set(STRATEGIES) - {"sma"}
 
@@ -91,6 +101,43 @@ class StrategyInterfaceTests(unittest.TestCase):
         for strategy, params in strategies:
             with self.subTest(strategy=strategy):
                 signals = build_signals(strategy, candles, **params)
+                self.assertEqual(len(signals), len(candles))
+                self.assertTrue(all(signal in (0, 1) for signal in signals))
+
+    def test_every_strategy_runs_with_its_documented_parameters(self) -> None:
+        start = date(2022, 1, 1)
+        candles = []
+        price = 20.0
+        for index in range(500):
+            drift = 0.0008 + 0.012 * ((index % 31) - 15) / 15
+            next_price = max(1.0, price * (1 + drift))
+            candles.append(
+                Candle(
+                    date=(start + timedelta(days=index)).isoformat(),
+                    ticker="TEST3",
+                    source_symbol="TEST3.SA",
+                    open=price,
+                    high=max(price, next_price) * 1.01,
+                    low=min(price, next_price) * 0.99,
+                    close=next_price,
+                    adj_close=next_price,
+                    volume=1_000 + index * 7,
+                    raw_open=price,
+                    raw_high=max(price, next_price) * 1.01,
+                    raw_low=min(price, next_price) * 0.99,
+                    raw_close=next_price,
+                    adjustment_factor=1.0,
+                )
+            )
+            price = next_price
+
+        for strategy in sweep_strategies():
+            with self.subTest(strategy=strategy):
+                signals = build_signals(
+                    strategy,
+                    candles,
+                    **strategy_parameters(strategy),
+                )
                 self.assertEqual(len(signals), len(candles))
                 self.assertTrue(all(signal in (0, 1) for signal in signals))
 

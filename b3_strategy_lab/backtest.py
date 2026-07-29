@@ -56,7 +56,7 @@ def run_strategy_vs_buy_hold(
     cost_bps: float = 0.0,
     slippage_bps: float = 0.0,
     lot_size: int = 0,
-    price_mode: str = "adjusted",
+    price_mode: str = "price_only",
     actions: list[CorporateAction] | None = None,
 ) -> tuple[Summary, list[CurvePoint], list[CurvePoint]]:
     if len(candles) < 2:
@@ -64,7 +64,26 @@ def run_strategy_vs_buy_hold(
     if len(candles) != len(signals):
         raise ValueError("Candles e sinais precisam ter o mesmo tamanho.")
 
-    if price_mode == "adjusted":
+    if price_mode == "price_only":
+        benchmark_curve = simulate_buy_and_hold_price_only(
+            candles,
+            initial_cash=initial_cash,
+            cost_bps=cost_bps,
+            slippage_bps=slippage_bps,
+            lot_size=lot_size,
+        )
+        if strategy_name.strip().lower() == "buy_and_hold":
+            strategy_curve = benchmark_curve
+        else:
+            strategy_curve = simulate_single_asset_price_only(
+                candles,
+                signals,
+                initial_cash=initial_cash,
+                cost_bps=cost_bps,
+                slippage_bps=slippage_bps,
+                lot_size=lot_size,
+            )
+    elif price_mode == "adjusted":
         benchmark_curve = simulate_buy_and_hold(
             candles,
             initial_cash=initial_cash,
@@ -108,7 +127,9 @@ def run_strategy_vs_buy_hold(
                 lot_size=lot_size,
             )
     else:
-        raise ValueError("price_mode precisa ser 'adjusted' ou 'raw_events'.")
+        raise ValueError(
+            "price_mode precisa ser 'price_only', 'adjusted' ou 'raw_events'."
+        )
     strategy_metrics = metrics(strategy_curve, initial_cash)
     benchmark_metrics = metrics(benchmark_curve, initial_cash)
 
@@ -188,6 +209,28 @@ def simulate_single_asset(
         )
 
     return curve
+
+
+def simulate_single_asset_price_only(
+    candles: list[Candle],
+    signals: list[int],
+    *,
+    initial_cash: float = 10_000.0,
+    cost_bps: float = 0.0,
+    slippage_bps: float = 0.0,
+    lot_size: int = 0,
+) -> list[CurvePoint]:
+    """Simula no OHLC split-normalizado e ignora todos os proventos em dinheiro."""
+    return simulate_single_asset_raw_events(
+        candles,
+        signals,
+        {},
+        {},
+        initial_cash=initial_cash,
+        cost_bps=cost_bps,
+        slippage_bps=slippage_bps,
+        lot_size=lot_size,
+    )
 
 
 def simulate_single_asset_raw_events(
@@ -290,6 +333,26 @@ def simulate_buy_and_hold(
     return curve
 
 
+def simulate_buy_and_hold_price_only(
+    candles: list[Candle],
+    *,
+    initial_cash: float = 10_000.0,
+    cost_bps: float = 0.0,
+    slippage_bps: float = 0.0,
+    lot_size: int = 0,
+) -> list[CurvePoint]:
+    """Compra e segura no OHLC split-normalizado, sem dividendos ou JCP."""
+    return simulate_buy_and_hold_raw_events(
+        candles,
+        {},
+        {},
+        initial_cash=initial_cash,
+        cost_bps=cost_bps,
+        slippage_bps=slippage_bps,
+        lot_size=lot_size,
+    )
+
+
 def simulate_buy_and_hold_raw_events(
     candles: list[Candle],
     before_open_actions: dict[str, CorporateAction],
@@ -359,7 +422,11 @@ def write_summary_csv(summaries: list[Summary], path: Path | str) -> Path:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=[field for field in Summary.__dataclass_fields__])
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[field for field in Summary.__dataclass_fields__],
+            lineterminator="\n",
+        )
         writer.writeheader()
         for summary in summaries:
             writer.writerow(asdict(summary))
@@ -390,7 +457,7 @@ def write_comparison_curve(
     ]
 
     with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for strategy_point, benchmark_point in zip(strategy_curve, benchmark_curve):
             writer.writerow(
@@ -496,7 +563,8 @@ def _apply_action(
 
     dividend_cash = shares * action.dividend
     cash += dividend_cash
-    # Yahoo OHLC is already split-adjusted; applying split ratios again double-counts old splits.
+    # Canonical raw_* prices are already normalized to one split basis. Applying
+    # the ratio to shares here would count the same corporate action twice.
     return shares, cash, dividend_cash, action.split_ratio
 
 

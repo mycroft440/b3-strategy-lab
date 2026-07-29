@@ -950,6 +950,19 @@ STRATEGY_INFO = {
 }
 
 
+from .additional_strategies import ADDITIONAL_PARAMETERS, ADDITIONAL_STRATEGIES
+
+for _additional in ADDITIONAL_STRATEGIES:
+    if _additional.name in STRATEGIES or _additional.name in STRATEGY_INFO:
+        raise RuntimeError(f"Estrategia adicional duplicada: {_additional.name}")
+    STRATEGIES[_additional.name] = _additional.function
+    STRATEGY_INFO[_additional.name] = StrategyInfo(
+        _additional.name,
+        _additional.family,
+        _additional.description,
+    )
+
+
 def available_strategies() -> list[str]:
     return sorted(name for name in STRATEGIES if name != "sma")
 
@@ -972,6 +985,8 @@ def strategy_parameters(strategy_name: str) -> dict[str, object]:
     name = strategy_name.strip().lower()
     if name == "sma":
         name = "sma_cross"
+    if name in ADDITIONAL_PARAMETERS:
+        return dict(ADDITIONAL_PARAMETERS[name])
     strategy = STRATEGIES[name]
     parameters: dict[str, object] = {}
     for key, parameter in inspect.signature(strategy).parameters.items():

@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.candles import (
+    DEFAULT_ACTIONS_DIR,
     DEFAULT_YEARLY_DATA_DIR,
     Candle,
     actions_path,
@@ -20,6 +21,14 @@ from b3_strategy_lab.candles import (
     split_candles_by_year,
     validate_candles,
     yearly_cache_path,
+)
+from b3_strategy_lab.cotahist import (
+    DEFAULT_MANIFESTS_DIR,
+    DataVerificationError,
+    PRICE_VERIFIED_STATUS,
+    load_manifest,
+    manifest_path,
+    verify_dataset,
 )
 
 
@@ -34,19 +43,67 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--candles-dir", default=str(DEFAULT_CANDLES_DIR))
     parser.add_argument("--heikin-ashi-dir", default=str(DEFAULT_HEIKIN_ASHI_DIR))
     parser.add_argument("--yearly-dir", default=str(DEFAULT_YEARLY_DATA_DIR))
+    parser.add_argument("--actions-dir", default=str(DEFAULT_ACTIONS_DIR))
+    parser.add_argument("--manifests-dir", default=str(DEFAULT_MANIFESTS_DIR))
     parser.add_argument("--reports-dir", default=str(DEFAULT_REPORTS_DIR))
+    parser.add_argument(
+        "--quarantine-unverified",
+        action="store_true",
+        help="Move fontes e derivados sem manifesto valido para data/legacy.",
+    )
+    parser.add_argument("--legacy-dir", default="data/legacy")
     args = parser.parse_args(argv)
 
     candles_dir = Path(args.candles_dir)
     heikin_ashi_dir = Path(args.heikin_ashi_dir)
     yearly_dir = Path(args.yearly_dir)
+    actions_dir = Path(args.actions_dir)
+    manifests_dir = Path(args.manifests_dir)
+    legacy_dir = Path(args.legacy_dir)
     reports_dir = Path(args.reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    generated = generate_heikin_ashi_files(candles_dir, heikin_ashi_dir)
-    yearly_generated = generate_yearly_files(candles_dir, heikin_ashi_dir, yearly_dir)
-    inventory = build_inventory(candles_dir, heikin_ashi_dir)
-    yearly_inventory = build_yearly_inventory(yearly_dir)
+    verified_sources, rejected_sources = verified_candle_files(
+        candles_dir,
+        actions_dir,
+        manifests_dir,
+    )
+    quarantined = 0
+    if args.quarantine_unverified:
+        quarantined += quarantine_files(
+            rejected_sources,
+            candles_dir,
+            legacy_dir / "candles",
+        )
+
+    generated, heikin_files = generate_heikin_ashi_files(verified_sources, heikin_ashi_dir)
+    if args.quarantine_unverified:
+        unexpected_heikin = set(heikin_ashi_dir.glob("*.csv")) - set(heikin_files)
+        quarantined += quarantine_files(
+            unexpected_heikin,
+            heikin_ashi_dir,
+            legacy_dir / "heikin_ashi",
+        )
+
+    yearly_generated, yearly_files = generate_yearly_files(
+        verified_sources,
+        heikin_files,
+        yearly_dir,
+    )
+    if args.quarantine_unverified:
+        unexpected_yearly = set(yearly_dir.glob("*/*/*/*.csv")) - set(yearly_files)
+        quarantined += quarantine_files(
+            unexpected_yearly,
+            yearly_dir,
+            legacy_dir / "yearly",
+        )
+    inventory = build_inventory(
+        candles_dir,
+        heikin_ashi_dir,
+        actions_dir,
+        manifests_dir,
+    )
+    yearly_inventory = build_yearly_inventory(yearly_dir, manifests_dir)
     write_inventory_csv(inventory, reports_dir / "data_status.csv")
     write_inventory_markdown(inventory, reports_dir / "data_status.md")
     write_yearly_inventory_csv(yearly_inventory, reports_dir / "yearly_data_status.csv")
@@ -54,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Heikin Ashi gerado: {generated} arquivos em {heikin_ashi_dir}")
     print(f"Arquivos anuais gerados: {yearly_generated} arquivos em {yearly_dir}")
+    print(f"Arquivos sem proveniencia movidos para quarentena: {quarantined}")
     print(f"Inventario CSV: {reports_dir / 'data_status.csv'}")
     print(f"Inventario Markdown: {reports_dir / 'data_status.md'}")
     print(f"Inventario anual CSV: {reports_dir / 'yearly_data_status.csv'}")
@@ -61,27 +119,77 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def generate_heikin_ashi_files(candles_dir: Path, output_dir: Path) -> int:
-    count = 0
+def verified_candle_files(
+    candles_dir: Path,
+    actions_dir: Path,
+    manifests_dir: Path,
+) -> tuple[list[Path], list[Path]]:
+    verified: list[Path] = []
+    rejected: list[Path] = []
     for path in sorted(candles_dir.glob("*.csv")):
+        ticker, interval = _ticker_interval_from_path(path)
+        try:
+            verify_dataset(
+                path,
+                actions_path(ticker, actions_dir),
+                manifest_path(ticker, interval, manifests_dir),
+                ticker=ticker,
+                interval=interval,
+            )
+        except (DataVerificationError, FileNotFoundError, ValueError):
+            rejected.append(path)
+        else:
+            verified.append(path)
+    return verified, rejected
+
+
+def generate_heikin_ashi_files(paths: list[Path], output_dir: Path) -> tuple[int, list[Path]]:
+    count = 0
+    outputs: list[Path] = []
+    for path in paths:
         candles = load_candles(path)
         if not candles:
             continue
         output = output_dir / path.name
         save_candles(to_heikin_ashi(candles), output)
+        outputs.append(output)
         count += 1
-    return count
+    return count, outputs
 
 
-def generate_yearly_files(candles_dir: Path, heikin_ashi_dir: Path, output_dir: Path) -> int:
+def generate_yearly_files(
+    candle_files: list[Path],
+    heikin_ashi_files: list[Path],
+    output_dir: Path,
+) -> tuple[int, list[Path]]:
     count = 0
-    for chart_type, directory in (("candles", candles_dir), ("heikin_ashi", heikin_ashi_dir)):
-        for path in sorted(directory.glob("*.csv")):
+    outputs: list[Path] = []
+    for chart_type, paths in (("candles", candle_files), ("heikin_ashi", heikin_ashi_files)):
+        for path in paths:
             ticker, interval = _ticker_interval_from_path(path)
             for year, candles in split_candles_by_year(load_candles(path)).items():
                 output = yearly_cache_path(ticker, interval, year, chart_type, output_dir)
                 save_candles(candles, output)
+                outputs.append(output)
                 count += 1
+    return count, outputs
+
+
+def quarantine_files(paths, source_root: Path, destination_root: Path) -> int:
+    count = 0
+    for path in sorted(paths):
+        destination = destination_root / path.relative_to(source_root)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            if path.read_bytes() != destination.read_bytes():
+                raise FileExistsError(
+                    f"Quarentena contem conteudo diferente em {destination}; "
+                    "nenhuma sobrescrita foi feita."
+                )
+            path.unlink()
+        else:
+            path.replace(destination)
+        count += 1
     return count
 
 
@@ -91,15 +199,20 @@ def to_heikin_ashi(candles: list[Candle]) -> list[Candle]:
     previous_close: float | None = None
 
     for candle in candles:
-        ha_close = (candle.open + candle.high + candle.low + candle.close) / 4
+        ha_close = (
+            candle.raw_open
+            + candle.raw_high
+            + candle.raw_low
+            + candle.raw_close
+        ) / 4
 
         if previous_open is None or previous_close is None:
-            ha_open = (candle.open + candle.close) / 2
+            ha_open = (candle.raw_open + candle.raw_close) / 2
         else:
             ha_open = (previous_open + previous_close) / 2
 
-        ha_high = max(candle.high, ha_open, ha_close)
-        ha_low = min(candle.low, ha_open, ha_close)
+        ha_high = max(candle.raw_high, ha_open, ha_close)
+        ha_low = min(candle.raw_low, ha_open, ha_close)
 
         result.append(
             replace(
@@ -130,19 +243,46 @@ def _ticker_interval_from_path(path: Path) -> tuple[str, str]:
     return ticker.upper(), interval
 
 
-def build_inventory(candles_dir: Path, heikin_ashi_dir: Path) -> list[dict[str, str]]:
+def build_inventory(
+    candles_dir: Path,
+    heikin_ashi_dir: Path,
+    actions_dir: Path,
+    manifests_dir: Path,
+) -> list[dict[str, str]]:
     tickers = sorted({path.stem.rsplit("_", 1)[0].upper() for path in candles_dir.glob("*.csv")})
     rows: list[dict[str, str]] = []
     for ticker in tickers:
-        actions = load_actions(actions_path(ticker))
+        actions = load_actions(actions_path(ticker, actions_dir))
         for chart_type, directory in (("candles", candles_dir), ("heikin_ashi", heikin_ashi_dir)):
             for interval in ("4h", "1d", "1wk"):
                 path = directory / f"{ticker.lower()}_{interval}.csv"
-                rows.append(_inventory_row(ticker, chart_type, interval, path, len(actions)))
+                rows.append(
+                    _inventory_row(
+                        ticker,
+                        chart_type,
+                        interval,
+                        path,
+                        len(actions),
+                        manifests_dir,
+                    )
+                )
     return rows
 
 
-def _inventory_row(ticker: str, chart_type: str, interval: str, path: Path, action_count: int) -> dict[str, str]:
+def _inventory_row(
+    ticker: str,
+    chart_type: str,
+    interval: str,
+    path: Path,
+    action_count: int,
+    manifests_dir: Path,
+) -> dict[str, str]:
+    manifest_file = manifest_path(ticker, interval, manifests_dir)
+    manifest = load_manifest(manifest_file) if manifest_file.exists() else None
+    price_status = manifest.status if manifest else "unverified"
+    if chart_type == "heikin_ashi" and price_status == PRICE_VERIFIED_STATUS:
+        price_status = "derived_from_price_verified"
+    action_status = manifest.corporate_action_status if manifest else "unverified"
     if not path.exists():
         return {
             "ticker": ticker,
@@ -155,52 +295,107 @@ def _inventory_row(ticker: str, chart_type: str, interval: str, path: Path, acti
             "start": "",
             "end": "",
             "corporate_actions": str(action_count),
+            "price_status": price_status,
+            "action_status": action_status,
             "issues": "arquivo inexistente",
         }
 
     candles = load_candles(path)
     issues = validate_candles(candles)
-    ready = bool(candles) and not issues
+    price_ready = price_status in {
+        PRICE_VERIFIED_STATUS,
+        "derived_from_price_verified",
+    }
+    ready = bool(candles) and not issues and price_ready and chart_type == "candles"
+    status = (
+        "ok_retorno_preco"
+        if ready
+        else "derivado_verificado"
+        if candles and price_ready and chart_type == "heikin_ashi"
+        else "revisar"
+    )
     return {
         "ticker": ticker,
         "chart_type": chart_type,
         "interval": INTERVAL_LABELS[interval],
         "file": str(path),
-        "status": "ok" if ready else "revisar",
+        "status": status,
         "ready_for_backtest": "sim" if ready else "nao",
         "rows": str(len(candles)),
         "start": candles[0].date if candles else "",
         "end": candles[-1].date if candles else "",
         "corporate_actions": str(action_count),
+        "price_status": price_status,
+        "action_status": action_status,
         "issues": "; ".join(issues[:5]),
     }
 
 
-def build_yearly_inventory(yearly_dir: Path) -> list[dict[str, str]]:
+def build_yearly_inventory(yearly_dir: Path, manifests_dir: Path) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for path in sorted(yearly_dir.glob("*/*/*/*.csv")):
         year, chart_type, interval = path.parts[-4:-1]
         ticker, _path_interval = _ticker_interval_from_path(path)
-        rows.append(_yearly_inventory_row(year, ticker, chart_type, interval, path))
+        rows.append(
+            _yearly_inventory_row(
+                year,
+                ticker,
+                chart_type,
+                interval,
+                path,
+                manifests_dir,
+            )
+        )
     return rows
 
 
-def _yearly_inventory_row(year: str, ticker: str, chart_type: str, interval: str, path: Path) -> dict[str, str]:
+def _yearly_inventory_row(
+    year: str,
+    ticker: str,
+    chart_type: str,
+    interval: str,
+    path: Path,
+    manifests_dir: Path,
+) -> dict[str, str]:
     candles = load_candles(path)
     issues = validate_candles(candles)
+    manifest_file = manifest_path(ticker, interval, manifests_dir)
+    manifest = load_manifest(manifest_file) if manifest_file.exists() else None
+    price_status = manifest.status if manifest else "unverified"
+    if chart_type == "heikin_ashi" and price_status == PRICE_VERIFIED_STATUS:
+        price_status = "derived_from_price_verified"
+    action_status = manifest.corporate_action_status if manifest else "unverified"
     if len(candles) < 2:
         issues = [*issues, "menos de 2 candles para backtest"]
-    ready = len(candles) >= 2 and not issues
+    price_ready = price_status in {
+        PRICE_VERIFIED_STATUS,
+        "derived_from_price_verified",
+    }
+    ready = (
+        len(candles) >= 2
+        and not issues
+        and price_ready
+        and chart_type == "candles"
+    )
+    status = (
+        "ok_retorno_preco"
+        if ready
+        else "derivado_verificado"
+        if candles and price_ready and chart_type == "heikin_ashi"
+        else "revisar"
+    )
     return {
         "year": year,
         "ticker": ticker,
         "chart_type": chart_type,
         "interval": INTERVAL_LABELS.get(interval, interval),
-        "status": "ok" if ready else "revisar",
+        "status": status,
         "ready_for_backtest": "sim" if ready else "nao",
         "rows": str(len(candles)),
         "start": candles[0].date if candles else "",
         "end": candles[-1].date if candles else "",
+        "price_status": price_status,
+        "action_status": action_status,
         "file": str(path),
         "issues": "; ".join(issues[:5]),
     }
@@ -217,11 +412,13 @@ def write_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
         "start",
         "end",
         "corporate_actions",
+        "price_status",
+        "action_status",
         "file",
         "issues",
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
 
@@ -237,11 +434,13 @@ def write_yearly_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
         "rows",
         "start",
         "end",
+        "price_status",
+        "action_status",
         "file",
         "issues",
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
 
@@ -253,6 +452,9 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
         "",
         "Status gerado a partir de `data/candles`, `data/heikin_ashi` e `data/corporate_actions`.",
         "",
+        "Preco verificado pode ser usado em indicadores. `Backtest = nao` enquanto os eventos "
+        "corporativos brutos nao estiverem certificados.",
+        "",
         "Observacao: `VALE4` nao existe nos dados atuais; o ticker disponivel e `VALE3`.",
         "",
     ]
@@ -262,15 +464,16 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
             lines.append("")
             lines.append(f"### {label}")
             lines.append("")
-            lines.append("| Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |")
-            lines.append("|---|---|---|---:|---|---|---|")
+            lines.append("| Tempo | Status | Preco | Eventos | Backtest | Linhas | Inicio | Fim | Arquivo |")
+            lines.append("|---|---|---|---|---|---:|---|---|---|")
             for interval in ("4h", "1d", "1sem"):
                 row = next(
                     item for item in rows
                     if item["ticker"] == ticker and item["chart_type"] == chart_type and item["interval"] == interval
                 )
                 lines.append(
-                    f"| {interval} | {row['status']} | {row['ready_for_backtest']} | "
+                    f"| {interval} | {row['status']} | {row['price_status']} | "
+                    f"{row['action_status']} | {row['ready_for_backtest']} | "
                     f"{row['rows']} | {row['start']} | {row['end']} | `{row['file']}` |"
                 )
             actions = next(item["corporate_actions"] for item in rows if item["ticker"] == ticker)
@@ -286,13 +489,14 @@ def write_yearly_inventory_markdown(rows: list[dict[str, str]], path: Path) -> N
         "",
         "Arquivos gerados a partir dos historicos completos em `data/candles` e `data/heikin_ashi`.",
         "",
-        "| Ano | Ticker | Grafico | Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |",
-        "|---:|---|---|---|---|---|---:|---|---|---|",
+        "| Ano | Ticker | Grafico | Tempo | Status | Preco | Eventos | Backtest | Linhas | Inicio | Fim | Arquivo |",
+        "|---:|---|---|---|---|---|---|---|---:|---|---|---|",
     ]
     for row in sorted(rows, key=lambda item: (item["year"], item["ticker"], item["chart_type"], item["interval"])):
         lines.append(
             f"| {row['year']} | {row['ticker']} | {row['chart_type']} | {row['interval']} | "
-            f"{row['status']} | {row['ready_for_backtest']} | {row['rows']} | "
+            f"{row['status']} | {row['price_status']} | {row['action_status']} | "
+            f"{row['ready_for_backtest']} | {row['rows']} | "
             f"{row['start']} | {row['end']} | `{row['file']}` |"
         )
     path.write_text("\n".join(lines), encoding="utf-8")

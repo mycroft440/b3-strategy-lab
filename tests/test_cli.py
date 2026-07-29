@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+import argparse
+import tempfile
 import unittest
+from pathlib import Path
 
-from b3_strategy_lab.cli import _actions_for_candles
-from b3_strategy_lab.candles import Candle, CorporateAction
+from b3_strategy_lab.cli import _actions_for_candles, _load_or_fetch_for_backtest
+from b3_strategy_lab.candles import (
+    DEFAULT_ACTIONS_DIR,
+    DEFAULT_DATA_DIR,
+    Candle,
+    CorporateAction,
+    save_actions,
+)
+from b3_strategy_lab.cotahist import (
+    DataVerificationError,
+    create_manifest,
+    manifest_path,
+    save_verified_candles,
+    source_archive,
+    write_manifest,
+)
 
 
 def candle(day: str, open_: float, close: float) -> Candle:
@@ -22,6 +39,8 @@ def candle(day: str, open_: float, close: float) -> Candle:
         raw_low=min(open_, close),
         raw_close=close,
         adjustment_factor=1.0,
+        source_high=max(open_, close),
+        source_low=min(open_, close),
     )
 
 
@@ -53,6 +72,75 @@ class CliWindowTests(unittest.TestCase):
         filtered = _actions_for_candles(actions, candles, "1d")
 
         self.assertEqual([action.date for action in filtered], ["2024-01-02"])
+
+
+class SafeDataLoadingTests(unittest.TestCase):
+    def test_price_only_accepts_verified_prices_and_raw_events_stays_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            data_dir = root / "candles"
+            actions_dir = root / "actions"
+            manifests_dir = root / "manifests"
+            candle_file = save_verified_candles(
+                [
+                    candle("2024-01-01", 10.0, 10.0),
+                    candle("2024-01-02", 11.0, 11.0),
+                ],
+                data_dir / "test3_1d.csv",
+            )
+            action_file = save_actions([], actions_dir / "test3_actions.csv")
+            archive_file = root / "COTAHIST_A2024.ZIP"
+            archive_file.write_bytes(b"official fixture")
+            write_manifest(
+                create_manifest(
+                    ticker="TEST3",
+                    interval="1d",
+                    candles_path=candle_file,
+                    actions_path=action_file,
+                    source_archives=[source_archive(archive_file, 2024)],
+                ),
+                manifest_path("TEST3", "1d", manifests_dir),
+            )
+            args = argparse.Namespace(
+                interval="1d",
+                data_dir=str(data_dir),
+                actions_dir=str(actions_dir),
+                manifests_dir=str(manifests_dir),
+                start=None,
+                end=None,
+                refresh_data=False,
+                allow_unverified_data=False,
+                allow_unverified_actions=False,
+                price_mode="price_only",
+            )
+
+            loaded = _load_or_fetch_for_backtest("TEST3", args)
+            self.assertEqual(len(loaded), 2)
+
+            args.price_mode = "raw_events"
+            with self.assertRaises(DataVerificationError):
+                _load_or_fetch_for_backtest("TEST3", args)
+
+            args.allow_unverified_actions = True
+            loaded = _load_or_fetch_for_backtest("TEST3", args)
+            self.assertEqual(len(loaded), 2)
+
+    def test_legacy_refresh_cannot_overwrite_canonical_directories(self) -> None:
+        args = argparse.Namespace(
+            interval="1d",
+            data_dir=str(DEFAULT_DATA_DIR),
+            actions_dir=str(DEFAULT_ACTIONS_DIR),
+            manifests_dir="data/manifests",
+            start=None,
+            end=None,
+            refresh_data=True,
+            allow_unverified_data=True,
+            allow_unverified_actions=True,
+            price_mode="price_only",
+        )
+
+        with self.assertRaises(DataVerificationError):
+            _load_or_fetch_for_backtest("PETR4", args)
 
 
 if __name__ == "__main__":

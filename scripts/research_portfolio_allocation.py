@@ -17,17 +17,17 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from b3_strategy_lab.backtest import (  # noqa: E402
     CurvePoint,
-    _action_buckets,
     _slipped_price,
     metrics,
-    simulate_buy_and_hold_raw_events,
+    simulate_buy_and_hold_price_only,
 )
-from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle, actions_path, cache_path, load_actions, load_candles  # noqa: E402
+from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle, cache_path, load_candles  # noqa: E402
+from b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402
 
 
 INITIAL_CASH = 10_000.0
-COST_BPS = 20.0
-SLIPPAGE_BPS = 5.0
+COST_BPS = 0.0
+SLIPPAGE_BPS = 0.0
 LOT_SIZE = 1
 REPORTS_DIR = Path("reports")
 
@@ -46,7 +46,7 @@ class PortfolioConfig:
     absolute_momentum: bool = True
     max_weight: float = 1.0
     target_vol: float = 0.0
-    signal_mode: str = "adjusted"
+    signal_mode: str = "raw"
     roc_windows: str = ""
     roc_weights: str = ""
     positive_rule: str = "score"
@@ -70,6 +70,7 @@ class PortfolioSummary:
     annual_volatility: float
     sharpe: float
     turnover: float
+    average_annual_return: float
 
 
 @dataclass(frozen=True)
@@ -86,28 +87,33 @@ class PortfolioCurveRow:
 
 
 class MarketData:
-    def __init__(self, tickers: list[str], interval: str, signal_mode: str) -> None:
+    def __init__(
+        self,
+        tickers: list[str],
+        interval: str,
+        signal_mode: str,
+        *,
+        allow_unverified_data: bool = False,
+    ) -> None:
         self.tickers = tickers
         self.interval = interval
         self.signal_mode = signal_mode
         self.candles: dict[str, list[Candle]] = {}
         self.by_date: dict[str, dict[str, Candle]] = {}
         self.index_by_date: dict[str, dict[str, int]] = {}
-        self.before_actions: dict[str, dict[str, object]] = {}
-        self.after_actions: dict[str, dict[str, object]] = {}
         self.signal_prices: dict[str, list[float]] = {}
         self.raw_returns: dict[str, list[float]] = {}
+        self.candidate_profile_cache: dict[tuple[str, int, PortfolioConfig], dict | None] = {}
         dates: set[str] = set()
 
         for ticker in tickers:
-            candles = load_candles(cache_path(ticker, interval))
-            actions = load_actions(actions_path(ticker))
-            before_open, after_open = _action_buckets(candles, actions)
+            if allow_unverified_data:
+                candles = load_candles(cache_path(ticker, interval))
+            else:
+                candles, _manifest = load_verified_candles(ticker, interval)
             self.candles[ticker] = candles
             self.by_date[ticker] = {candle.date: candle for candle in candles}
             self.index_by_date[ticker] = {candle.date: index for index, candle in enumerate(candles)}
-            self.before_actions[ticker] = before_open
-            self.after_actions[ticker] = after_open
             self.signal_prices[ticker] = [
                 candle.close if signal_mode == "adjusted" else candle.raw_close
                 for candle in candles
@@ -124,14 +130,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--suffix", default="")
     parser.add_argument("--train-ratio", type=float, default=0.7)
-    parser.add_argument("--signal-modes", nargs="+", default=["adjusted"], choices=["adjusted", "raw"])
+    parser.add_argument("--signal-modes", nargs="+", default=["raw"], choices=["adjusted", "raw"])
     parser.add_argument("--config-set", default="all", choices=["all", "base", "roc", "roc_hybrid", "roc_filter_short"])
+    parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
 
     tickers = [ticker.upper() for ticker in args.tickers]
     rows: list[dict] = []
     for signal_mode in args.signal_modes:
-        data = MarketData(tickers, args.interval, signal_mode)
+        data = MarketData(
+            tickers,
+            args.interval,
+            signal_mode,
+            allow_unverified_data=args.allow_unverified_data,
+        )
         split_index = max(1, min(len(data.dates) - 2, int(len(data.dates) * args.train_ratio)))
         train_end = data.dates[split_index]
         test_start = data.dates[split_index + 1]
@@ -151,9 +163,12 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     rows.sort(key=lambda row: (float(row["test_cagr"]), float(row["full_cagr"])), reverse=True)
-    output = REPORTS_DIR / f"portfolio_allocation_research_raw_events_raw_{args.interval}{args.suffix}.csv"
+    output = (
+        REPORTS_DIR
+        / f"portfolio_allocation_research_price_only_raw_{args.interval}{args.suffix}.csv"
+    )
     _write(rows, output)
-    _write_benchmarks(tickers, args.interval, output.with_name(output.stem + "_benchmarks.csv"))
+    _write_benchmarks(data, output.with_name(output.stem + "_benchmarks.csv"))
     _print_top(rows)
     return 0
 
@@ -168,6 +183,8 @@ def run_portfolio(
     cost_bps: float = COST_BPS,
     slippage_bps: float = SLIPPAGE_BPS,
     lot_size: int = LOT_SIZE,
+    eligibility: dict[str, list[int]] | None = None,
+    collect_curve: bool = True,
 ) -> tuple[PortfolioSummary, list[PortfolioCurveRow]]:
     cost_rate = cost_bps / 10_000
     slippage_rate = slippage_bps / 10_000
@@ -180,8 +197,11 @@ def run_portfolio(
     last_prices: dict[str, float] = {}
     pending_targets: dict[str, float] | None = None
     curve: list[PortfolioCurveRow] = []
+    equities: list[float] = []
     total_trades = 0
     total_turnover = 0.0
+    exposure_days = 0
+    position_days = 0
 
     for index, current_date in enumerate(dates):
         next_date = dates[index + 1] if index + 1 < len(dates) else None
@@ -191,8 +211,7 @@ def run_portfolio(
             if current_date in data.by_date[ticker]
         }
 
-        dividend_cash = _apply_actions(current_date, data.before_actions, shares)
-        cash += dividend_cash
+        dividend_cash = 0.0
 
         trade_count = 0
         turnover = 0.0
@@ -212,65 +231,59 @@ def run_portfolio(
             total_trades += trade_count
             total_turnover += turnover
 
-        after_dividends = _apply_actions(current_date, data.after_actions, shares)
-        dividend_cash += after_dividends
-        cash += after_dividends
-
         for ticker, candle in today_candles.items():
             last_prices[ticker] = candle.raw_close
 
         equity = cash + sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
         invested_value = sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
         selected = [ticker for ticker in data.tickers if shares[ticker] > 0]
-        curve.append(
-            PortfolioCurveRow(
-                date=current_date,
-                equity=equity,
-                cash=cash,
-                invested_weight=invested_value / equity if equity > 0 else 0.0,
-                positions=len(selected),
-                selected=";".join(selected),
-                trade_count=trade_count,
-                turnover=turnover,
-                dividend_cash=dividend_cash,
+        invested_weight = invested_value / equity if equity > 0 else 0.0
+        equities.append(equity)
+        exposure_days += int(invested_weight > 0.01)
+        position_days += len(selected)
+        if collect_curve:
+            curve.append(
+                PortfolioCurveRow(
+                    date=current_date,
+                    equity=equity,
+                    cash=cash,
+                    invested_weight=invested_weight,
+                    positions=len(selected),
+                    selected=";".join(selected),
+                    trade_count=trade_count,
+                    turnover=turnover,
+                    dividend_cash=dividend_cash,
+                )
             )
-        )
 
         if next_date is not None and _is_rebalance_date(current_date, next_date, config.rebalance):
-            pending_targets = _target_weights(data, current_date, config)
+            pending_targets = _target_weights(
+                data,
+                current_date,
+                config,
+                eligible_tickers=_eligible_tickers(data, current_date, eligibility),
+            )
         else:
             pending_targets = None
 
-    curve_points = [
-        CurvePoint(
-            date=row.date,
-            signal=1 if row.positions else 0,
-            position=1 if row.positions else 0,
-            shares=0.0,
-            cash=row.cash,
-            equity=row.equity,
-            trade="REBALANCE" if row.trade_count else "",
-            trade_price=0.0,
-            dividend_cash=row.dividend_cash,
-        )
-        for row in curve
-    ]
-    result_metrics = metrics(curve_points, initial_cash)
+    result_metrics = _portfolio_metrics(equities, dates, initial_cash)
+    yearly = _yearly_returns(equities, dates)
     summary = PortfolioSummary(
         strategy=config.name,
-        start=curve[0].date,
-        end=curve[-1].date,
-        candles=len(curve),
+        start=dates[0],
+        end=dates[-1],
+        candles=len(dates),
         trades=total_trades,
-        exposure=sum(1 for row in curve if row.invested_weight > 0.01) / len(curve),
-        avg_positions=sum(row.positions for row in curve) / len(curve),
-        final_equity=curve[-1].equity,
+        exposure=exposure_days / len(dates),
+        avg_positions=position_days / len(dates),
+        final_equity=equities[-1],
         total_return=result_metrics["total_return"],
         cagr=result_metrics["cagr"],
         max_drawdown=result_metrics["max_drawdown"],
         annual_volatility=result_metrics["annual_volatility"],
         sharpe=result_metrics["sharpe"],
         turnover=total_turnover,
+        average_annual_return=statistics.mean(yearly.values()) if yearly else 0.0,
     )
     return summary, curve
 
@@ -575,9 +588,34 @@ def _roc_filter_short_configs(signal_mode: str) -> list[PortfolioConfig]:
     return configs
 
 
-def _target_weights(data: MarketData, current_date: str, config: PortfolioConfig) -> dict[str, float]:
+def _eligible_tickers(
+    data: MarketData,
+    current_date: str,
+    eligibility: dict[str, list[int]] | None,
+) -> set[str] | None:
+    if eligibility is None:
+        return None
+
+    eligible: set[str] = set()
+    for ticker in data.tickers:
+        index = data.index_by_date[ticker].get(current_date)
+        signals = eligibility.get(ticker)
+        if index is not None and signals is not None and index < len(signals) and signals[index] == 1:
+            eligible.add(ticker)
+    return eligible
+
+
+def _target_weights(
+    data: MarketData,
+    current_date: str,
+    config: PortfolioConfig,
+    *,
+    eligible_tickers: set[str] | None = None,
+) -> dict[str, float]:
     candidates = []
     for ticker in data.tickers:
+        if eligible_tickers is not None and ticker not in eligible_tickers:
+            continue
         index = data.index_by_date[ticker].get(current_date)
         if index is None:
             continue
@@ -609,6 +647,23 @@ def _target_weights(data: MarketData, current_date: str, config: PortfolioConfig
 
 
 def _candidate_profile(data: MarketData, ticker: str, index: int, config: PortfolioConfig) -> dict | None:
+    cache = getattr(data, "candidate_profile_cache", None)
+    cache_key = (ticker, index, config)
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
+
+    profile = _candidate_profile_uncached(data, ticker, index, config)
+    if cache is not None:
+        cache[cache_key] = profile
+    return profile
+
+
+def _candidate_profile_uncached(
+    data: MarketData,
+    ticker: str,
+    index: int,
+    config: PortfolioConfig,
+) -> dict | None:
     prices = data.signal_prices[ticker]
     recent_index = index - config.skip
     roc_windows = _parse_ints(config.roc_windows)
@@ -691,6 +746,67 @@ def _candidate_profile(data: MarketData, ticker: str, index: int, config: Portfo
     return {"ticker": ticker, "momentum": momentum, "volatility": volatility, "score": score}
 
 
+def _portfolio_metrics(
+    equities: list[float],
+    dates: list[str],
+    initial_cash: float,
+) -> dict[str, float]:
+    returns = [
+        equities[index] / equities[index - 1] - 1
+        for index in range(1, len(equities))
+        if equities[index - 1] > 0
+    ]
+    total_return = equities[-1] / initial_cash - 1
+    years = max(
+        (_point_datetime(dates[-1]) - _point_datetime(dates[0])).total_seconds()
+        / (365.25 * 24 * 60 * 60),
+        1 / 365.25,
+    )
+    periods_per_year = (len(equities) - 1) / years if years > 0 else 252.0
+    peak = equities[0]
+    max_drawdown = 0.0
+    for equity in equities:
+        peak = max(peak, equity)
+        if peak > 0:
+            max_drawdown = min(max_drawdown, equity / peak - 1)
+    annual_volatility = (
+        statistics.stdev(returns) * math.sqrt(periods_per_year)
+        if len(returns) >= 2
+        else 0.0
+    )
+    if len(returns) < 2:
+        sharpe = 0.0
+    else:
+        return_std = statistics.stdev(returns)
+        sharpe = (
+            statistics.mean(returns) / return_std * math.sqrt(periods_per_year)
+            if return_std > 0
+            else 0.0
+        )
+    cagr = (1 + total_return) ** (1 / years) - 1 if total_return > -1 else -1.0
+    return {
+        "total_return": total_return,
+        "cagr": cagr,
+        "max_drawdown": max_drawdown,
+        "annual_volatility": annual_volatility,
+        "sharpe": sharpe,
+    }
+
+
+def _yearly_returns(equities: list[float], dates: list[str]) -> dict[int, float]:
+    boundaries: dict[int, tuple[float, float]] = {}
+    for current_date, equity in zip(dates, equities):
+        year = _point_datetime(current_date).year
+        if year not in boundaries:
+            boundaries[year] = (equity, equity)
+        else:
+            boundaries[year] = (boundaries[year][0], equity)
+    return {
+        year: end / start - 1 if start > 0 else 0.0
+        for year, (start, end) in boundaries.items()
+    }
+
+
 def _weights(selected: list[dict], config: PortfolioConfig) -> dict[str, float]:
     if not selected:
         return {}
@@ -771,20 +887,6 @@ def _rebalance(
     return trade_count, traded_notional / equity, cash
 
 
-def _apply_actions(
-    current_date: str,
-    action_maps: dict[str, dict[str, object]],
-    shares: dict[str, float],
-) -> float:
-    dividend_cash = 0.0
-    for ticker, action_map in action_maps.items():
-        action = action_map.get(current_date)
-        if action is None or shares.get(ticker, 0.0) <= 0:
-            continue
-        dividend_cash += shares[ticker] * action.dividend
-    return dividend_cash
-
-
 def _write(rows: list[dict], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     fields = [
@@ -832,21 +934,18 @@ def _write(rows: list[dict], output: Path) -> None:
         "test_exposure",
     ]
     with output.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
     print(f"Salvo: {output} ({len(rows)} linhas)")
 
 
-def _write_benchmarks(tickers: list[str], interval: str, output: Path) -> None:
+def _write_benchmarks(data: MarketData, output: Path) -> None:
     rows = []
-    for ticker in tickers:
-        candles = load_candles(cache_path(ticker, interval))
-        before_open, after_open = _action_buckets(candles, load_actions(actions_path(ticker)))
-        curve = simulate_buy_and_hold_raw_events(
+    for ticker in data.tickers:
+        candles = data.candles[ticker]
+        curve = simulate_buy_and_hold_price_only(
             candles,
-            before_open,
-            after_open,
             initial_cash=INITIAL_CASH,
             cost_bps=COST_BPS,
             slippage_bps=SLIPPAGE_BPS,
@@ -871,7 +970,7 @@ def _write_benchmarks(tickers: list[str], interval: str, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as file:
         fields = ["ticker", "start", "end", "candles", "trades", "total_return", "cagr", "max_drawdown", "annual_volatility", "sharpe"]
-        writer = csv.DictWriter(file, fieldnames=fields)
+        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     print(f"Salvo: {output} ({len(rows)} linhas)")
