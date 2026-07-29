@@ -104,6 +104,40 @@ class StrategyInterfaceTests(unittest.TestCase):
                 self.assertEqual(len(signals), len(candles))
                 self.assertTrue(all(signal in (0, 1) for signal in signals))
 
+    def test_time_series_momentum_anchors_lookback_to_current_candle(self) -> None:
+        start = date(2024, 1, 1)
+        closes = [100.0] * 274
+        closes[0] = 200.0  # t-273: the old implementation incorrectly used this candle.
+        closes[21] = 40.0  # t-252: documented lookback reference.
+        closes[252] = 50.0  # t-21: recent price after skipping one month.
+        candles = [
+            Candle(
+                date=(start + timedelta(days=index)).isoformat(),
+                ticker="TEST3",
+                source_symbol="TEST3.SA",
+                open=close,
+                high=close,
+                low=close,
+                close=close,
+                adj_close=close,
+                volume=1_000,
+                raw_open=close,
+                raw_high=close,
+                raw_low=close,
+                raw_close=close,
+                adjustment_factor=1.0,
+            )
+            for index, close in enumerate(closes)
+        ]
+
+        signals = build_signals(
+            "time_series_momentum_12m",
+            candles,
+            **strategy_parameters("time_series_momentum_12m"),
+        )
+
+        self.assertEqual(signals[-1], 1)
+
     def test_every_strategy_runs_with_its_documented_parameters(self) -> None:
         start = date(2022, 1, 1)
         candles = []

@@ -449,8 +449,8 @@ def _time_series_momentum(
     signals = []
     for index, close in enumerate(closes):
         recent = index - skip
-        past = recent - lookback
-        valid = past >= 0 and closes[past] > 0
+        past = index - lookback
+        valid = recent >= 0 and past >= 0 and closes[past] > 0
         trend_ok = trend_window == 0 or (trend[index] is not None and close > trend[index])
         signals.append(int(valid and closes[recent] > closes[past] and trend_ok))
     return signals
