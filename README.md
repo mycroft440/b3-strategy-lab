@@ -51,6 +51,14 @@ Rodar uma reversao por RSI:
 python -m b3_strategy_lab backtest --strategy rsi_reversion --rsi-period 2 --lower 20 --upper 80 --cost-bps 5
 ```
 
+Rodar uma das estrategias pesquisadas com seus parametros canonicos, ou
+sobrescrever um parametro especifico:
+
+```powershell
+python -m b3_strategy_lab backtest --strategy frama_trend
+python -m b3_strategy_lab backtest --strategy frama_trend --strategy-param window=24
+```
+
 Varredura de parametros, ainda por ativo individual:
 
 ```powershell
@@ -89,11 +97,15 @@ python scripts\organize_strategies.py
 
 ## Matriz completa de estrategia e gerenciamento
 
-O experimento final cruza 156 estrategias de compra e saida com 478
+O artefato historico abaixo cruzou 156 estrategias de compra e saida com 478
 gerenciamentos de carteira, totalizando 74.568 combinacoes. Ele usa o periodo
 comum de 2018-01-02 a 2026-07-22, sinais em serie normalizada por
 desdobramentos, execucao na abertura seguinte, dividendos/JCP excluidos e
 custos, impostos e slippage iguais a zero.
+
+O catalogo atual tem 189 estrategias testaveis. Uma nova execucao integral
+cruza 189 x 478 = 90.342 combinacoes; os resultados antigos nao foram
+reclassificados automaticamente.
 
 ```powershell
 python scripts\backtest_strategy_management_combinations.py --signal-mode adjusted --output reports\strategy_management_combinations_adjusted_no_dividends_1d_t252.csv
@@ -133,6 +145,13 @@ Arquivos gerados:
 
 ## Estrategias incluidas
 
+O catalogo completo, incluindo os presets, pode ser consultado com
+`python -m b3_strategy_lab list-strategies`. As 12 formulas pesquisadas e suas
+regras exatas estao em [docs/researched_strategies.md](docs/researched_strategies.md).
+O segundo lote preserva essas 168 estrategias e adiciona 21 motores distintos,
+documentados em [docs/extended_strategies.md](docs/extended_strategies.md), para
+um total de 189 estrategias testaveis.
+
 - `atr_breakout`: rompimento de maxima com stop movel baseado em ATR.
 - `bollinger_reversion`: compra na banda inferior de Bollinger e sai no retorno ao meio/superior.
 - `chandelier_breakout`: rompimento de maxima com saida por Chandelier/ATR.
@@ -159,6 +178,25 @@ Arquivos gerados:
 - `trend_pullback`: compra sobrevenda apenas quando o ativo esta acima da media de tendencia.
 - `sma_stop`: segue tendencia por media movel com stop percentual a partir do topo.
 - `supertrend_follow`: segue tendencia pelo indicador SuperTrend baseado em ATR.
+- `precision_trend_ehlers`: tendencia pelo ROC do Precision Trend de Ehlers.
+- `ultimate_oscillator_ehlers`: oscilador de Ehlers normalizado por RMS.
+- `gap_momentum`: direcao da linha-sinal do gap ratio de Kaufman.
+- `heikin_ashi_stochastic`: reversao Heikin-Ashi confirmada por estocastico.
+- `vortex_trend`: tendencia pelo cruzamento de VI+ e VI-.
+- `kama_trend`: tendencia adaptativa pela KAMA de Kaufman.
+- `frama_trend`: tendencia adaptativa pela dimensao fractal de Ehlers.
+- `rvi_reversal`: reversao por cruzamento do Relative Vigor Index.
+- `chaikin_money_flow`: fluxo de volume com filtro de tendencia.
+- `squeeze_breakout`: rompimento depois de compressao Bollinger/Keltner.
+- `turtle_soup`: reversao de falso rompimento da minima anterior.
+- `turn_of_month`: janela do ultimo ao terceiro pregao do mes seguinte.
+- `fisher_transform_reversal` e `laguerre_rsi_reversal`: reversoes por filtros digitais de Ehlers.
+- `ichimoku_cloud`, `parabolic_sar_trend` e `aroon_trend`: seguidores de tendencia por estruturas diferentes.
+- `trix_signal`, `schaff_trend_cycle`, `coppock_curve`, `know_sure_thing`, `true_strength_index` e `awesome_oscillator`: motores de momentum com horizontes e suavizacoes distintos.
+- `choppiness_breakout`, `mass_index_reversal` e `vertical_horizontal_filter`: volatilidade, reversao de range e classificacao de regime.
+- `elder_force_index`, `ease_of_movement`, `negative_volume_index` e `klinger_volume_oscillator`: quatro leituras independentes de preco e volume.
+- `nr7_breakout` e `inside_bar_breakout`: price action com setup, validade e saidas objetivas.
+- `halloween_effect`: sazonalidade novembro-abril, alternando com caixa.
 - `buy_and_hold`: util para conferencia.
 
 O simulador executa sinais no `open` do candle seguinte. Isso evita olhar o

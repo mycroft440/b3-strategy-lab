@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import inspect
 from dataclasses import asdict, replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -22,7 +23,7 @@ from .candles import (
     validate_candles,
 )
 from .cotahist import DEFAULT_MANIFESTS_DIR, DataVerificationError, load_verified_candles
-from .strategies import available_strategies, build_signals, strategies_by_family, strategy_parameters, sweep_strategies
+from .strategies import STRATEGIES, available_strategies, build_signals, strategies_by_family, strategy_parameters, sweep_strategies
 
 PARAM_FIELDS = [
     "fast",
@@ -50,6 +51,59 @@ PARAM_FIELDS = [
     "volume_window",
     "volume_mult",
     "streak_length",
+    "long_period",
+    "short_period",
+    "band_edge",
+    "bandwidth",
+    "rms_period",
+    "period",
+    "signal_period",
+    "k_period",
+    "slowing",
+    "d_period",
+    "er_period",
+    "fast_period",
+    "slow_period",
+    "entry_level",
+    "exit_level",
+    "keltner_mult",
+    "squeeze_bars",
+    "stop_atr",
+    "hold_limit",
+    "sessions_before",
+    "sessions_after",
+    "gamma",
+    "tenkan_period",
+    "kijun_period",
+    "span_b_period",
+    "displacement",
+    "af_step",
+    "af_max",
+    "strong_level",
+    "cycle_period",
+    "smoothing",
+    "short_roc",
+    "long_roc",
+    "wma_period",
+    "roc1",
+    "roc2",
+    "roc3",
+    "roc4",
+    "sma1",
+    "sma2",
+    "sma3",
+    "sma4",
+    "high_level",
+    "low_level",
+    "ema_period",
+    "sum_period",
+    "bulge_level",
+    "trigger_level",
+    "exit_window",
+    "setup_period",
+    "expiry",
+    "entry_month",
+    "exit_month",
 ]
 
 SWEEP_STRATEGIES = sweep_strategies()
@@ -108,31 +162,40 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Atualiza pela fonte legada; exige --allow-unverified-data.",
     )
-    backtest_parser.add_argument("--fast", type=int, default=50, help="Media curta para sma_cross.")
-    backtest_parser.add_argument("--slow", type=int, default=200, help="Media longa para sma_cross.")
-    backtest_parser.add_argument("--lookback", type=int, default=126, help="Janela para momentum ou entrada do breakout.")
-    backtest_parser.add_argument("--exit-lookback", type=int, default=20, help="Janela de saida do breakout.")
-    backtest_parser.add_argument("--signal-window", type=int, default=9, help="Media de sinal para MACD.")
-    backtest_parser.add_argument("--rsi-period", type=int, default=14, help="Periodo do RSI.")
-    backtest_parser.add_argument("--lower", type=float, default=30.0, help="Limite inferior do RSI.")
-    backtest_parser.add_argument("--upper", type=float, default=70.0, help="Limite superior do RSI.")
-    backtest_parser.add_argument("--trend-window", type=int, default=200, help="Media de tendencia para trend_pullback.")
-    backtest_parser.add_argument("--sma-window", type=int, default=200, help="Media para sma_stop.")
-    backtest_parser.add_argument("--stop-pct", type=float, default=0.2, help="Stop percentual para sma_stop.")
-    backtest_parser.add_argument("--window", type=int, default=20, help="Janela para Bollinger.")
-    backtest_parser.add_argument("--num-std", type=float, default=2.0, help="Desvios-padrao da banda de Bollinger.")
-    backtest_parser.add_argument("--exit-z", type=float, default=0.0, help="Nivel de saida em desvios-padrao para Bollinger.")
-    backtest_parser.add_argument("--atr-period", type=int, default=14, help="Periodo do ATR.")
-    backtest_parser.add_argument("--atr-mult", type=float, default=3.0, help="Multiplicador do ATR.")
-    backtest_parser.add_argument("--max-hold", type=int, default=20, help="Maximo de candles segurando a posicao.")
-    backtest_parser.add_argument("--streak-rsi-period", type=int, default=2, help="Periodo do RSI do streak para Connors RSI.")
-    backtest_parser.add_argument("--rank-period", type=int, default=100, help="Periodo do percent rank para Connors RSI.")
-    backtest_parser.add_argument("--ibs-lower", type=float, default=0.2, help="Limite inferior de Internal Bar Strength.")
-    backtest_parser.add_argument("--ibs-upper", type=float, default=0.8, help="Limite superior de Internal Bar Strength.")
-    backtest_parser.add_argument("--range-mult", type=float, default=0.5, help="Multiplicador do range anterior.")
-    backtest_parser.add_argument("--volume-window", type=int, default=20, help="Janela da media de volume.")
-    backtest_parser.add_argument("--volume-mult", type=float, default=1.0, help="Multiplicador da media de volume.")
-    backtest_parser.add_argument("--streak-length", type=int, default=3, help="Sequencia minima de fechamentos negativos.")
+    # None deixa cada motor aplicar seu proprio parametro canonico. Assim uma
+    # opcao generica da CLI nao sobrescreve silenciosamente defaults distintos.
+    backtest_parser.add_argument("--fast", type=int, default=None, help="Media curta, quando suportada pela estrategia.")
+    backtest_parser.add_argument("--slow", type=int, default=None, help="Media longa, quando suportada pela estrategia.")
+    backtest_parser.add_argument("--lookback", type=int, default=None, help="Janela retrospectiva, quando suportada.")
+    backtest_parser.add_argument("--exit-lookback", type=int, default=None, help="Janela de saida, quando suportada.")
+    backtest_parser.add_argument("--signal-window", type=int, default=None, help="Janela da linha de sinal, quando suportada.")
+    backtest_parser.add_argument("--rsi-period", type=int, default=None, help="Periodo do RSI, quando suportado.")
+    backtest_parser.add_argument("--lower", type=float, default=None, help="Limite inferior, quando suportado.")
+    backtest_parser.add_argument("--upper", type=float, default=None, help="Limite superior, quando suportado.")
+    backtest_parser.add_argument("--trend-window", type=int, default=None, help="Janela do filtro de tendencia, quando suportada.")
+    backtest_parser.add_argument("--sma-window", type=int, default=None, help="Janela da media simples, quando suportada.")
+    backtest_parser.add_argument("--stop-pct", type=float, default=None, help="Stop percentual, quando suportado.")
+    backtest_parser.add_argument("--window", type=int, default=None, help="Janela principal, quando suportada.")
+    backtest_parser.add_argument("--num-std", type=float, default=None, help="Desvios-padrao, quando suportados.")
+    backtest_parser.add_argument("--exit-z", type=float, default=None, help="Nivel de saida em desvios, quando suportado.")
+    backtest_parser.add_argument("--atr-period", type=int, default=None, help="Periodo do ATR, quando suportado.")
+    backtest_parser.add_argument("--atr-mult", type=float, default=None, help="Multiplicador do ATR, quando suportado.")
+    backtest_parser.add_argument("--max-hold", type=int, default=None, help="Permanencia maxima, quando suportada.")
+    backtest_parser.add_argument("--streak-rsi-period", type=int, default=None, help="Periodo do RSI de sequencia, quando suportado.")
+    backtest_parser.add_argument("--rank-period", type=int, default=None, help="Periodo do percent rank, quando suportado.")
+    backtest_parser.add_argument("--ibs-lower", type=float, default=None, help="Limite inferior do IBS, quando suportado.")
+    backtest_parser.add_argument("--ibs-upper", type=float, default=None, help="Limite superior do IBS, quando suportado.")
+    backtest_parser.add_argument("--range-mult", type=float, default=None, help="Multiplicador de range, quando suportado.")
+    backtest_parser.add_argument("--volume-window", type=int, default=None, help="Janela de volume, quando suportada.")
+    backtest_parser.add_argument("--volume-mult", type=float, default=None, help="Multiplicador de volume, quando suportado.")
+    backtest_parser.add_argument("--streak-length", type=int, default=None, help="Tamanho da sequencia, quando suportado.")
+    backtest_parser.add_argument(
+        "--strategy-param",
+        action="append",
+        default=[],
+        metavar="NOME=VALOR",
+        help="Sobrescreve um parametro documentado da estrategia; pode ser repetido.",
+    )
 
     sweep_parser = subparsers.add_parser("sweep", help="Varre parametros por ativo contra buy and hold.")
     _add_common_data_args(sweep_parser, include_yearly=True, verified_options=True)
@@ -746,7 +809,12 @@ def _signal_candles(candles, signal_mode: str):
 
 
 def _strategy_params_from_args(args: argparse.Namespace) -> dict:
-    return {
+    strategy_name = args.strategy.strip().lower()
+    if strategy_name == "sma":
+        strategy_name = "sma_cross"
+    documented = strategy_parameters(strategy_name)
+    supported = inspect.signature(STRATEGIES[strategy_name]).parameters
+    generic_values = {
         "fast": getattr(args, "fast", None),
         "slow": getattr(args, "slow", None),
         "signal_window": getattr(args, "signal_window", None),
@@ -773,6 +841,45 @@ def _strategy_params_from_args(args: argparse.Namespace) -> dict:
         "volume_mult": getattr(args, "volume_mult", None),
         "streak_length": getattr(args, "streak_length", None),
     }
+    params = dict(documented)
+    for name, value in generic_values.items():
+        if value is not None and name in supported:
+            params[name] = value
+
+    overrides = getattr(args, "strategy_param", [])
+    if not overrides:
+        return params
+
+    for item in overrides:
+        if "=" not in item:
+            raise ValueError(f"Parametro invalido: {item}. Use NOME=VALOR.")
+        name, raw_value = (part.strip() for part in item.split("=", 1))
+        if not name or name not in documented:
+            available = ", ".join(documented) or "nenhum"
+            raise ValueError(f"Parametro desconhecido para {strategy_name}: {name}. Disponiveis: {available}.")
+        if name not in supported:
+            raise ValueError(f"{strategy_name} e um preset fixo; o parametro {name} nao pode ser sobrescrito.")
+        params[name] = _coerce_strategy_param(raw_value, documented[name], name)
+    return params
+
+
+def _coerce_strategy_param(raw_value: str, default: object, name: str) -> object:
+    try:
+        if isinstance(default, bool):
+            normalized = raw_value.lower()
+            if normalized in {"1", "true", "sim", "yes"}:
+                return True
+            if normalized in {"0", "false", "nao", "não", "no"}:
+                return False
+            raise ValueError
+        if isinstance(default, int):
+            return int(raw_value)
+        if isinstance(default, float):
+            return float(raw_value)
+        return raw_value
+    except ValueError as error:
+        expected = type(default).__name__
+        raise ValueError(f"Valor invalido para {name}: {raw_value} (esperado {expected}).") from error
 
 
 def _parameter_grid(args: argparse.Namespace):
@@ -1015,7 +1122,9 @@ def _parameter_grid(args: argparse.Namespace):
             for stop_pct in args.stop_pct_values:
                 yield {"sma_window": sma_window, "stop_pct": stop_pct}
     else:
-        raise ValueError(f"Estrategia sem varredura configurada: {args.strategy}")
+        # Presets e estrategias pesquisadas entram na matriz com seus parametros
+        # canonicos quando nao existe uma grade dedicada de otimizacao.
+        yield strategy_parameters(args.strategy)
 
 
 def _summary_row(summary: Summary, params: dict, *, year: int | None = None) -> dict:

@@ -10,11 +10,15 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.strategies import strategies_by_family, strategy_parameters
+from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
+from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
 from scripts.research_portfolio_allocation import PortfolioConfig, _configs
 
 
 DEFAULT_REPORTS_DIR = Path("reports")
 DEFAULT_STRATEGIES_DIR = Path("estrategias_de_trading_que_superam_buy_and_hold")
+RESEARCHED_NAMES = {strategy.name for strategy in RESEARCHED_STRATEGIES}
+EXTENDED_NAMES = {strategy.name for strategy in EXTENDED_STRATEGIES}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -100,7 +104,8 @@ def write_trading_strategy_folders(rows: list[dict[str, str]], root: Path) -> No
         "- a ordem e executada na abertura do candle seguinte;",
         "- sinal 1 significa elegivel para compra e sinal 0 significa fora da carteira;",
         "- dividendos/JCP, custos e slippage ficam excluidos por padrao;",
-        "- `buy_and_hold` e benchmark e nao integra as 156 estrategias testaveis.",
+        f"- `buy_and_hold` e benchmark e nao integra as "
+        f"{sum(row['sweepable'] == 'sim' for row in rows)} estrategias testaveis.",
         "",
     ]
     _atomic_write(root / "README.md", "\n".join(overview))
@@ -110,6 +115,15 @@ def write_trading_strategy_folders(rows: list[dict[str, str]], root: Path) -> No
             continue
         strategy_dir = root / row["strategy"]
         strategy_dir.mkdir(parents=True, exist_ok=True)
+        rule_document = _rule_document(row["strategy"])
+        entry_exit = (
+            "A funcao produz um sinal binario long-only. Estrategias com estado mantem a "
+            "posicao ate que uma regra explicita de saida seja confirmada."
+            if rule_document
+            else "A funcao produz um sinal binario long-only. A condicao descrita acima ativa a "
+            "elegibilidade de compra; quando ela deixa de ser atendida, o sinal passa a zero. "
+            "Estrategias com estado mantem a posicao ate sua regra explicita de saida."
+        )
         content = [
             f"# {row['strategy']}",
             "",
@@ -127,14 +141,25 @@ def write_trading_strategy_folders(rows: list[dict[str, str]], root: Path) -> No
             "",
             "## Entrada e saida",
             "",
-            "A funcao produz um sinal binario long-only. A condicao descrita acima ativa a "
-            "elegibilidade de compra; quando ela deixa de ser atendida, o sinal passa a zero. "
-            "Estrategias com estado mantem a posicao ate sua regra explicita de saida.",
+            entry_exit,
             "",
+            *(
+                [f"Regras deterministicas completas: [{rule_document}]({rule_document}).", ""]
+                if rule_document
+                else []
+            ),
             "O sinal calculado no fechamento somente pode gerar negociacao na abertura seguinte.",
             "",
         ]
         _atomic_write(strategy_dir / "README.md", "\n".join(content))
+
+
+def _rule_document(strategy: str) -> str:
+    if strategy in RESEARCHED_NAMES:
+        return "../../../docs/researched_strategies.md"
+    if strategy in EXTENDED_NAMES:
+        return "../../../docs/extended_strategies.md"
+    return ""
 
 
 def write_management_strategy_folders(

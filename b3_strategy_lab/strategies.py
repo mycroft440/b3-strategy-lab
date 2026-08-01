@@ -963,6 +963,32 @@ for _additional in ADDITIONAL_STRATEGIES:
     )
 
 
+from .researched_strategies import RESEARCHED_STRATEGIES
+
+for _researched in RESEARCHED_STRATEGIES:
+    if _researched.name in STRATEGIES or _researched.name in STRATEGY_INFO:
+        raise RuntimeError(f"Estrategia pesquisada duplicada: {_researched.name}")
+    STRATEGIES[_researched.name] = _researched.function
+    STRATEGY_INFO[_researched.name] = StrategyInfo(
+        _researched.name,
+        _researched.family,
+        _researched.description,
+    )
+
+
+from .extended_strategies import EXTENDED_STRATEGIES
+
+for _extended in EXTENDED_STRATEGIES:
+    if _extended.name in STRATEGIES or _extended.name in STRATEGY_INFO:
+        raise RuntimeError(f"Estrategia estendida duplicada: {_extended.name}")
+    STRATEGIES[_extended.name] = _extended.function
+    STRATEGY_INFO[_extended.name] = StrategyInfo(
+        _extended.name,
+        _extended.family,
+        _extended.description,
+    )
+
+
 def available_strategies() -> list[str]:
     return sorted(name for name in STRATEGIES if name != "sma")
 

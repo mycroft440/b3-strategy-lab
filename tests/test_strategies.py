@@ -3,7 +3,10 @@ from __future__ import annotations
 import unittest
 from datetime import date, timedelta
 
+from b3_strategy_lab.additional_strategies import ADDITIONAL_STRATEGIES
 from b3_strategy_lab.candles import Candle
+from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
+from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
 from b3_strategy_lab.strategies import (
     STRATEGIES,
     STRATEGY_INFO,
@@ -33,8 +36,21 @@ def candle(day: int, open_: float, high: float, low: float, close: float, volume
 
 
 class StrategyInterfaceTests(unittest.TestCase):
-    def test_complete_catalog_has_156_buy_strategies(self) -> None:
-        self.assertEqual(len(sweep_strategies()), 156)
+    def test_complete_catalog_preserves_168_and_adds_21_buy_strategies(self) -> None:
+        self.assertEqual(len(ADDITIONAL_STRATEGIES), 130)
+        self.assertEqual(len(RESEARCHED_STRATEGIES), 12)
+        self.assertEqual(len(EXTENDED_STRATEGIES), 21)
+        self.assertEqual(len(sweep_strategies()), 189)
+
+        groups = [
+            {strategy.name for strategy in ADDITIONAL_STRATEGIES},
+            {strategy.name for strategy in RESEARCHED_STRATEGIES},
+            {strategy.name for strategy in EXTENDED_STRATEGIES},
+        ]
+        self.assertTrue(all(group <= set(STRATEGIES) for group in groups))
+        self.assertFalse(groups[0] & groups[1])
+        self.assertFalse(groups[0] & groups[2])
+        self.assertFalse(groups[1] & groups[2])
 
     def test_public_strategies_have_metadata_and_sweep_coverage(self) -> None:
         public = set(STRATEGIES) - {"sma"}
