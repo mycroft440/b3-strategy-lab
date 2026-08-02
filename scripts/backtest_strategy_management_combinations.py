@@ -18,8 +18,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from b3_strategy_lab.cli import _signal_candles  # noqa: E402
 from b3_strategy_lab.strategies import (  # noqa: E402
     build_signals,
+    portfolio_strategies,
     strategy_parameters,
-    sweep_strategies,
 )
 from scripts.research_portfolio_allocation import (  # noqa: E402
     MarketData,
@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--tickers", nargs="+", default=FIXED_UNIVERSE_2018)
-    parser.add_argument("--strategies", nargs="+", default=sweep_strategies())
+    parser.add_argument("--strategies", nargs="+", default=portfolio_strategies())
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--start", default=DEFAULT_START)
     parser.add_argument("--end")
