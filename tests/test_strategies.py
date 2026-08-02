@@ -11,6 +11,7 @@ from b3_strategy_lab.strategies import (
     STRATEGIES,
     STRATEGY_INFO,
     build_signals,
+    portfolio_strategies,
     strategy_parameters,
     sweep_strategies,
 )
@@ -41,6 +42,7 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertEqual(len(RESEARCHED_STRATEGIES), 12)
         self.assertEqual(len(EXTENDED_STRATEGIES), 21)
         self.assertEqual(len(sweep_strategies()), 189)
+        self.assertEqual(len(portfolio_strategies()), 190)
 
         groups = [
             {strategy.name for strategy in ADDITIONAL_STRATEGIES},
@@ -57,6 +59,17 @@ class StrategyInterfaceTests(unittest.TestCase):
 
         self.assertEqual(set(STRATEGY_INFO), public)
         self.assertEqual(set(sweep_strategies()), public - {"buy_and_hold"})
+        self.assertEqual(set(portfolio_strategies()), public)
+
+    def test_buy_and_hold_is_a_permanent_eligibility_signal(self) -> None:
+        candles = [
+            candle(1, 10, 11, 9, 10),
+            candle(2, 11, 12, 10, 11),
+            candle(3, 12, 13, 11, 12),
+        ]
+
+        self.assertEqual(build_signals("buy_and_hold", candles), [1, 1, 1])
+        self.assertEqual(strategy_parameters("buy_and_hold"), {})
 
     def test_new_strategies_return_binary_signal_for_each_candle(self) -> None:
         candles = [

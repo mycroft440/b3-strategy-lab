@@ -9,7 +9,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from b3_strategy_lab.strategies import strategies_by_family, strategy_parameters
+from b3_strategy_lab.strategies import (
+    portfolio_strategies,
+    strategies_by_family,
+    strategy_parameters,
+)
 from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
 from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
 from scripts.research_portfolio_allocation import PortfolioConfig, _configs
@@ -19,6 +23,7 @@ DEFAULT_REPORTS_DIR = Path("reports")
 DEFAULT_STRATEGIES_DIR = Path("estrategias_de_trading_que_superam_buy_and_hold")
 RESEARCHED_NAMES = {strategy.name for strategy in RESEARCHED_STRATEGIES}
 EXTENDED_NAMES = {strategy.name for strategy in EXTENDED_STRATEGIES}
+PORTFOLIO_STRATEGY_NAMES = set(portfolio_strategies())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"Inventario de estrategias CSV: {reports_dir / 'strategy_inventory.csv'}")
     print(f"Inventario de estrategias Markdown: {reports_dir / 'strategy_inventory.md'}")
-    print(f"Estrategias compradas documentadas: {len(rows) - 1}")
+    print(f"Estrategias combinaveis documentadas: {len(PORTFOLIO_STRATEGY_NAMES)}")
     print(f"Gerenciamentos documentados: {len(managements)}")
     return 0
 
@@ -54,6 +59,9 @@ def strategy_rows() -> list[dict[str, str]]:
                     "family": family,
                     "strategy": info.name,
                     "sweepable": "sim" if info.sweepable else "nao",
+                    "portfolio_matrix": (
+                        "sim" if info.name in PORTFOLIO_STRATEGY_NAMES else "nao"
+                    ),
                     "default_params": ";".join(f"{key}={value}" for key, value in params.items()) if params else "",
                     "description": info.description,
                 }
@@ -62,7 +70,14 @@ def strategy_rows() -> list[dict[str, str]]:
 
 
 def write_strategy_csv(rows: list[dict[str, str]], path: Path) -> None:
-    fields = ["family", "strategy", "sweepable", "default_params", "description"]
+    fields = [
+        "family",
+        "strategy",
+        "sweepable",
+        "portfolio_matrix",
+        "default_params",
+        "description",
+    ]
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
@@ -79,11 +94,12 @@ def write_strategy_markdown(rows: list[dict[str, str]], path: Path) -> None:
     for family in sorted({row["family"] for row in rows}):
         lines.append(f"## {family}")
         lines.append("")
-        lines.append("| Estrategia | Sweep | Parametros padrao | Descricao |")
-        lines.append("|---|---|---|---|")
+        lines.append("| Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |")
+        lines.append("|---|---|---|---|---|")
         for row in [item for item in rows if item["family"] == family]:
             lines.append(
-                f"| {row['strategy']} | {row['sweepable']} | `{row['default_params'] or '-'}` | {row['description']} |"
+                f"| {row['strategy']} | {row['sweepable']} | {row['portfolio_matrix']} | "
+                f"`{row['default_params'] or '-'}` | {row['description']} |"
             )
         lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -96,7 +112,10 @@ def write_trading_strategy_folders(rows: list[dict[str, str]], root: Path) -> No
         "",
         "Catalogo long-only usado pelo executor de combinacoes.",
         "",
-        f"Total testavel: {sum(row['sweepable'] == 'sim' for row in rows)} estrategias.",
+        (
+            "Total combinavel com gerenciamento de carteira: "
+            f"{sum(row['portfolio_matrix'] == 'sim' for row in rows)} estrategias."
+        ),
         "",
         "Convencoes comuns:",
         "",
@@ -104,26 +123,34 @@ def write_trading_strategy_folders(rows: list[dict[str, str]], root: Path) -> No
         "- a ordem e executada na abertura do candle seguinte;",
         "- sinal 1 significa elegivel para compra e sinal 0 significa fora da carteira;",
         "- dividendos/JCP, custos e slippage ficam excluidos por padrao;",
-        f"- `buy_and_hold` e benchmark e nao integra as "
-        f"{sum(row['sweepable'] == 'sim' for row in rows)} estrategias testaveis.",
+        "- `buy_and_hold` mantem todos os ativos elegiveis e integra a matriz; "
+        "o gerenciamento continua responsavel por selecao, pesos, caixa e rebalanceamento.",
         "",
     ]
     _atomic_write(root / "README.md", "\n".join(overview))
 
     for row in rows:
-        if row["strategy"] == "buy_and_hold":
-            continue
         strategy_dir = root / row["strategy"]
         strategy_dir.mkdir(parents=True, exist_ok=True)
         rule_document = _rule_document(row["strategy"])
-        entry_exit = (
-            "A funcao produz um sinal binario long-only. Estrategias com estado mantem a "
-            "posicao ate que uma regra explicita de saida seja confirmada."
-            if rule_document
-            else "A funcao produz um sinal binario long-only. A condicao descrita acima ativa a "
-            "elegibilidade de compra; quando ela deixa de ser atendida, o sinal passa a zero. "
-            "Estrategias com estado mantem a posicao ate sua regra explicita de saida."
-        )
+        if row["strategy"] == "buy_and_hold":
+            entry_exit = (
+                "O sinal vale 1 em todos os candles. Em um unico ativo, a compra ocorre na "
+                "primeira abertura executavel e nao existe sinal de saida. Na matriz, esse "
+                "sinal nao filtra ativos: o gerenciamento de carteira continua livre para "
+                "selecionar, ponderar, manter caixa e rebalancear na abertura seguinte."
+            )
+        elif rule_document:
+            entry_exit = (
+                "A funcao produz um sinal binario long-only. Estrategias com estado mantem a "
+                "posicao ate que uma regra explicita de saida seja confirmada."
+            )
+        else:
+            entry_exit = (
+                "A funcao produz um sinal binario long-only. A condicao descrita acima ativa a "
+                "elegibilidade de compra; quando ela deixa de ser atendida, o sinal passa a zero. "
+                "Estrategias com estado mantem a posicao ate sua regra explicita de saida."
+            )
         content = [
             f"# {row['strategy']}",
             "",

@@ -920,7 +920,15 @@ STRATEGIES = {
 
 
 STRATEGY_INFO = {
-    "buy_and_hold": StrategyInfo("buy_and_hold", "benchmark", "Compra no primeiro candle e mantem ate o fim.", sweepable=False),
+    "buy_and_hold": StrategyInfo(
+        "buy_and_hold",
+        "benchmark",
+        (
+            "Mantem o sinal de compra ativo em todos os candles; no teste por ativo, "
+            "compra na primeira abertura e permanece comprado ate o fim."
+        ),
+        sweepable=False,
+    ),
     "sma_cross": StrategyInfo("sma_cross", "tendencia", "Cruzamento de medias moveis simples."),
     "ema_cross": StrategyInfo("ema_cross", "tendencia", "Cruzamento de medias moveis exponenciais."),
     "macd": StrategyInfo("macd", "tendencia", "Segue a linha MACD contra a linha de sinal."),
@@ -995,6 +1003,17 @@ def available_strategies() -> list[str]:
 
 def sweep_strategies() -> list[str]:
     return sorted(name for name, info in STRATEGY_INFO.items() if info.sweepable)
+
+
+def portfolio_strategies() -> list[str]:
+    """Estrategias combinadas por padrao com os gerenciamentos de carteira.
+
+    Buy and hold nao possui parametros para otimizar, mas funciona como um sinal
+    de elegibilidade permanente na matriz: a selecao, os pesos e os
+    rebalanceamentos continuam sendo definidos pelo gerenciamento de carteira.
+    """
+
+    return sorted({*sweep_strategies(), "buy_and_hold"})
 
 
 def strategy_info(strategy_name: str) -> StrategyInfo:

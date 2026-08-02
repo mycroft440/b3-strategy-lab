@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 from b3_strategy_lab.candles import Candle
+from b3_strategy_lab.strategies import portfolio_strategies
+from scripts.backtest_strategy_management_combinations import _build_eligibility
 from scripts.research_portfolio_allocation import (
     MarketData,
     PortfolioConfig,
@@ -100,6 +102,42 @@ class PortfolioCombinationTests(unittest.TestCase):
         configs = _configs("raw", "all")
         self.assertEqual(len(configs), 478)
         self.assertEqual(len({config.name for config in configs}), 478)
+
+    def test_default_matrix_includes_buy_and_hold(self) -> None:
+        self.assertIn("buy_and_hold", portfolio_strategies())
+
+    def test_buy_and_hold_preserves_pure_management_result(self) -> None:
+        data = market_data()
+        config = PortfolioConfig(
+            name="equal",
+            lookback=1,
+            top_n=99,
+            vol_window=2,
+            rebalance="daily",
+            score="all",
+            weighting="equal",
+            absolute_momentum=False,
+            signal_mode="raw",
+        )
+        eligibility = _build_eligibility(data, ["buy_and_hold"], "raw")[
+            "buy_and_hold"
+        ]
+
+        unrestricted = run_portfolio(
+            data,
+            config,
+            initial_cash=100.0,
+            lot_size=0,
+        )
+        buy_and_hold = run_portfolio(
+            data,
+            config,
+            initial_cash=100.0,
+            lot_size=0,
+            eligibility=eligibility,
+        )
+
+        self.assertEqual(buy_and_hold, unrestricted)
 
     def test_target_weights_rank_only_eligible_tickers(self) -> None:
         data = market_data()

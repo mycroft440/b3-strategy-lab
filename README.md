@@ -103,12 +103,19 @@ comum de 2018-01-02 a 2026-07-22, sinais em serie normalizada por
 desdobramentos, execucao na abertura seguinte, dividendos/JCP excluidos e
 custos, impostos e slippage iguais a zero.
 
-O catalogo atual tem 189 estrategias testaveis. Uma nova execucao integral
-cruza 189 x 478 = 90.342 combinacoes; os resultados antigos nao foram
+O catalogo atual mantem 189 estrategias com sweep de parametros e agora inclui
+`buy_and_hold` na matriz de gerenciamento de carteira. Uma nova execucao
+integral cruza 190 x 478 = 90.820 combinacoes; os resultados antigos nao foram
 reclassificados automaticamente.
 
 ```powershell
 python scripts\backtest_strategy_management_combinations.py --signal-mode adjusted --output reports\strategy_management_combinations_adjusted_no_dividends_1d_t252.csv
+```
+
+Para testar somente Buy and Hold contra todos os gerenciamentos:
+
+```powershell
+python scripts\backtest_strategy_management_combinations.py --strategies buy_and_hold --signal-mode adjusted --output reports\buy_and_hold_managements_adjusted_no_dividends_1d.csv
 ```
 
 Artefatos da execucao corrigida:
@@ -150,7 +157,9 @@ O catalogo completo, incluindo os presets, pode ser consultado com
 regras exatas estao em [docs/researched_strategies.md](docs/researched_strategies.md).
 O segundo lote preserva essas 168 estrategias e adiciona 21 motores distintos,
 documentados em [docs/extended_strategies.md](docs/extended_strategies.md), para
-um total de 189 estrategias testaveis.
+um total de 189 estrategias com sweep de parametros. Somado ao sinal permanente
+`buy_and_hold`, o executor da matriz combina 190 estrategias com os
+gerenciamentos de carteira.
 
 - `atr_breakout`: rompimento de maxima com stop movel baseado em ATR.
 - `bollinger_reversion`: compra na banda inferior de Bollinger e sai no retorno ao meio/superior.
@@ -197,7 +206,9 @@ um total de 189 estrategias testaveis.
 - `elder_force_index`, `ease_of_movement`, `negative_volume_index` e `klinger_volume_oscillator`: quatro leituras independentes de preco e volume.
 - `nr7_breakout` e `inside_bar_breakout`: price action com setup, validade e saidas objetivas.
 - `halloween_effect`: sazonalidade novembro-abril, alternando com caixa.
-- `buy_and_hold`: util para conferencia.
+- `buy_and_hold`: mantem o sinal de compra ativo em todos os candles. Na matriz,
+  todos os ativos ficam elegiveis e o gerenciamento define selecao, pesos, caixa
+  e rebalanceamento; por isso ele mede o resultado puro de cada gerenciamento.
 
 O simulador executa sinais no `open` do candle seguinte. Isso evita olhar o
 fechamento de hoje e comprar no proprio fechamento de hoje.
