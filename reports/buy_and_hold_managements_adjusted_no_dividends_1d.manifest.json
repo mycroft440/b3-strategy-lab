@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-08-03T03:26:34.526000+00:00",
-  "git_commit": "24fc699d6930823e0bed578c89a349bad63670b5",
-  "git_dirty": true,
+  "generated_at_utc": "2026-08-03T03:59:16.602162+00:00",
+  "git_commit": "dc0e533357309564060067a5725a6c8c7adc142a",
+  "git_dirty": false,
   "source_sha256": {
     "b3_strategy_lab/backtest.py": "916b01a5cc3f74b6b45a568b1b71b078821698f610dd8ac87790a4485ba9cb2f",
     "b3_strategy_lab/candles.py": "8b83be9af55290b96e061b5aff08aabb0bf4f60f0aa90458aab0b912649cadb0",
@@ -9713,5 +9713,5 @@
   "ranking": "total_return_desc_then_cagr_desc",
   "evaluation_scope": "full_period",
   "train_ratio_applied": false,
-  "elapsed_seconds": 35.34693869199964
+  "elapsed_seconds": 34.98159331399984
 }
