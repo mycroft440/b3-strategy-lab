@@ -2,1023 +2,933 @@
 
 Arquivos gerados a partir dos historicos completos em `data/candles` e `data/heikin_ashi`.
 
-| Ano | Ticker | Grafico | Tempo | Status | Backtest | Linhas | Inicio | Fim | Arquivo |
-|---:|---|---|---|---|---|---:|---|---|---|
-| 2000 | BBDC3 | candles | 1d | ok | sim | 242 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\candles\1d\bbdc3_1d.csv` |
-| 2000 | BBDC3 | candles | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\candles\1wk\bbdc3_1wk.csv` |
-| 2000 | BBDC3 | heikin_ashi | 1d | ok | sim | 242 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2000 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2000 | GGBR3 | candles | 1d | ok | sim | 65 | 2000-05-19 | 2000-12-28 | `data\yearly\2000\candles\1d\ggbr3_1d.csv` |
-| 2000 | GGBR3 | candles | 1sem | ok | sim | 25 | 2000-05-15 | 2000-12-25 | `data\yearly\2000\candles\1wk\ggbr3_1wk.csv` |
-| 2000 | GGBR3 | heikin_ashi | 1d | ok | sim | 65 | 2000-05-19 | 2000-12-28 | `data\yearly\2000\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2000 | GGBR3 | heikin_ashi | 1sem | ok | sim | 25 | 2000-05-15 | 2000-12-25 | `data\yearly\2000\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2000 | PETR4 | candles | 1d | ok | sim | 241 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\candles\1d\petr4_1d.csv` |
-| 2000 | PETR4 | candles | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\candles\1wk\petr4_1wk.csv` |
-| 2000 | PETR4 | heikin_ashi | 1d | ok | sim | 241 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\heikin_ashi\1d\petr4_1d.csv` |
-| 2000 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2000 | TUPY3 | candles | 1d | ok | sim | 2 | 2000-12-11 | 2000-12-20 | `data\yearly\2000\candles\1d\tupy3_1d.csv` |
-| 2000 | TUPY3 | candles | 1sem | ok | sim | 2 | 2000-12-11 | 2000-12-18 | `data\yearly\2000\candles\1wk\tupy3_1wk.csv` |
-| 2000 | TUPY3 | heikin_ashi | 1d | ok | sim | 2 | 2000-12-11 | 2000-12-20 | `data\yearly\2000\heikin_ashi\1d\tupy3_1d.csv` |
-| 2000 | TUPY3 | heikin_ashi | 1sem | ok | sim | 2 | 2000-12-11 | 2000-12-18 | `data\yearly\2000\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2000 | VALE3 | candles | 1d | ok | sim | 238 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\candles\1d\vale3_1d.csv` |
-| 2000 | VALE3 | candles | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\candles\1wk\vale3_1wk.csv` |
-| 2000 | VALE3 | heikin_ashi | 1d | ok | sim | 238 | 2000-01-03 | 2000-12-28 | `data\yearly\2000\heikin_ashi\1d\vale3_1d.csv` |
-| 2000 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2000-01-03 | 2000-12-25 | `data\yearly\2000\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2001 | BBDC3 | candles | 1d | ok | sim | 241 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\candles\1d\bbdc3_1d.csv` |
-| 2001 | BBDC3 | candles | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\candles\1wk\bbdc3_1wk.csv` |
-| 2001 | BBDC3 | heikin_ashi | 1d | ok | sim | 241 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2001 | BBDC3 | heikin_ashi | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2001 | GGBR3 | candles | 1d | ok | sim | 36 | 2001-01-05 | 2001-12-12 | `data\yearly\2001\candles\1d\ggbr3_1d.csv` |
-| 2001 | GGBR3 | candles | 1sem | ok | sim | 25 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\candles\1wk\ggbr3_1wk.csv` |
-| 2001 | GGBR3 | heikin_ashi | 1d | ok | sim | 36 | 2001-01-05 | 2001-12-12 | `data\yearly\2001\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2001 | GGBR3 | heikin_ashi | 1sem | ok | sim | 25 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2001 | PETR4 | candles | 1d | ok | sim | 241 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\candles\1d\petr4_1d.csv` |
-| 2001 | PETR4 | candles | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\candles\1wk\petr4_1wk.csv` |
-| 2001 | PETR4 | heikin_ashi | 1d | ok | sim | 241 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\heikin_ashi\1d\petr4_1d.csv` |
-| 2001 | PETR4 | heikin_ashi | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2001 | TUPY3 | candles | 1d | ok | sim | 8 | 2001-01-17 | 2001-12-28 | `data\yearly\2001\candles\1d\tupy3_1d.csv` |
-| 2001 | TUPY3 | candles | 1sem | ok | sim | 6 | 2001-01-15 | 2001-12-24 | `data\yearly\2001\candles\1wk\tupy3_1wk.csv` |
-| 2001 | TUPY3 | heikin_ashi | 1d | ok | sim | 8 | 2001-01-17 | 2001-12-28 | `data\yearly\2001\heikin_ashi\1d\tupy3_1d.csv` |
-| 2001 | TUPY3 | heikin_ashi | 1sem | ok | sim | 6 | 2001-01-15 | 2001-12-24 | `data\yearly\2001\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2001 | VALE3 | candles | 1d | ok | sim | 239 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\candles\1d\vale3_1d.csv` |
-| 2001 | VALE3 | candles | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\candles\1wk\vale3_1wk.csv` |
-| 2001 | VALE3 | heikin_ashi | 1d | ok | sim | 239 | 2001-01-02 | 2001-12-28 | `data\yearly\2001\heikin_ashi\1d\vale3_1d.csv` |
-| 2001 | VALE3 | heikin_ashi | 1sem | ok | sim | 53 | 2001-01-01 | 2001-12-31 | `data\yearly\2001\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2002 | BBDC3 | candles | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\candles\1d\bbdc3_1d.csv` |
-| 2002 | BBDC3 | candles | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\candles\1wk\bbdc3_1wk.csv` |
-| 2002 | BBDC3 | heikin_ashi | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2002 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2002 | GGBR3 | candles | 1d | ok | sim | 115 | 2002-01-02 | 2002-12-20 | `data\yearly\2002\candles\1d\ggbr3_1d.csv` |
-| 2002 | GGBR3 | candles | 1sem | ok | sim | 43 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\candles\1wk\ggbr3_1wk.csv` |
-| 2002 | GGBR3 | heikin_ashi | 1d | ok | sim | 115 | 2002-01-02 | 2002-12-20 | `data\yearly\2002\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2002 | GGBR3 | heikin_ashi | 1sem | ok | sim | 43 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2002 | PETR4 | candles | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\candles\1d\petr4_1d.csv` |
-| 2002 | PETR4 | candles | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\candles\1wk\petr4_1wk.csv` |
-| 2002 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1d\petr4_1d.csv` |
-| 2002 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2002 | TUPY3 | candles | 1d | ok | sim | 22 | 2002-03-01 | 2002-12-27 | `data\yearly\2002\candles\1d\tupy3_1d.csv` |
-| 2002 | TUPY3 | candles | 1sem | ok | sim | 13 | 2002-02-25 | 2002-12-23 | `data\yearly\2002\candles\1wk\tupy3_1wk.csv` |
-| 2002 | TUPY3 | heikin_ashi | 1d | ok | sim | 22 | 2002-03-01 | 2002-12-27 | `data\yearly\2002\heikin_ashi\1d\tupy3_1d.csv` |
-| 2002 | TUPY3 | heikin_ashi | 1sem | ok | sim | 13 | 2002-02-25 | 2002-12-23 | `data\yearly\2002\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2002 | VALE3 | candles | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\candles\1d\vale3_1d.csv` |
-| 2002 | VALE3 | candles | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\candles\1wk\vale3_1wk.csv` |
-| 2002 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2002-01-02 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1d\vale3_1d.csv` |
-| 2002 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2002-01-07 | 2002-12-30 | `data\yearly\2002\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2003 | BBDC3 | candles | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\candles\1d\bbdc3_1d.csv` |
-| 2003 | BBDC3 | candles | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\candles\1wk\bbdc3_1wk.csv` |
-| 2003 | BBDC3 | heikin_ashi | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2003 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2003 | GGBR3 | candles | 1d | ok | sim | 133 | 2003-01-03 | 2003-12-29 | `data\yearly\2003\candles\1d\ggbr3_1d.csv` |
-| 2003 | GGBR3 | candles | 1sem | ok | sim | 48 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\candles\1wk\ggbr3_1wk.csv` |
-| 2003 | GGBR3 | heikin_ashi | 1d | ok | sim | 133 | 2003-01-03 | 2003-12-29 | `data\yearly\2003\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2003 | GGBR3 | heikin_ashi | 1sem | ok | sim | 48 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2003 | PETR4 | candles | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\candles\1d\petr4_1d.csv` |
-| 2003 | PETR4 | candles | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\candles\1wk\petr4_1wk.csv` |
-| 2003 | PETR4 | heikin_ashi | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\heikin_ashi\1d\petr4_1d.csv` |
-| 2003 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2003 | TUPY3 | candles | 1d | ok | sim | 12 | 2003-01-06 | 2003-12-22 | `data\yearly\2003\candles\1d\tupy3_1d.csv` |
-| 2003 | TUPY3 | candles | 1sem | ok | sim | 10 | 2003-01-06 | 2003-12-22 | `data\yearly\2003\candles\1wk\tupy3_1wk.csv` |
-| 2003 | TUPY3 | heikin_ashi | 1d | ok | sim | 12 | 2003-01-06 | 2003-12-22 | `data\yearly\2003\heikin_ashi\1d\tupy3_1d.csv` |
-| 2003 | TUPY3 | heikin_ashi | 1sem | ok | sim | 10 | 2003-01-06 | 2003-12-22 | `data\yearly\2003\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2003 | VALE3 | candles | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\candles\1d\vale3_1d.csv` |
-| 2003 | VALE3 | candles | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\candles\1wk\vale3_1wk.csv` |
-| 2003 | VALE3 | heikin_ashi | 1d | ok | sim | 250 | 2003-01-02 | 2003-12-30 | `data\yearly\2003\heikin_ashi\1d\vale3_1d.csv` |
-| 2003 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2003-01-06 | 2003-12-29 | `data\yearly\2003\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2004 | BBDC3 | candles | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\candles\1d\bbdc3_1d.csv` |
-| 2004 | BBDC3 | candles | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\candles\1wk\bbdc3_1wk.csv` |
-| 2004 | BBDC3 | heikin_ashi | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2004 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2004 | GGBR3 | candles | 1d | ok | sim | 200 | 2004-01-05 | 2004-12-30 | `data\yearly\2004\candles\1d\ggbr3_1d.csv` |
-| 2004 | GGBR3 | candles | 1sem | ok | sim | 51 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\candles\1wk\ggbr3_1wk.csv` |
-| 2004 | GGBR3 | heikin_ashi | 1d | ok | sim | 200 | 2004-01-05 | 2004-12-30 | `data\yearly\2004\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2004 | GGBR3 | heikin_ashi | 1sem | ok | sim | 51 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2004 | PETR4 | candles | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\candles\1d\petr4_1d.csv` |
-| 2004 | PETR4 | candles | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\candles\1wk\petr4_1wk.csv` |
-| 2004 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\heikin_ashi\1d\petr4_1d.csv` |
-| 2004 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2004 | TUPY3 | candles | 1d | ok | sim | 35 | 2004-01-23 | 2004-12-30 | `data\yearly\2004\candles\1d\tupy3_1d.csv` |
-| 2004 | TUPY3 | candles | 1sem | ok | sim | 21 | 2004-01-19 | 2004-12-27 | `data\yearly\2004\candles\1wk\tupy3_1wk.csv` |
-| 2004 | TUPY3 | heikin_ashi | 1d | ok | sim | 35 | 2004-01-23 | 2004-12-30 | `data\yearly\2004\heikin_ashi\1d\tupy3_1d.csv` |
-| 2004 | TUPY3 | heikin_ashi | 1sem | ok | sim | 21 | 2004-01-19 | 2004-12-27 | `data\yearly\2004\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2004 | VALE3 | candles | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\candles\1d\vale3_1d.csv` |
-| 2004 | VALE3 | candles | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\candles\1wk\vale3_1wk.csv` |
-| 2004 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2004-01-02 | 2004-12-30 | `data\yearly\2004\heikin_ashi\1d\vale3_1d.csv` |
-| 2004 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2004-01-05 | 2004-12-27 | `data\yearly\2004\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2005 | BBDC3 | candles | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\candles\1d\bbdc3_1d.csv` |
-| 2005 | BBDC3 | candles | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\candles\1wk\bbdc3_1wk.csv` |
-| 2005 | BBDC3 | heikin_ashi | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2005 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2005 | GGBR3 | candles | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\candles\1d\ggbr3_1d.csv` |
-| 2005 | GGBR3 | candles | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\candles\1wk\ggbr3_1wk.csv` |
-| 2005 | GGBR3 | heikin_ashi | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2005 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2005 | PETR4 | candles | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\candles\1d\petr4_1d.csv` |
-| 2005 | PETR4 | candles | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\candles\1wk\petr4_1wk.csv` |
-| 2005 | PETR4 | heikin_ashi | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\heikin_ashi\1d\petr4_1d.csv` |
-| 2005 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2005 | TUPY3 | candles | 1d | ok | sim | 85 | 2005-01-12 | 2005-12-27 | `data\yearly\2005\candles\1d\tupy3_1d.csv` |
-| 2005 | TUPY3 | candles | 1sem | ok | sim | 39 | 2005-01-10 | 2005-12-26 | `data\yearly\2005\candles\1wk\tupy3_1wk.csv` |
-| 2005 | TUPY3 | heikin_ashi | 1d | ok | sim | 85 | 2005-01-12 | 2005-12-27 | `data\yearly\2005\heikin_ashi\1d\tupy3_1d.csv` |
-| 2005 | TUPY3 | heikin_ashi | 1sem | ok | sim | 39 | 2005-01-10 | 2005-12-26 | `data\yearly\2005\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2005 | VALE3 | candles | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\candles\1d\vale3_1d.csv` |
-| 2005 | VALE3 | candles | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\candles\1wk\vale3_1wk.csv` |
-| 2005 | VALE3 | heikin_ashi | 1d | ok | sim | 249 | 2005-01-03 | 2005-12-29 | `data\yearly\2005\heikin_ashi\1d\vale3_1d.csv` |
-| 2005 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2005-01-03 | 2005-12-26 | `data\yearly\2005\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2006 | BBDC3 | candles | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\candles\1d\bbdc3_1d.csv` |
-| 2006 | BBDC3 | candles | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\candles\1wk\bbdc3_1wk.csv` |
-| 2006 | BBDC3 | heikin_ashi | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2006 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2006 | CSMG3 | candles | 1d | ok | sim | 220 | 2006-02-08 | 2006-12-28 | `data\yearly\2006\candles\1d\csmg3_1d.csv` |
-| 2006 | CSMG3 | candles | 1sem | ok | sim | 47 | 2006-02-06 | 2006-12-25 | `data\yearly\2006\candles\1wk\csmg3_1wk.csv` |
-| 2006 | CSMG3 | heikin_ashi | 1d | ok | sim | 220 | 2006-02-08 | 2006-12-28 | `data\yearly\2006\heikin_ashi\1d\csmg3_1d.csv` |
-| 2006 | CSMG3 | heikin_ashi | 1sem | ok | sim | 47 | 2006-02-06 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2006 | GGBR3 | candles | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\candles\1d\ggbr3_1d.csv` |
-| 2006 | GGBR3 | candles | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\candles\1wk\ggbr3_1wk.csv` |
-| 2006 | GGBR3 | heikin_ashi | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2006 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2006 | PETR4 | candles | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\candles\1d\petr4_1d.csv` |
-| 2006 | PETR4 | candles | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\candles\1wk\petr4_1wk.csv` |
-| 2006 | PETR4 | heikin_ashi | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\heikin_ashi\1d\petr4_1d.csv` |
-| 2006 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2006 | TUPY3 | candles | 1d | ok | sim | 102 | 2006-01-05 | 2006-12-27 | `data\yearly\2006\candles\1d\tupy3_1d.csv` |
-| 2006 | TUPY3 | candles | 1sem | ok | sim | 42 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\candles\1wk\tupy3_1wk.csv` |
-| 2006 | TUPY3 | heikin_ashi | 1d | ok | sim | 102 | 2006-01-05 | 2006-12-27 | `data\yearly\2006\heikin_ashi\1d\tupy3_1d.csv` |
-| 2006 | TUPY3 | heikin_ashi | 1sem | ok | sim | 42 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2006 | VALE3 | candles | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\candles\1d\vale3_1d.csv` |
-| 2006 | VALE3 | candles | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\candles\1wk\vale3_1wk.csv` |
-| 2006 | VALE3 | heikin_ashi | 1d | ok | sim | 246 | 2006-01-02 | 2006-12-28 | `data\yearly\2006\heikin_ashi\1d\vale3_1d.csv` |
-| 2006 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2006-01-02 | 2006-12-25 | `data\yearly\2006\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2007 | BBDC3 | candles | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\candles\1d\bbdc3_1d.csv` |
-| 2007 | BBDC3 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\bbdc3_1wk.csv` |
-| 2007 | BBDC3 | heikin_ashi | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2007 | BBDC3 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2007 | CSMG3 | candles | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\candles\1d\csmg3_1d.csv` |
-| 2007 | CSMG3 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\csmg3_1wk.csv` |
-| 2007 | CSMG3 | heikin_ashi | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\csmg3_1d.csv` |
-| 2007 | CSMG3 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2007 | GGBR3 | candles | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\candles\1d\ggbr3_1d.csv` |
-| 2007 | GGBR3 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\ggbr3_1wk.csv` |
-| 2007 | GGBR3 | heikin_ashi | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2007 | GGBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2007 | JHSF3 | candles | 1d | ok | sim | 176 | 2007-04-12 | 2007-12-28 | `data\yearly\2007\candles\1d\jhsf3_1d.csv` |
-| 2007 | JHSF3 | candles | 1sem | ok | sim | 39 | 2007-04-09 | 2007-12-31 | `data\yearly\2007\candles\1wk\jhsf3_1wk.csv` |
-| 2007 | JHSF3 | heikin_ashi | 1d | ok | sim | 176 | 2007-04-12 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2007 | JHSF3 | heikin_ashi | 1sem | ok | sim | 39 | 2007-04-09 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2007 | PETR4 | candles | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\candles\1d\petr4_1d.csv` |
-| 2007 | PETR4 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\petr4_1wk.csv` |
-| 2007 | PETR4 | heikin_ashi | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\petr4_1d.csv` |
-| 2007 | PETR4 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2007 | TUPY3 | candles | 1d | ok | sim | 174 | 2007-01-02 | 2007-12-27 | `data\yearly\2007\candles\1d\tupy3_1d.csv` |
-| 2007 | TUPY3 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\tupy3_1wk.csv` |
-| 2007 | TUPY3 | heikin_ashi | 1d | ok | sim | 174 | 2007-01-02 | 2007-12-27 | `data\yearly\2007\heikin_ashi\1d\tupy3_1d.csv` |
-| 2007 | TUPY3 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2007 | VALE3 | candles | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\candles\1d\vale3_1d.csv` |
-| 2007 | VALE3 | candles | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\candles\1wk\vale3_1wk.csv` |
-| 2007 | VALE3 | heikin_ashi | 1d | ok | sim | 245 | 2007-01-02 | 2007-12-28 | `data\yearly\2007\heikin_ashi\1d\vale3_1d.csv` |
-| 2007 | VALE3 | heikin_ashi | 1sem | ok | sim | 53 | 2007-01-01 | 2007-12-31 | `data\yearly\2007\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2008 | BBDC3 | candles | 1d | ok | sim | 235 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\bbdc3_1d.csv` |
-| 2008 | BBDC3 | candles | 1sem | ok | sim | 50 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\bbdc3_1wk.csv` |
-| 2008 | BBDC3 | heikin_ashi | 1d | ok | sim | 235 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2008 | BBDC3 | heikin_ashi | 1sem | ok | sim | 50 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2008 | CSMG3 | candles | 1d | ok | sim | 249 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\csmg3_1d.csv` |
-| 2008 | CSMG3 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\csmg3_1wk.csv` |
-| 2008 | CSMG3 | heikin_ashi | 1d | ok | sim | 249 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\csmg3_1d.csv` |
-| 2008 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2008 | GGBR3 | candles | 1d | ok | sim | 249 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\ggbr3_1d.csv` |
-| 2008 | GGBR3 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\ggbr3_1wk.csv` |
-| 2008 | GGBR3 | heikin_ashi | 1d | ok | sim | 249 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2008 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2008 | JHSF3 | candles | 1d | ok | sim | 246 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\jhsf3_1d.csv` |
-| 2008 | JHSF3 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\jhsf3_1wk.csv` |
-| 2008 | JHSF3 | heikin_ashi | 1d | ok | sim | 246 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2008 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2008 | PETR4 | candles | 1d | ok | sim | 248 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\petr4_1d.csv` |
-| 2008 | PETR4 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\petr4_1wk.csv` |
-| 2008 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\petr4_1d.csv` |
-| 2008 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2008 | TUPY3 | candles | 1d | ok | sim | 199 | 2008-01-03 | 2008-12-30 | `data\yearly\2008\candles\1d\tupy3_1d.csv` |
-| 2008 | TUPY3 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\tupy3_1wk.csv` |
-| 2008 | TUPY3 | heikin_ashi | 1d | ok | sim | 199 | 2008-01-03 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\tupy3_1d.csv` |
-| 2008 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2008 | VALE3 | candles | 1d | ok | sim | 248 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\candles\1d\vale3_1d.csv` |
-| 2008 | VALE3 | candles | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\candles\1wk\vale3_1wk.csv` |
-| 2008 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2008-01-02 | 2008-12-30 | `data\yearly\2008\heikin_ashi\1d\vale3_1d.csv` |
-| 2008 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2008-01-07 | 2008-12-29 | `data\yearly\2008\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2009 | BBDC3 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\bbdc3_1d.csv` |
-| 2009 | BBDC3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\bbdc3_1wk.csv` |
-| 2009 | BBDC3 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2009 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2009 | CSMG3 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\csmg3_1d.csv` |
-| 2009 | CSMG3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\csmg3_1wk.csv` |
-| 2009 | CSMG3 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\csmg3_1d.csv` |
-| 2009 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2009 | FLRY3 | candles | 1d | ok | sim | 7 | 2009-12-17 | 2009-12-30 | `data\yearly\2009\candles\1d\flry3_1d.csv` |
-| 2009 | FLRY3 | candles | 1sem | ok | sim | 3 | 2009-12-14 | 2009-12-28 | `data\yearly\2009\candles\1wk\flry3_1wk.csv` |
-| 2009 | FLRY3 | heikin_ashi | 1d | ok | sim | 7 | 2009-12-17 | 2009-12-30 | `data\yearly\2009\heikin_ashi\1d\flry3_1d.csv` |
-| 2009 | FLRY3 | heikin_ashi | 1sem | ok | sim | 3 | 2009-12-14 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2009 | GGBR3 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\ggbr3_1d.csv` |
-| 2009 | GGBR3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\ggbr3_1wk.csv` |
-| 2009 | GGBR3 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2009 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2009 | JHSF3 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\jhsf3_1d.csv` |
-| 2009 | JHSF3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\jhsf3_1wk.csv` |
-| 2009 | JHSF3 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2009 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2009 | PETR4 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-30 | `data\yearly\2009\candles\1d\petr4_1d.csv` |
-| 2009 | PETR4 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\petr4_1wk.csv` |
-| 2009 | PETR4 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-30 | `data\yearly\2009\heikin_ashi\1d\petr4_1d.csv` |
-| 2009 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2009 | TUPY3 | candles | 1d | ok | sim | 199 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\tupy3_1d.csv` |
-| 2009 | TUPY3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\tupy3_1wk.csv` |
-| 2009 | TUPY3 | heikin_ashi | 1d | ok | sim | 199 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\tupy3_1d.csv` |
-| 2009 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2009 | VALE3 | candles | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\candles\1d\vale3_1d.csv` |
-| 2009 | VALE3 | candles | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\candles\1wk\vale3_1wk.csv` |
-| 2009 | VALE3 | heikin_ashi | 1d | ok | sim | 245 | 2009-01-02 | 2009-12-29 | `data\yearly\2009\heikin_ashi\1d\vale3_1d.csv` |
-| 2009 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2009-01-05 | 2009-12-28 | `data\yearly\2009\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2010 | BBDC3 | candles | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\bbdc3_1d.csv` |
-| 2010 | BBDC3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\bbdc3_1wk.csv` |
-| 2010 | BBDC3 | heikin_ashi | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2010 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2010 | CSMG3 | candles | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\csmg3_1d.csv` |
-| 2010 | CSMG3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\csmg3_1wk.csv` |
-| 2010 | CSMG3 | heikin_ashi | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\csmg3_1d.csv` |
-| 2010 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2010 | FLRY3 | candles | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\flry3_1d.csv` |
-| 2010 | FLRY3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\flry3_1wk.csv` |
-| 2010 | FLRY3 | heikin_ashi | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\flry3_1d.csv` |
-| 2010 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2010 | GGBR3 | candles | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\ggbr3_1d.csv` |
-| 2010 | GGBR3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\ggbr3_1wk.csv` |
-| 2010 | GGBR3 | heikin_ashi | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2010 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2010 | JHSF3 | candles | 1d | ok | sim | 241 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\jhsf3_1d.csv` |
-| 2010 | JHSF3 | candles | 1sem | ok | sim | 51 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\jhsf3_1wk.csv` |
-| 2010 | JHSF3 | heikin_ashi | 1d | ok | sim | 241 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2010 | JHSF3 | heikin_ashi | 1sem | ok | sim | 51 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2010 | PETR4 | candles | 1d | ok | sim | 246 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\petr4_1d.csv` |
-| 2010 | PETR4 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\petr4_1wk.csv` |
-| 2010 | PETR4 | heikin_ashi | 1d | ok | sim | 246 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\petr4_1d.csv` |
-| 2010 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2010 | TUPY3 | candles | 1d | ok | sim | 235 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\tupy3_1d.csv` |
-| 2010 | TUPY3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\tupy3_1wk.csv` |
-| 2010 | TUPY3 | heikin_ashi | 1d | ok | sim | 235 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\tupy3_1d.csv` |
-| 2010 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2010 | VALE3 | candles | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\candles\1d\vale3_1d.csv` |
-| 2010 | VALE3 | candles | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\candles\1wk\vale3_1wk.csv` |
-| 2010 | VALE3 | heikin_ashi | 1d | ok | sim | 247 | 2010-01-04 | 2010-12-30 | `data\yearly\2010\heikin_ashi\1d\vale3_1d.csv` |
-| 2010 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2010-01-04 | 2010-12-27 | `data\yearly\2010\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2011 | BBDC3 | candles | 1d | ok | sim | 244 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\bbdc3_1d.csv` |
-| 2011 | BBDC3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\bbdc3_1wk.csv` |
-| 2011 | BBDC3 | heikin_ashi | 1d | ok | sim | 244 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2011 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2011 | CSMG3 | candles | 1d | ok | sim | 244 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\csmg3_1d.csv` |
-| 2011 | CSMG3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\csmg3_1wk.csv` |
-| 2011 | CSMG3 | heikin_ashi | 1d | ok | sim | 244 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\csmg3_1d.csv` |
-| 2011 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2011 | FLRY3 | candles | 1d | ok | sim | 241 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\flry3_1d.csv` |
-| 2011 | FLRY3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\flry3_1wk.csv` |
-| 2011 | FLRY3 | heikin_ashi | 1d | ok | sim | 241 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\flry3_1d.csv` |
-| 2011 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2011 | GGBR3 | candles | 1d | ok | sim | 240 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\ggbr3_1d.csv` |
-| 2011 | GGBR3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\ggbr3_1wk.csv` |
-| 2011 | GGBR3 | heikin_ashi | 1d | ok | sim | 240 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2011 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2011 | JHSF3 | candles | 1d | ok | sim | 243 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\jhsf3_1d.csv` |
-| 2011 | JHSF3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\jhsf3_1wk.csv` |
-| 2011 | JHSF3 | heikin_ashi | 1d | ok | sim | 243 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2011 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2011 | PETR4 | candles | 1d | ok | sim | 216 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\petr4_1d.csv` |
-| 2011 | PETR4 | candles | 1sem | ok | sim | 50 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\petr4_1wk.csv` |
-| 2011 | PETR4 | heikin_ashi | 1d | ok | sim | 216 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\petr4_1d.csv` |
-| 2011 | PETR4 | heikin_ashi | 1sem | ok | sim | 50 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2011 | TUPY3 | candles | 1d | ok | sim | 195 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\tupy3_1d.csv` |
-| 2011 | TUPY3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\tupy3_1wk.csv` |
-| 2011 | TUPY3 | heikin_ashi | 1d | ok | sim | 195 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\tupy3_1d.csv` |
-| 2011 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2011 | VALE3 | candles | 1d | ok | sim | 239 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\candles\1d\vale3_1d.csv` |
-| 2011 | VALE3 | candles | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\candles\1wk\vale3_1wk.csv` |
-| 2011 | VALE3 | heikin_ashi | 1d | ok | sim | 239 | 2011-01-03 | 2011-12-29 | `data\yearly\2011\heikin_ashi\1d\vale3_1d.csv` |
-| 2011 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2011-01-03 | 2011-12-26 | `data\yearly\2011\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2012 | BBDC3 | candles | 1d | ok | sim | 245 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\bbdc3_1d.csv` |
-| 2012 | BBDC3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\bbdc3_1wk.csv` |
-| 2012 | BBDC3 | heikin_ashi | 1d | ok | sim | 245 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2012 | BBDC3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2012 | CSMG3 | candles | 1d | ok | sim | 245 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\csmg3_1d.csv` |
-| 2012 | CSMG3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\csmg3_1wk.csv` |
-| 2012 | CSMG3 | heikin_ashi | 1d | ok | sim | 245 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\csmg3_1d.csv` |
-| 2012 | CSMG3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2012 | FLRY3 | candles | 1d | ok | sim | 225 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\flry3_1d.csv` |
-| 2012 | FLRY3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\flry3_1wk.csv` |
-| 2012 | FLRY3 | heikin_ashi | 1d | ok | sim | 225 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\flry3_1d.csv` |
-| 2012 | FLRY3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2012 | GGBR3 | candles | 1d | ok | sim | 230 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\ggbr3_1d.csv` |
-| 2012 | GGBR3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\ggbr3_1wk.csv` |
-| 2012 | GGBR3 | heikin_ashi | 1d | ok | sim | 230 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2012 | GGBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2012 | JHSF3 | candles | 1d | ok | sim | 235 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\jhsf3_1d.csv` |
-| 2012 | JHSF3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\jhsf3_1wk.csv` |
-| 2012 | JHSF3 | heikin_ashi | 1d | ok | sim | 235 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2012 | JHSF3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2012 | PETR4 | candles | 1d | ok | sim | 238 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\petr4_1d.csv` |
-| 2012 | PETR4 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\petr4_1wk.csv` |
-| 2012 | PETR4 | heikin_ashi | 1d | ok | sim | 238 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\petr4_1d.csv` |
-| 2012 | PETR4 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2012 | TUPY3 | candles | 1d | ok | sim | 209 | 2012-01-03 | 2012-12-28 | `data\yearly\2012\candles\1d\tupy3_1d.csv` |
-| 2012 | TUPY3 | candles | 1sem | ok | sim | 52 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\tupy3_1wk.csv` |
-| 2012 | TUPY3 | heikin_ashi | 1d | ok | sim | 209 | 2012-01-03 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\tupy3_1d.csv` |
-| 2012 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2012 | VALE3 | candles | 1d | ok | sim | 241 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\candles\1d\vale3_1d.csv` |
-| 2012 | VALE3 | candles | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\candles\1wk\vale3_1wk.csv` |
-| 2012 | VALE3 | heikin_ashi | 1d | ok | sim | 241 | 2012-01-02 | 2012-12-28 | `data\yearly\2012\heikin_ashi\1d\vale3_1d.csv` |
-| 2012 | VALE3 | heikin_ashi | 1sem | ok | sim | 53 | 2012-01-02 | 2012-12-31 | `data\yearly\2012\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2013 | BBDC3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\bbdc3_1d.csv` |
-| 2013 | BBDC3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\bbdc3_1wk.csv` |
-| 2013 | BBDC3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2013 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2013 | BBSE3 | candles | 1d | ok | sim | 168 | 2013-04-29 | 2013-12-30 | `data\yearly\2013\candles\1d\bbse3_1d.csv` |
-| 2013 | BBSE3 | candles | 1sem | ok | sim | 36 | 2013-04-29 | 2013-12-30 | `data\yearly\2013\candles\1wk\bbse3_1wk.csv` |
-| 2013 | BBSE3 | heikin_ashi | 1d | ok | sim | 168 | 2013-04-29 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\bbse3_1d.csv` |
-| 2013 | BBSE3 | heikin_ashi | 1sem | ok | sim | 36 | 2013-04-29 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2013 | CSMG3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\csmg3_1d.csv` |
-| 2013 | CSMG3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\csmg3_1wk.csv` |
-| 2013 | CSMG3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\csmg3_1d.csv` |
-| 2013 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2013 | FLRY3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\flry3_1d.csv` |
-| 2013 | FLRY3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\flry3_1wk.csv` |
-| 2013 | FLRY3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\flry3_1d.csv` |
-| 2013 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2013 | GGBR3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\ggbr3_1d.csv` |
-| 2013 | GGBR3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\ggbr3_1wk.csv` |
-| 2013 | GGBR3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2013 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2013 | JHSF3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\jhsf3_1d.csv` |
-| 2013 | JHSF3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\jhsf3_1wk.csv` |
-| 2013 | JHSF3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2013 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2013 | PETR4 | candles | 1d | ok | sim | 245 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\petr4_1d.csv` |
-| 2013 | PETR4 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\petr4_1wk.csv` |
-| 2013 | PETR4 | heikin_ashi | 1d | ok | sim | 245 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\petr4_1d.csv` |
-| 2013 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2013 | TUPY3 | candles | 1d | ok | sim | 239 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\tupy3_1d.csv` |
-| 2013 | TUPY3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\tupy3_1wk.csv` |
-| 2013 | TUPY3 | heikin_ashi | 1d | ok | sim | 239 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\tupy3_1d.csv` |
-| 2013 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2013 | VALE3 | candles | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\candles\1d\vale3_1d.csv` |
-| 2013 | VALE3 | candles | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\candles\1wk\vale3_1wk.csv` |
-| 2013 | VALE3 | heikin_ashi | 1d | ok | sim | 246 | 2013-01-02 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1d\vale3_1d.csv` |
-| 2013 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2013-01-07 | 2013-12-30 | `data\yearly\2013\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2014 | BBDC3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\bbdc3_1d.csv` |
-| 2014 | BBDC3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\bbdc3_1wk.csv` |
-| 2014 | BBDC3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2014 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2014 | BBSE3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\bbse3_1d.csv` |
-| 2014 | BBSE3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\bbse3_1wk.csv` |
-| 2014 | BBSE3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\bbse3_1d.csv` |
-| 2014 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2014 | CSMG3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\csmg3_1d.csv` |
-| 2014 | CSMG3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\csmg3_1wk.csv` |
-| 2014 | CSMG3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\csmg3_1d.csv` |
-| 2014 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2014 | FLRY3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\flry3_1d.csv` |
-| 2014 | FLRY3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\flry3_1wk.csv` |
-| 2014 | FLRY3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\flry3_1d.csv` |
-| 2014 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2014 | GGBR3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\ggbr3_1d.csv` |
-| 2014 | GGBR3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\ggbr3_1wk.csv` |
-| 2014 | GGBR3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2014 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2014 | JHSF3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\jhsf3_1d.csv` |
-| 2014 | JHSF3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\jhsf3_1wk.csv` |
-| 2014 | JHSF3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2014 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2014 | PETR4 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\petr4_1d.csv` |
-| 2014 | PETR4 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\petr4_1wk.csv` |
-| 2014 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\petr4_1d.csv` |
-| 2014 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2014 | TUPY3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\tupy3_1d.csv` |
-| 2014 | TUPY3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\tupy3_1wk.csv` |
-| 2014 | TUPY3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\tupy3_1d.csv` |
-| 2014 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2014 | VALE3 | candles | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\candles\1d\vale3_1d.csv` |
-| 2014 | VALE3 | candles | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\candles\1wk\vale3_1wk.csv` |
-| 2014 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2014-01-02 | 2014-12-30 | `data\yearly\2014\heikin_ashi\1d\vale3_1d.csv` |
-| 2014 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2014-01-06 | 2014-12-29 | `data\yearly\2014\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2015 | BBDC3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\bbdc3_1d.csv` |
-| 2015 | BBDC3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\bbdc3_1wk.csv` |
-| 2015 | BBDC3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2015 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2015 | BBSE3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\bbse3_1d.csv` |
-| 2015 | BBSE3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\bbse3_1wk.csv` |
-| 2015 | BBSE3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\bbse3_1d.csv` |
-| 2015 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2015 | CSMG3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\csmg3_1d.csv` |
-| 2015 | CSMG3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\csmg3_1wk.csv` |
-| 2015 | CSMG3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\csmg3_1d.csv` |
-| 2015 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2015 | FLRY3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\flry3_1d.csv` |
-| 2015 | FLRY3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\flry3_1wk.csv` |
-| 2015 | FLRY3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\flry3_1d.csv` |
-| 2015 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2015 | GGBR3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\ggbr3_1d.csv` |
-| 2015 | GGBR3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\ggbr3_1wk.csv` |
-| 2015 | GGBR3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2015 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2015 | JHSF3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\jhsf3_1d.csv` |
-| 2015 | JHSF3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\jhsf3_1wk.csv` |
-| 2015 | JHSF3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2015 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2015 | PETR4 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\petr4_1d.csv` |
-| 2015 | PETR4 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\petr4_1wk.csv` |
-| 2015 | PETR4 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\petr4_1d.csv` |
-| 2015 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2015 | TUPY3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\tupy3_1d.csv` |
-| 2015 | TUPY3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\tupy3_1wk.csv` |
-| 2015 | TUPY3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\tupy3_1d.csv` |
-| 2015 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2015 | VALE3 | candles | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\candles\1d\vale3_1d.csv` |
-| 2015 | VALE3 | candles | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\candles\1wk\vale3_1wk.csv` |
-| 2015 | VALE3 | heikin_ashi | 1d | ok | sim | 246 | 2015-01-02 | 2015-12-30 | `data\yearly\2015\heikin_ashi\1d\vale3_1d.csv` |
-| 2015 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2015-01-05 | 2015-12-28 | `data\yearly\2015\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2016 | BBDC3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\bbdc3_1d.csv` |
-| 2016 | BBDC3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\bbdc3_1wk.csv` |
-| 2016 | BBDC3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2016 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2016 | BBSE3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\bbse3_1d.csv` |
-| 2016 | BBSE3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\bbse3_1wk.csv` |
-| 2016 | BBSE3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\bbse3_1d.csv` |
-| 2016 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2016 | CSMG3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\csmg3_1d.csv` |
-| 2016 | CSMG3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\csmg3_1wk.csv` |
-| 2016 | CSMG3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\csmg3_1d.csv` |
-| 2016 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2016 | FLRY3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\flry3_1d.csv` |
-| 2016 | FLRY3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\flry3_1wk.csv` |
-| 2016 | FLRY3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\flry3_1d.csv` |
-| 2016 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2016 | GGBR3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\ggbr3_1d.csv` |
-| 2016 | GGBR3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\ggbr3_1wk.csv` |
-| 2016 | GGBR3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2016 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2016 | JHSF3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\jhsf3_1d.csv` |
-| 2016 | JHSF3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\jhsf3_1wk.csv` |
-| 2016 | JHSF3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2016 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2016 | PETR4 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\petr4_1d.csv` |
-| 2016 | PETR4 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\petr4_1wk.csv` |
-| 2016 | PETR4 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\petr4_1d.csv` |
-| 2016 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2016 | TUPY3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\tupy3_1d.csv` |
-| 2016 | TUPY3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\tupy3_1wk.csv` |
-| 2016 | TUPY3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\tupy3_1d.csv` |
-| 2016 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2016 | VALE3 | candles | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\candles\1d\vale3_1d.csv` |
-| 2016 | VALE3 | candles | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\candles\1wk\vale3_1wk.csv` |
-| 2016 | VALE3 | heikin_ashi | 1d | ok | sim | 249 | 2016-01-04 | 2016-12-29 | `data\yearly\2016\heikin_ashi\1d\vale3_1d.csv` |
-| 2016 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2016-01-04 | 2016-12-26 | `data\yearly\2016\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2017 | BBDC3 | candles | 1d | ok | sim | 244 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\bbdc3_1d.csv` |
-| 2017 | BBDC3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\bbdc3_1wk.csv` |
-| 2017 | BBDC3 | heikin_ashi | 1d | ok | sim | 244 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2017 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2017 | BBSE3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\bbse3_1d.csv` |
-| 2017 | BBSE3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\bbse3_1wk.csv` |
-| 2017 | BBSE3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\bbse3_1d.csv` |
-| 2017 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2017 | CSMG3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\csmg3_1d.csv` |
-| 2017 | CSMG3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\csmg3_1wk.csv` |
-| 2017 | CSMG3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\csmg3_1d.csv` |
-| 2017 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2017 | FLRY3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\flry3_1d.csv` |
-| 2017 | FLRY3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\flry3_1wk.csv` |
-| 2017 | FLRY3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\flry3_1d.csv` |
-| 2017 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2017 | GGBR3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\ggbr3_1d.csv` |
-| 2017 | GGBR3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\ggbr3_1wk.csv` |
-| 2017 | GGBR3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2017 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2017 | IRBR3 | candles | 1d | ok | sim | 103 | 2017-07-31 | 2017-12-28 | `data\yearly\2017\candles\1d\irbr3_1d.csv` |
-| 2017 | IRBR3 | candles | 1sem | ok | sim | 22 | 2017-07-31 | 2017-12-25 | `data\yearly\2017\candles\1wk\irbr3_1wk.csv` |
-| 2017 | IRBR3 | heikin_ashi | 1d | ok | sim | 103 | 2017-07-31 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\irbr3_1d.csv` |
-| 2017 | IRBR3 | heikin_ashi | 1sem | ok | sim | 22 | 2017-07-31 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2017 | JHSF3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\jhsf3_1d.csv` |
-| 2017 | JHSF3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\jhsf3_1wk.csv` |
-| 2017 | JHSF3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2017 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2017 | PETR4 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\petr4_1d.csv` |
-| 2017 | PETR4 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\petr4_1wk.csv` |
-| 2017 | PETR4 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\petr4_1d.csv` |
-| 2017 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2017 | TUPY3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\tupy3_1d.csv` |
-| 2017 | TUPY3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\tupy3_1wk.csv` |
-| 2017 | TUPY3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\tupy3_1d.csv` |
-| 2017 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2017 | VALE3 | candles | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\candles\1d\vale3_1d.csv` |
-| 2017 | VALE3 | candles | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\candles\1wk\vale3_1wk.csv` |
-| 2017 | VALE3 | heikin_ashi | 1d | ok | sim | 245 | 2017-01-02 | 2017-12-28 | `data\yearly\2017\heikin_ashi\1d\vale3_1d.csv` |
-| 2017 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2017-01-02 | 2017-12-25 | `data\yearly\2017\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2018 | BBDC3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\bbdc3_1d.csv` |
-| 2018 | BBDC3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\bbdc3_1wk.csv` |
-| 2018 | BBDC3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2018 | BBDC3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2018 | BBSE3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\bbse3_1d.csv` |
-| 2018 | BBSE3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\bbse3_1wk.csv` |
-| 2018 | BBSE3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\bbse3_1d.csv` |
-| 2018 | BBSE3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2018 | CSMG3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\csmg3_1d.csv` |
-| 2018 | CSMG3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\csmg3_1wk.csv` |
-| 2018 | CSMG3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\csmg3_1d.csv` |
-| 2018 | CSMG3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2018 | FLRY3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\flry3_1d.csv` |
-| 2018 | FLRY3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\flry3_1wk.csv` |
-| 2018 | FLRY3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\flry3_1d.csv` |
-| 2018 | FLRY3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2018 | GGBR3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\ggbr3_1d.csv` |
-| 2018 | GGBR3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\ggbr3_1wk.csv` |
-| 2018 | GGBR3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2018 | GGBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2018 | IRBR3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\irbr3_1d.csv` |
-| 2018 | IRBR3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\irbr3_1wk.csv` |
-| 2018 | IRBR3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\irbr3_1d.csv` |
-| 2018 | IRBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2018 | JHSF3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\jhsf3_1d.csv` |
-| 2018 | JHSF3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\jhsf3_1wk.csv` |
-| 2018 | JHSF3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2018 | JHSF3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2018 | LOGG3 | candles | 1d | ok | sim | 4 | 2018-12-21 | 2018-12-28 | `data\yearly\2018\candles\1d\logg3_1d.csv` |
-| 2018 | LOGG3 | candles | 1sem | ok | sim | 3 | 2018-12-17 | 2018-12-31 | `data\yearly\2018\candles\1wk\logg3_1wk.csv` |
-| 2018 | LOGG3 | heikin_ashi | 1d | ok | sim | 4 | 2018-12-21 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\logg3_1d.csv` |
-| 2018 | LOGG3 | heikin_ashi | 1sem | ok | sim | 3 | 2018-12-17 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2018 | PETR4 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\petr4_1d.csv` |
-| 2018 | PETR4 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\petr4_1wk.csv` |
-| 2018 | PETR4 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\petr4_1d.csv` |
-| 2018 | PETR4 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2018 | TUPY3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\tupy3_1d.csv` |
-| 2018 | TUPY3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\tupy3_1wk.csv` |
-| 2018 | TUPY3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\tupy3_1d.csv` |
-| 2018 | TUPY3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2018 | VALE3 | candles | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\candles\1d\vale3_1d.csv` |
-| 2018 | VALE3 | candles | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\candles\1wk\vale3_1wk.csv` |
-| 2018 | VALE3 | heikin_ashi | 1d | ok | sim | 245 | 2018-01-02 | 2018-12-28 | `data\yearly\2018\heikin_ashi\1d\vale3_1d.csv` |
-| 2018 | VALE3 | heikin_ashi | 1sem | ok | sim | 53 | 2018-01-01 | 2018-12-31 | `data\yearly\2018\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2019 | BBDC3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\bbdc3_1d.csv` |
-| 2019 | BBDC3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\bbdc3_1wk.csv` |
-| 2019 | BBDC3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2019 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2019 | BBSE3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\bbse3_1d.csv` |
-| 2019 | BBSE3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\bbse3_1wk.csv` |
-| 2019 | BBSE3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\bbse3_1d.csv` |
-| 2019 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2019 | CSMG3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\csmg3_1d.csv` |
-| 2019 | CSMG3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\csmg3_1wk.csv` |
-| 2019 | CSMG3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\csmg3_1d.csv` |
-| 2019 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2019 | FLRY3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\flry3_1d.csv` |
-| 2019 | FLRY3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\flry3_1wk.csv` |
-| 2019 | FLRY3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\flry3_1d.csv` |
-| 2019 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2019 | GGBR3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\ggbr3_1d.csv` |
-| 2019 | GGBR3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\ggbr3_1wk.csv` |
-| 2019 | GGBR3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2019 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2019 | IRBR3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\irbr3_1d.csv` |
-| 2019 | IRBR3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\irbr3_1wk.csv` |
-| 2019 | IRBR3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\irbr3_1d.csv` |
-| 2019 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2019 | JHSF3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\jhsf3_1d.csv` |
-| 2019 | JHSF3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\jhsf3_1wk.csv` |
-| 2019 | JHSF3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2019 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2019 | LOGG3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\logg3_1d.csv` |
-| 2019 | LOGG3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\logg3_1wk.csv` |
-| 2019 | LOGG3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\logg3_1d.csv` |
-| 2019 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2019 | PETR4 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\petr4_1d.csv` |
-| 2019 | PETR4 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\petr4_1wk.csv` |
-| 2019 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\petr4_1d.csv` |
-| 2019 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2019 | TUPY3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\tupy3_1d.csv` |
-| 2019 | TUPY3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\tupy3_1wk.csv` |
-| 2019 | TUPY3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\tupy3_1d.csv` |
-| 2019 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2019 | VALE3 | candles | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\candles\1d\vale3_1d.csv` |
-| 2019 | VALE3 | candles | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\candles\1wk\vale3_1wk.csv` |
-| 2019 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2019-01-02 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1d\vale3_1d.csv` |
-| 2019 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2019-01-07 | 2019-12-30 | `data\yearly\2019\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2020 | BBDC3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\bbdc3_1d.csv` |
-| 2020 | BBDC3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\bbdc3_1wk.csv` |
-| 2020 | BBDC3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2020 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2020 | BBSE3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\bbse3_1d.csv` |
-| 2020 | BBSE3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\bbse3_1wk.csv` |
-| 2020 | BBSE3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\bbse3_1d.csv` |
-| 2020 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2020 | CSMG3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\csmg3_1d.csv` |
-| 2020 | CSMG3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\csmg3_1wk.csv` |
-| 2020 | CSMG3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\csmg3_1d.csv` |
-| 2020 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2020 | FLRY3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\flry3_1d.csv` |
-| 2020 | FLRY3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\flry3_1wk.csv` |
-| 2020 | FLRY3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\flry3_1d.csv` |
-| 2020 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2020 | GGBR3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\ggbr3_1d.csv` |
-| 2020 | GGBR3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\ggbr3_1wk.csv` |
-| 2020 | GGBR3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2020 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2020 | IRBR3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\irbr3_1d.csv` |
-| 2020 | IRBR3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\irbr3_1wk.csv` |
-| 2020 | IRBR3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\irbr3_1d.csv` |
-| 2020 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2020 | JHSF3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\jhsf3_1d.csv` |
-| 2020 | JHSF3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\jhsf3_1wk.csv` |
-| 2020 | JHSF3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2020 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2020 | LOGG3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\logg3_1d.csv` |
-| 2020 | LOGG3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\logg3_1wk.csv` |
-| 2020 | LOGG3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\logg3_1d.csv` |
-| 2020 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2020 | PETR4 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\petr4_1d.csv` |
-| 2020 | PETR4 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\petr4_1wk.csv` |
-| 2020 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\petr4_1d.csv` |
-| 2020 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2020 | TUPY3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\tupy3_1d.csv` |
-| 2020 | TUPY3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\tupy3_1wk.csv` |
-| 2020 | TUPY3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\tupy3_1d.csv` |
-| 2020 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2020 | VALE3 | candles | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\candles\1d\vale3_1d.csv` |
-| 2020 | VALE3 | candles | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\candles\1wk\vale3_1wk.csv` |
-| 2020 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2020-01-02 | 2020-12-30 | `data\yearly\2020\heikin_ashi\1d\vale3_1d.csv` |
-| 2020 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2020-01-06 | 2020-12-28 | `data\yearly\2020\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2021 | BBDC3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\bbdc3_1d.csv` |
-| 2021 | BBDC3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\bbdc3_1wk.csv` |
-| 2021 | BBDC3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2021 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2021 | BBSE3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\bbse3_1d.csv` |
-| 2021 | BBSE3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\bbse3_1wk.csv` |
-| 2021 | BBSE3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\bbse3_1d.csv` |
-| 2021 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2021 | CSMG3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\csmg3_1d.csv` |
-| 2021 | CSMG3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\csmg3_1wk.csv` |
-| 2021 | CSMG3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\csmg3_1d.csv` |
-| 2021 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2021 | FLRY3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\flry3_1d.csv` |
-| 2021 | FLRY3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\flry3_1wk.csv` |
-| 2021 | FLRY3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\flry3_1d.csv` |
-| 2021 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2021 | GGBR3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\ggbr3_1d.csv` |
-| 2021 | GGBR3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\ggbr3_1wk.csv` |
-| 2021 | GGBR3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2021 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2021 | IRBR3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\irbr3_1d.csv` |
-| 2021 | IRBR3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\irbr3_1wk.csv` |
-| 2021 | IRBR3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\irbr3_1d.csv` |
-| 2021 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2021 | JHSF3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\jhsf3_1d.csv` |
-| 2021 | JHSF3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\jhsf3_1wk.csv` |
-| 2021 | JHSF3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2021 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2021 | LOGG3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\logg3_1d.csv` |
-| 2021 | LOGG3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\logg3_1wk.csv` |
-| 2021 | LOGG3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\logg3_1d.csv` |
-| 2021 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2021 | MLAS3 | candles | 1d | ok | sim | 111 | 2021-07-22 | 2021-12-30 | `data\yearly\2021\candles\1d\mlas3_1d.csv` |
-| 2021 | MLAS3 | candles | 1sem | ok | sim | 24 | 2021-07-19 | 2021-12-27 | `data\yearly\2021\candles\1wk\mlas3_1wk.csv` |
-| 2021 | MLAS3 | heikin_ashi | 1d | ok | sim | 111 | 2021-07-22 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\mlas3_1d.csv` |
-| 2021 | MLAS3 | heikin_ashi | 1sem | ok | sim | 24 | 2021-07-19 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2021 | PETR4 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\petr4_1d.csv` |
-| 2021 | PETR4 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\petr4_1wk.csv` |
-| 2021 | PETR4 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\petr4_1d.csv` |
-| 2021 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2021 | TUPY3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\tupy3_1d.csv` |
-| 2021 | TUPY3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\tupy3_1wk.csv` |
-| 2021 | TUPY3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\tupy3_1d.csv` |
-| 2021 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2021 | VALE3 | candles | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\candles\1d\vale3_1d.csv` |
-| 2021 | VALE3 | candles | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\candles\1wk\vale3_1wk.csv` |
-| 2021 | VALE3 | heikin_ashi | 1d | ok | sim | 247 | 2021-01-04 | 2021-12-30 | `data\yearly\2021\heikin_ashi\1d\vale3_1d.csv` |
-| 2021 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2021-01-04 | 2021-12-27 | `data\yearly\2021\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2022 | BBDC3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\bbdc3_1d.csv` |
-| 2022 | BBDC3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\bbdc3_1wk.csv` |
-| 2022 | BBDC3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2022 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2022 | BBSE3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\bbse3_1d.csv` |
-| 2022 | BBSE3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\bbse3_1wk.csv` |
-| 2022 | BBSE3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\bbse3_1d.csv` |
-| 2022 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2022 | CSMG3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\csmg3_1d.csv` |
-| 2022 | CSMG3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\csmg3_1wk.csv` |
-| 2022 | CSMG3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\csmg3_1d.csv` |
-| 2022 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2022 | FLRY3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\flry3_1d.csv` |
-| 2022 | FLRY3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\flry3_1wk.csv` |
-| 2022 | FLRY3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\flry3_1d.csv` |
-| 2022 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2022 | GGBR3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\ggbr3_1d.csv` |
-| 2022 | GGBR3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\ggbr3_1wk.csv` |
-| 2022 | GGBR3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2022 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2022 | IRBR3 | candles | 1d | ok | sim | 248 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\irbr3_1d.csv` |
-| 2022 | IRBR3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\irbr3_1wk.csv` |
-| 2022 | IRBR3 | heikin_ashi | 1d | ok | sim | 248 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\irbr3_1d.csv` |
-| 2022 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2022 | JHSF3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\jhsf3_1d.csv` |
-| 2022 | JHSF3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\jhsf3_1wk.csv` |
-| 2022 | JHSF3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2022 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2022 | LOGG3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\logg3_1d.csv` |
-| 2022 | LOGG3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\logg3_1wk.csv` |
-| 2022 | LOGG3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\logg3_1d.csv` |
-| 2022 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2022 | MLAS3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\mlas3_1d.csv` |
-| 2022 | MLAS3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\mlas3_1wk.csv` |
-| 2022 | MLAS3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\mlas3_1d.csv` |
-| 2022 | MLAS3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2022 | PETR4 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\petr4_1d.csv` |
-| 2022 | PETR4 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\petr4_1wk.csv` |
-| 2022 | PETR4 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\petr4_1d.csv` |
-| 2022 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2022 | TUPY3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\tupy3_1d.csv` |
-| 2022 | TUPY3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\tupy3_1wk.csv` |
-| 2022 | TUPY3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\tupy3_1d.csv` |
-| 2022 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2022 | VALE3 | candles | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\candles\1d\vale3_1d.csv` |
-| 2022 | VALE3 | candles | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\candles\1wk\vale3_1wk.csv` |
-| 2022 | VALE3 | heikin_ashi | 1d | ok | sim | 250 | 2022-01-03 | 2022-12-29 | `data\yearly\2022\heikin_ashi\1d\vale3_1d.csv` |
-| 2022 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2022-01-03 | 2022-12-26 | `data\yearly\2022\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2023 | BBDC3 | candles | 1d | ok | sim | 247 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\bbdc3_1d.csv` |
-| 2023 | BBDC3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\bbdc3_1wk.csv` |
-| 2023 | BBDC3 | heikin_ashi | 1d | ok | sim | 247 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2023 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2023 | BBSE3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\bbse3_1d.csv` |
-| 2023 | BBSE3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\bbse3_1wk.csv` |
-| 2023 | BBSE3 | candles | 4h | ok | sim | 184 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\bbse3_4h.csv` |
-| 2023 | BBSE3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\bbse3_1d.csv` |
-| 2023 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2023 | BBSE3 | heikin_ashi | 4h | ok | sim | 184 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\bbse3_4h.csv` |
-| 2023 | CSMG3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\csmg3_1d.csv` |
-| 2023 | CSMG3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\csmg3_1wk.csv` |
-| 2023 | CSMG3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\csmg3_1d.csv` |
-| 2023 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2023 | FLRY3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\flry3_1d.csv` |
-| 2023 | FLRY3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\flry3_1wk.csv` |
-| 2023 | FLRY3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\flry3_1d.csv` |
-| 2023 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2023 | GGBR3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\ggbr3_1d.csv` |
-| 2023 | GGBR3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\ggbr3_1wk.csv` |
-| 2023 | GGBR3 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\ggbr3_4h.csv` |
-| 2023 | GGBR3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2023 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2023 | GGBR3 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\ggbr3_4h.csv` |
-| 2023 | IRBR3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\irbr3_1d.csv` |
-| 2023 | IRBR3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\irbr3_1wk.csv` |
-| 2023 | IRBR3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\irbr3_1d.csv` |
-| 2023 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2023 | JHSF3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\jhsf3_1d.csv` |
-| 2023 | JHSF3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\jhsf3_1wk.csv` |
-| 2023 | JHSF3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2023 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2023 | LOGG3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\logg3_1d.csv` |
-| 2023 | LOGG3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\logg3_1wk.csv` |
-| 2023 | LOGG3 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\logg3_4h.csv` |
-| 2023 | LOGG3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\logg3_1d.csv` |
-| 2023 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2023 | LOGG3 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\logg3_4h.csv` |
-| 2023 | MLAS3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\mlas3_1d.csv` |
-| 2023 | MLAS3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\mlas3_1wk.csv` |
-| 2023 | MLAS3 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\mlas3_4h.csv` |
-| 2023 | MLAS3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\mlas3_1d.csv` |
-| 2023 | MLAS3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2023 | MLAS3 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\mlas3_4h.csv` |
-| 2023 | PETR4 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\petr4_1d.csv` |
-| 2023 | PETR4 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\petr4_1wk.csv` |
-| 2023 | PETR4 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\petr4_4h.csv` |
-| 2023 | PETR4 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\petr4_1d.csv` |
-| 2023 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2023 | PETR4 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\petr4_4h.csv` |
-| 2023 | TUPY3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\tupy3_1d.csv` |
-| 2023 | TUPY3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\tupy3_1wk.csv` |
-| 2023 | TUPY3 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\tupy3_4h.csv` |
-| 2023 | TUPY3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\tupy3_1d.csv` |
-| 2023 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2023 | TUPY3 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\tupy3_4h.csv` |
-| 2023 | VALE3 | candles | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\candles\1d\vale3_1d.csv` |
-| 2023 | VALE3 | candles | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\candles\1wk\vale3_1wk.csv` |
-| 2023 | VALE3 | candles | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\candles\4h\vale3_4h.csv` |
-| 2023 | VALE3 | heikin_ashi | 1d | ok | sim | 248 | 2023-01-02 | 2023-12-28 | `data\yearly\2023\heikin_ashi\1d\vale3_1d.csv` |
-| 2023 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2023-01-02 | 2023-12-25 | `data\yearly\2023\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2023 | VALE3 | heikin_ashi | 4h | ok | sim | 186 | 2023-08-15 10:00:00 | 2023-12-28 14:00:00 | `data\yearly\2023\heikin_ashi\4h\vale3_4h.csv` |
-| 2024 | BBDC3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\bbdc3_1d.csv` |
-| 2024 | BBDC3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\bbdc3_1wk.csv` |
-| 2024 | BBDC3 | candles | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\bbdc3_4h.csv` |
-| 2024 | BBDC3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2024 | BBDC3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2024 | BBDC3 | heikin_ashi | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\bbdc3_4h.csv` |
-| 2024 | BBSE3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\bbse3_1d.csv` |
-| 2024 | BBSE3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\bbse3_1wk.csv` |
-| 2024 | BBSE3 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\bbse3_4h.csv` |
-| 2024 | BBSE3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\bbse3_1d.csv` |
-| 2024 | BBSE3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2024 | BBSE3 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\bbse3_4h.csv` |
-| 2024 | CSMG3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\csmg3_1d.csv` |
-| 2024 | CSMG3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\csmg3_1wk.csv` |
-| 2024 | CSMG3 | candles | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\csmg3_4h.csv` |
-| 2024 | CSMG3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\csmg3_1d.csv` |
-| 2024 | CSMG3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2024 | CSMG3 | heikin_ashi | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\csmg3_4h.csv` |
-| 2024 | FLRY3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\flry3_1d.csv` |
-| 2024 | FLRY3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\flry3_1wk.csv` |
-| 2024 | FLRY3 | candles | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\flry3_4h.csv` |
-| 2024 | FLRY3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\flry3_1d.csv` |
-| 2024 | FLRY3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2024 | FLRY3 | heikin_ashi | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\flry3_4h.csv` |
-| 2024 | GGBR3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\ggbr3_1d.csv` |
-| 2024 | GGBR3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\ggbr3_1wk.csv` |
-| 2024 | GGBR3 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\ggbr3_4h.csv` |
-| 2024 | GGBR3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2024 | GGBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2024 | GGBR3 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\ggbr3_4h.csv` |
-| 2024 | IRBR3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\irbr3_1d.csv` |
-| 2024 | IRBR3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\irbr3_1wk.csv` |
-| 2024 | IRBR3 | candles | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\irbr3_4h.csv` |
-| 2024 | IRBR3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\irbr3_1d.csv` |
-| 2024 | IRBR3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2024 | IRBR3 | heikin_ashi | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\irbr3_4h.csv` |
-| 2024 | JHSF3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\jhsf3_1d.csv` |
-| 2024 | JHSF3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\jhsf3_1wk.csv` |
-| 2024 | JHSF3 | candles | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\jhsf3_4h.csv` |
-| 2024 | JHSF3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2024 | JHSF3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2024 | JHSF3 | heikin_ashi | 4h | ok | sim | 224 | 2024-07-22 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\jhsf3_4h.csv` |
-| 2024 | LOGG3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\logg3_1d.csv` |
-| 2024 | LOGG3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\logg3_1wk.csv` |
-| 2024 | LOGG3 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\logg3_4h.csv` |
-| 2024 | LOGG3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\logg3_1d.csv` |
-| 2024 | LOGG3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2024 | LOGG3 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\logg3_4h.csv` |
-| 2024 | MLAS3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\mlas3_1d.csv` |
-| 2024 | MLAS3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\mlas3_1wk.csv` |
-| 2024 | MLAS3 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\mlas3_4h.csv` |
-| 2024 | MLAS3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\mlas3_1d.csv` |
-| 2024 | MLAS3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2024 | MLAS3 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\mlas3_4h.csv` |
-| 2024 | PETR4 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\petr4_1d.csv` |
-| 2024 | PETR4 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\petr4_1wk.csv` |
-| 2024 | PETR4 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\petr4_4h.csv` |
-| 2024 | PETR4 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\petr4_1d.csv` |
-| 2024 | PETR4 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2024 | PETR4 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\petr4_4h.csv` |
-| 2024 | TUPY3 | candles | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\tupy3_1d.csv` |
-| 2024 | TUPY3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\tupy3_1wk.csv` |
-| 2024 | TUPY3 | candles | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\tupy3_4h.csv` |
-| 2024 | TUPY3 | heikin_ashi | 1d | ok | sim | 251 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\tupy3_1d.csv` |
-| 2024 | TUPY3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2024 | TUPY3 | heikin_ashi | 4h | ok | sim | 502 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\tupy3_4h.csv` |
-| 2024 | VALE3 | candles | 1d | ok | sim | 250 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\candles\1d\vale3_1d.csv` |
-| 2024 | VALE3 | candles | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\candles\1wk\vale3_1wk.csv` |
-| 2024 | VALE3 | candles | 4h | ok | sim | 500 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\candles\4h\vale3_4h.csv` |
-| 2024 | VALE3 | heikin_ashi | 1d | ok | sim | 250 | 2024-01-02 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1d\vale3_1d.csv` |
-| 2024 | VALE3 | heikin_ashi | 1sem | ok | sim | 53 | 2024-01-01 | 2024-12-30 | `data\yearly\2024\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2024 | VALE3 | heikin_ashi | 4h | ok | sim | 500 | 2024-01-02 10:00:00 | 2024-12-30 14:00:00 | `data\yearly\2024\heikin_ashi\4h\vale3_4h.csv` |
-| 2025 | BBDC3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\bbdc3_1d.csv` |
-| 2025 | BBDC3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\bbdc3_1wk.csv` |
-| 2025 | BBDC3 | candles | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\bbdc3_4h.csv` |
-| 2025 | BBDC3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2025 | BBDC3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2025 | BBDC3 | heikin_ashi | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\bbdc3_4h.csv` |
-| 2025 | BBSE3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\bbse3_1d.csv` |
-| 2025 | BBSE3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\bbse3_1wk.csv` |
-| 2025 | BBSE3 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\bbse3_4h.csv` |
-| 2025 | BBSE3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\bbse3_1d.csv` |
-| 2025 | BBSE3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2025 | BBSE3 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\bbse3_4h.csv` |
-| 2025 | CSMG3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\csmg3_1d.csv` |
-| 2025 | CSMG3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\csmg3_1wk.csv` |
-| 2025 | CSMG3 | candles | 4h | ok | sim | 496 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\csmg3_4h.csv` |
-| 2025 | CSMG3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\csmg3_1d.csv` |
-| 2025 | CSMG3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2025 | CSMG3 | heikin_ashi | 4h | ok | sim | 496 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\csmg3_4h.csv` |
-| 2025 | FLRY3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\flry3_1d.csv` |
-| 2025 | FLRY3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\flry3_1wk.csv` |
-| 2025 | FLRY3 | candles | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\flry3_4h.csv` |
-| 2025 | FLRY3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\flry3_1d.csv` |
-| 2025 | FLRY3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2025 | FLRY3 | heikin_ashi | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\flry3_4h.csv` |
-| 2025 | GGBR3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\ggbr3_1d.csv` |
-| 2025 | GGBR3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\ggbr3_1wk.csv` |
-| 2025 | GGBR3 | candles | 4h | ok | sim | 494 | 2025-01-02 10:00:00 | 2025-12-30 15:00:00 | `data\yearly\2025\candles\4h\ggbr3_4h.csv` |
-| 2025 | GGBR3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2025 | GGBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2025 | GGBR3 | heikin_ashi | 4h | ok | sim | 494 | 2025-01-02 10:00:00 | 2025-12-30 15:00:00 | `data\yearly\2025\heikin_ashi\4h\ggbr3_4h.csv` |
-| 2025 | IRBR3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\irbr3_1d.csv` |
-| 2025 | IRBR3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\irbr3_1wk.csv` |
-| 2025 | IRBR3 | candles | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\irbr3_4h.csv` |
-| 2025 | IRBR3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\irbr3_1d.csv` |
-| 2025 | IRBR3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2025 | IRBR3 | heikin_ashi | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\irbr3_4h.csv` |
-| 2025 | JHSF3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\jhsf3_1d.csv` |
-| 2025 | JHSF3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\jhsf3_1wk.csv` |
-| 2025 | JHSF3 | candles | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\jhsf3_4h.csv` |
-| 2025 | JHSF3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2025 | JHSF3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2025 | JHSF3 | heikin_ashi | 4h | ok | sim | 498 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\jhsf3_4h.csv` |
-| 2025 | LOGG3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\logg3_1d.csv` |
-| 2025 | LOGG3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\logg3_1wk.csv` |
-| 2025 | LOGG3 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\logg3_4h.csv` |
-| 2025 | LOGG3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\logg3_1d.csv` |
-| 2025 | LOGG3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2025 | LOGG3 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\logg3_4h.csv` |
-| 2025 | MLAS3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\mlas3_1d.csv` |
-| 2025 | MLAS3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\mlas3_1wk.csv` |
-| 2025 | MLAS3 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\mlas3_4h.csv` |
-| 2025 | MLAS3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\mlas3_1d.csv` |
-| 2025 | MLAS3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2025 | MLAS3 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\mlas3_4h.csv` |
-| 2025 | PETR4 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\petr4_1d.csv` |
-| 2025 | PETR4 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\petr4_1wk.csv` |
-| 2025 | PETR4 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\petr4_4h.csv` |
-| 2025 | PETR4 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\petr4_1d.csv` |
-| 2025 | PETR4 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2025 | PETR4 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\petr4_4h.csv` |
-| 2025 | TUPY3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\tupy3_1d.csv` |
-| 2025 | TUPY3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\tupy3_1wk.csv` |
-| 2025 | TUPY3 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\tupy3_4h.csv` |
-| 2025 | TUPY3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\tupy3_1d.csv` |
-| 2025 | TUPY3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2025 | TUPY3 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\tupy3_4h.csv` |
-| 2025 | VALE3 | candles | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\candles\1d\vale3_1d.csv` |
-| 2025 | VALE3 | candles | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\candles\1wk\vale3_1wk.csv` |
-| 2025 | VALE3 | candles | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\candles\4h\vale3_4h.csv` |
-| 2025 | VALE3 | heikin_ashi | 1d | ok | sim | 250 | 2025-01-02 | 2025-12-30 | `data\yearly\2025\heikin_ashi\1d\vale3_1d.csv` |
-| 2025 | VALE3 | heikin_ashi | 1sem | ok | sim | 52 | 2025-01-06 | 2025-12-29 | `data\yearly\2025\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2025 | VALE3 | heikin_ashi | 4h | ok | sim | 500 | 2025-01-02 10:00:00 | 2025-12-30 14:00:00 | `data\yearly\2025\heikin_ashi\4h\vale3_4h.csv` |
-| 2026 | BBDC3 | candles | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\candles\1d\bbdc3_1d.csv` |
-| 2026 | BBDC3 | candles | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\candles\1wk\bbdc3_1wk.csv` |
-| 2026 | BBDC3 | candles | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\candles\4h\bbdc3_4h.csv` |
-| 2026 | BBDC3 | heikin_ashi | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\heikin_ashi\1d\bbdc3_1d.csv` |
-| 2026 | BBDC3 | heikin_ashi | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\heikin_ashi\1wk\bbdc3_1wk.csv` |
-| 2026 | BBDC3 | heikin_ashi | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\heikin_ashi\4h\bbdc3_4h.csv` |
-| 2026 | BBSE3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\bbse3_1d.csv` |
-| 2026 | BBSE3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\bbse3_1wk.csv` |
-| 2026 | BBSE3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\bbse3_4h.csv` |
-| 2026 | BBSE3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\bbse3_1d.csv` |
-| 2026 | BBSE3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\bbse3_1wk.csv` |
-| 2026 | BBSE3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\bbse3_4h.csv` |
-| 2026 | CSMG3 | candles | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\candles\1d\csmg3_1d.csv` |
-| 2026 | CSMG3 | candles | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\candles\1wk\csmg3_1wk.csv` |
-| 2026 | CSMG3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\candles\4h\csmg3_4h.csv` |
-| 2026 | CSMG3 | heikin_ashi | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\heikin_ashi\1d\csmg3_1d.csv` |
-| 2026 | CSMG3 | heikin_ashi | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\heikin_ashi\1wk\csmg3_1wk.csv` |
-| 2026 | CSMG3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\heikin_ashi\4h\csmg3_4h.csv` |
-| 2026 | FLRY3 | candles | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\candles\1d\flry3_1d.csv` |
-| 2026 | FLRY3 | candles | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\candles\1wk\flry3_1wk.csv` |
-| 2026 | FLRY3 | candles | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\candles\4h\flry3_4h.csv` |
-| 2026 | FLRY3 | heikin_ashi | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\heikin_ashi\1d\flry3_1d.csv` |
-| 2026 | FLRY3 | heikin_ashi | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\heikin_ashi\1wk\flry3_1wk.csv` |
-| 2026 | FLRY3 | heikin_ashi | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\heikin_ashi\4h\flry3_4h.csv` |
-| 2026 | GGBR3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\ggbr3_1d.csv` |
-| 2026 | GGBR3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\ggbr3_1wk.csv` |
-| 2026 | GGBR3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\ggbr3_4h.csv` |
-| 2026 | GGBR3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\ggbr3_1d.csv` |
-| 2026 | GGBR3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\ggbr3_1wk.csv` |
-| 2026 | GGBR3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\ggbr3_4h.csv` |
-| 2026 | IRBR3 | candles | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\candles\1d\irbr3_1d.csv` |
-| 2026 | IRBR3 | candles | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\candles\1wk\irbr3_1wk.csv` |
-| 2026 | IRBR3 | candles | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\candles\4h\irbr3_4h.csv` |
-| 2026 | IRBR3 | heikin_ashi | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\heikin_ashi\1d\irbr3_1d.csv` |
-| 2026 | IRBR3 | heikin_ashi | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\heikin_ashi\1wk\irbr3_1wk.csv` |
-| 2026 | IRBR3 | heikin_ashi | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\heikin_ashi\4h\irbr3_4h.csv` |
-| 2026 | JHSF3 | candles | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\candles\1d\jhsf3_1d.csv` |
-| 2026 | JHSF3 | candles | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\candles\1wk\jhsf3_1wk.csv` |
-| 2026 | JHSF3 | candles | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\candles\4h\jhsf3_4h.csv` |
-| 2026 | JHSF3 | heikin_ashi | 1d | ok | sim | 137 | 2026-01-02 | 2026-07-21 | `data\yearly\2026\heikin_ashi\1d\jhsf3_1d.csv` |
-| 2026 | JHSF3 | heikin_ashi | 1sem | ok | sim | 29 | 2026-01-05 | 2026-07-20 | `data\yearly\2026\heikin_ashi\1wk\jhsf3_1wk.csv` |
-| 2026 | JHSF3 | heikin_ashi | 4h | ok | sim | 268 | 2026-01-02 10:00:00 | 2026-07-21 14:00:00 | `data\yearly\2026\heikin_ashi\4h\jhsf3_4h.csv` |
-| 2026 | LOGG3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\logg3_1d.csv` |
-| 2026 | LOGG3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\logg3_1wk.csv` |
-| 2026 | LOGG3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\logg3_4h.csv` |
-| 2026 | LOGG3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\logg3_1d.csv` |
-| 2026 | LOGG3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\logg3_1wk.csv` |
-| 2026 | LOGG3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\logg3_4h.csv` |
-| 2026 | MLAS3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\mlas3_1d.csv` |
-| 2026 | MLAS3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\mlas3_1wk.csv` |
-| 2026 | MLAS3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\mlas3_4h.csv` |
-| 2026 | MLAS3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\mlas3_1d.csv` |
-| 2026 | MLAS3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\mlas3_1wk.csv` |
-| 2026 | MLAS3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\mlas3_4h.csv` |
-| 2026 | PETR4 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\petr4_1d.csv` |
-| 2026 | PETR4 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\petr4_1wk.csv` |
-| 2026 | PETR4 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\petr4_4h.csv` |
-| 2026 | PETR4 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\petr4_1d.csv` |
-| 2026 | PETR4 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\petr4_1wk.csv` |
-| 2026 | PETR4 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\petr4_4h.csv` |
-| 2026 | TUPY3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\tupy3_1d.csv` |
-| 2026 | TUPY3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\tupy3_1wk.csv` |
-| 2026 | TUPY3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\tupy3_4h.csv` |
-| 2026 | TUPY3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\tupy3_1d.csv` |
-| 2026 | TUPY3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\tupy3_1wk.csv` |
-| 2026 | TUPY3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\tupy3_4h.csv` |
-| 2026 | VALE3 | candles | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\candles\1d\vale3_1d.csv` |
-| 2026 | VALE3 | candles | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\candles\1wk\vale3_1wk.csv` |
-| 2026 | VALE3 | candles | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\candles\4h\vale3_4h.csv` |
-| 2026 | VALE3 | heikin_ashi | 1d | ok | sim | 135 | 2026-01-02 | 2026-07-17 | `data\yearly\2026\heikin_ashi\1d\vale3_1d.csv` |
-| 2026 | VALE3 | heikin_ashi | 1sem | ok | sim | 28 | 2026-01-05 | 2026-07-13 | `data\yearly\2026\heikin_ashi\1wk\vale3_1wk.csv` |
-| 2026 | VALE3 | heikin_ashi | 4h | ok | sim | 266 | 2026-01-02 10:00:00 | 2026-07-17 14:00:00 | `data\yearly\2026\heikin_ashi\4h\vale3_4h.csv` |
+| Ano | Ticker | Grafico | Tempo | Status | Preco | Splits | Desde | Proventos | Backtest | Linhas | Inicio | Fim | Arquivo |
+|---:|---|---|---|---|---|---|---|---|---|---:|---|---|---|
+| 2000 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/candles/1d/bbdc3_1d.csv` |
+| 2000 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/candles/1wk/bbdc3_1wk.csv` |
+| 2000 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2000 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2000 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/candles/1d/petr4_1d.csv` |
+| 2000 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/candles/1wk/petr4_1wk.csv` |
+| 2000 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/heikin_ashi/1d/petr4_1d.csv` |
+| 2000 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2000 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 2 | 2000-12-11 | 2000-12-20 | `data/yearly/2000/candles/1d/tupy3_1d.csv` |
+| 2000 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 2 | 2000-12-11 | 2000-12-20 | `data/yearly/2000/candles/1wk/tupy3_1wk.csv` |
+| 2000 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 2 | 2000-12-11 | 2000-12-20 | `data/yearly/2000/heikin_ashi/1d/tupy3_1d.csv` |
+| 2000 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 2 | 2000-12-11 | 2000-12-20 | `data/yearly/2000/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2000 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 244 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/candles/1d/vale3_1d.csv` |
+| 2000 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/candles/1wk/vale3_1wk.csv` |
+| 2000 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 244 | 2000-01-03 | 2000-12-28 | `data/yearly/2000/heikin_ashi/1d/vale3_1d.csv` |
+| 2000 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2000-01-03 | 2000-12-26 | `data/yearly/2000/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2001 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/candles/1d/bbdc3_1d.csv` |
+| 2001 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/candles/1wk/bbdc3_1wk.csv` |
+| 2001 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2001 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2001 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2001-02-05 | 2001-12-12 | `data/yearly/2001/candles/1d/ggbr3_1d.csv` |
+| 2001 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 20 | 2001-02-05 | 2001-12-12 | `data/yearly/2001/candles/1wk/ggbr3_1wk.csv` |
+| 2001 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2001-02-05 | 2001-12-12 | `data/yearly/2001/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2001 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 20 | 2001-02-05 | 2001-12-12 | `data/yearly/2001/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2001 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/candles/1d/petr4_1d.csv` |
+| 2001 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/candles/1wk/petr4_1wk.csv` |
+| 2001 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/heikin_ashi/1d/petr4_1d.csv` |
+| 2001 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2001 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 8 | 2001-01-17 | 2001-12-28 | `data/yearly/2001/candles/1d/tupy3_1d.csv` |
+| 2001 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 6 | 2001-01-17 | 2001-12-28 | `data/yearly/2001/candles/1wk/tupy3_1wk.csv` |
+| 2001 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 8 | 2001-01-17 | 2001-12-28 | `data/yearly/2001/heikin_ashi/1d/tupy3_1d.csv` |
+| 2001 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 6 | 2001-01-17 | 2001-12-28 | `data/yearly/2001/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2001 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 244 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/candles/1d/vale3_1d.csv` |
+| 2001 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/candles/1wk/vale3_1wk.csv` |
+| 2001 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 244 | 2001-01-02 | 2001-12-28 | `data/yearly/2001/heikin_ashi/1d/vale3_1d.csv` |
+| 2001 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2001-01-02 | 2001-12-26 | `data/yearly/2001/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2002 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1d/bbdc3_1d.csv` |
+| 2002 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1wk/bbdc3_1wk.csv` |
+| 2002 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2002 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2002 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 116 | 2002-01-02 | 2002-12-20 | `data/yearly/2002/candles/1d/ggbr3_1d.csv` |
+| 2002 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 43 | 2002-01-02 | 2002-12-16 | `data/yearly/2002/candles/1wk/ggbr3_1wk.csv` |
+| 2002 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 116 | 2002-01-02 | 2002-12-20 | `data/yearly/2002/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2002 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 43 | 2002-01-02 | 2002-12-16 | `data/yearly/2002/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2002 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1d/petr4_1d.csv` |
+| 2002 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1wk/petr4_1wk.csv` |
+| 2002 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1d/petr4_1d.csv` |
+| 2002 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2002 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 23 | 2002-02-28 | 2002-12-27 | `data/yearly/2002/candles/1d/tupy3_1d.csv` |
+| 2002 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 13 | 2002-02-28 | 2002-12-27 | `data/yearly/2002/candles/1wk/tupy3_1wk.csv` |
+| 2002 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 23 | 2002-02-28 | 2002-12-27 | `data/yearly/2002/heikin_ashi/1d/tupy3_1d.csv` |
+| 2002 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 13 | 2002-02-28 | 2002-12-27 | `data/yearly/2002/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2002 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1d/vale3_1d.csv` |
+| 2002 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/candles/1wk/vale3_1wk.csv` |
+| 2002 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1d/vale3_1d.csv` |
+| 2002 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2002-01-02 | 2002-12-30 | `data/yearly/2002/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2003 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/candles/1d/bbdc3_1d.csv` |
+| 2003 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/candles/1wk/bbdc3_1wk.csv` |
+| 2003 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2003 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2003 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 136 | 2003-01-03 | 2003-12-29 | `data/yearly/2003/candles/1d/ggbr3_1d.csv` |
+| 2003 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 49 | 2003-01-03 | 2003-12-29 | `data/yearly/2003/candles/1wk/ggbr3_1wk.csv` |
+| 2003 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 136 | 2003-01-03 | 2003-12-29 | `data/yearly/2003/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2003 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 49 | 2003-01-03 | 2003-12-29 | `data/yearly/2003/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2003 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/candles/1d/petr4_1d.csv` |
+| 2003 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/candles/1wk/petr4_1wk.csv` |
+| 2003 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/heikin_ashi/1d/petr4_1d.csv` |
+| 2003 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2003 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 13 | 2003-01-06 | 2003-12-22 | `data/yearly/2003/candles/1d/tupy3_1d.csv` |
+| 2003 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 10 | 2003-01-06 | 2003-12-22 | `data/yearly/2003/candles/1wk/tupy3_1wk.csv` |
+| 2003 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 13 | 2003-01-06 | 2003-12-22 | `data/yearly/2003/heikin_ashi/1d/tupy3_1d.csv` |
+| 2003 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 10 | 2003-01-06 | 2003-12-22 | `data/yearly/2003/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2003 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/candles/1d/vale3_1d.csv` |
+| 2003 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/candles/1wk/vale3_1wk.csv` |
+| 2003 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2003-01-02 | 2003-12-30 | `data/yearly/2003/heikin_ashi/1d/vale3_1d.csv` |
+| 2003 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2003-01-06 | 2003-12-29 | `data/yearly/2003/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2004 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/candles/1d/bbdc3_1d.csv` |
+| 2004 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/candles/1wk/bbdc3_1wk.csv` |
+| 2004 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2004 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2004 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 199 | 2004-01-05 | 2004-12-30 | `data/yearly/2004/candles/1d/ggbr3_1d.csv` |
+| 2004 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 51 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/candles/1wk/ggbr3_1wk.csv` |
+| 2004 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 199 | 2004-01-05 | 2004-12-30 | `data/yearly/2004/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2004 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 51 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2004 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/candles/1d/petr4_1d.csv` |
+| 2004 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/candles/1wk/petr4_1wk.csv` |
+| 2004 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/heikin_ashi/1d/petr4_1d.csv` |
+| 2004 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2004 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 35 | 2004-01-23 | 2004-12-30 | `data/yearly/2004/candles/1d/tupy3_1d.csv` |
+| 2004 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 21 | 2004-01-23 | 2004-12-27 | `data/yearly/2004/candles/1wk/tupy3_1wk.csv` |
+| 2004 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 35 | 2004-01-23 | 2004-12-30 | `data/yearly/2004/heikin_ashi/1d/tupy3_1d.csv` |
+| 2004 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 21 | 2004-01-23 | 2004-12-27 | `data/yearly/2004/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2004 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/candles/1d/vale3_1d.csv` |
+| 2004 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/candles/1wk/vale3_1wk.csv` |
+| 2004 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2004-01-02 | 2004-12-30 | `data/yearly/2004/heikin_ashi/1d/vale3_1d.csv` |
+| 2004 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2004-01-05 | 2004-12-27 | `data/yearly/2004/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2005 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/candles/1d/bbdc3_1d.csv` |
+| 2005 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/candles/1wk/bbdc3_1wk.csv` |
+| 2005 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2005 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2005 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/candles/1d/ggbr3_1d.csv` |
+| 2005 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/candles/1wk/ggbr3_1wk.csv` |
+| 2005 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2005 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2005 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/candles/1d/petr4_1d.csv` |
+| 2005 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/candles/1wk/petr4_1wk.csv` |
+| 2005 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/heikin_ashi/1d/petr4_1d.csv` |
+| 2005 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2005 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 85 | 2005-01-12 | 2005-12-27 | `data/yearly/2005/candles/1d/tupy3_1d.csv` |
+| 2005 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 39 | 2005-01-12 | 2005-12-27 | `data/yearly/2005/candles/1wk/tupy3_1wk.csv` |
+| 2005 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 85 | 2005-01-12 | 2005-12-27 | `data/yearly/2005/heikin_ashi/1d/tupy3_1d.csv` |
+| 2005 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 39 | 2005-01-12 | 2005-12-27 | `data/yearly/2005/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2005 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/candles/1d/vale3_1d.csv` |
+| 2005 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/candles/1wk/vale3_1wk.csv` |
+| 2005 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2005-01-03 | 2005-12-29 | `data/yearly/2005/heikin_ashi/1d/vale3_1d.csv` |
+| 2005 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2005-01-03 | 2005-12-26 | `data/yearly/2005/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2006 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/candles/1d/bbdc3_1d.csv` |
+| 2006 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/candles/1wk/bbdc3_1wk.csv` |
+| 2006 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2006 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2006 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 220 | 2006-02-08 | 2006-12-28 | `data/yearly/2006/candles/1d/csmg3_1d.csv` |
+| 2006 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 47 | 2006-02-08 | 2006-12-26 | `data/yearly/2006/candles/1wk/csmg3_1wk.csv` |
+| 2006 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 220 | 2006-02-08 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/csmg3_1d.csv` |
+| 2006 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 47 | 2006-02-08 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2006 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/candles/1d/ggbr3_1d.csv` |
+| 2006 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/candles/1wk/ggbr3_1wk.csv` |
+| 2006 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2006 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2006 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/candles/1d/petr4_1d.csv` |
+| 2006 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/candles/1wk/petr4_1wk.csv` |
+| 2006 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/petr4_1d.csv` |
+| 2006 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2006 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 119 | 2006-01-05 | 2006-12-28 | `data/yearly/2006/candles/1d/tupy3_1d.csv` |
+| 2006 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 42 | 2006-01-05 | 2006-12-26 | `data/yearly/2006/candles/1wk/tupy3_1wk.csv` |
+| 2006 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 119 | 2006-01-05 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/tupy3_1d.csv` |
+| 2006 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 42 | 2006-01-05 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2006 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/candles/1d/vale3_1d.csv` |
+| 2006 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/candles/1wk/vale3_1wk.csv` |
+| 2006 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2006-01-02 | 2006-12-28 | `data/yearly/2006/heikin_ashi/1d/vale3_1d.csv` |
+| 2006 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2006-01-02 | 2006-12-26 | `data/yearly/2006/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2007 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/bbdc3_1d.csv` |
+| 2007 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/bbdc3_1wk.csv` |
+| 2007 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2007 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2007 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/csmg3_1d.csv` |
+| 2007 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/csmg3_1wk.csv` |
+| 2007 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/csmg3_1d.csv` |
+| 2007 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2007 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/ggbr3_1d.csv` |
+| 2007 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/ggbr3_1wk.csv` |
+| 2007 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2007 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2007 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 176 | 2007-04-12 | 2007-12-28 | `data/yearly/2007/candles/1d/jhsf3_1d.csv` |
+| 2007 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 38 | 2007-04-12 | 2007-12-26 | `data/yearly/2007/candles/1wk/jhsf3_1wk.csv` |
+| 2007 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 176 | 2007-04-12 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2007 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 38 | 2007-04-12 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2007 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/petr4_1d.csv` |
+| 2007 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/petr4_1wk.csv` |
+| 2007 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/petr4_1d.csv` |
+| 2007 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2007 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 240 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/tupy3_1d.csv` |
+| 2007 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/tupy3_1wk.csv` |
+| 2007 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 240 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/tupy3_1d.csv` |
+| 2007 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2007 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/candles/1d/vale3_1d.csv` |
+| 2007 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/candles/1wk/vale3_1wk.csv` |
+| 2007 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2007-01-02 | 2007-12-28 | `data/yearly/2007/heikin_ashi/1d/vale3_1d.csv` |
+| 2007 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2007-01-02 | 2007-12-26 | `data/yearly/2007/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2008 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/bbdc3_1d.csv` |
+| 2008 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/bbdc3_1wk.csv` |
+| 2008 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2008 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2008 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/csmg3_1d.csv` |
+| 2008 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/csmg3_1wk.csv` |
+| 2008 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/csmg3_1d.csv` |
+| 2008 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2008 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/ggbr3_1d.csv` |
+| 2008 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/ggbr3_1wk.csv` |
+| 2008 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2008 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2008 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/jhsf3_1d.csv` |
+| 2008 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/jhsf3_1wk.csv` |
+| 2008 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2008 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2008 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/petr4_1d.csv` |
+| 2008 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/petr4_1wk.csv` |
+| 2008 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/petr4_1d.csv` |
+| 2008 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2008 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 224 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/tupy3_1d.csv` |
+| 2008 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1wk/tupy3_1wk.csv` |
+| 2008 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 224 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/tupy3_1d.csv` |
+| 2008 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2008 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/candles/1d/vale3_1d.csv` |
+| 2008 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/candles/1wk/vale3_1wk.csv` |
+| 2008 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2008-01-02 | 2008-12-30 | `data/yearly/2008/heikin_ashi/1d/vale3_1d.csv` |
+| 2008 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2008-01-02 | 2008-12-29 | `data/yearly/2008/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2009 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/bbdc3_1d.csv` |
+| 2009 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/bbdc3_1wk.csv` |
+| 2009 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2009 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2009 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/csmg3_1d.csv` |
+| 2009 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/csmg3_1wk.csv` |
+| 2009 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/csmg3_1d.csv` |
+| 2009 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2009 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 8 | 2009-12-17 | 2009-12-30 | `data/yearly/2009/candles/1d/flry3_1d.csv` |
+| 2009 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 3 | 2009-12-17 | 2009-12-28 | `data/yearly/2009/candles/1wk/flry3_1wk.csv` |
+| 2009 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 8 | 2009-12-17 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/flry3_1d.csv` |
+| 2009 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 3 | 2009-12-17 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2009 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/ggbr3_1d.csv` |
+| 2009 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/ggbr3_1wk.csv` |
+| 2009 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2009 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2009 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/jhsf3_1d.csv` |
+| 2009 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/jhsf3_1wk.csv` |
+| 2009 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2009 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2009 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/petr4_1d.csv` |
+| 2009 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/petr4_1wk.csv` |
+| 2009 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/petr4_1d.csv` |
+| 2009 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2009 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 208 | 2009-01-02 | 2009-12-29 | `data/yearly/2009/candles/1d/tupy3_1d.csv` |
+| 2009 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/tupy3_1wk.csv` |
+| 2009 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 208 | 2009-01-02 | 2009-12-29 | `data/yearly/2009/heikin_ashi/1d/tupy3_1d.csv` |
+| 2009 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2009 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/candles/1d/vale3_1d.csv` |
+| 2009 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/candles/1wk/vale3_1wk.csv` |
+| 2009 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2009-01-02 | 2009-12-30 | `data/yearly/2009/heikin_ashi/1d/vale3_1d.csv` |
+| 2009 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2009-01-05 | 2009-12-28 | `data/yearly/2009/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2010 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/bbdc3_1d.csv` |
+| 2010 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/bbdc3_1wk.csv` |
+| 2010 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2010 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2010 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/csmg3_1d.csv` |
+| 2010 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/csmg3_1wk.csv` |
+| 2010 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/csmg3_1d.csv` |
+| 2010 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2010 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/flry3_1d.csv` |
+| 2010 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/flry3_1wk.csv` |
+| 2010 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/flry3_1d.csv` |
+| 2010 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2010 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/ggbr3_1d.csv` |
+| 2010 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/ggbr3_1wk.csv` |
+| 2010 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2010 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2010 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/jhsf3_1d.csv` |
+| 2010 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/jhsf3_1wk.csv` |
+| 2010 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2010 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2010 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/petr4_1d.csv` |
+| 2010 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/petr4_1wk.csv` |
+| 2010 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/petr4_1d.csv` |
+| 2010 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2010 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 241 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/tupy3_1d.csv` |
+| 2010 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/tupy3_1wk.csv` |
+| 2010 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 241 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/tupy3_1d.csv` |
+| 2010 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2010 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/candles/1d/vale3_1d.csv` |
+| 2010 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/candles/1wk/vale3_1wk.csv` |
+| 2010 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2010-01-04 | 2010-12-30 | `data/yearly/2010/heikin_ashi/1d/vale3_1d.csv` |
+| 2010 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2010-01-04 | 2010-12-27 | `data/yearly/2010/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2011 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/bbdc3_1d.csv` |
+| 2011 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/bbdc3_1wk.csv` |
+| 2011 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2011 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2011 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/csmg3_1d.csv` |
+| 2011 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/csmg3_1wk.csv` |
+| 2011 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/csmg3_1d.csv` |
+| 2011 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2011 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/flry3_1d.csv` |
+| 2011 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/flry3_1wk.csv` |
+| 2011 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/flry3_1d.csv` |
+| 2011 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2011 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/ggbr3_1d.csv` |
+| 2011 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/ggbr3_1wk.csv` |
+| 2011 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2011 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2011 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/jhsf3_1d.csv` |
+| 2011 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/jhsf3_1wk.csv` |
+| 2011 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2011 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2011 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/petr4_1d.csv` |
+| 2011 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/petr4_1wk.csv` |
+| 2011 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/petr4_1d.csv` |
+| 2011 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2011 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 199 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/tupy3_1d.csv` |
+| 2011 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-27 | `data/yearly/2011/candles/1wk/tupy3_1wk.csv` |
+| 2011 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 199 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/tupy3_1d.csv` |
+| 2011 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-27 | `data/yearly/2011/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2011 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/candles/1d/vale3_1d.csv` |
+| 2011 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/candles/1wk/vale3_1wk.csv` |
+| 2011 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2011-01-03 | 2011-12-29 | `data/yearly/2011/heikin_ashi/1d/vale3_1d.csv` |
+| 2011 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2011-01-03 | 2011-12-26 | `data/yearly/2011/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2012 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/bbdc3_1d.csv` |
+| 2012 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/bbdc3_1wk.csv` |
+| 2012 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2012 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2012 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/csmg3_1d.csv` |
+| 2012 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/csmg3_1wk.csv` |
+| 2012 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/csmg3_1d.csv` |
+| 2012 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2012 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/flry3_1d.csv` |
+| 2012 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/flry3_1wk.csv` |
+| 2012 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/flry3_1d.csv` |
+| 2012 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2012 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/ggbr3_1d.csv` |
+| 2012 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/ggbr3_1wk.csv` |
+| 2012 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2012 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2012 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/jhsf3_1d.csv` |
+| 2012 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/jhsf3_1wk.csv` |
+| 2012 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2012 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2012 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/petr4_1d.csv` |
+| 2012 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/petr4_1wk.csv` |
+| 2012 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/petr4_1d.csv` |
+| 2012 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2012 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 215 | 2012-01-03 | 2012-12-28 | `data/yearly/2012/candles/1d/tupy3_1d.csv` |
+| 2012 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 51 | 2012-01-03 | 2012-12-26 | `data/yearly/2012/candles/1wk/tupy3_1wk.csv` |
+| 2012 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 215 | 2012-01-03 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/tupy3_1d.csv` |
+| 2012 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 51 | 2012-01-03 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2012 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/candles/1d/vale3_1d.csv` |
+| 2012 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/candles/1wk/vale3_1wk.csv` |
+| 2012 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2012-01-02 | 2012-12-28 | `data/yearly/2012/heikin_ashi/1d/vale3_1d.csv` |
+| 2012 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2012-01-02 | 2012-12-26 | `data/yearly/2012/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2013 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/bbdc3_1d.csv` |
+| 2013 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/bbdc3_1wk.csv` |
+| 2013 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2013 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2013 | BBSE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 169 | 2013-04-29 | 2013-12-30 | `data/yearly/2013/candles/1d/bbse3_1d.csv` |
+| 2013 | BBSE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 36 | 2013-04-29 | 2013-12-30 | `data/yearly/2013/candles/1wk/bbse3_1wk.csv` |
+| 2013 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 169 | 2013-04-29 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/bbse3_1d.csv` |
+| 2013 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 36 | 2013-04-29 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2013 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/csmg3_1d.csv` |
+| 2013 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/csmg3_1wk.csv` |
+| 2013 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/csmg3_1d.csv` |
+| 2013 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2013 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/flry3_1d.csv` |
+| 2013 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/flry3_1wk.csv` |
+| 2013 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/flry3_1d.csv` |
+| 2013 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2013 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/ggbr3_1d.csv` |
+| 2013 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/ggbr3_1wk.csv` |
+| 2013 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2013 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2013 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/jhsf3_1d.csv` |
+| 2013 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/jhsf3_1wk.csv` |
+| 2013 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2013 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2013 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/petr4_1d.csv` |
+| 2013 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/petr4_1wk.csv` |
+| 2013 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/petr4_1d.csv` |
+| 2013 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2013 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 243 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/tupy3_1d.csv` |
+| 2013 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/tupy3_1wk.csv` |
+| 2013 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 243 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/tupy3_1d.csv` |
+| 2013 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2013 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1d/vale3_1d.csv` |
+| 2013 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/candles/1wk/vale3_1wk.csv` |
+| 2013 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1d/vale3_1d.csv` |
+| 2013 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2013-01-02 | 2013-12-30 | `data/yearly/2013/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2014 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/bbdc3_1d.csv` |
+| 2014 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/bbdc3_1wk.csv` |
+| 2014 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2014 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2014 | BBSE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/bbse3_1d.csv` |
+| 2014 | BBSE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/bbse3_1wk.csv` |
+| 2014 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/bbse3_1d.csv` |
+| 2014 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2014 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/csmg3_1d.csv` |
+| 2014 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/csmg3_1wk.csv` |
+| 2014 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/csmg3_1d.csv` |
+| 2014 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2014 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/flry3_1d.csv` |
+| 2014 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/flry3_1wk.csv` |
+| 2014 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/flry3_1d.csv` |
+| 2014 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2014 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/ggbr3_1d.csv` |
+| 2014 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/ggbr3_1wk.csv` |
+| 2014 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2014 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2014 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/jhsf3_1d.csv` |
+| 2014 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/jhsf3_1wk.csv` |
+| 2014 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2014 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2014 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/petr4_1d.csv` |
+| 2014 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/petr4_1wk.csv` |
+| 2014 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/petr4_1d.csv` |
+| 2014 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2014 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/tupy3_1d.csv` |
+| 2014 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/tupy3_1wk.csv` |
+| 2014 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/tupy3_1d.csv` |
+| 2014 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2014 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/candles/1d/vale3_1d.csv` |
+| 2014 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/candles/1wk/vale3_1wk.csv` |
+| 2014 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2014-01-02 | 2014-12-30 | `data/yearly/2014/heikin_ashi/1d/vale3_1d.csv` |
+| 2014 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2014-01-06 | 2014-12-29 | `data/yearly/2014/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2015 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/bbdc3_1d.csv` |
+| 2015 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/bbdc3_1wk.csv` |
+| 2015 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2015 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2015 | BBSE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/bbse3_1d.csv` |
+| 2015 | BBSE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/bbse3_1wk.csv` |
+| 2015 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/bbse3_1d.csv` |
+| 2015 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2015 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/csmg3_1d.csv` |
+| 2015 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/csmg3_1wk.csv` |
+| 2015 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/csmg3_1d.csv` |
+| 2015 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2015 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/flry3_1d.csv` |
+| 2015 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/flry3_1wk.csv` |
+| 2015 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/flry3_1d.csv` |
+| 2015 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2015 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/ggbr3_1d.csv` |
+| 2015 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/ggbr3_1wk.csv` |
+| 2015 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2015 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2015 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/jhsf3_1d.csv` |
+| 2015 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/jhsf3_1wk.csv` |
+| 2015 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2015 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2015 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/petr4_1d.csv` |
+| 2015 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/petr4_1wk.csv` |
+| 2015 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/petr4_1d.csv` |
+| 2015 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2015 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/tupy3_1d.csv` |
+| 2015 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/tupy3_1wk.csv` |
+| 2015 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/tupy3_1d.csv` |
+| 2015 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2015 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/candles/1d/vale3_1d.csv` |
+| 2015 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/candles/1wk/vale3_1wk.csv` |
+| 2015 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2015-01-02 | 2015-12-30 | `data/yearly/2015/heikin_ashi/1d/vale3_1d.csv` |
+| 2015 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2015-01-05 | 2015-12-28 | `data/yearly/2015/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2016 | BBDC3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/bbdc3_1d.csv` |
+| 2016 | BBDC3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/bbdc3_1wk.csv` |
+| 2016 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2016 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2016 | BBSE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/bbse3_1d.csv` |
+| 2016 | BBSE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/bbse3_1wk.csv` |
+| 2016 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/bbse3_1d.csv` |
+| 2016 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2016 | CSMG3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/csmg3_1d.csv` |
+| 2016 | CSMG3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/csmg3_1wk.csv` |
+| 2016 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/csmg3_1d.csv` |
+| 2016 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2016 | FLRY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/flry3_1d.csv` |
+| 2016 | FLRY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/flry3_1wk.csv` |
+| 2016 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/flry3_1d.csv` |
+| 2016 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2016 | GGBR3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/ggbr3_1d.csv` |
+| 2016 | GGBR3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/ggbr3_1wk.csv` |
+| 2016 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2016 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2016 | JHSF3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/jhsf3_1d.csv` |
+| 2016 | JHSF3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/jhsf3_1wk.csv` |
+| 2016 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2016 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2016 | PETR4 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/petr4_1d.csv` |
+| 2016 | PETR4 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/petr4_1wk.csv` |
+| 2016 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/petr4_1d.csv` |
+| 2016 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2016 | TUPY3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/tupy3_1d.csv` |
+| 2016 | TUPY3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/tupy3_1wk.csv` |
+| 2016 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/tupy3_1d.csv` |
+| 2016 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2016 | VALE3 | candles | 1d | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/candles/1d/vale3_1d.csv` |
+| 2016 | VALE3 | candles | 1sem | revisar | price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/candles/1wk/vale3_1wk.csv` |
+| 2016 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2016-01-04 | 2016-12-29 | `data/yearly/2016/heikin_ashi/1d/vale3_1d.csv` |
+| 2016 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2016-01-04 | 2016-12-26 | `data/yearly/2016/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2017 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/bbdc3_1d.csv` |
+| 2017 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/bbdc3_1wk.csv` |
+| 2017 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2017 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2017 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/bbse3_1d.csv` |
+| 2017 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/bbse3_1wk.csv` |
+| 2017 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/bbse3_1d.csv` |
+| 2017 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2017 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/csmg3_1d.csv` |
+| 2017 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/csmg3_1wk.csv` |
+| 2017 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/csmg3_1d.csv` |
+| 2017 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2017 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/flry3_1d.csv` |
+| 2017 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/flry3_1wk.csv` |
+| 2017 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/flry3_1d.csv` |
+| 2017 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2017 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/ggbr3_1d.csv` |
+| 2017 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/ggbr3_1wk.csv` |
+| 2017 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2017 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2017 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 103 | 2017-07-31 | 2017-12-28 | `data/yearly/2017/candles/1d/irbr3_1d.csv` |
+| 2017 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 22 | 2017-07-31 | 2017-12-26 | `data/yearly/2017/candles/1wk/irbr3_1wk.csv` |
+| 2017 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 103 | 2017-07-31 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/irbr3_1d.csv` |
+| 2017 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 22 | 2017-07-31 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2017 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/jhsf3_1d.csv` |
+| 2017 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/jhsf3_1wk.csv` |
+| 2017 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2017 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2017 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/petr4_1d.csv` |
+| 2017 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/petr4_1wk.csv` |
+| 2017 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/petr4_1d.csv` |
+| 2017 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2017 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/tupy3_1d.csv` |
+| 2017 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/tupy3_1wk.csv` |
+| 2017 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/tupy3_1d.csv` |
+| 2017 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2017 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/candles/1d/vale3_1d.csv` |
+| 2017 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/candles/1wk/vale3_1wk.csv` |
+| 2017 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 246 | 2017-01-02 | 2017-12-28 | `data/yearly/2017/heikin_ashi/1d/vale3_1d.csv` |
+| 2017 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2017-01-02 | 2017-12-26 | `data/yearly/2017/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2018 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/bbdc3_1d.csv` |
+| 2018 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/bbdc3_1wk.csv` |
+| 2018 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2018 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2018 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/bbse3_1d.csv` |
+| 2018 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/bbse3_1wk.csv` |
+| 2018 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/bbse3_1d.csv` |
+| 2018 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2018 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/csmg3_1d.csv` |
+| 2018 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/csmg3_1wk.csv` |
+| 2018 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/csmg3_1d.csv` |
+| 2018 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2018 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/flry3_1d.csv` |
+| 2018 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/flry3_1wk.csv` |
+| 2018 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/flry3_1d.csv` |
+| 2018 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2018 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/ggbr3_1d.csv` |
+| 2018 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/ggbr3_1wk.csv` |
+| 2018 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2018 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2018 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/irbr3_1d.csv` |
+| 2018 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/irbr3_1wk.csv` |
+| 2018 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/irbr3_1d.csv` |
+| 2018 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2018 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/jhsf3_1d.csv` |
+| 2018 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/jhsf3_1wk.csv` |
+| 2018 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2018 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2018 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 4 | 2018-12-21 | 2018-12-28 | `data/yearly/2018/candles/1d/logg3_1d.csv` |
+| 2018 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 2 | 2018-12-21 | 2018-12-26 | `data/yearly/2018/candles/1wk/logg3_1wk.csv` |
+| 2018 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 4 | 2018-12-21 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/logg3_1d.csv` |
+| 2018 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 2 | 2018-12-21 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2018 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/petr4_1d.csv` |
+| 2018 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/petr4_1wk.csv` |
+| 2018 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/petr4_1d.csv` |
+| 2018 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2018 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/tupy3_1d.csv` |
+| 2018 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/tupy3_1wk.csv` |
+| 2018 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/tupy3_1d.csv` |
+| 2018 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2018 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/candles/1d/vale3_1d.csv` |
+| 2018 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/candles/1wk/vale3_1wk.csv` |
+| 2018 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 245 | 2018-01-02 | 2018-12-28 | `data/yearly/2018/heikin_ashi/1d/vale3_1d.csv` |
+| 2018 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2018-01-02 | 2018-12-26 | `data/yearly/2018/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2019 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/bbdc3_1d.csv` |
+| 2019 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/bbdc3_1wk.csv` |
+| 2019 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2019 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2019 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/bbse3_1d.csv` |
+| 2019 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/bbse3_1wk.csv` |
+| 2019 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/bbse3_1d.csv` |
+| 2019 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2019 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/csmg3_1d.csv` |
+| 2019 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/csmg3_1wk.csv` |
+| 2019 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/csmg3_1d.csv` |
+| 2019 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2019 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/flry3_1d.csv` |
+| 2019 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/flry3_1wk.csv` |
+| 2019 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/flry3_1d.csv` |
+| 2019 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2019 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/ggbr3_1d.csv` |
+| 2019 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/ggbr3_1wk.csv` |
+| 2019 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2019 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2019 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/irbr3_1d.csv` |
+| 2019 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/irbr3_1wk.csv` |
+| 2019 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/irbr3_1d.csv` |
+| 2019 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2019 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/jhsf3_1d.csv` |
+| 2019 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/jhsf3_1wk.csv` |
+| 2019 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2019 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2019 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/logg3_1d.csv` |
+| 2019 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/logg3_1wk.csv` |
+| 2019 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/logg3_1d.csv` |
+| 2019 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2019 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/petr4_1d.csv` |
+| 2019 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/petr4_1wk.csv` |
+| 2019 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/petr4_1d.csv` |
+| 2019 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2019 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/tupy3_1d.csv` |
+| 2019 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/tupy3_1wk.csv` |
+| 2019 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/tupy3_1d.csv` |
+| 2019 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2019 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1d/vale3_1d.csv` |
+| 2019 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/candles/1wk/vale3_1wk.csv` |
+| 2019 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1d/vale3_1d.csv` |
+| 2019 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2019-01-02 | 2019-12-30 | `data/yearly/2019/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2020 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/bbdc3_1d.csv` |
+| 2020 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/bbdc3_1wk.csv` |
+| 2020 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2020 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2020 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/bbse3_1d.csv` |
+| 2020 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/bbse3_1wk.csv` |
+| 2020 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/bbse3_1d.csv` |
+| 2020 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2020 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/csmg3_1d.csv` |
+| 2020 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/csmg3_1wk.csv` |
+| 2020 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/csmg3_1d.csv` |
+| 2020 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2020 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/flry3_1d.csv` |
+| 2020 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/flry3_1wk.csv` |
+| 2020 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/flry3_1d.csv` |
+| 2020 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2020 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/ggbr3_1d.csv` |
+| 2020 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/ggbr3_1wk.csv` |
+| 2020 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2020 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2020 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/irbr3_1d.csv` |
+| 2020 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/irbr3_1wk.csv` |
+| 2020 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/irbr3_1d.csv` |
+| 2020 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2020 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/jhsf3_1d.csv` |
+| 2020 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/jhsf3_1wk.csv` |
+| 2020 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2020 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2020 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/logg3_1d.csv` |
+| 2020 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/logg3_1wk.csv` |
+| 2020 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/logg3_1d.csv` |
+| 2020 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2020 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/petr4_1d.csv` |
+| 2020 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/petr4_1wk.csv` |
+| 2020 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/petr4_1d.csv` |
+| 2020 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2020 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/tupy3_1d.csv` |
+| 2020 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/tupy3_1wk.csv` |
+| 2020 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/tupy3_1d.csv` |
+| 2020 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2020 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/candles/1d/vale3_1d.csv` |
+| 2020 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/candles/1wk/vale3_1wk.csv` |
+| 2020 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 249 | 2020-01-02 | 2020-12-30 | `data/yearly/2020/heikin_ashi/1d/vale3_1d.csv` |
+| 2020 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2020-01-06 | 2020-12-28 | `data/yearly/2020/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2021 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/bbdc3_1d.csv` |
+| 2021 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/bbdc3_1wk.csv` |
+| 2021 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2021 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2021 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/bbse3_1d.csv` |
+| 2021 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/bbse3_1wk.csv` |
+| 2021 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/bbse3_1d.csv` |
+| 2021 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2021 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/csmg3_1d.csv` |
+| 2021 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/csmg3_1wk.csv` |
+| 2021 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/csmg3_1d.csv` |
+| 2021 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2021 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/flry3_1d.csv` |
+| 2021 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/flry3_1wk.csv` |
+| 2021 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/flry3_1d.csv` |
+| 2021 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2021 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/ggbr3_1d.csv` |
+| 2021 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/ggbr3_1wk.csv` |
+| 2021 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2021 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2021 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/irbr3_1d.csv` |
+| 2021 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/irbr3_1wk.csv` |
+| 2021 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/irbr3_1d.csv` |
+| 2021 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2021 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/jhsf3_1d.csv` |
+| 2021 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/jhsf3_1wk.csv` |
+| 2021 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2021 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2021 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/logg3_1d.csv` |
+| 2021 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/logg3_1wk.csv` |
+| 2021 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/logg3_1d.csv` |
+| 2021 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2021 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 111 | 2021-07-22 | 2021-12-30 | `data/yearly/2021/candles/1d/mlas3_1d.csv` |
+| 2021 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 24 | 2021-07-22 | 2021-12-27 | `data/yearly/2021/candles/1wk/mlas3_1wk.csv` |
+| 2021 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 111 | 2021-07-22 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/mlas3_1d.csv` |
+| 2021 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 24 | 2021-07-22 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2021 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/petr4_1d.csv` |
+| 2021 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/petr4_1wk.csv` |
+| 2021 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/petr4_1d.csv` |
+| 2021 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2021 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/tupy3_1d.csv` |
+| 2021 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/tupy3_1wk.csv` |
+| 2021 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/tupy3_1d.csv` |
+| 2021 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2021 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/candles/1d/vale3_1d.csv` |
+| 2021 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/candles/1wk/vale3_1wk.csv` |
+| 2021 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 247 | 2021-01-04 | 2021-12-30 | `data/yearly/2021/heikin_ashi/1d/vale3_1d.csv` |
+| 2021 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2021-01-04 | 2021-12-27 | `data/yearly/2021/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2022 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/bbdc3_1d.csv` |
+| 2022 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/bbdc3_1wk.csv` |
+| 2022 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2022 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2022 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/bbse3_1d.csv` |
+| 2022 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/bbse3_1wk.csv` |
+| 2022 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/bbse3_1d.csv` |
+| 2022 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2022 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/csmg3_1d.csv` |
+| 2022 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/csmg3_1wk.csv` |
+| 2022 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/csmg3_1d.csv` |
+| 2022 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2022 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/flry3_1d.csv` |
+| 2022 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/flry3_1wk.csv` |
+| 2022 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/flry3_1d.csv` |
+| 2022 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2022 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/ggbr3_1d.csv` |
+| 2022 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/ggbr3_1wk.csv` |
+| 2022 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2022 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2022 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/irbr3_1d.csv` |
+| 2022 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/irbr3_1wk.csv` |
+| 2022 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/irbr3_1d.csv` |
+| 2022 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2022 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/jhsf3_1d.csv` |
+| 2022 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/jhsf3_1wk.csv` |
+| 2022 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2022 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2022 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/logg3_1d.csv` |
+| 2022 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/logg3_1wk.csv` |
+| 2022 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/logg3_1d.csv` |
+| 2022 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2022 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/mlas3_1d.csv` |
+| 2022 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/mlas3_1wk.csv` |
+| 2022 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/mlas3_1d.csv` |
+| 2022 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2022 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/petr4_1d.csv` |
+| 2022 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/petr4_1wk.csv` |
+| 2022 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/petr4_1d.csv` |
+| 2022 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2022 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/tupy3_1d.csv` |
+| 2022 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/tupy3_1wk.csv` |
+| 2022 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/tupy3_1d.csv` |
+| 2022 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2022 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/candles/1d/vale3_1d.csv` |
+| 2022 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/candles/1wk/vale3_1wk.csv` |
+| 2022 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2022-01-03 | 2022-12-29 | `data/yearly/2022/heikin_ashi/1d/vale3_1d.csv` |
+| 2022 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2022-01-03 | 2022-12-26 | `data/yearly/2022/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2023 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/bbdc3_1d.csv` |
+| 2023 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/bbdc3_1wk.csv` |
+| 2023 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2023 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2023 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/bbse3_1d.csv` |
+| 2023 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/bbse3_1wk.csv` |
+| 2023 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/bbse3_1d.csv` |
+| 2023 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2023 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/csmg3_1d.csv` |
+| 2023 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/csmg3_1wk.csv` |
+| 2023 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/csmg3_1d.csv` |
+| 2023 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2023 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/flry3_1d.csv` |
+| 2023 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/flry3_1wk.csv` |
+| 2023 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/flry3_1d.csv` |
+| 2023 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2023 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/ggbr3_1d.csv` |
+| 2023 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/ggbr3_1wk.csv` |
+| 2023 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2023 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2023 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/irbr3_1d.csv` |
+| 2023 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/irbr3_1wk.csv` |
+| 2023 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/irbr3_1d.csv` |
+| 2023 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2023 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/jhsf3_1d.csv` |
+| 2023 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/jhsf3_1wk.csv` |
+| 2023 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2023 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2023 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/logg3_1d.csv` |
+| 2023 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/logg3_1wk.csv` |
+| 2023 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/logg3_1d.csv` |
+| 2023 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2023 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/mlas3_1d.csv` |
+| 2023 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/mlas3_1wk.csv` |
+| 2023 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/mlas3_1d.csv` |
+| 2023 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2023 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/petr4_1d.csv` |
+| 2023 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/petr4_1wk.csv` |
+| 2023 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/petr4_1d.csv` |
+| 2023 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2023 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/tupy3_1d.csv` |
+| 2023 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/tupy3_1wk.csv` |
+| 2023 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/tupy3_1d.csv` |
+| 2023 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2023 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/candles/1d/vale3_1d.csv` |
+| 2023 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/candles/1wk/vale3_1wk.csv` |
+| 2023 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 248 | 2023-01-02 | 2023-12-28 | `data/yearly/2023/heikin_ashi/1d/vale3_1d.csv` |
+| 2023 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2023-01-02 | 2023-12-26 | `data/yearly/2023/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2024 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/bbdc3_1d.csv` |
+| 2024 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/bbdc3_1wk.csv` |
+| 2024 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2024 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2024 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/bbse3_1d.csv` |
+| 2024 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/bbse3_1wk.csv` |
+| 2024 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/bbse3_1d.csv` |
+| 2024 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2024 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/csmg3_1d.csv` |
+| 2024 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/csmg3_1wk.csv` |
+| 2024 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/csmg3_1d.csv` |
+| 2024 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2024 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/flry3_1d.csv` |
+| 2024 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/flry3_1wk.csv` |
+| 2024 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/flry3_1d.csv` |
+| 2024 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2024 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/ggbr3_1d.csv` |
+| 2024 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/ggbr3_1wk.csv` |
+| 2024 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2024 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2024 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/irbr3_1d.csv` |
+| 2024 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/irbr3_1wk.csv` |
+| 2024 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/irbr3_1d.csv` |
+| 2024 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2024 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/jhsf3_1d.csv` |
+| 2024 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/jhsf3_1wk.csv` |
+| 2024 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2024 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2024 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/logg3_1d.csv` |
+| 2024 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/logg3_1wk.csv` |
+| 2024 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/logg3_1d.csv` |
+| 2024 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2024 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/mlas3_1d.csv` |
+| 2024 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/mlas3_1wk.csv` |
+| 2024 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/mlas3_1d.csv` |
+| 2024 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2024 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/petr4_1d.csv` |
+| 2024 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/petr4_1wk.csv` |
+| 2024 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/petr4_1d.csv` |
+| 2024 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2024 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/tupy3_1d.csv` |
+| 2024 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/tupy3_1wk.csv` |
+| 2024 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/tupy3_1d.csv` |
+| 2024 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2024 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1d/vale3_1d.csv` |
+| 2024 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/candles/1wk/vale3_1wk.csv` |
+| 2024 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 251 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1d/vale3_1d.csv` |
+| 2024 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 53 | 2024-01-02 | 2024-12-30 | `data/yearly/2024/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2025 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/bbdc3_1d.csv` |
+| 2025 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/bbdc3_1wk.csv` |
+| 2025 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2025 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2025 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/bbse3_1d.csv` |
+| 2025 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/bbse3_1wk.csv` |
+| 2025 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/bbse3_1d.csv` |
+| 2025 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2025 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/csmg3_1d.csv` |
+| 2025 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/csmg3_1wk.csv` |
+| 2025 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/csmg3_1d.csv` |
+| 2025 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2025 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/flry3_1d.csv` |
+| 2025 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/flry3_1wk.csv` |
+| 2025 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/flry3_1d.csv` |
+| 2025 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2025 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/ggbr3_1d.csv` |
+| 2025 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/ggbr3_1wk.csv` |
+| 2025 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2025 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2025 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/irbr3_1d.csv` |
+| 2025 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/irbr3_1wk.csv` |
+| 2025 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/irbr3_1d.csv` |
+| 2025 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2025 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/jhsf3_1d.csv` |
+| 2025 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/jhsf3_1wk.csv` |
+| 2025 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2025 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2025 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/logg3_1d.csv` |
+| 2025 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/logg3_1wk.csv` |
+| 2025 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/logg3_1d.csv` |
+| 2025 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2025 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/mlas3_1d.csv` |
+| 2025 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/mlas3_1wk.csv` |
+| 2025 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/mlas3_1d.csv` |
+| 2025 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2025 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/petr4_1d.csv` |
+| 2025 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/petr4_1wk.csv` |
+| 2025 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/petr4_1d.csv` |
+| 2025 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2025 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/tupy3_1d.csv` |
+| 2025 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/tupy3_1wk.csv` |
+| 2025 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/tupy3_1d.csv` |
+| 2025 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2025 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/candles/1d/vale3_1d.csv` |
+| 2025 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/candles/1wk/vale3_1wk.csv` |
+| 2025 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 250 | 2025-01-02 | 2025-12-30 | `data/yearly/2025/heikin_ashi/1d/vale3_1d.csv` |
+| 2025 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 52 | 2025-01-06 | 2025-12-29 | `data/yearly/2025/heikin_ashi/1wk/vale3_1wk.csv` |
+| 2026 | BBDC3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/bbdc3_1d.csv` |
+| 2026 | BBDC3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/bbdc3_1wk.csv` |
+| 2026 | BBDC3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/bbdc3_1d.csv` |
+| 2026 | BBDC3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/bbdc3_1wk.csv` |
+| 2026 | BBSE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/bbse3_1d.csv` |
+| 2026 | BBSE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/bbse3_1wk.csv` |
+| 2026 | BBSE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/bbse3_1d.csv` |
+| 2026 | BBSE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/bbse3_1wk.csv` |
+| 2026 | CSMG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/csmg3_1d.csv` |
+| 2026 | CSMG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/csmg3_1wk.csv` |
+| 2026 | CSMG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/csmg3_1d.csv` |
+| 2026 | CSMG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/csmg3_1wk.csv` |
+| 2026 | FLRY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/flry3_1d.csv` |
+| 2026 | FLRY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/flry3_1wk.csv` |
+| 2026 | FLRY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/flry3_1d.csv` |
+| 2026 | FLRY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/flry3_1wk.csv` |
+| 2026 | GGBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/ggbr3_1d.csv` |
+| 2026 | GGBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/ggbr3_1wk.csv` |
+| 2026 | GGBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/ggbr3_1d.csv` |
+| 2026 | GGBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/ggbr3_1wk.csv` |
+| 2026 | IRBR3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/irbr3_1d.csv` |
+| 2026 | IRBR3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/irbr3_1wk.csv` |
+| 2026 | IRBR3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/irbr3_1d.csv` |
+| 2026 | IRBR3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/irbr3_1wk.csv` |
+| 2026 | JHSF3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/jhsf3_1d.csv` |
+| 2026 | JHSF3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/jhsf3_1wk.csv` |
+| 2026 | JHSF3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/jhsf3_1d.csv` |
+| 2026 | JHSF3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/jhsf3_1wk.csv` |
+| 2026 | LOGG3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/logg3_1d.csv` |
+| 2026 | LOGG3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/logg3_1wk.csv` |
+| 2026 | LOGG3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/logg3_1d.csv` |
+| 2026 | LOGG3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/logg3_1wk.csv` |
+| 2026 | MLAS3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/mlas3_1d.csv` |
+| 2026 | MLAS3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/mlas3_1wk.csv` |
+| 2026 | MLAS3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/mlas3_1d.csv` |
+| 2026 | MLAS3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/mlas3_1wk.csv` |
+| 2026 | PETR4 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/petr4_1d.csv` |
+| 2026 | PETR4 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/petr4_1wk.csv` |
+| 2026 | PETR4 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/petr4_1d.csv` |
+| 2026 | PETR4 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/petr4_1wk.csv` |
+| 2026 | TUPY3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/tupy3_1d.csv` |
+| 2026 | TUPY3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/tupy3_1wk.csv` |
+| 2026 | TUPY3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/tupy3_1d.csv` |
+| 2026 | TUPY3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/tupy3_1wk.csv` |
+| 2026 | VALE3 | candles | 1d | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/candles/1d/vale3_1d.csv` |
+| 2026 | VALE3 | candles | 1sem | ok_retorno_preco | price_verified | verified | 2017-01-01 | unverified | sim | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/candles/1wk/vale3_1wk.csv` |
+| 2026 | VALE3 | heikin_ashi | 1d | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 145 | 2026-01-02 | 2026-07-31 | `data/yearly/2026/heikin_ashi/1d/vale3_1d.csv` |
+| 2026 | VALE3 | heikin_ashi | 1sem | derivado_verificado | derived_from_price_verified | verified | 2017-01-01 | unverified | nao | 30 | 2026-01-05 | 2026-07-27 | `data/yearly/2026/heikin_ashi/1wk/vale3_1wk.csv` |

@@ -57,6 +57,16 @@ class Candle:
     source_high: float = 0.0
     source_low: float = 0.0
     ohlc_repaired: int = 0
+    raw_volume: int = 0
+    trades: int = 0
+    financial_volume: float = 0.0
+    quotation_factor: int = 1
+    bdi_code: str = ""
+    market_type: str = ""
+    isin: str = ""
+    distribution_number: int = 0
+    specification: str = ""
+    issuer_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -253,6 +263,7 @@ def parse_yahoo_chart(payload: dict, ticker: str, source_symbol: str, *, include
             source_high=source_high,
             source_low=source_low,
             ohlc_repaired=ohlc_repaired,
+            raw_volume=volume or 0,
         )
 
     return [parsed[key] for key in sorted(parsed)]
@@ -299,6 +310,19 @@ def resample_to_4h(candles: list[Candle]) -> list[Candle]:
                     source_high=max(candle.source_high for candle in bucket),
                     source_low=min(candle.source_low for candle in bucket),
                     ohlc_repaired=int(any(candle.ohlc_repaired for candle in bucket)),
+                    raw_volume=sum(
+                        candle.raw_volume if candle.raw_volume else candle.volume
+                        for candle in bucket
+                    ),
+                    trades=sum(candle.trades for candle in bucket),
+                    financial_volume=sum(candle.financial_volume for candle in bucket),
+                    quotation_factor=last.quotation_factor,
+                    bdi_code=last.bdi_code,
+                    market_type=last.market_type,
+                    isin=last.isin,
+                    distribution_number=last.distribution_number,
+                    specification=last.specification,
+                    issuer_name=last.issuer_name,
                 )
             )
     return result
@@ -448,6 +472,16 @@ def load_candles(path: Path | str, *, start: str | None = None, end: str | None 
                     source_high=float(row.get("source_high") or row["raw_high"]),
                     source_low=float(row.get("source_low") or row["raw_low"]),
                     ohlc_repaired=int(float(row.get("ohlc_repaired") or 0)),
+                    raw_volume=int(float(row.get("raw_volume") or row["volume"])),
+                    trades=int(float(row.get("trades") or 0)),
+                    financial_volume=float(row.get("financial_volume") or 0.0),
+                    quotation_factor=int(float(row.get("quotation_factor") or 1)),
+                    bdi_code=row.get("bdi_code") or "",
+                    market_type=row.get("market_type") or "",
+                    isin=row.get("isin") or "",
+                    distribution_number=int(float(row.get("distribution_number") or 0)),
+                    specification=row.get("specification") or "",
+                    issuer_name=row.get("issuer_name") or "",
                 )
             )
     return filter_candles(candles, start=start, end=end)
@@ -496,7 +530,6 @@ def fetch_and_cache(
 def validate_candles(candles: list[Candle]) -> list[str]:
     issues: list[str] = []
     previous_date: str | None = None
-    previous_close: float | None = None
     tolerance = 1e-8
 
     for candle in candles:
@@ -516,8 +549,12 @@ def validate_candles(candles: list[Candle]) -> list[str]:
             issues.append(f"{candle.ticker} {candle.date}: OHLC cru nao positivo.")
         if min(candle.source_high, candle.source_low) <= 0:
             issues.append(f"{candle.ticker} {candle.date}: maxima/minima da fonte nao positiva.")
-        if candle.volume < 0:
+        if candle.volume < 0 or candle.raw_volume < 0:
             issues.append(f"{candle.ticker} {candle.date}: volume negativo.")
+        if candle.trades < 0 or candle.financial_volume < 0:
+            issues.append(f"{candle.ticker} {candle.date}: negocios/volume financeiro negativos.")
+        if candle.quotation_factor <= 0:
+            issues.append(f"{candle.ticker} {candle.date}: fator de cotacao nao positivo.")
         if candle.volume == 0 and (
             abs(candle.raw_high - candle.raw_low) > tolerance
             or abs(candle.raw_open - candle.raw_close) > tolerance
@@ -531,12 +568,6 @@ def validate_candles(candles: list[Candle]) -> list[str]:
             or abs(candle.adj_close - expected_close) > 1e-5
         ):
             issues.append(f"{candle.ticker} {candle.date}: fator de ajuste inconsistente.")
-        if candle.raw_low > 0 and candle.raw_high / candle.raw_low - 1 > 5:
-            issues.append(f"{candle.ticker} {candle.date}: range cru extremo.")
-        if previous_close and previous_close > 0 and abs(candle.raw_close / previous_close - 1) > 2:
-            issues.append(f"{candle.ticker} {candle.date}: retorno cru extremo.")
-        previous_close = candle.raw_close
-
     return issues
 
 

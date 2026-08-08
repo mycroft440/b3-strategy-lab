@@ -21,6 +21,7 @@ from b3_strategy_lab.candles import (  # noqa: E402
 )
 from b3_strategy_lab.cotahist import (  # noqa: E402
     DEFAULT_MANIFESTS_DIR,
+    DEFAULT_SPLIT_EVIDENCE_PATH,
     build_verified_daily_candles,
     create_manifest,
     download_cotahist,
@@ -50,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--actions-dir", default=str(DEFAULT_ACTIONS_DIR))
     parser.add_argument("--manifests-dir", default=str(DEFAULT_MANIFESTS_DIR))
     parser.add_argument(
+        "--split-evidence",
+        default=str(DEFAULT_SPLIT_EVIDENCE_PATH),
+        help="Registro local das razoes de split conferidas em fontes oficiais.",
+    )
+    parser.add_argument(
         "--warning-reviews",
         default="data/quality_reviews.json",
         help="Arquivo JSON com evidencias para anomalias de preco revisadas.",
@@ -63,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     data_dir = Path(args.data_dir)
     actions_dir = Path(args.actions_dir)
     manifests_dir = Path(args.manifests_dir)
+    split_evidence = Path(args.split_evidence)
     warning_reviews = _load_warning_reviews(Path(args.warning_reviews))
 
     quotes_by_ticker: dict[str, list] = defaultdict(list)
@@ -105,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
                 candles_path=candle_file,
                 actions_path=action_file,
                 source_archives=sources,
+                split_evidence_path=split_evidence,
                 warnings=warnings,
                 warning_reviews=warning_reviews,
             )
@@ -116,6 +124,8 @@ def main(argv: list[str] | None = None) -> int:
                 manifest_file,
                 ticker=ticker,
                 interval=interval,
+                require_verified_splits_from=manifest.split_verified_from,
+                split_evidence_path=split_evidence,
             )
             print(
                 f"{ticker} {interval}: {len(candles)} candles verificados "

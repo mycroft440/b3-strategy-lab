@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from itertools import product
 from pathlib import Path
 
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     rows.sort(key=lambda row: float(row["total_return"]), reverse=True)
     output = (
         REPORTS_DIR
-        / f"full_history_strategy_research_price_only_raw_{args.interval}{args.suffix}.csv"
+        / f"full_history_strategy_research_price_only_adjusted_{args.interval}{args.suffix}.csv"
     )
     _write(rows, output)
     _print_grouped(rows)

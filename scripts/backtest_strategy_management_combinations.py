@@ -18,8 +18,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from b3_strategy_lab.cli import _signal_candles  # noqa: E402
 from b3_strategy_lab.strategies import (  # noqa: E402
     build_signals,
+    portfolio_strategies,
     strategy_parameters,
-    sweep_strategies,
 )
 from scripts.research_portfolio_allocation import (  # noqa: E402
     MarketData,
@@ -31,20 +31,11 @@ from scripts.research_portfolio_allocation import (  # noqa: E402
 
 
 INITIAL_CASH = 10_000.0
-FIXED_UNIVERSE_2018 = [
-    "BBDC3",
-    "BBSE3",
-    "CSMG3",
-    "FLRY3",
-    "GGBR3",
-    "IRBR3",
-    "JHSF3",
-    "PETR4",
-    "TUPY3",
-    "VALE3",
-]
 DEFAULT_START = "2018-01-02"
-DEFAULT_REPORT = Path("reports/strategy_management_combinations_raw_no_dividends_1d.csv")
+DEFAULT_REPORT = Path(
+    "reports/strategy_management_combinations_adjusted_no_dividends_1d_verified_v2.csv"
+)
+DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_2018.json")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -54,12 +45,22 @@ def main(argv: list[str] | None = None) -> int:
             "Usa sinais no fechamento, execucao na abertura seguinte e ignora dividendos/JCP."
         ),
     )
-    parser.add_argument("--tickers", nargs="+", default=FIXED_UNIVERSE_2018)
-    parser.add_argument("--strategies", nargs="+", default=sweep_strategies())
+    parser.add_argument(
+        "--tickers",
+        nargs="+",
+        help="Sobrescreve os tickers, que ainda precisam coincidir com --universe-manifest.",
+    )
+    parser.add_argument(
+        "--universe-manifest",
+        type=Path,
+        default=DEFAULT_UNIVERSE_MANIFEST,
+        help="Manifesto que explicita data de selecao e vieses do universo.",
+    )
+    parser.add_argument("--strategies", nargs="+", default=portfolio_strategies())
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--start", default=DEFAULT_START)
     parser.add_argument("--end")
-    parser.add_argument("--signal-mode", choices=["raw", "adjusted"], default="raw")
+    parser.add_argument("--signal-mode", choices=["raw", "adjusted"], default="adjusted")
     parser.add_argument(
         "--config-set",
         choices=["all", "base", "roc", "roc_hybrid", "roc_filter_short"],
@@ -83,20 +84,39 @@ def main(argv: list[str] | None = None) -> int:
     if args.top <= 0:
         parser.error("--top precisa ser maior que zero.")
 
-    tickers = [ticker.upper() for ticker in args.tickers]
+    universe = _load_universe(args.universe_manifest)
+    manifest_tickers = [ticker.upper() for ticker in universe["tickers"]]
+    tickers = [ticker.upper() for ticker in (args.tickers or manifest_tickers)]
+    if tickers != manifest_tickers:
+        parser.error(
+            "--tickers diverge do --universe-manifest; forneca um manifesto proprio "
+            "para tornar a selecao reproduzivel."
+        )
+    if args.start < str(universe["selected_as_of"]):
+        parser.error(
+            f"--start nao pode anteceder selected_as_of={universe['selected_as_of']} "
+            "do universo fixo."
+        )
     strategies = [strategy.strip().lower() for strategy in args.strategies]
     data = MarketData(
         tickers,
         args.interval,
         args.signal_mode,
         allow_unverified_data=args.allow_unverified_data,
+        require_verified_splits_from=universe["warmup_start"],
+        history_start=str(universe["warmup_start"]),
     )
     end = args.end or min(data.candles[ticker][-1].date for ticker in tickers)
     dates = [value for value in data.dates if args.start <= value <= end]
     if len(dates) < 3:
         raise ValueError("Periodo comum insuficiente para executar o backtest.")
 
-    signals_by_strategy = _build_eligibility(data, strategies, args.signal_mode)
+    signals_by_strategy = _build_eligibility(
+        data,
+        strategies,
+        args.signal_mode,
+        signal_start=str(universe["warmup_start"]),
+    )
     configs = _configs(args.signal_mode, args.config_set)
     total = len(strategies) * len(configs)
     started = time.perf_counter()
@@ -182,6 +202,8 @@ def main(argv: list[str] | None = None) -> int:
         end=end,
         combinations=total,
         elapsed_seconds=time.perf_counter() - started,
+        universe=universe,
+        data=data,
     )
     _print_top(rows[: args.top])
     return 0
@@ -191,6 +213,8 @@ def _build_eligibility(
     data: MarketData,
     strategies: list[str],
     signal_mode: str,
+    *,
+    signal_start: str | None = None,
 ) -> dict[str, dict[str, list[int]]]:
     result: dict[str, dict[str, list[int]]] = {}
     for strategy in strategies:
@@ -198,11 +222,21 @@ def _build_eligibility(
         by_ticker: dict[str, list[int]] = {}
         for ticker in data.tickers:
             candles = data.candles[ticker]
-            signals = build_signals(
+            first_index = next(
+                (
+                    index
+                    for index, candle in enumerate(candles)
+                    if signal_start is None or candle.date >= signal_start
+                ),
+                len(candles),
+            )
+            verified_window = candles[first_index:]
+            window_signals = build_signals(
                 strategy,
-                _signal_candles(candles, signal_mode),
+                _signal_candles(verified_window, signal_mode),
                 **params,
             )
+            signals = [0] * first_index + window_signals
             if len(signals) != len(candles):
                 raise ValueError(f"{strategy}/{ticker}: quantidade de sinais invalida.")
             if any(signal not in (0, 1) for signal in signals):
@@ -241,7 +275,7 @@ def _top_annual_sections(
             eligibility=signals_by_strategy[strategy],
             collect_curve=True,
         )
-        yearly = _yearly_returns(curve)
+        yearly = _yearly_returns(curve, initial_cash)
         sections.append(
             {
                 "rank": row["rank"],
@@ -254,18 +288,21 @@ def _top_annual_sections(
     return sections
 
 
-def _yearly_returns(curve: list[PortfolioCurveRow]) -> dict[int, float]:
-    boundaries: dict[int, tuple[float, float]] = {}
+def _yearly_returns(
+    curve: list[PortfolioCurveRow],
+    initial_equity: float,
+) -> dict[int, float]:
+    year_ends: dict[int, float] = {}
     for point in curve:
         year = int(point.date[:4])
-        if year not in boundaries:
-            boundaries[year] = (point.equity, point.equity)
-        else:
-            boundaries[year] = (boundaries[year][0], point.equity)
-    return {
-        year: end / start - 1 if start > 0 else 0.0
-        for year, (start, end) in boundaries.items()
-    }
+        year_ends[year] = point.equity
+
+    result: dict[int, float] = {}
+    prior_equity = initial_equity
+    for year, end_equity in year_ends.items():
+        result[year] = end_equity / prior_equity - 1 if prior_equity > 0 else 0.0
+        prior_equity = end_equity
+    return result
 
 
 def _write_results(rows: list[dict[str, object]], output: Path) -> None:
@@ -340,6 +377,8 @@ def _write_manifest(
     end: str,
     combinations: int,
     elapsed_seconds: float,
+    universe: dict[str, object],
+    data: MarketData,
 ) -> None:
     commit, dirty = _git_state()
     payload = {
@@ -347,11 +386,29 @@ def _write_manifest(
         "git_commit": commit,
         "git_dirty": dirty,
         "source_sha256": {
+            "b3_strategy_lab/backtest.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/backtest.py"
+            ),
+            "b3_strategy_lab/candles.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/candles.py"
+            ),
+            "b3_strategy_lab/cli.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/cli.py"
+            ),
+            "b3_strategy_lab/cotahist.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/cotahist.py"
+            ),
             "b3_strategy_lab/strategies.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/strategies.py"
             ),
             "b3_strategy_lab/additional_strategies.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/additional_strategies.py"
+            ),
+            "b3_strategy_lab/researched_strategies.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/researched_strategies.py"
+            ),
+            "b3_strategy_lab/extended_strategies.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/extended_strategies.py"
             ),
             "scripts/backtest_strategy_management_combinations.py": _sha256_file(
                 Path(__file__)
@@ -359,6 +416,28 @@ def _write_manifest(
             "scripts/research_portfolio_allocation.py": _sha256_file(
                 PROJECT_ROOT / "scripts/research_portfolio_allocation.py"
             ),
+        },
+        "universe": {
+            "manifest": str(args.universe_manifest),
+            "sha256": _sha256_file(args.universe_manifest),
+            "id": universe["id"],
+            "selection_mode": universe["selection_mode"],
+            "selected_as_of": universe["selected_as_of"],
+            "warmup_start": universe["warmup_start"],
+            "survivorship_safe": universe["survivorship_safe"],
+            "bias_disclosure": universe["bias_disclosure"],
+        },
+        "datasets": {
+            ticker: {
+                "status": manifest.status,
+                "start": manifest.start,
+                "end": manifest.end,
+                "candle_sha256": manifest.candle_sha256,
+                "split_action_status": manifest.split_action_status,
+                "split_verified_from": manifest.split_verified_from,
+                "split_evidence_sha256": manifest.split_evidence_sha256,
+            }
+            for ticker, manifest in sorted(data.manifests.items())
         },
         "tickers": tickers,
         "strategy_count": len(strategies),
@@ -370,8 +449,11 @@ def _write_manifest(
         "start": start,
         "end": end,
         "signal_mode": args.signal_mode,
-        "execution_price_mode": "raw_open_next_candle",
-        "mark_price_mode": "raw_close",
+        "signal_history_start": universe["warmup_start"],
+        "management_history_start": universe["warmup_start"],
+        "allow_unverified_data": args.allow_unverified_data,
+        "execution_price_mode": "split_normalized_open_next_candle",
+        "mark_price_mode": "split_normalized_close",
         "dividends_jcp": "excluded",
         "initial_cash": args.initial_cash,
         "cost_bps": args.cost_bps,
@@ -386,6 +468,35 @@ def _write_manifest(
     temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     temporary.replace(output)
     print(f"Manifesto: {output}", flush=True)
+
+
+def _load_universe(path: Path) -> dict[str, object]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    required = {
+        "schema_version",
+        "id",
+        "selection_mode",
+        "selected_as_of",
+        "warmup_start",
+        "survivorship_safe",
+        "bias_disclosure",
+        "tickers",
+    }
+    missing = sorted(required - payload.keys())
+    if missing:
+        raise ValueError(f"Manifesto de universo incompleto: {missing}.")
+    if payload["schema_version"] != 1:
+        raise ValueError("Schema de universo nao suportado.")
+    datetime.fromisoformat(str(payload["selected_as_of"]))
+    datetime.fromisoformat(str(payload["warmup_start"]))
+    tickers = payload["tickers"]
+    if not isinstance(tickers, list) or not tickers or len(tickers) != len(set(tickers)):
+        raise ValueError("Lista de tickers invalida no manifesto de universo.")
+    if payload["survivorship_safe"] is not False:
+        raise ValueError(
+            "Este universo fixo precisa declarar explicitamente survivorship_safe=false."
+        )
+    return payload
 
 
 def _git_state() -> tuple[str, bool]:

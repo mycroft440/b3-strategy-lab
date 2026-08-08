@@ -1,0 +1,132 @@
+{
+  "bias_disclosure": "Universo fixo definido para comparacao de estrategias. Nao representa todos os ativos investiveis em cada data e pode conter vies de selecao e sobrevivencia; os resultados nao devem ser interpretados como retorno de um universo historico completo da B3.",
+  "checks": {
+    "all_rows_have_isin": true,
+    "all_rows_have_trades": true,
+    "all_split_ledgers_verified_for_warmup": true,
+    "all_tickers_share_every_evaluation_session": true,
+    "universe_discloses_survivorship_bias": true
+  },
+  "common_sessions": 2133,
+  "evaluation_end": "2026-07-31",
+  "evaluation_start": "2018-01-02",
+  "generated_at_utc": "2026-08-03T03:23:15+00:00",
+  "ready": true,
+  "survivorship_safe": false,
+  "tickers": [
+    {
+      "candle_sha256": "ed72f2db920aa82854e2e7d72b145d907360b7f35c4070259555034c982ca2fc",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 1062,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "BBDC3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "2c41c149ae18bd2ec4dc140a746b262ab872cdacfa73e62daa9514b989c8ddef",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 0,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "BBSE3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "4c27b53045f73c88ad1f3fc9b1ae674f7d4110844845f740142dd13d13181c39",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 719,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "CSMG3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "6c58608fa59bbdb37f1cfb13bf3050b6ca882e6871b92b467fd961ff82d7d7cb",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 1349,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "FLRY3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "e0950dc4499d9cd9bb0f6d808f610951f3ee3cf83669ea5c029cf0770d9e9b27",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 1561,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "GGBR3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "012c19bd3f03ec256af448eb473931d40d67eaa4f01945ec2e0e0edf31e7e84e",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 1256,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "IRBR3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "f53792f7771807b1d8ecb549aab92be88989f067c584d3e99b89242f4532bbd2",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 0,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "JHSF3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "518eeeb663bddb7f8b1dc117660889e355d8dbcf0f15867ad8cc470f6fae66f2",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 0,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "PETR4",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "b172888f37697dca012ac78958ecb1e27ea0acb5777340d063fb9a4f469987f0",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 0,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "TUPY3",
+      "zero_trade_rows": 0
+    },
+    {
+      "candle_sha256": "6a39e22d9b27d0e51c9e2a15e790c56f0b7feffbcaadeb0b351a81548c89053c",
+      "missing_isin_rows": 0,
+      "missing_sessions_vs_union": 0,
+      "raw_close_differs_from_normalized_rows": 0,
+      "rows": 2133,
+      "split_status": "verified",
+      "split_verified_from": "2017-01-01",
+      "ticker": "VALE3",
+      "zero_trade_rows": 0
+    }
+  ],
+  "union_sessions": 2133,
+  "universe_id": "fixed_research_universe_2018",
+  "universe_manifest": "data/universes/fixed_2018.json",
+  "warmup_start": "2017-01-01"
+}

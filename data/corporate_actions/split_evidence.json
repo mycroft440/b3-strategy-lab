@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "coverage_start": "2017-01-01",
+  "retrieved_at_utc": "2026-08-02T00:00:00+00:00",
+  "scope": "Grupamentos, desdobramentos e bonificacoes que alteram a quantidade de acoes. Dividendos e JCP nao estao certificados por este arquivo.",
+  "method": "A razao e a ultima data com direito foram conferidas em registros oficiais da B3 ou no RI do emissor. O ex_date e o primeiro pregao COTAHIST do ativo posterior a ultima data com direito.",
+  "ticker_reviews": [
+    {
+      "ticker": "BBSE3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkJCU0UiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "BBDC3",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/",
+      "result": "Bonificacoes de 2017 a 2022 conferidas na tabela oficial do emissor."
+    },
+    {
+      "ticker": "CSMG3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkNTTUciLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Desdobramento de 2020 conferido."
+    },
+    {
+      "ticker": "FLRY3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkZMUlkiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Desdobramento de 2017 e bonificacao de 2023 conferidos."
+    },
+    {
+      "ticker": "GGBR3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.gerdau.com/informacoes-ao-mercado/dividendos-e-jcp/",
+      "result": "Bonificacoes de 2023 e 2024 conferidas no RI; a ultima data com direito de 2024 tambem foi conferida na B3."
+    },
+    {
+      "ticker": "IRBR3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IklSQlIiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Desdobramento de 2019 e grupamento de 2023 conferidos."
+    },
+    {
+      "ticker": "JHSF3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkpIU0YiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "LOGG3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkxPR0ciLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "MLAS3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6Ik1MQVMiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "PETR4",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IlBFVFIiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "TUPY3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IlRVUFkiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    },
+    {
+      "ticker": "VALE3",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IlZBTEUiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
+      "result": "Nenhum split desde 2017 no registro consultado."
+    }
+  ],
+  "events": [
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2017-05-02",
+      "last_date_prior": "2017-04-28",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "FLRY3",
+      "ex_date": "2017-06-27",
+      "last_date_prior": "2017-06-26",
+      "split_ratio": 2.0,
+      "event": "DESDOBRAMENTO 100%",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkZMUlkiLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2018-04-02",
+      "last_date_prior": "2018-03-29",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2019-04-01",
+      "last_date_prior": "2019-03-29",
+      "split_ratio": 1.2,
+      "event": "BONIFICACAO 20%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "IRBR3",
+      "ex_date": "2019-09-26",
+      "last_date_prior": "2019-09-25",
+      "split_ratio": 3.0,
+      "event": "DESDOBRAMENTO 200%",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IklSQlIiLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2020-04-14",
+      "last_date_prior": "2020-04-13",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "CSMG3",
+      "ex_date": "2020-11-26",
+      "last_date_prior": "2020-11-25",
+      "split_ratio": 3.0,
+      "event": "DESDOBRAMENTO 200%",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkNTTUciLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2021-04-19",
+      "last_date_prior": "2021-04-16",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2022-04-19",
+      "last_date_prior": "2022-04-18",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "IRBR3",
+      "ex_date": "2023-01-25",
+      "last_date_prior": "2023-01-24",
+      "split_ratio": 0.03333333333333333,
+      "event": "GRUPAMENTO 30 PARA 1",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IklSQlIiLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    },
+    {
+      "ticker": "GGBR3",
+      "ex_date": "2023-03-22",
+      "last_date_prior": "2023-03-21",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.gerdau.com/informacoes-ao-mercado/dividendos-e-jcp/"
+    },
+    {
+      "ticker": "FLRY3",
+      "ex_date": "2023-06-13",
+      "last_date_prior": "2023-06-12",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkZMUlkiLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    },
+    {
+      "ticker": "GGBR3",
+      "ex_date": "2024-04-18",
+      "last_date_prior": "2024-04-17",
+      "split_ratio": 1.2,
+      "event": "BONIFICACAO 20%",
+      "source_authority": "B3",
+      "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkdHQlIiLCJsYW5ndWFnZSI6InB0LWJyIn0="
+    }
+  ]
+}

@@ -28,8 +28,9 @@ from .candles import (
 
 COTAHIST_URL = "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A{year}.ZIP"
 VERIFIED_SOURCE = "B3_COTAHIST"
-MANIFEST_SCHEMA_VERSION = 4
+MANIFEST_SCHEMA_VERSION = 5
 DEFAULT_MANIFESTS_DIR = Path("data/manifests")
+DEFAULT_SPLIT_EVIDENCE_PATH = Path("data/corporate_actions/split_evidence.json")
 USER_AGENT = "Mozilla/5.0 (compatible; b3-strategy-lab/0.2)"
 PRICE_VERIFIED_STATUS = "price_verified"
 VERIFIED_ACTION_STATUS = "verified"
@@ -58,6 +59,10 @@ class OfficialQuote:
     quotation_factor: int
     bdi_code: str
     market_type: str
+    isin: str = ""
+    distribution_number: int = 0
+    specification: str = ""
+    issuer_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -66,6 +71,7 @@ class SourceArchive:
     filename: str
     sha256: str
     url: str
+    size_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -88,6 +94,10 @@ class DataManifest:
     adjustment_method: str
     corporate_action_source: str
     corporate_action_status: str
+    split_action_source: str
+    split_action_status: str
+    split_verified_from: str
+    split_evidence_sha256: str
     candle_sha256: str
     split_actions_sha256: str
     source_archives: tuple[SourceArchive, ...]
@@ -168,6 +178,12 @@ def parse_cotahist_lines(
             quotation_factor=quotation_factor,
             bdi_code=bdi_code,
             market_type=market_type,
+            isin=line[230:242].strip(),
+            distribution_number=_integer_field(
+                line, 242, 245, line_number, "DISMES"
+            ),
+            specification=line[39:49].strip(),
+            issuer_name=line[27:39].strip(),
         )
         _validate_quote(quote, line_number)
         key = (quote.ticker, quote.date)
@@ -261,7 +277,7 @@ def build_verified_daily_candles(
     final_quote_date = ticker_quotes[-1].date
     ticker_actions = [action for action in ticker_actions if action.date <= final_quote_date]
     split_actions = [action for action in ticker_actions if action.split_ratio != 1.0]
-    raw_values: dict[str, tuple[float, float, float, float, int]] = {}
+    normalized_values: dict[str, tuple[float, float, float, float, int, float]] = {}
     for quote in ticker_quotes:
         future_split = math.prod(
             action.split_ratio
@@ -270,35 +286,56 @@ def build_verified_daily_candles(
         )
         if not math.isfinite(future_split) or future_split <= 0:
             raise CotahistError(f"Fator de split invalido para {normalized_ticker} {quote.date}: {future_split}.")
-        prices = tuple(value / future_split for value in (quote.open, quote.high, quote.low, quote.close))
+        adjustment_factor = 1.0 / future_split
+        prices = tuple(
+            value * adjustment_factor
+            for value in (quote.open, quote.high, quote.low, quote.close)
+        )
         normalized_volume = int(round(quote.volume * future_split))
-        values = (*prices, normalized_volume)
-        raw_values[quote.date] = values
+        values = (*prices, normalized_volume, adjustment_factor)
+        normalized_values[quote.date] = values
 
     warnings: list[str] = []
 
     candles: list[Candle] = []
     for quote in ticker_quotes:
-        raw_open, raw_high, raw_low, raw_close, normalized_volume = raw_values[quote.date]
+        (
+            normalized_open,
+            normalized_high,
+            normalized_low,
+            normalized_close,
+            normalized_volume,
+            adjustment_factor,
+        ) = normalized_values[quote.date]
         candles.append(
             Candle(
                 date=quote.date,
                 ticker=normalized_ticker,
                 source_symbol=normalized_ticker,
-                open=raw_open,
-                high=raw_high,
-                low=raw_low,
-                close=raw_close,
-                adj_close=raw_close,
+                open=normalized_open,
+                high=normalized_high,
+                low=normalized_low,
+                close=normalized_close,
+                adj_close=normalized_close,
                 volume=normalized_volume,
-                raw_open=raw_open,
-                raw_high=raw_high,
-                raw_low=raw_low,
-                raw_close=raw_close,
-                adjustment_factor=1.0,
-                source_high=raw_high,
-                source_low=raw_low,
+                raw_open=quote.open,
+                raw_high=quote.high,
+                raw_low=quote.low,
+                raw_close=quote.close,
+                adjustment_factor=adjustment_factor,
+                source_high=quote.high,
+                source_low=quote.low,
                 ohlc_repaired=0,
+                raw_volume=quote.volume,
+                trades=quote.trades,
+                financial_volume=quote.financial_volume,
+                quotation_factor=quote.quotation_factor,
+                bdi_code=quote.bdi_code,
+                market_type=quote.market_type,
+                isin=quote.isin,
+                distribution_number=quote.distribution_number,
+                specification=quote.specification,
+                issuer_name=quote.issuer_name,
             )
         )
 
@@ -346,6 +383,16 @@ def resample_daily_to_weekly(candles: list[Candle]) -> list[Candle]:
                 source_high=max(candle.source_high for candle in bucket),
                 source_low=min(candle.source_low for candle in bucket),
                 ohlc_repaired=0,
+                raw_volume=sum(candle.raw_volume for candle in bucket),
+                trades=sum(candle.trades for candle in bucket),
+                financial_volume=sum(candle.financial_volume for candle in bucket),
+                quotation_factor=last.quotation_factor,
+                bdi_code=last.bdi_code,
+                market_type=last.market_type,
+                isin=last.isin,
+                distribution_number=last.distribution_number,
+                specification=last.specification,
+                issuer_name=last.issuer_name,
             )
         )
     issues = validate_candles(result)
@@ -369,8 +416,9 @@ def create_manifest(
     candles_path: Path | str,
     actions_path: Path | str,
     source_archives: Iterable[SourceArchive],
-    corporate_action_source: str = "Yahoo Chart events",
+    corporate_action_source: str = "Yahoo Chart cash events (legacy, not certified)",
     corporate_action_status: str = UNVERIFIED_ACTION_STATUS,
+    split_evidence_path: Path | str | None = None,
     warnings: Iterable[str] = (),
     warning_reviews: Mapping[str, str] | None = None,
     validation_issues: Iterable[str] = (),
@@ -379,6 +427,19 @@ def create_manifest(
     issues = tuple(validation_issues) or tuple(validate_candles(candles))
     warning_values = tuple(warnings)
     review_values = warning_reviews or {}
+    split_action_source = "legacy action CSV without official evidence"
+    split_action_status = UNVERIFIED_ACTION_STATUS
+    split_verified_from = ""
+    split_evidence_hash = ""
+    if split_evidence_path is not None:
+        split_verified_from = verify_split_evidence(
+            ticker,
+            actions_path,
+            split_evidence_path,
+        )
+        split_action_source = "B3 official records and issuer investor-relations evidence"
+        split_action_status = VERIFIED_ACTION_STATUS
+        split_evidence_hash = sha256_file(split_evidence_path)
     return DataManifest(
         schema_version=MANIFEST_SCHEMA_VERSION,
         status=PRICE_VERIFIED_STATUS if not issues else "rejected",
@@ -389,14 +450,18 @@ def create_manifest(
         end=candles[-1].date if candles else "",
         price_source=VERIFIED_SOURCE,
         price_basis=(
-            "B3 official per-share quotes normalized for splits; "
-            "cash distributions excluded"
+            "B3 official raw per-share OHLC retained in raw_*; open/high/low/close "
+            "normalized for splits; cash distributions excluded"
         ),
         adjustment_method=(
             "split normalization only; dividends and JCP ignored; no tax; no fees"
         ),
         corporate_action_source=corporate_action_source,
         corporate_action_status=corporate_action_status,
+        split_action_source=split_action_source,
+        split_action_status=split_action_status,
+        split_verified_from=split_verified_from,
+        split_evidence_sha256=split_evidence_hash,
         candle_sha256=sha256_file(candles_path),
         split_actions_sha256=(
             sha256_split_actions(actions_path) if Path(actions_path).exists() else ""
@@ -427,6 +492,10 @@ def load_manifest(path: Path | str) -> DataManifest:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if "split_actions_sha256" not in payload and "actions_sha256" in payload:
         payload["split_actions_sha256"] = payload.pop("actions_sha256")
+    payload.setdefault("split_action_source", "legacy action CSV without official evidence")
+    payload.setdefault("split_action_status", UNVERIFIED_ACTION_STATUS)
+    payload.setdefault("split_verified_from", "")
+    payload.setdefault("split_evidence_sha256", "")
     payload["source_archives"] = tuple(SourceArchive(**item) for item in payload.get("source_archives", []))
     payload["validation_issues"] = tuple(payload.get("validation_issues", []))
     payload["warnings"] = tuple(payload.get("warnings", []))
@@ -444,6 +513,8 @@ def verify_dataset(
     ticker: str | None = None,
     interval: str | None = None,
     require_verified_actions: bool = False,
+    require_verified_splits_from: str | None = None,
+    split_evidence_path: Path | str = DEFAULT_SPLIT_EVIDENCE_PATH,
 ) -> DataManifest:
     candle_file = Path(candles_path)
     action_file = Path(actions_path)
@@ -481,6 +552,36 @@ def verify_dataset(
             "Eventos corporativos ainda nao foram certificados por uma fonte oficial estruturada. "
             "O preco COTAHIST esta verificado, mas um backtest com proventos brutos nao e seguro."
         )
+    if manifest.split_action_status == VERIFIED_ACTION_STATUS:
+        evidence_file = Path(split_evidence_path)
+        if not evidence_file.exists():
+            raise DataVerificationError(
+                f"Evidencia oficial de splits ausente: {evidence_file}."
+            )
+        if sha256_file(evidence_file) != manifest.split_evidence_sha256:
+            raise DataVerificationError(
+                f"Hash da evidencia de splits diverge do manifesto: {evidence_file}."
+            )
+        verified_from = verify_split_evidence(
+            manifest.ticker,
+            action_file,
+            evidence_file,
+        )
+        if verified_from != manifest.split_verified_from:
+            raise DataVerificationError(
+                "Inicio da cobertura oficial de splits diverge do manifesto."
+            )
+    if require_verified_splits_from is not None:
+        required_date = date.fromisoformat(require_verified_splits_from).isoformat()
+        if manifest.split_action_status != VERIFIED_ACTION_STATUS:
+            raise DataVerificationError(
+                "Razoes de split nao possuem evidencia oficial para o periodo solicitado."
+            )
+        if not manifest.split_verified_from or required_date < manifest.split_verified_from:
+            raise DataVerificationError(
+                f"Splits verificados somente desde {manifest.split_verified_from or 'data indefinida'}; "
+                f"o backtest requer cobertura desde {required_date}."
+            )
     if sha256_file(candle_file) != manifest.candle_sha256:
         raise DataVerificationError(f"Hash dos candles diverge do manifesto: {candle_file}.")
     current_split_hash = sha256_split_actions(action_file) if action_file.exists() else ""
@@ -510,6 +611,8 @@ def load_verified_candles(
     start: str | None = None,
     end: str | None = None,
     require_verified_actions: bool = False,
+    require_verified_splits_from: str | None = None,
+    split_evidence_path: Path | str = DEFAULT_SPLIT_EVIDENCE_PATH,
 ) -> tuple[list[Candle], DataManifest]:
     candle_file = cache_path(ticker, interval, data_dir)
     action_file = actions_path(ticker, actions_dir)
@@ -521,6 +624,8 @@ def load_verified_candles(
         ticker=ticker,
         interval=interval,
         require_verified_actions=require_verified_actions,
+        require_verified_splits_from=require_verified_splits_from,
+        split_evidence_path=split_evidence_path,
     )
     return load_candles(candle_file, start=start, end=end), manifest
 
@@ -561,6 +666,114 @@ def sha256_split_actions(path: Path | str) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def verify_split_evidence(
+    ticker: str,
+    actions_file: Path | str,
+    evidence_file: Path | str,
+) -> str:
+    """Confere razoes/datas de splits contra um registro local de fontes oficiais.
+
+    O arquivo de evidencia nao tenta certificar dividendos ou JCP. Ele cobre
+    somente grupamentos, desdobramentos e bonificacoes que alteram a quantidade
+    de acoes e, portanto, a continuidade da serie de retorno de preco.
+    """
+    normalized_ticker = ticker.strip().upper()
+    payload = json.loads(Path(evidence_file).read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1:
+        raise DataVerificationError(
+            f"Schema de evidencia de splits invalido em {evidence_file}."
+        )
+    try:
+        coverage_start = date.fromisoformat(payload["coverage_start"]).isoformat()
+    except (KeyError, TypeError, ValueError) as error:
+        raise DataVerificationError(
+            f"coverage_start invalido em {evidence_file}."
+        ) from error
+
+    reviews = payload.get("ticker_reviews") or []
+    reviewed_tickers = {
+        str(review.get("ticker", "")).strip().upper()
+        for review in reviews
+        if review.get("source_url") and review.get("source_authority") in {"B3", "issuer"}
+    }
+    if normalized_ticker not in reviewed_tickers:
+        raise DataVerificationError(
+            f"{normalized_ticker}: ausencia de revisao oficial de splits em {evidence_file}."
+        )
+
+    evidence_by_key: dict[tuple[str, str], dict] = {}
+    for event in payload.get("events") or []:
+        event_ticker = str(event.get("ticker", "")).strip().upper()
+        event_date = str(event.get("ex_date", ""))
+        try:
+            date.fromisoformat(event_date)
+            ratio = float(event["split_ratio"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise DataVerificationError(
+                f"Evento de split invalido em {evidence_file}: {event}."
+            ) from error
+        if not math.isfinite(ratio) or ratio <= 0 or ratio == 1.0:
+            raise DataVerificationError(
+                f"Razao de split invalida em {evidence_file}: {event}."
+            )
+        if event.get("source_authority") not in {"B3", "issuer"} or not str(
+            event.get("source_url", "")
+        ).startswith("https://"):
+            raise DataVerificationError(
+                f"Fonte nao oficial/identificavel no evento: {event}."
+            )
+        key = (event_ticker, event_date)
+        if key in evidence_by_key:
+            raise DataVerificationError(
+                f"Evidencia de split duplicada para {event_ticker} {event_date}."
+            )
+        evidence_by_key[key] = {**event, "split_ratio": ratio}
+
+    covered_actions = {
+        (action.ticker.strip().upper(), action.date): action
+        for action in load_actions(actions_file)
+        if action.ticker.strip().upper() == normalized_ticker
+        and action.date >= coverage_start
+        and action.split_ratio != 1.0
+    }
+    for action in covered_actions.values():
+        evidence = evidence_by_key.get((normalized_ticker, action.date))
+        if evidence is None:
+            raise DataVerificationError(
+                f"{normalized_ticker} {action.date}: split sem evidencia oficial."
+            )
+        if not math.isclose(
+            action.split_ratio,
+            evidence["split_ratio"],
+            rel_tol=1e-10,
+            abs_tol=1e-12,
+        ):
+            raise DataVerificationError(
+                f"{normalized_ticker} {action.date}: razao {action.split_ratio} "
+                f"diverge da evidencia oficial {evidence['split_ratio']}."
+            )
+    for key, evidence in evidence_by_key.items():
+        event_ticker, event_date = key
+        if event_ticker != normalized_ticker or event_date < coverage_start:
+            continue
+        action = covered_actions.get(key)
+        if action is None:
+            raise DataVerificationError(
+                f"{normalized_ticker} {event_date}: evento oficial ausente no ledger local."
+            )
+        if not math.isclose(
+            action.split_ratio,
+            evidence["split_ratio"],
+            rel_tol=1e-10,
+            abs_tol=1e-12,
+        ):
+            raise DataVerificationError(
+                f"{normalized_ticker} {event_date}: razao local {action.split_ratio} "
+                f"diverge da evidencia oficial {evidence['split_ratio']}."
+            )
+    return coverage_start
+
+
 def source_archive(path: Path | str, year: int) -> SourceArchive:
     source = Path(path)
     return SourceArchive(
@@ -568,6 +781,7 @@ def source_archive(path: Path | str, year: int) -> SourceArchive:
         filename=source.name,
         sha256=sha256_file(source),
         url=COTAHIST_URL.format(year=year),
+        size_bytes=source.stat().st_size,
     )
 
 
@@ -622,9 +836,9 @@ def _large_move_warnings(candles: list[Candle], split_actions: list[CorporateAct
     split_dates = {action.date for action in split_actions}
     warnings: list[str] = []
     for previous, current in zip(candles, candles[1:]):
-        if previous.raw_close <= 0:
+        if previous.close <= 0:
             continue
-        move = current.raw_close / previous.raw_close - 1
+        move = current.close / previous.close - 1
         if abs(move) > 0.15 and current.date in split_dates:
             warnings.append(
                 f"{current.ticker} {current.date}: variacao de fechamento apos "

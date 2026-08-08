@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from b3_strategy_lab.backtest import (
     _action_buckets,
@@ -85,10 +86,21 @@ class BacktestTests(unittest.TestCase):
         self.assertAlmostEqual(benchmark_curve[-1].cash, 0.0)
         self.assertAlmostEqual(benchmark_curve[-1].equity, 900.0)
 
-    def test_price_only_buy_and_hold_uses_raw_ohlc(self) -> None:
+    def test_price_only_buy_and_hold_uses_split_normalized_ohlc(self) -> None:
         candles = [
             candle("2024-01-02", 100.0, 110.0),
             candle("2024-01-03", 120.0, 130.0),
+        ]
+        candles = [
+            replace(
+                item,
+                raw_open=item.raw_open * 10,
+                raw_high=item.raw_high * 10,
+                raw_low=item.raw_low * 10,
+                raw_close=item.raw_close * 10,
+                adjustment_factor=0.1,
+            )
+            for item in candles
         ]
         curve = simulate_buy_and_hold_price_only(candles, initial_cash=1000.0)
 
@@ -132,17 +144,17 @@ class BacktestTests(unittest.TestCase):
         self.assertAlmostEqual(curve[1].cash, 20.0)
         self.assertAlmostEqual(curve[1].equity, 920.0)
 
-    def test_raw_events_does_not_apply_normalized_split_twice(self) -> None:
+    def test_raw_events_applies_split_to_shares_on_unnormalized_prices(self) -> None:
         candles = [
             candle("2024-01-02", 100.0, 100.0),
-            candle("2024-01-03", 100.0, 100.0),
+            candle("2024-01-03", 50.0, 50.0),
         ]
         actions = {
             "2024-01-03": CorporateAction("2024-01-03", "TEST3", "TEST3.SA", dividend=0.0, split_ratio=2.0)
         }
         curve = simulate_buy_and_hold_raw_events(candles, actions, initial_cash=1000.0)
 
-        self.assertAlmostEqual(curve[1].shares, 10.0)
+        self.assertAlmostEqual(curve[1].shares, 20.0)
         self.assertAlmostEqual(curve[1].split_ratio, 2.0)
         self.assertAlmostEqual(curve[1].equity, 1000.0)
 

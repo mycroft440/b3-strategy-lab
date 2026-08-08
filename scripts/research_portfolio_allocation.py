@@ -46,7 +46,7 @@ class PortfolioConfig:
     absolute_momentum: bool = True
     max_weight: float = 1.0
     target_vol: float = 0.0
-    signal_mode: str = "raw"
+    signal_mode: str = "adjusted"
     roc_windows: str = ""
     roc_weights: str = ""
     positive_rule: str = "score"
@@ -94,6 +94,8 @@ class MarketData:
         signal_mode: str,
         *,
         allow_unverified_data: bool = False,
+        require_verified_splits_from: str | None = None,
+        history_start: str | None = None,
     ) -> None:
         self.tickers = tickers
         self.interval = interval
@@ -103,14 +105,30 @@ class MarketData:
         self.index_by_date: dict[str, dict[str, int]] = {}
         self.signal_prices: dict[str, list[float]] = {}
         self.raw_returns: dict[str, list[float]] = {}
+        self.manifests: dict[str, object] = {}
         self.candidate_profile_cache: dict[tuple[str, int, PortfolioConfig], dict | None] = {}
         dates: set[str] = set()
 
         for ticker in tickers:
             if allow_unverified_data:
                 candles = load_candles(cache_path(ticker, interval))
+                if history_start is not None:
+                    candles = [
+                        candle for candle in candles if candle.date >= history_start
+                    ]
             else:
-                candles, _manifest = load_verified_candles(ticker, interval)
+                candles, manifest = load_verified_candles(
+                    ticker,
+                    interval,
+                    start=history_start,
+                    require_verified_splits_from=require_verified_splits_from,
+                )
+                self.manifests[ticker] = manifest
+            if not candles:
+                raise ValueError(
+                    f"{ticker}: nenhum candle disponivel desde "
+                    f"{history_start or 'o inicio da serie'}."
+                )
             self.candles[ticker] = candles
             self.by_date[ticker] = {candle.date: candle for candle in candles}
             self.index_by_date[ticker] = {candle.date: index for index, candle in enumerate(candles)}
@@ -118,7 +136,7 @@ class MarketData:
                 candle.close if signal_mode == "adjusted" else candle.raw_close
                 for candle in candles
             ]
-            self.raw_returns[ticker] = _returns([candle.raw_close for candle in candles])
+            self.raw_returns[ticker] = _returns(self.signal_prices[ticker])
             dates.update(candle.date for candle in candles)
 
         self.dates = sorted(dates, key=_point_datetime)
@@ -130,7 +148,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--suffix", default="")
     parser.add_argument("--train-ratio", type=float, default=0.7)
-    parser.add_argument("--signal-modes", nargs="+", default=["raw"], choices=["adjusted", "raw"])
+    parser.add_argument(
+        "--signal-modes",
+        nargs="+",
+        default=["adjusted"],
+        choices=["adjusted", "raw"],
+    )
     parser.add_argument("--config-set", default="all", choices=["all", "base", "roc", "roc_hybrid", "roc_filter_short"])
     parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
@@ -165,7 +188,8 @@ def main(argv: list[str] | None = None) -> int:
     rows.sort(key=lambda row: (float(row["test_cagr"]), float(row["full_cagr"])), reverse=True)
     output = (
         REPORTS_DIR
-        / f"portfolio_allocation_research_price_only_raw_{args.interval}{args.suffix}.csv"
+        / f"portfolio_allocation_research_price_only_{'_'.join(args.signal_modes)}_"
+        f"{args.interval}{args.suffix}.csv"
     )
     _write(rows, output)
     _write_benchmarks(data, output.with_name(output.stem + "_benchmarks.csv"))
@@ -232,7 +256,7 @@ def run_portfolio(
             total_turnover += turnover
 
         for ticker, candle in today_candles.items():
-            last_prices[ticker] = candle.raw_close
+            last_prices[ticker] = candle.close
 
         equity = cash + sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
         invested_value = sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
@@ -267,7 +291,7 @@ def run_portfolio(
             pending_targets = None
 
     result_metrics = _portfolio_metrics(equities, dates, initial_cash)
-    yearly = _yearly_returns(equities, dates)
+    yearly = _yearly_returns(equities, dates, initial_cash)
     summary = PortfolioSummary(
         strategy=config.name,
         start=dates[0],
@@ -793,18 +817,22 @@ def _portfolio_metrics(
     }
 
 
-def _yearly_returns(equities: list[float], dates: list[str]) -> dict[int, float]:
-    boundaries: dict[int, tuple[float, float]] = {}
+def _yearly_returns(
+    equities: list[float],
+    dates: list[str],
+    initial_equity: float,
+) -> dict[int, float]:
+    year_ends: dict[int, float] = {}
     for current_date, equity in zip(dates, equities):
         year = _point_datetime(current_date).year
-        if year not in boundaries:
-            boundaries[year] = (equity, equity)
-        else:
-            boundaries[year] = (boundaries[year][0], equity)
-    return {
-        year: end / start - 1 if start > 0 else 0.0
-        for year, (start, end) in boundaries.items()
-    }
+        year_ends[year] = equity
+
+    result: dict[int, float] = {}
+    prior_equity = initial_equity
+    for year, end_equity in year_ends.items():
+        result[year] = end_equity / prior_equity - 1 if prior_equity > 0 else 0.0
+        prior_equity = end_equity
+    return result
 
 
 def _weights(selected: list[dict], config: PortfolioConfig) -> dict[str, float]:
@@ -838,9 +866,9 @@ def _rebalance(
     lot_size: int,
 ) -> tuple[int, float, float]:
     prices = {
-        ticker: today_candles[ticker].raw_open
+        ticker: today_candles[ticker].open
         for ticker in tickers
-        if ticker in today_candles and today_candles[ticker].raw_open > 0
+        if ticker in today_candles and today_candles[ticker].open > 0
     }
     equity = cash + sum(shares[ticker] * prices.get(ticker, last_prices.get(ticker, 0.0)) for ticker in tickers)
     if equity <= 0:

@@ -197,9 +197,17 @@ def to_heikin_ashi(candles: list[Candle]) -> list[Candle]:
     result: list[Candle] = []
     previous_open: float | None = None
     previous_close: float | None = None
+    previous_raw_open: float | None = None
+    previous_raw_close: float | None = None
 
     for candle in candles:
         ha_close = (
+            candle.open
+            + candle.high
+            + candle.low
+            + candle.close
+        ) / 4
+        raw_ha_close = (
             candle.raw_open
             + candle.raw_high
             + candle.raw_low
@@ -207,12 +215,19 @@ def to_heikin_ashi(candles: list[Candle]) -> list[Candle]:
         ) / 4
 
         if previous_open is None or previous_close is None:
-            ha_open = (candle.raw_open + candle.raw_close) / 2
+            ha_open = (candle.open + candle.close) / 2
         else:
             ha_open = (previous_open + previous_close) / 2
+        if previous_raw_open is None or previous_raw_close is None:
+            raw_ha_open = (candle.raw_open + candle.raw_close) / 2
+        else:
+            raw_ha_open = (previous_raw_open + previous_raw_close) / 2
 
-        ha_high = max(candle.raw_high, ha_open, ha_close)
-        ha_low = min(candle.raw_low, ha_open, ha_close)
+        ha_high = max(candle.high, ha_open, ha_close)
+        ha_low = min(candle.low, ha_open, ha_close)
+        raw_ha_high = max(candle.raw_high, raw_ha_open, raw_ha_close)
+        raw_ha_low = min(candle.raw_low, raw_ha_open, raw_ha_close)
+        factor = ha_close / raw_ha_close if raw_ha_close else 1.0
 
         result.append(
             replace(
@@ -222,18 +237,20 @@ def to_heikin_ashi(candles: list[Candle]) -> list[Candle]:
                 low=ha_low,
                 close=ha_close,
                 adj_close=ha_close,
-                raw_open=ha_open,
-                raw_high=ha_high,
-                raw_low=ha_low,
-                raw_close=ha_close,
-                adjustment_factor=1.0,
-                source_high=ha_high,
-                source_low=ha_low,
+                raw_open=raw_ha_open,
+                raw_high=raw_ha_high,
+                raw_low=raw_ha_low,
+                raw_close=raw_ha_close,
+                adjustment_factor=factor,
+                source_high=raw_ha_high,
+                source_low=raw_ha_low,
                 ohlc_repaired=0,
             )
         )
         previous_open = ha_open
         previous_close = ha_close
+        previous_raw_open = raw_ha_open
+        previous_raw_close = raw_ha_close
 
     return result
 
@@ -283,6 +300,8 @@ def _inventory_row(
     if chart_type == "heikin_ashi" and price_status == PRICE_VERIFIED_STATUS:
         price_status = "derived_from_price_verified"
     action_status = manifest.corporate_action_status if manifest else "unverified"
+    split_status = manifest.split_action_status if manifest else "unverified"
+    split_verified_from = manifest.split_verified_from if manifest else ""
     if not path.exists():
         return {
             "ticker": ticker,
@@ -297,6 +316,8 @@ def _inventory_row(
             "corporate_actions": str(action_count),
             "price_status": price_status,
             "action_status": action_status,
+            "split_status": split_status,
+            "split_verified_from": split_verified_from,
             "issues": "arquivo inexistente",
         }
 
@@ -306,9 +327,26 @@ def _inventory_row(
         PRICE_VERIFIED_STATUS,
         "derived_from_price_verified",
     }
-    ready = bool(candles) and not issues and price_ready and chart_type == "candles"
+    split_ready = bool(
+        candles
+        and split_status == "verified"
+        and split_verified_from
+        and candles[-1].date >= split_verified_from
+    )
+    fully_split_covered = bool(
+        split_ready and candles[0].date >= split_verified_from
+    )
+    ready = (
+        bool(candles)
+        and not issues
+        and price_ready
+        and split_ready
+        and chart_type == "candles"
+    )
     status = (
         "ok_retorno_preco"
+        if ready and fully_split_covered
+        else "ok_retorno_preco_desde_split_coverage"
         if ready
         else "derivado_verificado"
         if candles and price_ready and chart_type == "heikin_ashi"
@@ -320,13 +358,21 @@ def _inventory_row(
         "interval": INTERVAL_LABELS[interval],
         "file": str(path),
         "status": status,
-        "ready_for_backtest": "sim" if ready else "nao",
+        "ready_for_backtest": (
+            "sim"
+            if ready and fully_split_covered
+            else f"sim_desde_{split_verified_from}"
+            if ready
+            else "nao"
+        ),
         "rows": str(len(candles)),
         "start": candles[0].date if candles else "",
         "end": candles[-1].date if candles else "",
         "corporate_actions": str(action_count),
         "price_status": price_status,
         "action_status": action_status,
+        "split_status": split_status,
+        "split_verified_from": split_verified_from,
         "issues": "; ".join(issues[:5]),
     }
 
@@ -365,20 +411,34 @@ def _yearly_inventory_row(
     if chart_type == "heikin_ashi" and price_status == PRICE_VERIFIED_STATUS:
         price_status = "derived_from_price_verified"
     action_status = manifest.corporate_action_status if manifest else "unverified"
+    split_status = manifest.split_action_status if manifest else "unverified"
+    split_verified_from = manifest.split_verified_from if manifest else ""
     if len(candles) < 2:
         issues = [*issues, "menos de 2 candles para backtest"]
     price_ready = price_status in {
         PRICE_VERIFIED_STATUS,
         "derived_from_price_verified",
     }
+    split_ready = bool(
+        candles
+        and split_status == "verified"
+        and split_verified_from
+        and candles[-1].date >= split_verified_from
+    )
+    fully_split_covered = bool(
+        split_ready and candles[0].date >= split_verified_from
+    )
     ready = (
         len(candles) >= 2
         and not issues
         and price_ready
+        and split_ready
         and chart_type == "candles"
     )
     status = (
         "ok_retorno_preco"
+        if ready and fully_split_covered
+        else "ok_retorno_preco_desde_split_coverage"
         if ready
         else "derivado_verificado"
         if candles and price_ready and chart_type == "heikin_ashi"
@@ -390,12 +450,20 @@ def _yearly_inventory_row(
         "chart_type": chart_type,
         "interval": INTERVAL_LABELS.get(interval, interval),
         "status": status,
-        "ready_for_backtest": "sim" if ready else "nao",
+        "ready_for_backtest": (
+            "sim"
+            if ready and fully_split_covered
+            else f"sim_desde_{split_verified_from}"
+            if ready
+            else "nao"
+        ),
         "rows": str(len(candles)),
         "start": candles[0].date if candles else "",
         "end": candles[-1].date if candles else "",
         "price_status": price_status,
         "action_status": action_status,
+        "split_status": split_status,
+        "split_verified_from": split_verified_from,
         "file": str(path),
         "issues": "; ".join(issues[:5]),
     }
@@ -413,6 +481,8 @@ def write_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
         "end",
         "corporate_actions",
         "price_status",
+        "split_status",
+        "split_verified_from",
         "action_status",
         "file",
         "issues",
@@ -435,6 +505,8 @@ def write_yearly_inventory_csv(rows: list[dict[str, str]], path: Path) -> None:
         "start",
         "end",
         "price_status",
+        "split_status",
+        "split_verified_from",
         "action_status",
         "file",
         "issues",
@@ -452,8 +524,8 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
         "",
         "Status gerado a partir de `data/candles`, `data/heikin_ashi` e `data/corporate_actions`.",
         "",
-        "Preco verificado pode ser usado em indicadores. `Backtest = nao` enquanto os eventos "
-        "corporativos brutos nao estiverem certificados.",
+        "`Backtest = sim` exige preco e splits verificados; dividendos/JCP permanecem "
+        "fora do modo retorno de preco.",
         "",
         "Observacao: `VALE4` nao existe nos dados atuais; o ticker disponivel e `VALE3`.",
         "",
@@ -464,8 +536,8 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
             lines.append("")
             lines.append(f"### {label}")
             lines.append("")
-            lines.append("| Tempo | Status | Preco | Eventos | Backtest | Linhas | Inicio | Fim | Arquivo |")
-            lines.append("|---|---|---|---|---|---:|---|---|---|")
+            lines.append("| Tempo | Status | Preco | Splits | Desde | Proventos | Backtest | Linhas | Inicio | Fim | Arquivo |")
+            lines.append("|---|---|---|---|---|---|---|---:|---|---|---|")
             for interval in ("4h", "1d", "1sem"):
                 row = next(
                     item for item in rows
@@ -473,6 +545,7 @@ def write_inventory_markdown(rows: list[dict[str, str]], path: Path) -> None:
                 )
                 lines.append(
                     f"| {interval} | {row['status']} | {row['price_status']} | "
+                    f"{row['split_status']} | {row['split_verified_from']} | "
                     f"{row['action_status']} | {row['ready_for_backtest']} | "
                     f"{row['rows']} | {row['start']} | {row['end']} | `{row['file']}` |"
                 )
@@ -489,13 +562,14 @@ def write_yearly_inventory_markdown(rows: list[dict[str, str]], path: Path) -> N
         "",
         "Arquivos gerados a partir dos historicos completos em `data/candles` e `data/heikin_ashi`.",
         "",
-        "| Ano | Ticker | Grafico | Tempo | Status | Preco | Eventos | Backtest | Linhas | Inicio | Fim | Arquivo |",
-        "|---:|---|---|---|---|---|---|---|---:|---|---|---|",
+        "| Ano | Ticker | Grafico | Tempo | Status | Preco | Splits | Desde | Proventos | Backtest | Linhas | Inicio | Fim | Arquivo |",
+        "|---:|---|---|---|---|---|---|---|---|---|---:|---|---|---|",
     ]
     for row in sorted(rows, key=lambda item: (item["year"], item["ticker"], item["chart_type"], item["interval"])):
         lines.append(
             f"| {row['year']} | {row['ticker']} | {row['chart_type']} | {row['interval']} | "
-            f"{row['status']} | {row['price_status']} | {row['action_status']} | "
+            f"{row['status']} | {row['price_status']} | {row['split_status']} | "
+            f"{row['split_verified_from']} | {row['action_status']} | "
             f"{row['ready_for_backtest']} | {row['rows']} | "
             f"{row['start']} | {row['end']} | `{row['file']}` |"
         )

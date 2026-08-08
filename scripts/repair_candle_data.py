@@ -11,16 +11,27 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from b3_strategy_lab.candles import Candle, cache_path, load_candles, save_candles
+from b3_strategy_lab.candles import (
+    DEFAULT_LEGACY_DATA_DIR,
+    Candle,
+    cache_path,
+    load_candles,
+    save_candles,
+)
 
 
-DEFAULT_DATA_DIR = Path("data/candles")
+DEFAULT_DATA_DIR = DEFAULT_LEGACY_DATA_DIR
 DAILY_START_DATES = {"GGBR3": "2000-05-19"}
 DAILY_DROP_DATES = {"VALE3": {"2008-06-12"}}
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Repara candles locais com anomalias conhecidas.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Repara apenas candles legados sem manifesto. A base canonica "
+            "COTAHIST deve ser reconstruida, nunca alterada manualmente."
+        )
+    )
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR))
     args = parser.parse_args(argv)
 

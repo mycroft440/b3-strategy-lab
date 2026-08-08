@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "fixed_research_universe_2018",
+  "selection_mode": "fixed_user_defined_research_universe",
+  "selected_as_of": "2018-01-02",
+  "warmup_start": "2017-01-01",
+  "survivorship_safe": false,
+  "bias_disclosure": "Universo fixo definido para comparacao de estrategias. Nao representa todos os ativos investiveis em cada data e pode conter vies de selecao e sobrevivencia; os resultados nao devem ser interpretados como retorno de um universo historico completo da B3.",
+  "tickers": [
+    "BBDC3",
+    "BBSE3",
+    "CSMG3",
+    "FLRY3",
+    "GGBR3",
+    "IRBR3",
+    "JHSF3",
+    "PETR4",
+    "TUPY3",
+    "VALE3"
+  ]
+}

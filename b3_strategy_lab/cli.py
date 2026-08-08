@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
             "dividendos/JCP; raw_events e diagnostico de retorno total."
         ),
     )
-    backtest_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
+    backtest_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
     backtest_parser.add_argument("--reports-dir", default="reports")
     backtest_parser.add_argument(
         "--refresh-data",
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=["price_only", "adjusted", "raw_events"],
         default="price_only",
     )
-    sweep_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
+    sweep_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
     sweep_parser.add_argument("--reports-dir", default="reports")
     sweep_parser.add_argument(
         "--refresh-data",
@@ -259,7 +259,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=["price_only", "adjusted", "raw_events"],
         default="price_only",
     )
-    train_test_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="raw")
+    train_test_parser.add_argument("--signal-mode", choices=["adjusted", "raw"], default="adjusted")
     train_test_parser.add_argument("--reports-dir", default="reports")
     train_test_parser.add_argument("--refresh-data", action="store_true")
     train_test_parser.add_argument("--train-ratio", type=float, default=0.7)
@@ -388,7 +388,9 @@ def _verify_data_command(args: argparse.Namespace) -> int:
         print(
             f"{ticker.upper()} {args.interval}: {len(candles)} candles, "
             f"{candles[0].date} a {candles[-1].date}, "
-            f"precos={manifest.status}, price_only=ready, "
+            f"precos={manifest.status}, "
+            f"price_only=ready_desde_{manifest.split_verified_from or 'indefinido'}, "
+            f"splits={manifest.split_action_status}_desde_{manifest.split_verified_from or 'indefinido'}, "
             f"proventos={manifest.corporate_action_status}, "
             f"avisos={len(manifest.warnings)}/{len(manifest.warning_reviews)} revisados"
         )

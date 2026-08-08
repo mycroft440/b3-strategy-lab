@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ from b3_strategy_lab.cotahist import (
     resample_daily_to_weekly,
     save_verified_candles,
     source_archive,
+    verify_split_evidence,
     verify_dataset,
     write_manifest,
 )
@@ -48,6 +50,8 @@ def cotahist_line(
     put(10, 12, "02")
     put(12, 24, ticker.ljust(12))
     put(24, 27, "010")
+    put(27, 39, "EMPRESA TEST".ljust(12))
+    put(39, 49, "ON      NM".ljust(10))
     for start, end, value in (
         (56, 69, open_),
         (69, 82, high),
@@ -59,6 +63,8 @@ def cotahist_line(
     integer(152, 170, volume)
     integer(170, 188, round(financial_volume * 100))
     integer(210, 217, quotation_factor)
+    put(230, 242, "BRTESTACNOR0")
+    integer(242, 245, 123)
     return "".join(chars)
 
 
@@ -117,6 +123,10 @@ class CotahistParsingTests(unittest.TestCase):
         self.assertAlmostEqual(parsed[0].close, 0.013)
         self.assertEqual(parsed[0].quotation_factor, 1_000)
         self.assertEqual(parsed[0].volume, 7_800_000)
+        self.assertEqual(parsed[0].issuer_name, "EMPRESA TEST")
+        self.assertEqual(parsed[0].specification, "ON      NM")
+        self.assertEqual(parsed[0].isin, "BRTESTACNOR0")
+        self.assertEqual(parsed[0].distribution_number, 123)
 
     def test_rejects_truncated_rows(self) -> None:
         with self.assertRaises(CotahistError):
@@ -153,12 +163,16 @@ class VerifiedCandleTests(unittest.TestCase):
         candles, warnings = build_verified_daily_candles("TEST3", quotes, actions)
 
         self.assertEqual(warnings, [])
-        self.assertAlmostEqual(candles[0].raw_close, 100.0)
+        self.assertAlmostEqual(candles[0].raw_close, 0.1)
+        self.assertEqual(candles[0].raw_volume, 1_000_000)
         self.assertEqual(candles[0].volume, 1_000)
         self.assertAlmostEqual(candles[0].close, 100.0)
         self.assertAlmostEqual(candles[1].close, 100.0)
         self.assertAlmostEqual(candles[2].close, 98.0)
-        self.assertEqual([candle.adjustment_factor for candle in candles], [1.0, 1.0, 1.0])
+        self.assertEqual(
+            [candle.adjustment_factor for candle in candles],
+            [1_000.0, 1.0, 1.0],
+        )
         self.assertEqual(validate_candles(candles), [])
 
     def test_same_day_cash_events_do_not_change_price_series(self) -> None:
@@ -231,8 +245,99 @@ class VerifiedCandleTests(unittest.TestCase):
         self.assertEqual(weekly[0].volume, 300)
         self.assertEqual(validate_candles(weekly), [])
 
+    def test_weekly_raw_ohlc_preserves_scale_change_inside_split_week(self) -> None:
+        quotes = [
+            quote("2024-01-01", open_=100.0, high=102.0, low=99.0, close=100.0, volume=100),
+            quote("2024-01-02", open_=10.0, high=10.2, low=9.9, close=10.0, volume=1_000),
+        ]
+        actions = [
+            CorporateAction("2024-01-02", "TEST3", "B3", dividend=0.0, split_ratio=10.0)
+        ]
+
+        daily, _warnings = build_verified_daily_candles("TEST3", quotes, actions)
+        weekly = resample_daily_to_weekly(daily)
+
+        self.assertAlmostEqual(weekly[0].open, 10.0)
+        self.assertAlmostEqual(weekly[0].close, 10.0)
+        self.assertAlmostEqual(weekly[0].raw_high, 102.0)
+        self.assertAlmostEqual(weekly[0].raw_low, 9.9)
+        self.assertEqual(validate_candles(weekly), [])
+
 
 class DatasetManifestTests(unittest.TestCase):
+    def test_split_evidence_requires_matching_official_ratio(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            action_file = save_actions(
+                [CorporateAction("2024-01-02", "TEST3", "B3", 0.0, 2.0)],
+                root / "test3_actions.csv",
+            )
+            evidence_file = root / "split_evidence.json"
+            evidence = {
+                "schema_version": 1,
+                "coverage_start": "2024-01-01",
+                "ticker_reviews": [
+                    {
+                        "ticker": "TEST3",
+                        "source_authority": "B3",
+                        "source_url": "https://example.test/b3-official",
+                    }
+                ],
+                "events": [
+                    {
+                        "ticker": "TEST3",
+                        "ex_date": "2024-01-02",
+                        "split_ratio": 2.0,
+                        "source_authority": "B3",
+                        "source_url": "https://example.test/b3-official",
+                    }
+                ],
+            }
+            evidence_file.write_text(json.dumps(evidence), encoding="utf-8")
+
+            self.assertEqual(
+                verify_split_evidence("TEST3", action_file, evidence_file),
+                "2024-01-01",
+            )
+            evidence["events"][0]["split_ratio"] = 3.0
+            evidence_file.write_text(json.dumps(evidence), encoding="utf-8")
+            with self.assertRaises(DataVerificationError):
+                verify_split_evidence("TEST3", action_file, evidence_file)
+
+    def test_split_evidence_rejects_official_event_missing_from_local_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            action_file = save_actions([], root / "test3_actions.csv")
+            evidence_file = root / "split_evidence.json"
+            evidence_file.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "coverage_start": "2024-01-01",
+                        "ticker_reviews": [
+                            {
+                                "ticker": "TEST3",
+                                "source_authority": "B3",
+                                "source_url": "https://example.test/b3-official",
+                            }
+                        ],
+                        "events": [
+                            {
+                                "ticker": "TEST3",
+                                "ex_date": "2024-01-02",
+                                "split_ratio": 2.0,
+                                "source_authority": "B3",
+                                "source_url": "https://example.test/b3-official",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(DataVerificationError):
+                verify_split_evidence("TEST3", action_file, evidence_file)
+
     def test_manifest_ignores_cash_changes_but_rejects_split_changes(self) -> None:
         quotes = [
             quote("2024-01-01", open_=10.0, high=10.0, low=10.0, close=10.0, volume=100),

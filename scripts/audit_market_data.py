@@ -14,7 +14,7 @@ from b3_strategy_lab.candles import DEFAULT_TICKERS, cache_path, load_candles  #
 from b3_strategy_lab.cotahist import load_manifest, manifest_path  # noqa: E402
 
 
-PRICE_FIELDS = ("raw_open", "raw_high", "raw_low", "raw_close")
+PRICE_FIELDS = ("open", "high", "low", "close")
 
 
 def main(argv: list[str] | None = None) -> int:

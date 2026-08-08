@@ -221,11 +221,9 @@ def simulate_single_asset_price_only(
     lot_size: int = 0,
 ) -> list[CurvePoint]:
     """Simula no OHLC split-normalizado e ignora todos os proventos em dinheiro."""
-    return simulate_single_asset_raw_events(
+    return simulate_single_asset(
         candles,
         signals,
-        {},
-        {},
         initial_cash=initial_cash,
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
@@ -342,10 +340,8 @@ def simulate_buy_and_hold_price_only(
     lot_size: int = 0,
 ) -> list[CurvePoint]:
     """Compra e segura no OHLC split-normalizado, sem dividendos ou JCP."""
-    return simulate_buy_and_hold_raw_events(
+    return simulate_buy_and_hold(
         candles,
-        {},
-        {},
         initial_cash=initial_cash,
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
@@ -563,8 +559,10 @@ def _apply_action(
 
     dividend_cash = shares * action.dividend
     cash += dividend_cash
-    # Canonical raw_* prices are already normalized to one split basis. Applying
-    # the ratio to shares here would count the same corporate action twice.
+    # raw_* preserves the official per-share quotation without split
+    # normalization. Keep the position economically continuous by applying the
+    # same quantity-changing ratio recorded in the corporate-action ledger.
+    shares *= action.split_ratio
     return shares, cash, dividend_cash, action.split_ratio
 
 

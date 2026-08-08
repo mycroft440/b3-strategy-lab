@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -19,7 +20,7 @@ from scripts.organize_market_data import (
 
 
 class HeikinAshiTests(unittest.TestCase):
-    def test_uses_verified_raw_ohlc_not_provisional_adjusted_prices(self) -> None:
+    def test_preserves_raw_and_split_normalized_heikin_ashi_bases(self) -> None:
         candle = Candle(
             date="2024-01-02",
             ticker="TEST3",
@@ -42,12 +43,12 @@ class HeikinAshiTests(unittest.TestCase):
         result = to_heikin_ashi([candle])
 
         self.assertEqual(len(result), 1)
-        self.assertAlmostEqual(result[0].open, 9.0)
-        self.assertAlmostEqual(result[0].high, 12.0)
-        self.assertAlmostEqual(result[0].low, 6.0)
-        self.assertAlmostEqual(result[0].close, 9.0)
+        self.assertAlmostEqual(result[0].open, 4.5)
+        self.assertAlmostEqual(result[0].high, 6.0)
+        self.assertAlmostEqual(result[0].low, 3.0)
+        self.assertAlmostEqual(result[0].close, 4.5)
         self.assertAlmostEqual(result[0].raw_close, 9.0)
-        self.assertEqual(result[0].adjustment_factor, 1.0)
+        self.assertEqual(result[0].adjustment_factor, 0.5)
 
 
 class QuarantineTests(unittest.TestCase):
@@ -136,6 +137,24 @@ class InventoryTests(unittest.TestCase):
             action_file = save_actions([], root / "actions" / "test3_actions.csv")
             archive_file = root / "COTAHIST_A2024.ZIP"
             archive_file.write_bytes(b"official fixture")
+            split_evidence = root / "split_evidence.json"
+            split_evidence.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "coverage_start": "2024-01-01",
+                        "ticker_reviews": [
+                            {
+                                "ticker": "TEST3",
+                                "source_authority": "B3",
+                                "source_url": "https://example.test/b3-official",
+                            }
+                        ],
+                        "events": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
             manifests_dir = root / "manifests"
             write_manifest(
                 create_manifest(
@@ -144,6 +163,7 @@ class InventoryTests(unittest.TestCase):
                     candles_path=candle_file,
                     actions_path=action_file,
                     source_archives=[source_archive(archive_file, 2024)],
+                    split_evidence_path=split_evidence,
                 ),
                 manifest_path("TEST3", "1d", manifests_dir),
             )

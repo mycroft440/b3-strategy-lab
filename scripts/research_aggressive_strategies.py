@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import argparse
 import sys
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from itertools import product
 from pathlib import Path
 
@@ -103,12 +103,12 @@ def main(argv: list[str] | None = None) -> int:
     suffix = args.suffix
     _write_rows(
         screen_rows,
-        REPORTS_DIR / f"aggressive_strategy_screen_70_30_price_only_raw_1d{suffix}.csv",
+        REPORTS_DIR / f"aggressive_strategy_screen_70_30_price_only_adjusted_1d{suffix}.csv",
     )
     _write_rows(
         train_test_rows,
         REPORTS_DIR
-        / f"aggressive_strategy_train_selected_price_only_raw_1d{suffix}.csv",
+        / f"aggressive_strategy_train_selected_price_only_adjusted_1d{suffix}.csv",
     )
     _print_top("TOP screening 70/30 por CAGR da estrategia", screen_rows, limit=30)
     _print_top("TOP train-selected 70/30 por CAGR da estrategia", train_test_rows, limit=30)
@@ -224,18 +224,7 @@ def _strategy_grids() -> dict[str, list[dict]]:
 
 
 def _signal_candles(candles):
-    return [
-        replace(
-            candle,
-            open=candle.raw_open,
-            high=candle.raw_high,
-            low=candle.raw_low,
-            close=candle.raw_close,
-            adj_close=candle.raw_close,
-            adjustment_factor=1.0,
-        )
-        for candle in candles
-    ]
+    return candles
 
 
 def _window_context(candles):
