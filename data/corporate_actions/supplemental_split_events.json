@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "coverage_start": "2017-01-01",
+  "scope": "Eventos de quantidade de acoes ausentes na resposta corrente de GetListedSupplementCompany da B3, reconciliados com o calendario e os marcadores EB/EG do COTAHIST.",
+  "events": [
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2017-05-02",
+      "last_date_prior": "2017-04-28",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2018-04-02",
+      "last_date_prior": "2018-03-29",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2019-04-01",
+      "last_date_prior": "2019-03-29",
+      "split_ratio": 1.2,
+      "event": "BONIFICACAO 20%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2020-04-14",
+      "last_date_prior": "2020-04-13",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "BBDC3",
+      "ex_date": "2021-04-19",
+      "last_date_prior": "2021-04-16",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.bradescori.com.br/informacoes-ao-mercado/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "CMIG4",
+      "ex_date": "2020-08-03",
+      "last_date_prior": "2020-07-31",
+      "split_ratio": 1.04113103206,
+      "event": "BONIFICACAO 4.113103206%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cemig.com.br/docs/cemig-2020-07-31-cF7nPPwd.pdf"
+    },
+    {
+      "ticker": "CMIG4",
+      "ex_date": "2021-05-03",
+      "last_date_prior": "2021-04-30",
+      "split_ratio": 1.11496899948,
+      "event": "BONIFICACAO 11.496899948%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cemig.com.br/docs/cemig-2021-04-30-BqtWWz6G.pdf"
+    },
+    {
+      "ticker": "CMIG4",
+      "ex_date": "2022-05-02",
+      "last_date_prior": "2022-04-29",
+      "split_ratio": 1.3,
+      "event": "BONIFICACAO 30%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cemig.com.br/docs/cemig-2022-04-29-dmBmtncR.pdf"
+    },
+    {
+      "ticker": "EGIE3",
+      "ex_date": "2018-12-12",
+      "last_date_prior": "2018-12-11",
+      "split_ratio": 1.25,
+      "event": "BONIFICACAO 25%",
+      "source_authority": "issuer",
+      "source_url": "https://www.engie.com.br/ri_avisos_acionistas/aviso-aos-acionistas-aprovacao-do-aumento-de-capital-com-bonificacao-de-acoes/"
+    },
+    {
+      "ticker": "GGBR3",
+      "ex_date": "2023-03-22",
+      "last_date_prior": "2023-03-21",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.gerdau.com/informacoes-ao-mercado/dividendos-e-jcp/"
+    },
+    {
+      "ticker": "ITSA4",
+      "ex_date": "2018-06-01",
+      "last_date_prior": "2018-05-30",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.itausa.com.br/informacoes-financeiras/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "ITSA4",
+      "ex_date": "2021-12-21",
+      "last_date_prior": "2021-12-20",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.itausa.com.br/informacoes-financeiras/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "ITSA4",
+      "ex_date": "2022-11-11",
+      "last_date_prior": "2022-11-10",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.itausa.com.br/informacoes-financeiras/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "ITSA4",
+      "ex_date": "2023-11-28",
+      "last_date_prior": "2023-11-27",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.itausa.com.br/informacoes-financeiras/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "ITSA4",
+      "ex_date": "2024-12-03",
+      "last_date_prior": "2024-12-02",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.itausa.com.br/informacoes-financeiras/remuneracao-aos-acionistas/"
+    },
+    {
+      "ticker": "ITUB4",
+      "ex_date": "2025-03-18",
+      "last_date_prior": "2025-03-17",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://www.itau.com.br/download-file/v2/d/42787847-4cf6-4461-94a5-40ed237dca33/381dd2fe-c509-52de-0470-bca329d4449b"
+    },
+    {
+      "ticker": "KLBN11",
+      "ex_date": "2024-05-07",
+      "last_date_prior": "2024-05-06",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://api.mziq.com/mzfilemanager/v2/d/1c41fa99-efe7-4e72-81dd-5b571f5aa376/fd90e202-dd0a-cb9b-acde-c748d37dff52?origin=1"
+    },
+    {
+      "ticker": "LREN3",
+      "ex_date": "2017-05-04",
+      "last_date_prior": "2017-05-03",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.lojasrenner.com.br/info-aos-investidores/eventos-societarios/"
+    },
+    {
+      "ticker": "LREN3",
+      "ex_date": "2019-05-02",
+      "last_date_prior": "2019-04-30",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.lojasrenner.com.br/info-aos-investidores/eventos-societarios/"
+    },
+    {
+      "ticker": "LREN3",
+      "ex_date": "2021-11-05",
+      "last_date_prior": "2021-11-04",
+      "split_ratio": 1.1,
+      "event": "BONIFICACAO 10%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.lojasrenner.com.br/info-aos-investidores/eventos-societarios/"
+    },
+    {
+      "ticker": "MGLU3",
+      "ex_date": "2017-09-05",
+      "last_date_prior": "2017-09-04",
+      "split_ratio": 8.0,
+      "event": "DESDOBRAMENTO 1 PARA 8",
+      "source_authority": "issuer",
+      "source_url": "https://ri.magazineluiza.com.br/Download.aspx?Arquivo=mmuYbMSSKX0KfAqNYBjp0A%3D%3D"
+    },
+    {
+      "ticker": "MGLU3",
+      "ex_date": "2019-08-06",
+      "last_date_prior": "2019-08-05",
+      "split_ratio": 8.0,
+      "event": "DESDOBRAMENTO 1 PARA 8",
+      "source_authority": "issuer",
+      "source_url": "https://ri.magazineluiza.com.br/Download/AvisoAcionistas_Desdobramento_20190801?=RDutt2DB3k+iPhqUME%2FAYw%3D%3D"
+    },
+    {
+      "ticker": "RADL3",
+      "ex_date": "2023-05-22",
+      "last_date_prior": "2023-05-19",
+      "split_ratio": 1.04,
+      "event": "BONIFICACAO 4%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.rdsaude.com.br/Download.aspx?Arquivo=HFkRorg9OyPF+k5NkdNbXw%3D%3D&IdCanal=Yo0TaGLSa40VSizz7Yj01Q%3D%3D&linguagem=pt"
+    },
+    {
+      "ticker": "RENT3",
+      "ex_date": "2017-05-03",
+      "last_date_prior": "2017-05-02",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "CVM",
+      "source_url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?CodigoInstituicao=1&Tela=ext&descTipo=IPE&numProtocolo=563154"
+    },
+    {
+      "ticker": "RENT3",
+      "ex_date": "2019-12-23",
+      "last_date_prior": "2019-12-20",
+      "split_ratio": 1.05,
+      "event": "BONIFICACAO 5%",
+      "source_authority": "CVM",
+      "source_url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?CodigoInstituicao=1&Tela=ext&descTipo=IPE&numProtocolo=726157"
+    }
+  ]
+}

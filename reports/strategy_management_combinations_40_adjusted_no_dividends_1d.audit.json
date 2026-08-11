@@ -1,0 +1,28 @@
+{
+  "annual_report": "reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top5_annual.md",
+  "annual_report_sha256": "2e640f96e81d608de2b87039a990341e6965575b706e811a3c4c943e4483c502",
+  "checks": {
+    "all_numeric_metrics_are_finite": true,
+    "all_rows_match_manifest_window": true,
+    "annual_report_top5_matches_csv": true,
+    "dataset_hashes_match": true,
+    "full_cartesian_product_is_present": true,
+    "rank_is_sequential": true,
+    "ranking_is_total_return_then_cagr_desc": true,
+    "row_count_matches_manifest": true,
+    "source_hashes_match": true,
+    "split_evidence_hash_matches": true,
+    "strategy_management_pairs_are_unique": true,
+    "total_return_matches_equity_ratio": true,
+    "universe_hash_matches": true
+  },
+  "generated_at_utc": "2026-08-11T20:26:39+00:00",
+  "management_count": 478,
+  "manifest": "reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json",
+  "manifest_sha256": "91e6f9e7808dce24f442f19ae2a9ce6b8913a238fa5a0613f7c033fa48f61ab4",
+  "ready": true,
+  "results": "reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz",
+  "results_sha256": "975f663bf82278a6d54eec929843d9d3bbc3d231afe602d3ceb70eb22e0e99aa",
+  "rows": 90820,
+  "strategy_count": 190
+}

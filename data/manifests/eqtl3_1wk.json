@@ -1,0 +1,96 @@
+{
+  "adjustment_method": "split normalization only; dividends and JCP ignored; no tax; no fees",
+  "candle_sha256": "a8001693a867f118daaeef2eea8f972e961e2bc62089764c5d3cf003de33b190",
+  "corporate_action_source": "B3 Listed Companies plus issuer/CVM historical share-count events; cash distributions excluded or retained only as unverified legacy evidence",
+  "corporate_action_status": "unverified",
+  "end": "2026-08-10",
+  "generated_at_utc": "2026-08-11T19:42:15+00:00",
+  "interval": "1wk",
+  "price_basis": "B3 official raw per-share OHLC retained in raw_*; open/high/low/close normalized for splits; cash distributions excluded",
+  "price_source": "B3_COTAHIST",
+  "rows": 502,
+  "schema_version": 5,
+  "source_archives": [
+    {
+      "filename": "COTAHIST_A2017.ZIP",
+      "sha256": "af6aaa85187c1d58ec6565522644066da573a7dc5b579c1d4c906ae95a2dea86",
+      "size_bytes": 16527191,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2017.ZIP",
+      "year": 2017
+    },
+    {
+      "filename": "COTAHIST_A2018.ZIP",
+      "sha256": "9d66136179d9822476c6035000167aecf2665f4396619e4d74c0011745a0c507",
+      "size_bytes": 19488404,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2018.ZIP",
+      "year": 2018
+    },
+    {
+      "filename": "COTAHIST_A2019.ZIP",
+      "sha256": "5170d3f8f079c3306424b36c2fae9b467391f8fa37d16d389f487b4c5c28edb9",
+      "size_bytes": 26650371,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2019.ZIP",
+      "year": 2019
+    },
+    {
+      "filename": "COTAHIST_A2020.ZIP",
+      "sha256": "86442168939b9da7b3cc1ec1662c333ee5ab4c75f2be1865b5bf55ba4c52168f",
+      "size_bytes": 37181542,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2020.ZIP",
+      "year": 2020
+    },
+    {
+      "filename": "COTAHIST_A2021.ZIP",
+      "sha256": "b0d4aed17d609c7ba615a23320c2fd513b580a251ae7d884a5015ef8a3fe4705",
+      "size_bytes": 49678679,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2021.ZIP",
+      "year": 2021
+    },
+    {
+      "filename": "COTAHIST_A2022.ZIP",
+      "sha256": "a4f9015b755f797d9c08b0d13f19dbfab18a6c75f379c0271a1cf1b5f6323cd8",
+      "size_bytes": 58597842,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2022.ZIP",
+      "year": 2022
+    },
+    {
+      "filename": "COTAHIST_A2023.ZIP",
+      "sha256": "ad1603788d78aaa1de806498572277f1d9443f88ae116452751b5800cb23523e",
+      "size_bytes": 70216090,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2023.ZIP",
+      "year": 2023
+    },
+    {
+      "filename": "COTAHIST_A2024.ZIP",
+      "sha256": "96a003d10fab0fa2ace0c64cdc2b892b4c111adf9da8e538aa0b28437bd2a172",
+      "size_bytes": 79261198,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2024.ZIP",
+      "year": 2024
+    },
+    {
+      "filename": "COTAHIST_A2025.ZIP",
+      "sha256": "6cc0ad851c8f605ca30418acac48be81f1767f6ed05b4f563772d06ae448047d",
+      "size_bytes": 89056788,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2025.ZIP",
+      "year": 2025
+    },
+    {
+      "filename": "COTAHIST_A2026.ZIP",
+      "sha256": "0c059839f923af0c525064e1ea66a92e9b07327945a26a8f2f42ab684933292a",
+      "size_bytes": 68562434,
+      "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2026.ZIP",
+      "year": 2026
+    }
+  ],
+  "split_action_source": "B3 official records and issuer investor-relations evidence",
+  "split_action_status": "verified",
+  "split_actions_sha256": "85df921a13e1d2e65d84731a1672dec7e76402ec1f422f62661e2c22eb8e4286",
+  "split_evidence_sha256": "e5de864393c7801e42038e1d255efc4512437c45088ba5767cf06bd3cb510b40",
+  "split_verified_from": "2017-01-01",
+  "start": "2017-01-02",
+  "status": "price_verified",
+  "ticker": "EQTL3",
+  "validation_issues": [],
+  "warning_reviews": [],
+  "warnings": []
+}

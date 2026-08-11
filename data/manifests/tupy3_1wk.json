@@ -1,14 +1,14 @@
 {
   "adjustment_method": "split normalization only; dividends and JCP ignored; no tax; no fees",
-  "candle_sha256": "aceb7ef6efcf8f1c472afea65e898212e6b36be37f64aacfdf82a3e22949026c",
-  "corporate_action_source": "Yahoo Chart cash events (legacy, not certified)",
+  "candle_sha256": "b30f5fc51a3dee52eb4de5ff860e8591197d4b998565ba1d3ec243ff475bee41",
+  "corporate_action_source": "B3 Listed Companies plus issuer/CVM historical share-count events; cash distributions excluded or retained only as unverified legacy evidence",
   "corporate_action_status": "unverified",
-  "end": "2026-07-27",
-  "generated_at_utc": "2026-08-03T03:04:22+00:00",
+  "end": "2026-08-10",
+  "generated_at_utc": "2026-08-11T19:42:19+00:00",
   "interval": "1wk",
   "price_basis": "B3 official raw per-share OHLC retained in raw_*; open/high/low/close normalized for splits; cash distributions excluded",
   "price_source": "B3_COTAHIST",
-  "rows": 1154,
+  "rows": 1156,
   "schema_version": 5,
   "source_archives": [
     {
@@ -195,8 +195,8 @@
     },
     {
       "filename": "COTAHIST_A2026.ZIP",
-      "sha256": "3749f3dd3c39bd74940033ef9f8e1129f149730ef4a94946d22c463b6642e8a8",
-      "size_bytes": 68685687,
+      "sha256": "0c059839f923af0c525064e1ea66a92e9b07327945a26a8f2f42ab684933292a",
+      "size_bytes": 68562434,
       "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2026.ZIP",
       "year": 2026
     }
@@ -204,7 +204,7 @@
   "split_action_source": "B3 official records and issuer investor-relations evidence",
   "split_action_status": "verified",
   "split_actions_sha256": "a9cfa256d36148d245c31ec139bb505b6b4d2b1a661ce3d9a6a82d867bc2436f",
-  "split_evidence_sha256": "b9cea32f4c2ac5bda0f3b1f3bb79ffc1e85750f9194ed1797070675a590fac29",
+  "split_evidence_sha256": "e5de864393c7801e42038e1d255efc4512437c45088ba5767cf06bd3cb510b40",
   "split_verified_from": "2017-01-01",
   "start": "2000-12-11",
   "status": "price_verified",
@@ -212,11 +212,11 @@
   "validation_issues": [],
   "warning_reviews": [
     {
-      "evidence": "Confirmado no COTAHIST_A2001.ZIP da B3 (SHA-256 0386ca1b80d207ef9876fe64c2d48e9af1b827b3ecc0365c0e99db5cacf20eb5): um unico negocio de 100.000 acoes antigas, preco 0,018 e volume financeiro R$ 1.800. Movimento aceito como negocio oficial de ativo iliquido.",
+      "evidence": "Confirmado em arquivo COTAHIST oficial registrado no manifesto: fechamento bruto anterior R$ 0.0106, fechamento bruto atual R$ 0.018, 1 negocios e volume financeiro R$ 1800.00. Registro oficial mantido sem reparo sintetico.",
       "warning": "TUPY3 2001-01-30: variacao de fechamento sem split de 69.81%."
     },
     {
-      "evidence": "Confirmado no COTAHIST_A2001.ZIP da B3 (SHA-256 0386ca1b80d207ef9876fe64c2d48e9af1b827b3ecc0365c0e99db5cacf20eb5): um unico negocio de 100.000 acoes antigas, preco 0,0235 e volume financeiro R$ 2.350. Movimento aceito como negocio oficial de ativo iliquido.",
+      "evidence": "Confirmado em arquivo COTAHIST oficial registrado no manifesto: fechamento bruto anterior R$ 0.015, fechamento bruto atual R$ 0.0235, 1 negocios e volume financeiro R$ 2350.00. Registro oficial mantido sem reparo sintetico.",
       "warning": "TUPY3 2001-02-01: variacao de fechamento sem split de 56.67%."
     }
   ],

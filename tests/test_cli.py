@@ -5,7 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from b3_strategy_lab.cli import _actions_for_candles, _load_or_fetch_for_backtest
+from b3_strategy_lab.cli import (
+    _actions_for_candles,
+    _load_or_fetch_for_backtest,
+    _signal_candles,
+)
 from b3_strategy_lab.candles import (
     DEFAULT_ACTIONS_DIR,
     DEFAULT_DATA_DIR,
@@ -45,6 +49,33 @@ def candle(day: str, open_: float, close: float) -> Candle:
 
 
 class CliWindowTests(unittest.TestCase):
+    def test_signal_modes_keep_price_and_volume_on_the_same_basis(self) -> None:
+        original = Candle(
+            date="2024-01-02",
+            ticker="TEST3",
+            source_symbol="TEST3",
+            open=10.0,
+            high=11.0,
+            low=9.0,
+            close=10.5,
+            adj_close=10.5,
+            volume=3_000,
+            raw_open=30.0,
+            raw_high=33.0,
+            raw_low=27.0,
+            raw_close=31.5,
+            adjustment_factor=1 / 3,
+            raw_volume=1_000,
+        )
+
+        adjusted = _signal_candles([original], "adjusted")[0]
+        raw = _signal_candles([original], "raw")[0]
+
+        self.assertIs(adjusted, original)
+        self.assertEqual((adjusted.close, adjusted.volume), (10.5, 3_000))
+        self.assertEqual((raw.close, raw.volume), (31.5, 1_000))
+        self.assertEqual(raw.adjustment_factor, 1.0)
+
     def test_weekly_action_filter_keeps_actions_inside_last_weekly_candle(self) -> None:
         candles = [
             candle("2024-01-01", 100.0, 100.0),

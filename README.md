@@ -1,8 +1,9 @@
 # B3 Strategy Lab
 
 Laboratorio para testar estrategias compradas por ativo e combina-las com
-gerenciamentos de carteira sobre BBSE3, BBDC3, CSMG3, FLRY3, GGBR3, IRBR3,
-JHSF3, LOGG3, MLAS3, PETR4, TUPY3 e VALE3.
+gerenciamentos de carteira. O universo verificado padrao possui 40 acoes da B3:
+as 10 originais mais 30 adicoes liquidas, com dados diarios de 2018 ate o ultimo
+pregao fechado e aquecimento desde 2017.
 
 ## Fonte e candles
 
@@ -13,17 +14,40 @@ alteram a quantidade de acoes. Dividendos e JCP ficam excluidos.
 
 Cada manifesto registra hashes dos candles, dos eventos e dos ZIPs de origem.
 As razoes de split usadas no periodo padrao estao ligadas a evidencias oficiais
-da B3 ou do RI do emissor. A metodologia, os campos e as alternativas oficiais
-gratuitas estao em [docs/data_provenance.md](docs/data_provenance.md).
+da B3, da CVM ou do RI do emissor. A metodologia, os campos e as alternativas
+oficiais gratuitas estao em
+[docs/data_provenance.md](docs/data_provenance.md).
 
 ## Comandos
 
-Construir ou atualizar a base oficial diaria e semanal:
+Sincronizar o universo de 40 acoes, a base oficial diaria/semanal e os eventos
+que alteram a quantidade de acoes:
 
 ```powershell
-python scripts\build_verified_market_data.py --years 2000:2026 --download
+python scripts\sync_official_universe.py --download --refresh-current --refresh-actions --refresh-selection
 python -m b3_strategy_lab verify-data --interval 1d
+python scripts\audit_volume_indicators.py
 ```
+
+O sincronizador usa o COTAHIST e o cadastro de eventos corporativos da propria
+B3, cruza os eventos por ISIN, exclui o dia corrente e grava hashes das fontes.
+Como a resposta corrente da B3 omite parte do historico, 25 eventos desde 2017
+foram recuperados de documentos oficiais dos emissores/CVM no registro
+`supplemental_split_events.json`. A sincronizacao so termina se todos os
+marcadores `EB/EG` do COTAHIST estiverem cobertos.
+O arquivo [universe_40_selection_2018.csv](reports/universe_40_selection_2018.csv)
+reproduz o ranking usado para escolher as 30 adicoes.
+Como esse ranking usa o volume do ano completo de 2018 e a matriz comeca em
+2 de janeiro, o manifesto declara explicitamente o vies de selecao; o filtro de
+continuidade ate a atualizacao tambem produz vies de sobrevivencia.
+
+O auditor de volume verifica `QUATOT`, `TOTNEG` e `VOLTOT` em todos os pregoes,
+confere a normalizacao inversa de preco e quantidade nos eventos de capital e
+executa testes de causalidade para todas as 17 estrategias que usam volume. Isso
+inclui MFI, Chaikin Money Flow, Elder Force Index, Ease of Movement, Negative
+Volume Index, Klinger e os filtros de volume dos rompimentos. O resultado
+reproduzivel tambem exige a cobertura dos eventos que mudam a quantidade e fica em
+[volume_indicator_audit_40.json](reports/volume_indicator_audit_40.json).
 
 `python -m b3_strategy_lab fetch` usa Yahoo apenas como fonte legada e grava em
 `data/legacy`; esses arquivos nao entram no backtest verificado.
@@ -105,7 +129,8 @@ python scripts\organize_strategies.py
 
 ## Matriz de estrategia e gerenciamento
 
-O executor combina sinais de elegibilidade com 478 gerenciamentos de carteira.
+O executor aplica todas as estrategias e indicadores aos 40 ativos e combina
+os sinais de elegibilidade com 478 gerenciamentos de carteira.
 Ele usa sinal no fechamento, execucao na abertura seguinte, OHLC normalizado
 somente por splits e exclui dividendos/JCP. O historico de indicadores das
 estrategias e dos gerenciamentos comeca no aquecimento certificado em
@@ -116,7 +141,22 @@ entra normalmente na matriz. Uma execucao integral atual cruza 190 x 478 =
 
 ```powershell
 python scripts\backtest_strategy_management_combinations.py
+python scripts\audit_matrix_results.py
 ```
+
+O ranking atual dos 40 ativos, calculado de 2018-01-02 a 2026-08-10 depois da
+reconciliacao integral de preco e volume, esta nestes artefatos:
+
+- [ranking completo das 90.820 combinacoes (CSV gzip)](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz);
+- [manifesto da execucao](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json);
+- [auditoria matematica e de hashes](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json);
+- [retornos anuais das cinco melhores](reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top5_annual.md).
+
+A primeira colocada foi `gap_momentum` com
+`top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted`:
+retorno total de 3.116,89%, CAGR de 49,70% e drawdown maximo de -56,39%.
+Custos, impostos e slippage sao zero nessa execucao; o universo fixo declara
+explicitamente os vieses de selecao e sobrevivencia.
 
 Para testar somente Buy and Hold contra todos os gerenciamentos:
 
@@ -124,10 +164,11 @@ Para testar somente Buy and Hold contra todos os gerenciamentos:
 python scripts\backtest_strategy_management_combinations.py --strategies buy_and_hold --output reports\buy_and_hold_managements_adjusted_no_dividends_1d.csv
 ```
 
-Artefatos atuais de Buy & Hold, calculados de 2018-01-02 a 2026-07-31:
+Os artefatos de Buy & Hold abaixo sao o recorte historico anterior de 10 ativos,
+calculado de 2018-01-02 a 2026-07-31:
 
 - [ranking dos 478 gerenciamentos](reports/buy_and_hold_managements_adjusted_no_dividends_1d.csv);
-- [manifesto com hashes dos dez datasets e do universo](reports/buy_and_hold_managements_adjusted_no_dividends_1d.manifest.json);
+- [manifesto com hashes dos dez datasets e do universo anterior](reports/buy_and_hold_managements_adjusted_no_dividends_1d.manifest.json);
 - [retornos anuais das cinco melhores combinacoes](reports/buy_and_hold_managements_adjusted_no_dividends_1d_top5_annual.md).
 
 A melhor combinacao deste recorte foi `buy_and_hold` com
@@ -158,7 +199,9 @@ Arquivos gerados:
 - `data/candles/<ticker>_1d.csv`: candles COTAHIST brutos e normalizados por splits.
 - `data/manifests/<ticker>_<intervalo>.json`: hashes, fontes, janela e status de verificacao.
 - `data/corporate_actions/split_evidence.json`: evidencia oficial dos splits desde 2017.
-- `data/universes/fixed_2018.json`: universo, data de selecao e declaracao de vies.
+- `data/corporate_actions/supplemental_split_events.json`: eventos historicos ausentes na resposta corrente da B3, com fontes oficiais do emissor/CVM.
+- `data/universes/fixed_40_2018.json`: universo padrao de 40 acoes, criterio de selecao e declaracao de vies.
+- `data/universes/fixed_2018.json`: universo anterior de 10 acoes, preservado para reproduzir relatorios antigos.
 - `data/heikin_ashi/<ticker>_1d.csv`: candles Heikin Ashi derivados nas duas bases de preco.
 - `data/yearly/<ano>/candles/<intervalo>/<ticker>_<intervalo>.csv`: candles separados por ano.
 - `data/yearly/<ano>/heikin_ashi/<intervalo>/<ticker>_<intervalo>.csv`: Heikin Ashi separado por ano.
@@ -167,7 +210,10 @@ Arquivos gerados:
 - `reports/summary_<strategy>_1d.csv`: resumo por ticker.
 - `reports/summary_<strategy>_<price_mode>_<signal_mode>_<intervalo>_by_year.csv`: resumo de backtest ano a ano.
 - `reports/yearly_data_status.csv`: inventario dos arquivos anuais.
-- `reports/backtest_data_audit.json`: alinhamento das sessoes, metadados e cobertura dos splits no universo da matriz.
+- `reports/universe_40_selection_2018.csv`: ranking de liquidez, presenca anual e selecao das 30 adicoes.
+- `reports/backtest_data_audit_40.json`: alinhamento das sessoes, metadados e cobertura dos splits no universo da matriz.
+- `reports/volume_indicator_audit_40.json`: inventario e testes de todos os leitores de volume.
+- `reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json`: cardinalidade, ordenacao, identidades matematicas e hashes da matriz completa.
 - `reports/strategy_inventory.csv`: inventario das estrategias, familias e parametros padrao.
 - `reports/<ticker>_<strategy>_1d_equity.csv`: curva da estrategia e do buy and hold.
 - `reports/sweep_<strategy>_1d.csv`: ranking de parametros testados.
@@ -243,7 +289,7 @@ fechamento de hoje e comprar no proprio fechamento de hoje.
 - `price-mode price_only` e `adjusted` usam OHLC COTAHIST normalizado somente por splits; nao representam retorno total.
 - `price-mode raw_events` usa OHLC COTAHIST bruto e exige eventos corporativos completos; fica bloqueado enquanto dividendos/JCP estiverem `unverified`.
 - `signal-mode adjusted` e o padrao seguro. `signal-mode raw` preserva saltos de escala de splits e serve apenas para diagnostico.
-- O universo fixo da matriz declara `survivorship_safe=false`; o resultado pode conter vies de selecao e sobrevivencia.
+- O universo de 40 acoes declara `survivorship_safe=false`: exigir continuidade ate a data atual usa informacao futura e introduz vies de sobrevivencia.
 - A certificacao atual de splits comeca em 2017. Periodos anteriores nao tem o mesmo nivel de garantia.
 - Custos e slippage devem ser ligados antes de comparar contra buy and hold.
 - Impostos, aluguel, emolumentos e restricoes de liquidez nao sao modelados por padrao.

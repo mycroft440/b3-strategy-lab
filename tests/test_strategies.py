@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import date, timedelta
 
-from b3_strategy_lab.additional_strategies import ADDITIONAL_STRATEGIES
+from b3_strategy_lab.additional_strategies import ADDITIONAL_STRATEGIES, _mfi
 from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
 from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
@@ -37,6 +37,20 @@ def candle(day: int, open_: float, high: float, low: float, close: float, volume
 
 
 class StrategyInterfaceTests(unittest.TestCase):
+    def test_mfi_uses_typical_price_times_volume_in_its_rolling_ratio(self) -> None:
+        candles = [
+            candle(1, 10, 10, 10, 10, volume=100),
+            candle(2, 11, 11, 11, 11, volume=200),
+            candle(3, 10, 10, 10, 10, volume=300),
+            candle(4, 12, 12, 12, 12, volume=400),
+        ]
+
+        values = _mfi(candles, period=3)
+
+        self.assertEqual(values[:2], [None, None])
+        self.assertAlmostEqual(values[2], 100 - 100 / (1 + 2_200 / 3_000))
+        self.assertAlmostEqual(values[3], 70.0)
+
     def test_complete_catalog_preserves_168_and_adds_21_buy_strategies(self) -> None:
         self.assertEqual(len(ADDITIONAL_STRATEGIES), 130)
         self.assertEqual(len(RESEARCHED_STRATEGIES), 12)

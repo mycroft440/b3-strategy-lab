@@ -17,8 +17,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Audita alinhamento e proveniencia do universo padrao de backtest."
     )
-    parser.add_argument("--universe", type=Path, default=Path("data/universes/fixed_2018.json"))
-    parser.add_argument("--output", type=Path, default=Path("reports/backtest_data_audit.json"))
+    parser.add_argument("--universe", type=Path, default=Path("data/universes/fixed_40_2018.json"))
+    parser.add_argument("--output", type=Path, default=Path("reports/backtest_data_audit_40.json"))
     args = parser.parse_args(argv)
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))

@@ -26,12 +26,35 @@ Os CSVs canonicos preservam duas bases diferentes:
 Dividendos e JCP nao entram na serie normalizada. Custos, impostos e slippage
 tambem ficam fora, salvo quando informados explicitamente no simulador.
 
+O ajuste de quantidade e inverso ao de preco: se um evento multiplica a
+quantidade de acoes, os precos anteriores sao divididos e o `volume` anterior e
+multiplicado pela mesma razao. Assim, `preco tipico * volume` permanece na mesma
+base economica, salvo o arredondamento da quantidade inteira. Todos os
+indicadores de volume usam essa base normalizada no modo `adjusted`; no modo
+`raw`, usam conjuntamente OHLC bruto e `raw_volume`.
+
+`scripts/audit_volume_indicators.py` inventaria por codigo todos os leitores de
+volume e audita MFI, Chaikin Money Flow, Elder Force Index, Ease of Movement,
+Negative Volume Index, Klinger Volume Oscillator e os filtros de volume de
+Chandelier/Range Expansion: 17 estrategias ao todo. O relatorio tambem lista,
+sem alterar os dados, eventuais inconsistencias internas do proprio COTAHIST
+entre `VOLTOT/QUATOT` e o intervalo `PREMIN-PREMAX`.
+
 ## Eventos que alteram a quantidade de acoes
 
 O arquivo `data/corporate_actions/split_evidence.json` registra a evidencia
 usada desde 2017. As fontes sao o servico de companhias listadas da B3 e as
-paginas oficiais de relacoes com investidores dos emissores. Cada evento tem
-razao, ultima data com direito, primeiro pregao ex e URL da fonte.
+paginas oficiais de relacoes com investidores dos emissores ou documentos IPE
+da CVM. Cada evento tem razao, ultima data com direito, primeiro pregao ex e URL
+da fonte.
+
+A consulta corrente de companhias listadas da B3 nao devolve todo o historico.
+Por isso, `data/corporate_actions/supplemental_split_events.json` versiona 25
+eventos ausentes, sempre com fonte primaria do emissor ou da CVM. O construtor
+valida a data ex contra o primeiro pregao COTAHIST posterior a ultima data com
+direito, rejeita divergencias entre fontes e reconcilia todos os 59 inicios de
+marcador `EB/EG` observados desde 2017. Tambem registra o retorno bruto depois de
+neutralizar cada fator; a maior descontinuidade absoluta aceita e 35%.
 
 Na matriz padrao, tanto os indicadores das estrategias quanto os lookbacks dos
 gerenciamentos sao construidos apenas a partir desse inicio de cobertura. Isso
@@ -70,10 +93,15 @@ reinvestimento.
 
 ## Universo de ativos
 
-`data/universes/fixed_2018.json` torna explicita a lista usada na matriz, a data
-de selecao e o inicio do aquecimento. Ela e um universo fixo de pesquisa e
-declara `survivorship_safe=false`: nao representa todos os papeis que eram
-investiveis em cada data e pode carregar vies de selecao e sobrevivencia.
+`data/universes/fixed_40_2018.json` torna explicita a lista padrao usada na
+matriz, a data de selecao e o inicio do aquecimento. As 10 acoes originais foram
+mantidas; as 30 adicoes foram ranqueadas pelo volume financeiro oficial de 2018,
+com presenca minima de 95% em cada ano ate a atualizacao. O manifesto declara
+`survivorship_safe=false`: o ranking usa o ano completo de 2018 apesar de a
+avaliacao comecar em 2 de janeiro, o que cria vies de selecao, e a exigencia de
+continuidade usa informacao posterior, o que cria vies de sobrevivencia.
+`fixed_2018.json` permanece apenas para reproduzir os relatorios historicos do
+universo anterior.
 
 Uma analise sem esse vies precisa construir snapshots point-in-time com o
 cadastro historico B3/CVM, incluindo IPOs, mudancas de ticker, incorporacoes,
@@ -83,9 +111,12 @@ informacao disponivel em cada data.
 ## Reproducao
 
 ```powershell
-python scripts\build_verified_market_data.py --years 2000:2026 --download
+python scripts\sync_official_universe.py --download --refresh-current --refresh-actions --refresh-selection
 python -m b3_strategy_lab verify-data --interval 1d
 python -m b3_strategy_lab verify-data --interval 1wk
+python scripts\audit_volume_indicators.py
+python scripts\backtest_strategy_management_combinations.py --workers 8
+python scripts\audit_matrix_results.py
 python scripts\organize_market_data.py --quarantine-unverified
 ```
 

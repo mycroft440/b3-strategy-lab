@@ -1,14 +1,14 @@
 {
   "adjustment_method": "split normalization only; dividends and JCP ignored; no tax; no fees",
-  "candle_sha256": "4c27b53045f73c88ad1f3fc9b1ae674f7d4110844845f740142dd13d13181c39",
-  "corporate_action_source": "Yahoo Chart cash events (legacy, not certified)",
+  "candle_sha256": "6a8f86156adc1637008fc7b368dfde63dc37fa5ebef5869c9badbedc4230ed9d",
+  "corporate_action_source": "B3 Listed Companies plus issuer/CVM historical share-count events; cash distributions excluded or retained only as unverified legacy evidence",
   "corporate_action_status": "unverified",
-  "end": "2026-07-31",
-  "generated_at_utc": "2026-08-03T03:03:21+00:00",
+  "end": "2026-08-10",
+  "generated_at_utc": "2026-08-11T19:42:15+00:00",
   "interval": "1d",
   "price_basis": "B3 official raw per-share OHLC retained in raw_*; open/high/low/close normalized for splits; cash distributions excluded",
   "price_source": "B3_COTAHIST",
-  "rows": 5072,
+  "rows": 5078,
   "schema_version": 5,
   "source_archives": [
     {
@@ -195,16 +195,16 @@
     },
     {
       "filename": "COTAHIST_A2026.ZIP",
-      "sha256": "3749f3dd3c39bd74940033ef9f8e1129f149730ef4a94946d22c463b6642e8a8",
-      "size_bytes": 68685687,
+      "sha256": "0c059839f923af0c525064e1ea66a92e9b07327945a26a8f2f42ab684933292a",
+      "size_bytes": 68562434,
       "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2026.ZIP",
       "year": 2026
     }
   ],
   "split_action_source": "B3 official records and issuer investor-relations evidence",
   "split_action_status": "verified",
-  "split_actions_sha256": "38198891d5e76ad7758cb15e8667c7ca0c26039eedb9f1c37aa6259c780f4ea3",
-  "split_evidence_sha256": "b9cea32f4c2ac5bda0f3b1f3bb79ffc1e85750f9194ed1797070675a590fac29",
+  "split_actions_sha256": "ad7931e1543e935fe3e4b17722a19a5383623f3e868daea9cc3bd294e7f9adbe",
+  "split_evidence_sha256": "e5de864393c7801e42038e1d255efc4512437c45088ba5767cf06bd3cb510b40",
   "split_verified_from": "2017-01-01",
   "start": "2006-02-08",
   "status": "price_verified",

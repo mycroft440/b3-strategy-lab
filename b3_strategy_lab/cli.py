@@ -803,6 +803,7 @@ def _signal_candles(candles, signal_mode: str):
                 low=candle.raw_low,
                 close=candle.raw_close,
                 adj_close=candle.raw_close,
+                volume=candle.raw_volume,
                 adjustment_factor=1.0,
             )
             for candle in candles

@@ -137,7 +137,10 @@ class PortfolioCombinationTests(unittest.TestCase):
         self.assertEqual(universe["selected_as_of"], "2018-01-02")
         self.assertEqual(universe["warmup_start"], "2017-01-01")
         self.assertFalse(universe["survivorship_safe"])
-        self.assertEqual(len(universe["tickers"]), 10)
+        self.assertEqual(len(universe["tickers"]), 40)
+        self.assertEqual(len(universe["original_tickers"]), 10)
+        self.assertEqual(len(universe["added_tickers"]), 30)
+        self.assertTrue(set(universe["original_tickers"]).issubset(universe["tickers"]))
 
     def test_full_matrix_cli_does_not_advertise_unused_train_ratio(self) -> None:
         project_root = Path(__file__).resolve().parents[1]

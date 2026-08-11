@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import hashlib
+import io
 import json
+import os
 import subprocess
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,9 +37,10 @@ from scripts.research_portfolio_allocation import (  # noqa: E402
 INITIAL_CASH = 10_000.0
 DEFAULT_START = "2018-01-02"
 DEFAULT_REPORT = Path(
-    "reports/strategy_management_combinations_adjusted_no_dividends_1d_verified_v2.csv"
+    "reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz"
 )
-DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_2018.json")
+DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_40_2018.json")
+_WORKER_STATE: tuple | None = None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,6 +76,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--slippage-bps", type=float, default=0.0)
     parser.add_argument("--lot-size", type=int, default=1)
     parser.add_argument("--top", type=int, default=5)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Processos paralelos por estrategia; 1 preserva a execucao serial.",
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
@@ -83,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--lot-size nao pode ser negativo.")
     if args.top <= 0:
         parser.error("--top precisa ser maior que zero.")
+    if args.workers <= 0:
+        parser.error("--workers precisa ser maior que zero.")
+    if args.workers > (os.cpu_count() or 1):
+        parser.error("--workers nao pode exceder a quantidade de CPUs disponiveis.")
 
     universe = _load_universe(args.universe_manifest)
     manifest_tickers = [ticker.upper() for ticker in universe["tickers"]]
@@ -122,51 +137,52 @@ def main(argv: list[str] | None = None) -> int:
     started = time.perf_counter()
     rows: list[dict[str, object]] = []
 
-    for strategy_index, strategy in enumerate(strategies, start=1):
-        eligibility = signals_by_strategy[strategy]
-        params = strategy_parameters(strategy)
-        for config in configs:
-            summary, _ = run_portfolio(
-                data,
-                config,
-                start=args.start,
-                end=end,
-                initial_cash=args.initial_cash,
-                cost_bps=args.cost_bps,
-                slippage_bps=args.slippage_bps,
-                lot_size=args.lot_size,
-                eligibility=eligibility,
-                collect_curve=False,
+    if args.workers == 1:
+        for strategy_index, strategy in enumerate(strategies, start=1):
+            rows.extend(
+                _strategy_rows(
+                    data,
+                    configs,
+                    strategy,
+                    signals_by_strategy[strategy],
+                    strategy_parameters(strategy),
+                    start=args.start,
+                    end=end,
+                    initial_cash=args.initial_cash,
+                    cost_bps=args.cost_bps,
+                    slippage_bps=args.slippage_bps,
+                    lot_size=args.lot_size,
+                )
             )
-            rows.append(
-                {
-                    "trading_strategy": strategy,
-                    "strategy_params": _params_text(params),
-                    "management_strategy": config.name,
-                    "start": summary.start,
-                    "end": summary.end,
-                    "candles": summary.candles,
-                    "trades": summary.trades,
-                    "exposure": summary.exposure,
-                    "avg_positions": summary.avg_positions,
-                    "initial_equity": args.initial_cash,
-                    "final_equity": summary.final_equity,
-                    "total_return": summary.total_return,
-                    "cagr": summary.cagr,
-                    "average_annual_return": summary.average_annual_return,
-                    "max_drawdown": summary.max_drawdown,
-                    "annual_volatility": summary.annual_volatility,
-                    "sharpe": summary.sharpe,
-                    "turnover": summary.turnover,
-                }
-            )
-        completed = strategy_index * len(configs)
-        elapsed = time.perf_counter() - started
-        print(
-            f"{strategy_index}/{len(strategies)} estrategias; "
-            f"{completed}/{total} combinacoes; {elapsed:.1f}s",
-            flush=True,
+            _print_progress(strategy_index, len(strategies), len(configs), total, started)
+    else:
+        initargs = (
+            data,
+            configs,
+            args.start,
+            end,
+            args.initial_cash,
+            args.cost_bps,
+            args.slippage_bps,
+            args.lot_size,
         )
+        with ProcessPoolExecutor(
+            max_workers=args.workers,
+            initializer=_initialize_worker,
+            initargs=initargs,
+        ) as executor:
+            futures = {
+                executor.submit(
+                    _worker_strategy_rows,
+                    strategy,
+                    signals_by_strategy[strategy],
+                    strategy_parameters(strategy),
+                ): strategy
+                for strategy in strategies
+            }
+            for strategy_index, future in enumerate(as_completed(futures), start=1):
+                rows.extend(future.result())
+                _print_progress(strategy_index, len(strategies), len(configs), total, started)
 
     rows.sort(
         key=lambda row: (float(row["total_return"]), float(row["cagr"])),
@@ -190,10 +206,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     _write_results(rows, args.output)
-    annual_path = args.output.with_name(f"{args.output.stem}_top{args.top}_annual.md")
+    report_base = _report_base(args.output)
+    annual_path = report_base.with_name(f"{report_base.name}_top{args.top}_annual.md")
     _write_annual_report(annual_sections, annual_path)
     _write_manifest(
-        args.output.with_suffix(".manifest.json"),
+        report_base.with_suffix(".manifest.json"),
         args=args,
         tickers=tickers,
         strategies=strategies,
@@ -244,6 +261,122 @@ def _build_eligibility(
             by_ticker[ticker] = signals
         result[strategy] = by_ticker
     return result
+
+
+def _initialize_worker(
+    data: MarketData,
+    configs: list[PortfolioConfig],
+    start: str,
+    end: str,
+    initial_cash: float,
+    cost_bps: float,
+    slippage_bps: float,
+    lot_size: int,
+) -> None:
+    global _WORKER_STATE
+    _WORKER_STATE = (
+        data,
+        configs,
+        start,
+        end,
+        initial_cash,
+        cost_bps,
+        slippage_bps,
+        lot_size,
+    )
+
+
+def _worker_strategy_rows(
+    strategy: str,
+    eligibility: dict[str, list[int]],
+    params: dict[str, object],
+) -> list[dict[str, object]]:
+    if _WORKER_STATE is None:
+        raise RuntimeError("Worker da matriz nao foi inicializado.")
+    data, configs, start, end, initial_cash, cost_bps, slippage_bps, lot_size = _WORKER_STATE
+    return _strategy_rows(
+        data,
+        configs,
+        strategy,
+        eligibility,
+        params,
+        start=start,
+        end=end,
+        initial_cash=initial_cash,
+        cost_bps=cost_bps,
+        slippage_bps=slippage_bps,
+        lot_size=lot_size,
+    )
+
+
+def _strategy_rows(
+    data: MarketData,
+    configs: list[PortfolioConfig],
+    strategy: str,
+    eligibility: dict[str, list[int]],
+    params: dict[str, object],
+    *,
+    start: str,
+    end: str,
+    initial_cash: float,
+    cost_bps: float,
+    slippage_bps: float,
+    lot_size: int,
+) -> list[dict[str, object]]:
+    rows = []
+    params_text = _params_text(params)
+    for config in configs:
+        summary, _ = run_portfolio(
+            data,
+            config,
+            start=start,
+            end=end,
+            initial_cash=initial_cash,
+            cost_bps=cost_bps,
+            slippage_bps=slippage_bps,
+            lot_size=lot_size,
+            eligibility=eligibility,
+            collect_curve=False,
+        )
+        rows.append(
+            {
+                "trading_strategy": strategy,
+                "strategy_params": params_text,
+                "management_strategy": config.name,
+                "start": summary.start,
+                "end": summary.end,
+                "candles": summary.candles,
+                "trades": summary.trades,
+                "exposure": summary.exposure,
+                "avg_positions": summary.avg_positions,
+                "initial_equity": initial_cash,
+                "final_equity": summary.final_equity,
+                "total_return": summary.total_return,
+                "cagr": summary.cagr,
+                "average_annual_return": summary.average_annual_return,
+                "max_drawdown": summary.max_drawdown,
+                "annual_volatility": summary.annual_volatility,
+                "sharpe": summary.sharpe,
+                "turnover": summary.turnover,
+            }
+        )
+    return rows
+
+
+def _print_progress(
+    strategy_index: int,
+    strategy_count: int,
+    config_count: int,
+    total: int,
+    started: float,
+) -> None:
+    completed = strategy_index * config_count
+    elapsed = time.perf_counter() - started
+    print(
+        f"{strategy_index}/{strategy_count} estrategias; "
+        f"{completed}/{total} combinacoes; {elapsed:.1f}s",
+        flush=True,
+    )
 
 
 def _top_annual_sections(
@@ -328,13 +461,41 @@ def _write_results(rows: list[dict[str, object]], output: Path) -> None:
         "turnover",
     ]
     output.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output.with_suffix(output.suffix + ".tmp")
-    with temporary.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
+    temporary = output.with_name(output.name + ".tmp")
+    if output.suffix == ".gz":
+        with temporary.open("wb") as raw:
+            with gzip.GzipFile(
+                filename="",
+                mode="wb",
+                fileobj=raw,
+                compresslevel=9,
+                mtime=0,
+            ) as compressed:
+                with io.TextIOWrapper(
+                    compressed, encoding="utf-8", newline=""
+                ) as file:
+                    _write_csv_rows(file, fields, rows)
+    else:
+        with temporary.open("w", newline="", encoding="utf-8") as file:
+            _write_csv_rows(file, fields, rows)
     temporary.replace(output)
     print(f"Salvo: {output} ({len(rows)} combinacoes)", flush=True)
+
+
+def _write_csv_rows(
+    file: io.TextIOBase,
+    fields: list[str],
+    rows: list[dict[str, object]],
+) -> None:
+    writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows([{field: row.get(field, "") for field in fields} for row in rows])
+
+
+def _report_base(path: Path) -> Path:
+    if path.suffixes[-2:] == [".csv", ".gz"]:
+        return path.with_suffix("").with_suffix("")
+    return path.with_suffix("")
 
 
 def _write_annual_report(sections: list[dict[str, object]], output: Path) -> None:
@@ -462,6 +623,7 @@ def _write_manifest(
         "ranking": "total_return_desc_then_cagr_desc",
         "evaluation_scope": "full_period",
         "train_ratio_applied": False,
+        "workers": args.workers,
         "elapsed_seconds": elapsed_seconds,
     }
     temporary = output.with_suffix(output.suffix + ".tmp")
@@ -485,13 +647,25 @@ def _load_universe(path: Path) -> dict[str, object]:
     missing = sorted(required - payload.keys())
     if missing:
         raise ValueError(f"Manifesto de universo incompleto: {missing}.")
-    if payload["schema_version"] != 1:
+    if payload["schema_version"] not in {1, 2}:
         raise ValueError("Schema de universo nao suportado.")
     datetime.fromisoformat(str(payload["selected_as_of"]))
     datetime.fromisoformat(str(payload["warmup_start"]))
     tickers = payload["tickers"]
     if not isinstance(tickers, list) or not tickers or len(tickers) != len(set(tickers)):
         raise ValueError("Lista de tickers invalida no manifesto de universo.")
+    if payload["schema_version"] == 2:
+        original = payload.get("original_tickers")
+        added = payload.get("added_tickers")
+        if (
+            not isinstance(original, list)
+            or not isinstance(added, list)
+            or len(original) != 10
+            or len(added) != 30
+            or set(original).intersection(added)
+            or set(original).union(added) != set(tickers)
+        ):
+            raise ValueError("Composicao 10 + 30 invalida no manifesto de universo.")
     if payload["survivorship_safe"] is not False:
         raise ValueError(
             "Este universo fixo precisa declarar explicitamente survivorship_safe=false."

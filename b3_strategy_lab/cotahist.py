@@ -694,7 +694,8 @@ def verify_split_evidence(
     reviewed_tickers = {
         str(review.get("ticker", "")).strip().upper()
         for review in reviews
-        if review.get("source_url") and review.get("source_authority") in {"B3", "issuer"}
+        if review.get("source_url")
+        and review.get("source_authority") in {"B3", "CVM", "issuer"}
     }
     if normalized_ticker not in reviewed_tickers:
         raise DataVerificationError(
@@ -716,7 +717,7 @@ def verify_split_evidence(
             raise DataVerificationError(
                 f"Razao de split invalida em {evidence_file}: {event}."
             )
-        if event.get("source_authority") not in {"B3", "issuer"} or not str(
+        if event.get("source_authority") not in {"B3", "CVM", "issuer"} or not str(
             event.get("source_url", "")
         ).startswith("https://"):
             raise DataVerificationError(
