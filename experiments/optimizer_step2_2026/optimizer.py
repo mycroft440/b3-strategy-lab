@@ -16,11 +16,15 @@ BT_END = pd.Timestamp('2026-07-31')
 LOAD_START = pd.Timestamp('2024-01-01')
 INITIAL_CAPITAL = 1000.0
 
+# This experiment intentionally uses the repository's canonical 40-stock data universe
+# from b3_strategy_lab/candles.py. The first validation run proved that 21 names from
+# the newer Pine universe are not present in data/candles on main, so substituting them
+# silently would make the result non-reproducible.
 UNIVERSE = [
-    'BBSE3','PETR3','VALE3','ITUB4','PRIO3','WEGE3','B3SA3','BPAC11','GGBR4','EMBJ3',
-    'TOTS3','RADL3','RDOR3','FLRY3','PSSA3','SBSP3','CPFE3','EGIE3','VIVT3','CYRE3',
-    'CURY3','RENT3','MULT3','SMFT3','LREN3','VBBR3','EQTL3','CPLE3','AXIA3','ENEV3',
-    'RAIL3','CSMG3','ABEV3','BBDC4','BBAS3','CMIG4','CMIN3','KLBN11','SUZB3','DIRR3',
+    'ABEV3','BBAS3','BBDC3','BBSE3','BRAP4','BRKM5','CMIG4','CSAN3','CSMG3','CSNA3',
+    'CVCB3','EGIE3','EQTL3','FLRY3','GGBR3','GOAU4','HYPE3','IRBR3','ITSA4','ITUB4',
+    'JHSF3','KLBN11','LREN3','MGLU3','MRVE3','MULT3','PETR4','QUAL3','RADL3','RAIL3',
+    'RENT3','SANB11','SBSP3','SUZB3','TAEE11','TUPY3','UGPA3','USIM5','VALE3','WEGE3',
 ]
 REFERENCE = 'ITUB4'
 MACD_VALUES = np.arange(1, 121, 2, dtype=np.int16)
