@@ -16,20 +16,19 @@ BT_END = pd.Timestamp('2026-07-31')
 LOAD_START = pd.Timestamp('2024-01-01')
 INITIAL_CAPITAL = 1000.0
 
-# This experiment intentionally uses the repository's canonical 40-stock data universe
-# from b3_strategy_lab/candles.py. The first validation run proved that 21 names from
-# the newer Pine universe are not present in data/candles on main, so substituting them
-# silently would make the result non-reproducible.
+# Universo reduzido para 10 ações com candles já existentes no b3-strategy-lab.
+# A seleção busca diversidade setorial e liquidez, sem inventar arquivos ausentes.
 UNIVERSE = [
-    'ABEV3','BBAS3','BBDC3','BBSE3','BRAP4','BRKM5','CMIG4','CSAN3','CSMG3','CSNA3',
-    'CVCB3','EGIE3','EQTL3','FLRY3','GGBR3','GOAU4','HYPE3','IRBR3','ITSA4','ITUB4',
-    'JHSF3','KLBN11','LREN3','MGLU3','MRVE3','MULT3','PETR4','QUAL3','RADL3','RAIL3',
-    'RENT3','SANB11','SBSP3','SUZB3','TAEE11','TUPY3','UGPA3','USIM5','VALE3','WEGE3',
+    'ITUB4', 'PETR4', 'VALE3', 'WEGE3', 'BBAS3',
+    'ABEV3', 'RENT3', 'RADL3', 'LREN3', 'EQTL3',
 ]
 REFERENCE = 'ITUB4'
-MACD_VALUES = np.arange(1, 121, 2, dtype=np.int16)
-MOM_VALUES = np.arange(1, 201, 2, dtype=np.int16)
-VOL_VALUES = np.arange(2, 201, 2, dtype=np.int16)
+
+# "De 2 em 2" literalmente: 2, 4, 6, ...
+MACD_VALUES = np.arange(2, 121, 2, dtype=np.int16)   # 2..120 => 60 valores
+MOM_VALUES = np.arange(2, 201, 2, dtype=np.int16)    # 2..200 => 100 valores
+VOL_VALUES = np.arange(2, 201, 2, dtype=np.int16)    # 2..200 => 100 valores
+
 N_MACD_VALUES = len(MACD_VALUES)
 N_MOM_VALUES = len(MOM_VALUES)
 N_VOL_VALUES = len(VOL_VALUES)
@@ -90,7 +89,7 @@ def load_universe(root: Path):
     frames = {}
     missing = [t for t in UNIVERSE if not candle_path(root, t).exists()]
     if missing:
-        raise FileNotFoundError('Missing candle files for current 40-stock universe: ' + ', '.join(missing))
+        raise FileNotFoundError('Missing candle files for current 10-stock universe: ' + ', '.join(missing))
     for ticker in UNIVERSE:
         frames[ticker] = _split_only_adjust(root, ticker, _read_raw_prices(root, ticker))
     ref = frames[REFERENCE]
@@ -196,10 +195,10 @@ def build_management_rankings(mom, vol):
     scores = np.where(valid, m/v, -np.inf).astype(np.float32)
     flat = scores.reshape(N_MGMT, scores.shape[2], scores.shape[3])
     rankings = np.argsort(-flat, axis=2).astype(np.uint8)
-    valid_mask = np.zeros((N_MGMT, flat.shape[1]), dtype=np.uint64)
+    valid_mask = np.zeros((N_MGMT, flat.shape[1]), dtype=np.uint16)
     finite = np.isfinite(flat)
     for a in range(flat.shape[2]):
-        valid_mask |= (finite[:,:,a].astype(np.uint64) << np.uint64(a))
+        valid_mask |= (finite[:,:,a].astype(np.uint16) << np.uint16(a))
     return rankings, valid_mask
 
 
@@ -216,11 +215,11 @@ def build_macd_index():
 @njit(parallel=True, cache=True)
 def build_macd_masks(emas, snaps, fast_idx, slow_idx, signal_idx, signal_periods):
     n=len(fast_idx); a=emas.shape[0]; d=emas.shape[2]; w=len(snaps)
-    masks=np.zeros((n,w),np.uint64); snapmap=np.full(d,-1,np.int16)
+    masks=np.zeros((n,w),np.uint16); snapmap=np.full(d,-1,np.int16)
     for wi in range(w): snapmap[int(snaps[wi])] = wi
     for ci in prange(n):
         fi=int(fast_idx[ci]); si=int(slow_idx[ci]); sp=int(signal_periods[int(signal_idx[ci])])
-        alpha=2.0/(sp+1.0); local=np.zeros(w,np.uint64)
+        alpha=2.0/(sp+1.0); local=np.zeros(w,np.uint16)
         for ai in range(a):
             state=np.nan; seed_sum=0.0; seed_count=0
             for t in range(d):
@@ -234,20 +233,20 @@ def build_macd_masks(emas, snaps, fast_idx, slow_idx, signal_idx, signal_periods
                         state = macd*alpha + state*(1.0-alpha)
                 wi=int(snapmap[t])
                 if wi>=0 and np.isfinite(macd) and np.isfinite(state) and macd>state:
-                    local[wi] |= (np.uint64(1) << np.uint64(ai))
+                    local[wi] |= (np.uint16(1) << np.uint16(ai))
         for wi in range(w): masks[ci,wi]=local[wi]
     return masks
 
 
 def build_period_prices(opens, closes, rebs, snaps, final_idx):
     w=len(rebs); a=opens.shape[0]
-    entry=np.full((w,a),np.nan,np.float32); exitp=np.full((w,a),np.nan,np.float32); open_mask=np.zeros(w,np.uint64)
+    entry=np.full((w,a),np.nan,np.float32); exitp=np.full((w,a),np.nan,np.float32); open_mask=np.zeros(w,np.uint16)
     for wi in range(w):
         t=int(rebs[wi])
         for ai in range(a):
             x=opens[ai,t]
             if np.isfinite(x) and x>0:
-                entry[wi,ai]=x; open_mask[wi] |= (np.uint64(1)<<np.uint64(ai))
+                entry[wi,ai]=x; open_mask[wi] |= (np.uint16(1)<<np.uint16(ai))
         if wi+1 < w:
             nt=int(rebs[wi+1]); ps=int(snaps[wi+1])
             for ai in range(a):
@@ -272,7 +271,7 @@ def evaluate_pairs(start_pair, count, macd_masks, rankings, mgmt_valid, open_mas
             chosen=-1
             for ri in range(rankings.shape[2]):
                 ai=int(rankings[mi,wi,ri])
-                if (mask & (np.uint64(1)<<np.uint64(ai))) != 0:
+                if (mask & (np.uint16(1)<<np.uint16(ai))) != 0:
                     chosen=ai; break
             if chosen>=0:
                 buy=float(entry[wi,chosen]); sell=float(exitp[wi,chosen])
@@ -290,7 +289,7 @@ def params_for_pair(pair, fast_idx, slow_idx, signal_idx):
 
 def validate(root):
     missing=[t for t in UNIVERSE if not candle_path(root,t).exists()]
-    report={'universe':UNIVERSE,'missing':missing,'total_expected_combinations':int(TOTAL_COMBINATIONS)}
+    report={'universe':UNIVERSE,'missing':missing,'total_expected_combinations':int(TOTAL_COMBINATIONS),'parameter_step':2,'macd_values':[int(MACD_VALUES[0]),int(MACD_VALUES[-1])],'momentum_values':[int(MOM_VALUES[0]),int(MOM_VALUES[-1])],'volatility_values':[int(VOL_VALUES[0]),int(VOL_VALUES[-1])]}
     if missing: report['ok']=False; return report
     calendar,opens,closes=load_universe(root); rebs,snaps,final_idx=build_weeks(calendar)
     ready=[]; first_snap=int(snaps[0])
