@@ -1,0 +1,67 @@
+name: Optimizer step-2 2026 - benchmark
+
+on:
+  push:
+    branches:
+      - experiment/optimizer-step2-2026
+    paths:
+      - experiments/optimizer_step2_2026/**
+      - .github/workflows/optimizer-step2-2026-benchmark.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas numba
+
+      - name: Validate repository data and 40-stock universe
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py validate \
+            --out artifacts/optimizer_step2_2026/validation.json
+
+      - name: Prepare exact indicator matrices
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py prepare \
+            --prepared artifacts/optimizer_step2_2026/prepared_step2.npz
+
+      - name: Benchmark 1,000,000 complete combinations
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py benchmark \
+            --prepared artifacts/optimizer_step2_2026/prepared_step2.npz \
+            --pairs 1000000 \
+            --out artifacts/optimizer_step2_2026/benchmark.json
+
+      - name: Show benchmark
+        if: always()
+        run: |
+          echo '=== validation ==='
+          cat artifacts/optimizer_step2_2026/validation.json 2>/dev/null || true
+          echo '=== preparation ==='
+          cat artifacts/optimizer_step2_2026/prepared_step2.json 2>/dev/null || true
+          echo '=== benchmark ==='
+          cat artifacts/optimizer_step2_2026/benchmark.json 2>/dev/null || true
+
+      - name: Upload benchmark diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimizer-step2-benchmark
+          path: artifacts/optimizer_step2_2026/*.json
+          if-no-files-found: warn
