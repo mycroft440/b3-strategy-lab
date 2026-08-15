@@ -1,0 +1,80 @@
+name: Optimizer step-2 2026 - full 10 stocks
+
+on:
+  push:
+    branches:
+      - experiment/optimizer-step2-2026
+    paths:
+      - .github/workflows/optimizer-step2-2026-full.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas numba
+
+      - name: Validate 10-stock repository dataset
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py validate \
+            --out artifacts/optimizer_step2_2026/validation.json
+
+      - name: Prepare indicator matrices
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py prepare \
+            --prepared artifacts/optimizer_step2_2026/prepared_step2.npz
+
+      - name: Test all 2,124,000,000 combinations
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py shard \
+            --prepared artifacts/optimizer_step2_2026/prepared_step2.npz \
+            --shard 0 --shards 1 \
+            --out artifacts/optimizer_step2_2026/shards/shard_000.csv
+
+      - name: Merge and select global winner
+        run: |
+          python experiments/optimizer_step2_2026/optimizer.py merge \
+            --results-dir artifacts/optimizer_step2_2026/shards \
+            --out artifacts/optimizer_step2_2026/top_results.csv
+
+      - name: Show winner and diagnostics
+        if: always()
+        run: |
+          echo '=== VALIDATION ==='
+          cat artifacts/optimizer_step2_2026/validation.json 2>/dev/null || true
+          echo '=== PREPARE ==='
+          cat artifacts/optimizer_step2_2026/prepared_step2.json 2>/dev/null || true
+          echo '=== WINNER ==='
+          cat artifacts/optimizer_step2_2026/winner.json 2>/dev/null || true
+          echo '=== TOP 20 ==='
+          head -21 artifacts/optimizer_step2_2026/top_results.csv 2>/dev/null || true
+
+      - name: Upload complete results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimizer-step2-2026-full-10-stocks
+          path: |
+            artifacts/optimizer_step2_2026/validation.json
+            artifacts/optimizer_step2_2026/prepared_step2.json
+            artifacts/optimizer_step2_2026/winner.json
+            artifacts/optimizer_step2_2026/top_results.csv
+            artifacts/optimizer_step2_2026/shards/shard_000.csv
+          if-no-files-found: warn
