@@ -1,5 +1,6 @@
 name: Optimizer step-2 2026 - full 10 stocks
 
+# Full sweep intentionally runs on one optimized CPU runner after benchmark validation.
 on:
   push:
     branches:
