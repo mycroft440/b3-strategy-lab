@@ -34,7 +34,11 @@ jobs:
         run: python scripts/audit_volume_indicators.py
 
       - name: Run full strategy-management matrix
-        run: python scripts/backtest_strategy_management_combinations.py
+        shell: bash
+        run: |
+          WORKERS=$(python -c "import os; print(min(8, os.cpu_count() or 1))")
+          echo "Using ${WORKERS} workers"
+          python scripts/backtest_strategy_management_combinations.py --workers "${WORKERS}"
 
       - name: Audit matrix results
         run: python scripts/audit_matrix_results.py
