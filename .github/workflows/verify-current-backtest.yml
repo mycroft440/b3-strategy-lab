@@ -1,0 +1,55 @@
+name: Verify current backtest
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependency
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Verify existing daily market data
+        run: python -m b3_strategy_lab verify-data --interval 1d
+
+      - name: Audit existing volume data
+        run: python scripts/audit_volume_indicators.py
+
+      - name: Run full strategy-management matrix
+        run: python scripts/backtest_strategy_management_combinations.py
+
+      - name: Audit matrix results
+        run: python scripts/audit_matrix_results.py
+
+      - name: Upload generated reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-backtest-verification
+          path: |
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top5_annual.md
+            reports/backtest_data_audit_40.json
+            reports/volume_indicator_audit_40.json
+          if-no-files-found: warn
+          retention-days: 7
