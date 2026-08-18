@@ -8,9 +8,13 @@ on:
       - '.github/backtest-trigger-temp.txt'
 
 jobs:
-  backtest:
+  chunk:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,30 +24,183 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Show repository revision
+      - name: Run strategy chunk
+        env:
+          CHUNK_INDEX: ${{ matrix.chunk }}
+          CHUNK_COUNT: '8'
         run: |
-          git rev-parse HEAD
-          python --version
-          echo "CPUs: $(nproc)"
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          from b3_strategy_lab.strategies import portfolio_strategies
 
-      - name: Run full strategy-management matrix
-        run: |
-          set -o pipefail
-          python scripts/backtest_strategy_management_combinations.py --workers "$(nproc)" 2>&1 | tee full_backtest.log
+          strategies = portfolio_strategies()
+          chunk_index = int(os.environ['CHUNK_INDEX'])
+          chunk_count = int(os.environ['CHUNK_COUNT'])
+          selected = strategies[chunk_index::chunk_count]
+          output = f'chunk_{chunk_index}.csv.gz'
+          print(f'chunk={chunk_index} strategies={len(selected)} workers={os.cpu_count()}')
+          cmd = [
+              sys.executable,
+              'scripts/backtest_strategy_management_combinations.py',
+              '--workers', str(os.cpu_count() or 1),
+              '--top', '1',
+              '--output', output,
+              '--strategies', *selected,
+          ]
+          subprocess.run(cmd, check=True)
+          PY
 
-      - name: Audit matrix results
-        run: |
-          set -o pipefail
-          python scripts/audit_matrix_results.py 2>&1 | tee matrix_audit.log
-
-      - name: Upload backtest outputs
-        if: always()
+      - name: Upload chunk
         uses: actions/upload-artifact@v4
         with:
-          name: full-backtest-results
-          if-no-files-found: warn
+          name: chunk-${{ matrix.chunk }}
+          path: chunk_${{ matrix.chunk }}.csv.gz
+          if-no-files-found: error
+
+  aggregate:
+    needs: chunk
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download chunks
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chunk-*
+          path: chunks
+          merge-multiple: true
+
+      - name: Merge and validate full matrix
+        run: |
+          python - <<'PY'
+          import csv
+          import gzip
+          import json
+          from pathlib import Path
+          from b3_strategy_lab.strategies import portfolio_strategies
+          from scripts.research_portfolio_allocation import _configs
+
+          files = sorted(Path('chunks').glob('chunk_*.csv.gz'))
+          if len(files) != 8:
+              raise SystemExit(f'expected 8 chunks, found {len(files)}')
+
+          rows = []
+          fieldnames = None
+          for path in files:
+              with gzip.open(path, 'rt', encoding='utf-8', newline='') as f:
+                  reader = csv.DictReader(f)
+                  if fieldnames is None:
+                      fieldnames = reader.fieldnames
+                  elif reader.fieldnames != fieldnames:
+                      raise SystemExit(f'header mismatch in {path}')
+                  rows.extend(reader)
+
+          rows.sort(
+              key=lambda row: (float(row['total_return']), float(row['cagr'])),
+              reverse=True,
+          )
+          for rank, row in enumerate(rows, start=1):
+              row['rank'] = str(rank)
+
+          expected = len(portfolio_strategies()) * len(_configs('adjusted', 'all'))
+          pairs = {(row['trading_strategy'], row['management_strategy']) for row in rows}
+          validation = {
+              'chunks': len(files),
+              'strategy_count': len(portfolio_strategies()),
+              'management_count': len(_configs('adjusted', 'all')),
+              'expected_combinations': expected,
+              'actual_combinations': len(rows),
+              'unique_strategy_management_pairs': len(pairs),
+              'rank_contiguous': all(int(row['rank']) == i for i, row in enumerate(rows, start=1)),
+          }
+          validation['ok'] = (
+              validation['actual_combinations'] == expected
+              and validation['unique_strategy_management_pairs'] == expected
+              and validation['rank_contiguous']
+          )
+          if not validation['ok']:
+              raise SystemExit(json.dumps(validation, indent=2))
+
+          Path('reports').mkdir(exist_ok=True)
+          output = Path('reports/full_parallel_strategy_management_matrix.csv.gz')
+          with gzip.open(output, 'wt', encoding='utf-8', newline='') as f:
+              writer = csv.DictWriter(f, fieldnames=fieldnames)
+              writer.writeheader()
+              writer.writerows(rows)
+
+          Path('reports/full_parallel_top10.json').write_text(
+              json.dumps(rows[:10], ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+          Path('reports/full_parallel_validation.json').write_text(
+              json.dumps(validation, ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Recompute global top strategies for annual report
+        run: |
+          python - <<'PY'
+          import csv
+          import gzip
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          top = json.loads(Path('reports/full_parallel_top10.json').read_text(encoding='utf-8'))
+          strategies = []
+          for row in top[:5]:
+              strategy = row['trading_strategy']
+              if strategy not in strategies:
+                  strategies.append(strategy)
+
+          output = 'reports/top_strategies_for_annual.csv.gz'
+          cmd = [
+              sys.executable,
+              'scripts/backtest_strategy_management_combinations.py',
+              '--workers', str(os.cpu_count() or 1),
+              '--top', '5',
+              '--output', output,
+              '--strategies', *strategies,
+          ]
+          subprocess.run(cmd, check=True)
+
+          with gzip.open(output, 'rt', encoding='utf-8', newline='') as f:
+              subset_top = list(csv.DictReader(f))[:5]
+          global_pairs = [(r['trading_strategy'], r['management_strategy']) for r in top[:5]]
+          subset_pairs = [(r['trading_strategy'], r['management_strategy']) for r in subset_top]
+          if subset_pairs != global_pairs:
+              raise SystemExit(f'top5 mismatch: global={global_pairs} subset={subset_pairs}')
+
+          annual_src = Path('reports/top_strategies_for_annual_top5_annual.md')
+          annual_dst = Path('reports/full_parallel_top5_annual.md')
+          annual_dst.write_text(annual_src.read_text(encoding='utf-8'), encoding='utf-8')
+
+          validation_path = Path('reports/full_parallel_validation.json')
+          validation = json.loads(validation_path.read_text(encoding='utf-8'))
+          validation['top5_recomputed_match'] = True
+          validation_path.write_text(json.dumps(validation, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+
+      - name: Upload full backtest outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-backtest-results-sharded
+          if-no-files-found: error
           compression-level: 6
           path: |
-            full_backtest.log
-            matrix_audit.log
-            reports/strategy_management_combinations_40_adjusted_no_dividends_1d*
+            reports/full_parallel_strategy_management_matrix.csv.gz
+            reports/full_parallel_top10.json
+            reports/full_parallel_validation.json
+            reports/full_parallel_top5_annual.md
