@@ -24,11 +24,12 @@ jobs:
         run: |
           git rev-parse HEAD
           python --version
+          echo "CPUs: $(nproc)"
 
       - name: Run full strategy-management matrix
         run: |
           set -o pipefail
-          python scripts/backtest_strategy_management_combinations.py 2>&1 | tee full_backtest.log
+          python scripts/backtest_strategy_management_combinations.py --workers "$(nproc)" 2>&1 | tee full_backtest.log
 
       - name: Audit matrix results
         run: |
