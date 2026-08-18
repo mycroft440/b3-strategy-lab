@@ -1,0 +1,47 @@
+name: Temporary Full Backtest
+
+on:
+  push:
+    paths:
+      - '.github/workflows/run-full-backtest-temp.yml'
+
+jobs:
+  backtest:
+    if: github.event.head_commit.message != 'Remove temporary full backtest workflow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Show repository revision
+        run: |
+          git rev-parse HEAD
+          python --version
+
+      - name: Run full strategy-management matrix
+        run: |
+          set -o pipefail
+          python scripts/backtest_strategy_management_combinations.py 2>&1 | tee full_backtest.log
+
+      - name: Audit matrix results
+        run: |
+          set -o pipefail
+          python scripts/audit_matrix_results.py 2>&1 | tee matrix_audit.log
+
+      - name: Upload backtest outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-backtest-results
+          if-no-files-found: warn
+          compression-level: 6
+          path: |
+            full_backtest.log
+            matrix_audit.log
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d*
