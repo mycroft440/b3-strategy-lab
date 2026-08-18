@@ -1,1 +1,1 @@
-Temporary trigger for parallel full strategy-management backtest on 2026-08-18.
+Temporary trigger for sharded full strategy-management backtest on 2026-08-18.
