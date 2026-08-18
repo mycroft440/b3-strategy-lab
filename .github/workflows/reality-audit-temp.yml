@@ -1,0 +1,208 @@
+name: Temporary Backtest Reality Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/reality-audit-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run directed reality stress audit
+        run: |
+          python - <<'PY'
+          import copy
+          import json
+          from collections import Counter
+          from dataclasses import replace
+          from pathlib import Path
+
+          from scripts.backtest_strategy_management_combinations import (
+              DEFAULT_UNIVERSE_MANIFEST,
+              _build_eligibility,
+              _load_universe,
+          )
+          from scripts.research_portfolio_allocation import MarketData, _configs, run_portfolio
+
+          winner = 'top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted'
+          universe = _load_universe(DEFAULT_UNIVERSE_MANIFEST)
+          tickers = [t.upper() for t in universe['tickers']]
+          data = MarketData(
+              tickers,
+              '1d',
+              'adjusted',
+              require_verified_splits_from=universe['warmup_start'],
+              history_start=universe['warmup_start'],
+          )
+          eligibility = _build_eligibility(
+              data,
+              ['gap_momentum'],
+              'adjusted',
+              signal_start=universe['warmup_start'],
+          )['gap_momentum']
+          configs = _configs('adjusted', 'all')
+          config = next(c for c in configs if c.name == winner)
+          monthly_name = winner.replace('_weekly_', '_monthly_')
+          monthly_config = next(c for c in configs if c.name == monthly_name)
+          end = min(data.candles[t][-1].date for t in tickers)
+
+          def pack(summary):
+              return {
+                  'start': summary.start,
+                  'end': summary.end,
+                  'final_equity': summary.final_equity,
+                  'total_return': summary.total_return,
+                  'cagr': summary.cagr,
+                  'max_drawdown': summary.max_drawdown,
+                  'annual_volatility': summary.annual_volatility,
+                  'sharpe': summary.sharpe,
+                  'trades': summary.trades,
+                  'turnover': summary.turnover,
+                  'exposure': summary.exposure,
+              }
+
+          baseline, curve = run_portfolio(
+              data, config,
+              start='2018-01-02', end=end,
+              initial_cash=10_000,
+              cost_bps=0, slippage_bps=0, lot_size=1,
+              eligibility=eligibility,
+              collect_curve=True,
+          )
+
+          scenarios = {'baseline': pack(baseline)}
+          for cost, slip in [(0, 5), (5, 5), (10, 10), (25, 25), (50, 50)]:
+              summary, _ = run_portfolio(
+                  data, config,
+                  start='2018-01-02', end=end,
+                  initial_cash=10_000,
+                  cost_bps=cost, slippage_bps=slip, lot_size=1,
+                  eligibility=eligibility,
+                  collect_curve=False,
+              )
+              scenarios[f'cost{cost}_slip{slip}_bps'] = pack(summary)
+
+          for lot in [10, 100]:
+              summary, _ = run_portfolio(
+                  data, config,
+                  start='2018-01-02', end=end,
+                  initial_cash=10_000,
+                  cost_bps=0, slippage_bps=0, lot_size=lot,
+                  eligibility=eligibility,
+                  collect_curve=False,
+              )
+              scenarios[f'lot_size_{lot}'] = pack(summary)
+
+          monthly, _ = run_portfolio(
+              data, monthly_config,
+              start='2018-01-02', end=end,
+              initial_cash=10_000,
+              cost_bps=0, slippage_bps=0, lot_size=1,
+              eligibility=eligibility,
+              collect_curve=False,
+          )
+          scenarios['same_rule_monthly_rebalance'] = pack(monthly)
+
+          # Sensitivity: execute at the next session CLOSE instead of its OPEN.
+          # Signals/ranking stay identical; only the simulated fill price changes.
+          close_data = copy.copy(data)
+          close_data.candles = {
+              ticker: [replace(c, open=c.close) for c in candles]
+              for ticker, candles in data.candles.items()
+          }
+          close_data.by_date = {
+              ticker: {c.date: c for c in candles}
+              for ticker, candles in close_data.candles.items()
+          }
+          close_data.candidate_profile_cache = {}
+          close_fill, _ = run_portfolio(
+              close_data, config,
+              start='2018-01-02', end=end,
+              initial_cash=10_000,
+              cost_bps=0, slippage_bps=0, lot_size=1,
+              eligibility=eligibility,
+              collect_curve=False,
+          )
+          scenarios['next_session_close_fill'] = pack(close_fill)
+
+          subperiods = {}
+          for label, start, stop in [
+              ('2018_2020', '2018-01-02', '2020-12-30'),
+              ('2021_2023', '2021-01-04', '2023-12-28'),
+              ('2024_2026', '2024-01-02', end),
+          ]:
+              summary, _ = run_portfolio(
+                  data, config,
+                  start=start, end=stop,
+                  initial_cash=10_000,
+                  cost_bps=0, slippage_bps=0, lot_size=1,
+                  eligibility=eligibility,
+                  collect_curve=False,
+              )
+              subperiods[label] = pack(summary)
+
+          selected_days = Counter()
+          for point in curve:
+              for ticker in filter(None, point.selected.split(';')):
+                  selected_days[ticker] += 1
+
+          leave_one_out = []
+          for excluded in tickers:
+              subset = copy.copy(data)
+              subset.tickers = [t for t in tickers if t != excluded]
+              subset.candidate_profile_cache = {}
+              summary, _ = run_portfolio(
+                  subset, config,
+                  start='2018-01-02', end=end,
+                  initial_cash=10_000,
+                  cost_bps=0, slippage_bps=0, lot_size=1,
+                  eligibility=eligibility,
+                  collect_curve=False,
+              )
+              leave_one_out.append({
+                  'excluded': excluded,
+                  'cagr': summary.cagr,
+                  'total_return': summary.total_return,
+                  'max_drawdown': summary.max_drawdown,
+                  'cagr_delta_vs_baseline': summary.cagr - baseline.cagr,
+              })
+          leave_one_out.sort(key=lambda x: x['cagr_delta_vs_baseline'])
+
+          result = {
+              'winner_strategy': 'gap_momentum',
+              'winner_management': winner,
+              'evaluation_end': end,
+              'scenarios': scenarios,
+              'subperiods': subperiods,
+              'top_selected_by_days': selected_days.most_common(15),
+              'leave_one_out_most_harmful_10': leave_one_out[:10],
+              'leave_one_out_most_helpful_5': leave_one_out[-5:],
+          }
+          Path('reality_audit.json').write_text(
+              json.dumps(result, ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Upload audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: reality-audit
+          path: reality_audit.json
+          if-no-files-found: error
