@@ -1,0 +1,1 @@
+Temporary trigger for full strategy-management backtest on 2026-08-18.
