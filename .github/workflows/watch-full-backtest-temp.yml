@@ -1,0 +1,83 @@
+name: Watch Temporary Full Backtest
+
+on:
+  push:
+    paths:
+      - '.github/workflows/watch-full-backtest-temp.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for full backtest run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=""
+          for i in $(seq 1 180); do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow run-full-backtest-temp.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo '{"status":"error","message":"full backtest run not found"}' > /tmp/backtest_status.json
+          else
+            echo "Watching run $run_id"
+            while true; do
+              status=$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json status --jq '.status')
+              conclusion=$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion // ""')
+              echo "status=$status conclusion=$conclusion"
+              if [ "$status" = "completed" ]; then
+                break
+              fi
+              sleep 20
+            done
+            mkdir -p /tmp/backtest_artifact
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n full-backtest-results -D /tmp/backtest_artifact || true
+            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log > /tmp/full_run.log || true
+            python - "$run_id" "$conclusion" <<'PY'
+import csv, gzip, json, pathlib, sys
+run_id, conclusion = sys.argv[1], sys.argv[2]
+root = pathlib.Path('/tmp/backtest_artifact')
+status = {
+    'status': 'completed',
+    'run_id': int(run_id),
+    'conclusion': conclusion,
+    'top_rows': [],
+}
+files = list(root.rglob('strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz'))
+if files:
+    with gzip.open(files[0], 'rt', encoding='utf-8', newline='') as f:
+        reader = csv.DictReader(f)
+        for _, row in zip(range(10), reader):
+            status['top_rows'].append(row)
+logs = pathlib.Path('/tmp/full_run.log')
+if logs.exists():
+    lines = logs.read_text(encoding='utf-8', errors='replace').splitlines()
+    status['log_tail'] = lines[-80:]
+pathlib.Path('/tmp/backtest_status.json').write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
+PY
+          fi
+
+      - name: Commit execution status
+        run: |
+          mkdir -p reports
+          cp /tmp/backtest_status.json reports/temp_full_backtest_execution_status.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add reports/temp_full_backtest_execution_status.json
+          git commit -m 'Record temporary full backtest status' || exit 0
+          git push
