@@ -1,13 +1,14 @@
 name: Temporary Full Backtest
 
 on:
-  push:
+  pull_request:
+    branches:
+      - main
     paths:
-      - '.github/workflows/run-full-backtest-temp.yml'
+      - '.github/backtest-trigger-temp.txt'
 
 jobs:
   backtest:
-    if: github.event.head_commit.message != 'Remove temporary full backtest workflow'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
