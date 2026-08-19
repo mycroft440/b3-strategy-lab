@@ -38,6 +38,8 @@ STATE: dict[str, object] = {
     "config": {},
     "returncode": None,
     "stop_requested": False,
+    "progress_percent": 0.0,
+    "progress_detail": "Aguardando início.",
 }
 CURRENT_PROCESS: subprocess.Popen[str] | None = None
 
@@ -179,17 +181,83 @@ def _terminate_process(process: subprocess.Popen[str]) -> None:
             pass
 
 
-def _run_command(step: str, command: list[str], accepted_codes: set[int] | None = None) -> int:
+def _backtest_progress_parser(stage_start: float, stage_end: float, label: str):
+    def parse(line: str) -> dict[str, object] | None:
+        parts = line.split()
+        if len(parts) != 4 or parts[0] != "BACKTEST_PROGRESS":
+            return None
+        try:
+            completed = int(parts[1])
+            total = int(parts[2])
+        except ValueError:
+            return None
+        if total <= 0:
+            return None
+        fraction = min(1.0, max(0.0, completed / total))
+        overall = stage_start + (stage_end - stage_start) * fraction
+        stage_percent = fraction * 100
+        return {
+            "progress_percent": round(overall, 2),
+            "progress_detail": (
+                f"{label}: {completed}/{total} pregões "
+                f"({stage_percent:.1f}% da etapa) — {parts[3]}"
+            ),
+        }
+
+    return parse
+
+
+def _sync_progress_parser(total: int, stage_start: float, stage_end: float):
+    seen: set[str] = set()
+
+    def parse(line: str) -> dict[str, object] | None:
+        marker = ": verified through "
+        if marker not in line:
+            return None
+        ticker = line.split(marker, 1)[0].strip().upper()
+        if not ticker:
+            return None
+        seen.add(ticker)
+        denominator = max(1, total)
+        fraction = min(1.0, len(seen) / denominator)
+        overall = stage_start + (stage_end - stage_start) * fraction
+        return {
+            "progress_percent": round(overall, 2),
+            "progress_detail": f"Sincronizando dados: {len(seen)}/{denominator} ativos verificados",
+        }
+
+    return parse
+
+
+def _run_command(
+    step: str,
+    command: list[str],
+    accepted_codes: set[int] | None = None,
+    *,
+    progress_start: float,
+    progress_end: float,
+    line_progress=None,
+) -> int:
     global CURRENT_PROCESS
     accepted = accepted_codes or {0}
-    _set_state(current_step=step, message=step)
+    _set_state(
+        current_step=step,
+        message=step,
+        progress_percent=progress_start,
+        progress_detail=step,
+    )
     _log(f"=== {step} ===")
     _log("$ " + " ".join(command))
     process = _spawn(command)
     CURRENT_PROCESS = process
     assert process.stdout is not None
     for line in process.stdout:
-        _log(line.rstrip())
+        clean = line.rstrip()
+        _log(clean)
+        if line_progress is not None:
+            update = line_progress(clean)
+            if update:
+                _set_state(**update)
         with STATE_LOCK:
             stop_requested = bool(STATE.get("stop_requested"))
         if stop_requested:
@@ -199,6 +267,10 @@ def _run_command(step: str, command: list[str], accepted_codes: set[int] | None 
     CURRENT_PROCESS = None
     if code not in accepted:
         raise RuntimeError(f"{step} falhou com código {code}.")
+    _set_state(
+        progress_percent=progress_end,
+        progress_detail=f"{step} concluído.",
+    )
     return code
 
 
@@ -253,22 +325,43 @@ def _worker(config: dict[str, object]) -> None:
         ]
         if download:
             build.append("--download")
-        _run_command("1/6 Preparando ações e período", build)
+        _run_command(
+            "1/6 Preparando ações e período",
+            build,
+            progress_start=1,
+            progress_end=15,
+        )
 
         transitions = [python, "scripts/build_ticker_transitions.py"]
         if download:
             transitions.append("--download")
-        _run_command("2/6 Verificando mudanças de ticker", transitions)
+        _run_command(
+            "2/6 Verificando mudanças de ticker",
+            transitions,
+            progress_start=15,
+            progress_end=25,
+        )
 
+        manifest_path = ROOT / "data/universes/point_in_time_union.json"
+        manifest = _read_json(manifest_path)
+        sync_total = len(manifest.get("market_data_tickers", manifest.get("tickers", [])))
         sync = [python, "scripts/sync_point_in_time_universe_realistic.py"]
         if download:
             sync.extend(["--download", "--refresh-actions"])
-        _run_command("3/6 Sincronizando dados e proventos", sync)
+        _run_command(
+            "3/6 Sincronizando dados e proventos",
+            sync,
+            progress_start=25,
+            progress_end=55,
+            line_progress=_sync_progress_parser(sync_total, 25, 55),
+        )
 
         _run_command(
             "4/6 Auditando dados",
             [python, "scripts/audit_realistic_backtest_inputs.py"],
             accepted_codes={0, 2},
+            progress_start=55,
+            progress_end=60,
         )
         audit = _read_json(AUDIT_PATH)
         if not audit.get("ready_for_realistic_estimate"):
@@ -303,6 +396,9 @@ def _worker(config: dict[str, object]) -> None:
                 "--tax-output",
                 "reports/realistic_raw_gap_tax.csv",
             ],
+            progress_start=60,
+            progress_end=80,
+            line_progress=_backtest_progress_parser(60, 80, "raw_gap"),
         )
         _run_command(
             "6/6 Executando economic_gap",
@@ -322,6 +418,9 @@ def _worker(config: dict[str, object]) -> None:
                 "--tax-output",
                 "reports/realistic_economic_gap_tax.csv",
             ],
+            progress_start=80,
+            progress_end=100,
+            line_progress=_backtest_progress_parser(80, 100, "economic_gap"),
         )
 
         status = _compose_status(config)
@@ -335,17 +434,22 @@ def _worker(config: dict[str, object]) -> None:
             current_step="Concluído",
             finished_at=datetime.now(timezone.utc).isoformat(),
             returncode=0,
+            progress_percent=100.0,
+            progress_detail="Backtest concluído.",
         )
         _log("Backtest concluído com sucesso.")
     except Exception as exc:
         with STATE_LOCK:
             stopped = bool(STATE.get("stop_requested"))
+            current_progress = float(STATE.get("progress_percent", 0.0) or 0.0)
         _set_state(
             state="stopped" if stopped else "error",
             message="Execução interrompida." if stopped else str(exc),
             current_step="Interrompido" if stopped else "Falha",
             finished_at=datetime.now(timezone.utc).isoformat(),
             returncode=-1,
+            progress_percent=current_progress,
+            progress_detail="Execução interrompida." if stopped else f"Falha: {exc}",
         )
         _log(f"ERRO: {exc}")
 
@@ -383,7 +487,7 @@ HTML = r"""<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Painel de Backtest B3</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:30px auto;padding:0 18px}.hero{margin-bottom:18px}.hero h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;color:#667085}.grid{display:grid;grid-template-columns:1fr 1.45fr;gap:18px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(15,23,42,.05)}label.title{display:block;font-weight:700;margin-bottom:8px}.field{margin-bottom:16px}input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px;font-size:15px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}.primary{background:#172033;color:white}.danger{background:#fee4e2;color:#b42318}.soft{background:#eef2f6;color:#344054}.btn:disabled{opacity:.45;cursor:not-allowed}.stocks-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.count{font-size:13px;color:#667085}.stocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:390px;overflow:auto}.stock{display:flex;align-items:center;gap:7px;border:1px solid #eaecf0;border-radius:9px;padding:9px;font-weight:650}.status{display:flex;align-items:center;gap:9px;margin:18px 0 8px}.dot{width:10px;height:10px;border-radius:50%;background:#98a2b3}.running .dot{background:#f79009}.success .dot{background:#12b76a}.error .dot,.stopped .dot{background:#f04438}.result{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.metric{background:#f8fafc;border-radius:10px;padding:12px}.metric b{display:block;font-size:19px;margin-top:4px}.log{margin-top:12px;background:#101828;color:#d0d5dd;border-radius:12px;padding:14px;height:270px;overflow:auto;white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}.hint{font-size:12px;color:#667085;margin-top:6px}@media(max-width:850px){.grid{grid-template-columns:1fr}.stocks{grid-template-columns:repeat(3,1fr)}}@media(max-width:520px){.stocks{grid-template-columns:repeat(2,1fr)}}
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:30px auto;padding:0 18px}.hero{margin-bottom:18px}.hero h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;color:#667085}.grid{display:grid;grid-template-columns:1fr 1.45fr;gap:18px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(15,23,42,.05)}label.title{display:block;font-weight:700;margin-bottom:8px}.field{margin-bottom:16px}input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px;font-size:15px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}.primary{background:#172033;color:white}.danger{background:#fee4e2;color:#b42318}.soft{background:#eef2f6;color:#344054}.btn:disabled{opacity:.45;cursor:not-allowed}.stocks-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.count{font-size:13px;color:#667085}.stocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:390px;overflow:auto}.stock{display:flex;align-items:center;gap:7px;border:1px solid #eaecf0;border-radius:9px;padding:9px;font-weight:650}.status{display:flex;align-items:center;gap:9px;margin:18px 0 8px}.dot{width:10px;height:10px;border-radius:50%;background:#98a2b3}.running .dot{background:#f79009}.success .dot{background:#12b76a}.error .dot,.stopped .dot{background:#f04438}.progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px}.progress-head span{font-size:12px;color:#667085;text-align:right}.progress-track{height:12px;background:#eaecf0;border-radius:999px;overflow:hidden;margin-top:7px}.progress-bar{height:100%;width:0%;background:#172033;border-radius:999px;transition:width .35s ease}.running .progress-bar{background:#f79009}.success .progress-bar{background:#12b76a}.error .progress-bar,.stopped .progress-bar{background:#f04438}.result{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.metric{background:#f8fafc;border-radius:10px;padding:12px}.metric b{display:block;font-size:19px;margin-top:4px}.log{margin-top:12px;background:#101828;color:#d0d5dd;border-radius:12px;padding:14px;height:270px;overflow:auto;white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}.hint{font-size:12px;color:#667085;margin-top:6px}@media(max-width:850px){.grid{grid-template-columns:1fr}.stocks{grid-template-columns:repeat(3,1fr)}}@media(max-width:520px){.stocks{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
@@ -397,6 +501,8 @@ HTML = r"""<!doctype html>
 <div class="actions"><button id="run" class="btn primary" onclick="runBacktest()">Iniciar backtest</button><button id="stop" class="btn danger" onclick="stopBacktest()">Parar</button></div>
 <div id="statusBox" class="status idle"><span class="dot"></span><strong id="statusText">Pronto para executar.</strong></div>
 <div id="step" class="hint"></div>
+<div class="progress-head"><strong id="progressPercent">0%</strong><span id="progressDetail">Aguardando início.</span></div>
+<div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
 <div id="result" class="result"></div>
 </div>
 <div class="card">
@@ -421,15 +527,16 @@ function money(v){if(v===null||v===undefined)return '—';return Number(v).toLoc
 function pct(v){if(v===null||v===undefined)return '—';const n=Number(v)*100;return n.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%'}
 async function refresh(){
  try{const r=await fetch('/api/status');const d=await r.json();const box=document.getElementById('statusBox');box.className='status '+d.state;document.getElementById('statusText').textContent=d.message||d.state;document.getElementById('step').textContent=d.current_step||'';document.getElementById('log').textContent=d.log||'Nenhum log.';document.getElementById('log').scrollTop=999999;document.getElementById('run').disabled=d.state==='running';document.getElementById('stop').disabled=d.state!=='running';
+ const progress=Math.min(100,Math.max(0,Number(d.progress_percent||0)));document.getElementById('progressPercent').textContent=progress.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';document.getElementById('progressDetail').textContent=d.progress_detail||'';document.getElementById('progressBar').style.width=progress+'%';
  if(d.result){document.getElementById('result').innerHTML=`<div class="metric">raw_gap final<b>${money(d.result.raw_final_equity)}</b><span>${pct(d.result.raw_total_return)}</span></div><div class="metric">economic_gap final<b>${money(d.result.economic_final_equity)}</b><span>${pct(d.result.economic_total_return)}</span></div>`}
  }catch(e){}
 }
-setInterval(refresh,1500);refresh();
+setInterval(refresh,1000);refresh();
 </script></body></html>"""
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "B3BacktestPanel/1.0"
+    server_version = "B3BacktestPanel/1.1"
 
     def _json(self, payload: object, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -494,6 +601,8 @@ class Handler(BaseHTTPRequestHandler):
                 config=config,
                 returncode=None,
                 stop_requested=False,
+                progress_percent=0.0,
+                progress_detail="Iniciando pipeline...",
             )
             threading.Thread(target=_worker, args=(config,), daemon=True).start()
             self._json({"ok": True, "selected_count": len(config["tickers"])}, 202)
