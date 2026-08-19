@@ -37,3 +37,39 @@ jobs:
             scripts/run_realistic_pipeline.py
       - name: Unit tests
         run: python -m unittest tests.test_realistic_accounting -v
+
+  cotahist-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build 2018 point-in-time universe from real B3 archives
+        run: |
+          python scripts/build_point_in_time_universe.py \
+            --download \
+            --years 2017:2018 \
+            --start 2018-01-02 \
+            --end 2018-12-28 \
+            --top-n 40
+      - name: Validate standard and fractional execution books
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          snapshots = list(csv.DictReader(Path('data/universes/point_in_time_weekly.csv').open(encoding='utf-8')))
+          assert snapshots, 'point-in-time snapshots are empty'
+          manifest = json.loads(Path('data/universes/point_in_time_union.json').read_text(encoding='utf-8'))
+          assert manifest['point_in_time'] is True
+          assert manifest['survivorship_safe'] is True
+          assert len({row['ticker'] for row in snapshots}) >= 40
+          execution = list(csv.DictReader(Path('data/execution/b3_standard_fractional_open.csv').open(encoding='utf-8')))
+          assert any(row['market_type'] == '010' for row in execution)
+          assert any(row['market_type'] == '020' for row in execution)
+          print('snapshots', len(snapshots), 'historical symbols', len(manifest['tickers']), 'execution rows', len(execution))
+          PY
+      - name: Detect historical ticker transitions without future-price filling
+        run: |
+          python scripts/build_ticker_transitions.py --years 2017:2018
