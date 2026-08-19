@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from datetime import date
 from pathlib import Path
 
 from scripts.realistic_backtest_control_panel import (
     EXCLUDED_TICKERS,
+    HTML,
+    MIN_START,
     _load_available_tickers,
     _parse_run_request,
     _selected_payload,
@@ -55,6 +56,35 @@ class ControlPanelTests(unittest.TestCase):
                     "initial_cash": 1000,
                 }
             )
+
+    def test_request_rejects_period_before_supported_history(self) -> None:
+        self.assertEqual(MIN_START.isoformat(), "2018-01-02")
+        with self.assertRaises(ValueError):
+            _parse_run_request(
+                {
+                    "tickers": ["PETR4"],
+                    "start": "2017-12-29",
+                    "end": "2018-12-31",
+                    "initial_cash": 1000,
+                }
+            )
+
+    def test_request_rejects_non_finite_cash(self) -> None:
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    _parse_run_request(
+                        {
+                            "tickers": ["PETR4"],
+                            "start": "2018-01-02",
+                            "end": "2018-12-31",
+                            "initial_cash": value,
+                        }
+                    )
+
+    def test_html_formats_decimal_return_as_percentage(self) -> None:
+        self.assertIn("const n=Number(v)*100", HTML)
+        self.assertIn('min="2018-01-02"', HTML)
 
     def test_generated_subset_json_remains_serializable(self) -> None:
         payload = _selected_payload(["ABEV3", "PETR4", "VALE3"])
