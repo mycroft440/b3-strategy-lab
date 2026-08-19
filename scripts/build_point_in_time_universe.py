@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
 from b3_strategy_lab.point_in_time import (  # noqa: E402
+    base_fractional_ticker,
     execution_rows,
     is_company_equity,
     parse_years,
@@ -26,13 +27,15 @@ from b3_strategy_lab.point_in_time import (  # noqa: E402
 DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+DEFAULT_ALLOWED_UNIVERSE = Path("data/universes/fixed_40_2018.json")
+EXCLUDED_TICKERS = {"BOAC34"}
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a survivorship-safe weekly stock universe from full B3 COTAHIST "
-            "using only trailing information, plus standard and fractional opening books."
+            "Build weekly realistic inputs using only the pre-existing project stock "
+            "universe. No replacement symbols are added when an asset is excluded."
         )
     )
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
@@ -41,8 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--end")
     parser.add_argument("--lookback-sessions", type=int, default=252)
-    parser.add_argument("--top-n", type=int, default=39)
+    parser.add_argument("--top-n", type=int, default=40)
     parser.add_argument("--minimum-presence", type=float, default=0.90)
+    parser.add_argument("--allowed-universe", type=Path, default=DEFAULT_ALLOWED_UNIVERSE)
     parser.add_argument("--snapshots-output", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--manifest-output", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--execution-output", type=Path, default=DEFAULT_EXECUTION)
@@ -52,6 +56,18 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("lookback-sessions must be >20 and top-n must be positive.")
     if not 0 < args.minimum_presence <= 1:
         parser.error("minimum-presence must be in (0, 1].")
+
+    allowed_payload = json.loads(args.allowed_universe.read_text(encoding="utf-8"))
+    allowed_tickers = {
+        str(ticker).strip().upper()
+        for ticker in allowed_payload.get("tickers", [])
+        if str(ticker).strip()
+    }
+    allowed_tickers.difference_update(EXCLUDED_TICKERS)
+    if not allowed_tickers:
+        parser.error("The pre-existing allowed universe is empty after exclusions.")
+    if args.top_n > len(allowed_tickers):
+        args.top_n = len(allowed_tickers)
 
     years = parse_years(args.years)
     archives: list[Path] = []
@@ -72,8 +88,19 @@ def main(argv: list[str] | None = None) -> int:
     standard_quotes = []
     fractional_quotes = []
     for archive in archives:
-        standard_quotes.extend(read_standard_company_equity_cotahist(archive))
-        fractional_quotes.extend(read_fractional_cotahist(archive))
+        standard_quotes.extend(
+            quote
+            for quote in read_standard_company_equity_cotahist(archive)
+            if quote.ticker.upper() in allowed_tickers
+        )
+        fractional_quotes.extend(
+            quote
+            for quote in read_fractional_cotahist(archive)
+            if base_fractional_ticker(quote.ticker) in allowed_tickers
+        )
+
+    if not standard_quotes:
+        raise ValueError("No standard-lot quotes remain for the pre-existing stock universe.")
 
     end = args.end or max(quote.date for quote in standard_quotes)
     snapshots = snapshot_rows(
@@ -101,10 +128,10 @@ def main(argv: list[str] | None = None) -> int:
 
     selected_union = sorted({str(row["ticker"]) for row in snapshots})
     selected_set = set(selected_union)
+    unexpected = selected_set - allowed_tickers
+    if unexpected:
+        raise ValueError(f"Unexpected symbols escaped fixed-universe filter: {sorted(unexpected)}")
 
-    # A selected symbol may later change ticker while preserving the same ISIN.
-    # Those related symbols are required market data for continuity of an already
-    # held position, but they are NOT added to point-in-time candidate snapshots.
     selected_isins = {
         quote.isin.strip().upper()
         for quote in standard_quotes
@@ -115,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         for quote in standard_quotes
         if quote.isin
         and quote.isin.strip().upper() in selected_isins
+        and quote.ticker.upper() in allowed_tickers
         and is_company_equity(quote)
     }
     market_data_set = selected_set | continuity_set
@@ -133,23 +161,27 @@ def main(argv: list[str] | None = None) -> int:
             isin_by_ticker[ticker].add(quote.isin)
 
     manifest = {
-        "schema_version": 2,
-        "id": "point_in_time_trailing_liquidity_weekly",
-        "selection_mode": "weekly_trailing_liquidity_only_past_information",
+        "schema_version": 3,
+        "id": "existing_project_stock_universe_no_replacements",
+        "selection_mode": "fixed_existing_project_universe_weekly_trailing_information",
         "selected_as_of": args.start,
         "warmup_start": f"{min(years):04d}-01-01",
-        "survivorship_safe": True,
+        "survivorship_safe": False,
         "point_in_time": True,
         "snapshot_file": str(args.snapshots_output),
+        "allowed_universe_file": str(args.allowed_universe),
+        "excluded_tickers": sorted(EXCLUDED_TICKERS),
+        "no_replacements": True,
         "selection_rules": {
             "source": "B3_COTAHIST_full_market",
-            "instrument_filter": "BDI02_market010_and_specification_ON_PN_UNT",
+            "instrument_filter": "existing_project_tickers_only; BDI02 market010 ON/PN/UNT; no BDRs",
             "lookback_sessions": args.lookback_sessions,
             "minimum_presence": args.minimum_presence,
             "top_n": args.top_n,
             "issuer_deduplication": True,
             "decision_frequency": "weekly",
-            "future_continuity_filter": False
+            "future_continuity_filter": False,
+            "replacement_policy": "none"
         },
         "execution_sources": {
             "standard": {"market_type": "010", "bdi_code": "02"},
@@ -158,16 +190,16 @@ def main(argv: list[str] | None = None) -> int:
         "tickers": selected_union,
         "market_data_tickers": market_data_tickers,
         "continuity_only_tickers": sorted(market_data_set - selected_set),
-        "continuity_rule": "same_isin_as_any_point_in_time_selected_symbol",
+        "continuity_rule": "same_isin_only_within_existing_allowed_universe",
         "issuing_company_by_ticker": issuer_by_ticker,
         "issuer_name_by_ticker": issuer_names,
         "isins_by_ticker": {ticker: sorted(values) for ticker, values in isin_by_ticker.items()},
         "bias_disclosure": (
-            "Each snapshot is selected only from COTAHIST observations at or before "
-            "its effective_date. Historical symbols are not removed because they later "
-            "delist or cease satisfying liquidity rules. Same-ISIN related tickers may "
-            "be loaded only for continuity of held positions; they are not investable "
-            "unless they independently appear in a point-in-time snapshot."
+            "The candidate universe is intentionally frozen to the project's pre-existing "
+            "fixed_40_2018 list at the user's request. No outside symbol is added as a "
+            "replacement. This preserves the historical selection/survivorship bias of "
+            "that list, so results are a retrospective replay of the chosen universe, not "
+            "a survivorship-safe claim that these names could have been selected ex ante."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -197,6 +229,8 @@ def main(argv: list[str] | None = None) -> int:
             "Fractional execution book is empty. COTAHIST market 020/BDI 96 coverage "
             "is required for an R$1,000 realistic account."
         )
+    print(f"Allowed pre-existing symbols: {len(allowed_tickers)}")
+    print(f"Explicit exclusions: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(f"Snapshots: {args.snapshots_output} ({len(snapshots)} rows)")
     print(
         f"Universe: {args.manifest_output} ({len(selected_union)} selectable + "
