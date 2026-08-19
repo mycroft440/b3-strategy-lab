@@ -13,6 +13,7 @@ on:
       - "scripts/sync_point_in_time_universe.py"
       - "tests/test_realistic_accounting.py"
       - "tests/test_cash_distributions.py"
+      - "tests/test_control_panel.py"
       - "data/fees/**"
       - ".github/workflows/realistic-backtest-ci.yml"
   workflow_dispatch:
@@ -42,12 +43,14 @@ jobs:
             scripts/backtest_strategy_management_realistic.py \
             scripts/walk_forward_realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
-            scripts/run_realistic_pipeline.py
+            scripts/run_realistic_pipeline.py \
+            scripts/realistic_backtest_control_panel.py
       - name: Unit tests
         run: |
           python -m unittest \
             tests.test_realistic_accounting \
-            tests.test_cash_distributions -v
+            tests.test_cash_distributions \
+            tests.test_control_panel -v
 
   cotahist-smoke:
     runs-on: ubuntu-latest
