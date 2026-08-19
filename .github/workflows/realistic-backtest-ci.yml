@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "b3_strategy_lab/realistic.py"
+      - "b3_strategy_lab/realistic_portfolio.py"
+      - "b3_strategy_lab/point_in_time.py"
       - "scripts/*realistic*.py"
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
@@ -28,6 +30,8 @@ jobs:
         run: |
           python -m py_compile \
             b3_strategy_lab/realistic.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/point_in_time.py \
             scripts/build_point_in_time_universe.py \
             scripts/build_ticker_transitions.py \
             scripts/sync_point_in_time_universe.py \
@@ -64,11 +68,15 @@ jobs:
           manifest = json.loads(Path('data/universes/point_in_time_union.json').read_text(encoding='utf-8'))
           assert manifest['point_in_time'] is True
           assert manifest['survivorship_safe'] is True
+          assert manifest['execution_sources']['standard'] == {'market_type': '010', 'bdi_code': '02'}
+          assert manifest['execution_sources']['fractional'] == {'market_type': '020', 'bdi_code': '96'}
           assert len({row['ticker'] for row in snapshots}) >= 40
           execution = list(csv.DictReader(Path('data/execution/b3_standard_fractional_open.csv').open(encoding='utf-8')))
-          assert any(row['market_type'] == '010' for row in execution)
-          assert any(row['market_type'] == '020' for row in execution)
-          print('snapshots', len(snapshots), 'historical symbols', len(manifest['tickers']), 'execution rows', len(execution))
+          standard = [row for row in execution if row['market_type'] == '010']
+          fractional = [row for row in execution if row['market_type'] == '020']
+          assert standard, 'standard execution book is empty'
+          assert fractional, 'fractional execution book is empty'
+          print('snapshots', len(snapshots), 'historical symbols', len(manifest['tickers']), 'standard', len(standard), 'fractional', len(fractional))
           PY
       - name: Detect historical ticker transitions without future-price filling
         run: |
