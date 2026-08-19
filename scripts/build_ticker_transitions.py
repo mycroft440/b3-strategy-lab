@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from b3_strategy_lab.cotahist import download_cotahist, read_cotahist  # noqa: E402
+from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
+from b3_strategy_lab.point_in_time import read_standard_company_equity_cotahist  # noqa: E402
 from scripts.sync_official_universe import _parse_years  # noqa: E402
 
 
@@ -66,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         if not archive.exists():
             raise FileNotFoundError(f"{archive} missing; use --download.")
-        quotes.extend(read_cotahist(archive))
+        quotes.extend(read_standard_company_equity_cotahist(archive))
 
     by_isin: dict[str, list] = defaultdict(list)
     by_ticker: dict[str, list] = defaultdict(list)
