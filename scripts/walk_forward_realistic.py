@@ -4,8 +4,6 @@ import argparse
 import csv
 import json
 import sys
-from dataclasses import asdict
-from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +16,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     PointInTimeUniverse,
     load_cash_distributions,
 )
+from b3_strategy_lab.realistic_portfolio import load_transitions, run_realistic  # noqa: E402
 from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_CASH_EVENTS,
@@ -27,8 +26,6 @@ from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_SNAPSHOTS,
     DEFAULT_TRANSITIONS,
     DEFAULT_UNIVERSE,
-    _load_transitions,
-    run_realistic,
 )
 from scripts.research_portfolio_allocation import MarketData, _configs  # noqa: E402
 
@@ -102,9 +99,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Walk-forward requires a point-in-time survivorship-safe universe.")
     cash_manifest = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     if cash_manifest.get("complete") is not True:
-        parser.error("Walk-forward requires a cash ledger accepted by the data audit.")
+        parser.error("Walk-forward requires a cash ledger with no unresolved parse issue.")
 
     universe = PointInTimeUniverse.from_csv(args.snapshots)
+    if universe.union != {str(item).upper() for item in manifest.get("tickers", [])}:
+        parser.error("Snapshot union differs from universe manifest.")
     data = MarketData(
         sorted(universe.union),
         "1d",
@@ -115,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     pricebook = ExecutionPriceBook.from_csv(args.execution_prices)
     events = load_cash_distributions(args.cash_events)
     fee_schedule = FeeSchedule.from_json(args.fee_schedule)
-    transitions = _load_transitions(args.ticker_transitions)
+    transitions = load_transitions(args.ticker_transitions)
 
     strategies = [item.strip().lower() for item in args.strategies]
     unknown = sorted(set(strategies) - set(portfolio_strategies()))
@@ -128,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         missing = requested - {config.name for config in configs}
         if missing:
             parser.error(f"Unknown management configs: {sorted(missing)}")
+    if not configs:
+        parser.error("No management configs selected.")
 
     last_available_year = int(max(data.dates)[:4])
     last_test_year = args.last_test_year or last_available_year
@@ -162,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
                     max_slippage_bps=args.max_slippage_bps,
                     transitions=transitions,
                     economic_gap_adjustment=args.economic_gap_adjustment,
+                    selection_status="retrospective_hypothesis_replay",
                 )
                 ranked.append((_metric(train, args.objective), strategy, config, train))
         ranked.sort(key=lambda item: item[0], reverse=True)
@@ -183,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
             max_slippage_bps=args.max_slippage_bps,
             transitions=transitions,
             economic_gap_adjustment=args.economic_gap_adjustment,
+            selection_status="walk_forward_out_of_sample",
         )
         rows.append(
             {
@@ -210,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
                     test_summary.ordinary_income_tax_paid
                     + test_summary.distribution_tax_paid
                 ),
+                "selection_status": test_summary.selection_status,
                 "validity": test_summary.validity,
             }
         )
