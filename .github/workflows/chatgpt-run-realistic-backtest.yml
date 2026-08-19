@@ -17,117 +17,50 @@ permissions:
   contents: read
 
 jobs:
-  scan-cotahist-ohlc:
+  backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run point-in-time parser regression tests
+      - name: Run realistic-input regression tests
         run: |
           python -m unittest \
             tests.test_point_in_time_cotahist \
             tests.test_realistic_accounting \
             tests.test_cash_distributions -v
-      - name: Scan all official 2017-2026 COTAHIST equity OHLC records
+      - name: Run realistic R$1000 backtest
         run: |
-          python - <<'PY'
-          import hashlib
-          import json
-          import re
-          import zipfile
-          from pathlib import Path
-          from b3_strategy_lab.cotahist import download_cotahist
-
-          ticker_re = re.compile(r'^[A-Z]{4}\d{1,2}$')
-          anomalies = []
-          scanned = 0
-          by_year = {}
-          out = Path('reports/cotahist_ohlc_anomalies.json')
-          out.parent.mkdir(parents=True, exist_ok=True)
-
-          for year in range(2017, 2027):
-              path = download_cotahist(year, Path('.cache/cotahist'), refresh=(year == 2026))
-              year_scanned = 0
-              year_anomalies = 0
-              with zipfile.ZipFile(path) as archive:
-                  members = [name for name in archive.namelist() if not name.endswith('/')]
-                  if len(members) != 1:
-                      raise RuntimeError(f'{year}: unexpected COTAHIST members: {members}')
-                  with archive.open(members[0]) as fh:
-                      for line_number, raw in enumerate(fh, start=1):
-                          line = raw.decode('latin-1').rstrip('\r\n')
-                          if len(line) < 245 or line[:2] != '01':
-                              continue
-                          bdi = line[10:12]
-                          market = line[24:27]
-                          if (bdi, market) not in {('02','010'), ('96','020')}:
-                              continue
-                          ticker = line[12:24].strip().upper()
-                          base = ticker[:-1] if market == '020' and ticker.endswith('F') else ticker
-                          spec = line[39:49].strip().upper()
-                          if not ticker_re.fullmatch(base) or not spec.startswith(('ON','PN','UNT')):
-                              continue
-                          scanned += 1
-                          year_scanned += 1
-                          factor_text = line[210:217]
-                          factor = int(factor_text) if factor_text.strip() else 1
-                          factor = factor if factor > 0 else 1
-                          def p(a,b):
-                              return int(line[a:b]) / 100 / factor
-                          open_, high, low, close = p(56,69), p(69,82), p(82,95), p(108,121)
-                          issues = []
-                          if min(open_, high, low, close) <= 0:
-                              issues.append('nonpositive_ohlc')
-                          if high < max(open_, close):
-                              issues.append('high_below_open_or_close')
-                          if low > min(open_, close):
-                              issues.append('low_above_open_or_close')
-                          if high < low:
-                              issues.append('high_below_low')
-                          if issues:
-                              year_anomalies += 1
-                              anomalies.append({
-                                  'year': year,
-                                  'line': line_number,
-                                  'date': line[2:10],
-                                  'ticker': ticker,
-                                  'bdi': bdi,
-                                  'market': market,
-                                  'issuer': line[27:39].strip(),
-                                  'specification': spec,
-                                  'open': open_,
-                                  'high': high,
-                                  'low': low,
-                                  'close': close,
-                                  'quotation_factor': factor,
-                                  'isin': line[230:242].strip(),
-                                  'distribution_number': line[242:245],
-                                  'issues': issues,
-                                  'raw_sha256': hashlib.sha256(line.encode('latin-1')).hexdigest(),
-                                  'raw_line': line,
-                              })
-              by_year[str(year)] = {'scanned': year_scanned, 'anomalies': year_anomalies}
-              print('YEAR_SCAN', year, by_year[str(year)])
-
-          report = {
-              'scope': 'B3 COTAHIST company equities; standard BDI02/010 and fractional BDI96/020',
-              'years': [2017, 2026],
-              'scanned_records': scanned,
-              'anomaly_count': len(anomalies),
-              'by_year': by_year,
-              'anomalies': anomalies,
-          }
-          out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-          print('TOTAL_SCANNED', scanned)
-          print('ANOMALY_COUNT', len(anomalies))
-          for item in anomalies:
-              print('OHLC_ANOMALY', {k: v for k, v in item.items() if k != 'raw_line'})
-          PY
-      - name: Upload OHLC anomaly audit
+          python scripts/run_realistic_pipeline.py \
+            --download \
+            --refresh-actions \
+            --skip-walk-forward \
+            --initial-cash 1000 \
+            --status-output reports/chatgpt_realistic_pipeline_status.json
+      - name: Print status
+        if: always()
+        run: |
+          if [ -f reports/chatgpt_realistic_pipeline_status.json ]; then
+            cat reports/chatgpt_realistic_pipeline_status.json
+          fi
+      - name: Upload realistic backtest reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cotahist-ohlc-anomaly-audit
-          path: reports/cotahist_ohlc_anomalies.json
+          name: realistic-backtest-reports
+          path: |
+            reports/chatgpt_realistic_pipeline_status.json
+            reports/realistic_input_audit.json
+            reports/realistic_raw_gap_summary.json
+            reports/realistic_economic_gap_summary.json
+            reports/realistic_raw_gap_curve.csv
+            reports/realistic_economic_gap_curve.csv
+            reports/realistic_raw_gap_trades.csv
+            reports/realistic_economic_gap_trades.csv
+            reports/realistic_raw_gap_distributions.csv
+            reports/realistic_economic_gap_distributions.csv
+            reports/realistic_raw_gap_tax.csv
+            reports/realistic_economic_gap_tax.csv
+          if-no-files-found: warn
