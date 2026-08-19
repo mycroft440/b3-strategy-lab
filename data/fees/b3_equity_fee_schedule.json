@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "purpose": "Date-effective B3 cash-equity fee assumptions for realistic backtests. Values remain explicitly modeled until every historical opening-auction component is reconciled against primary B3 circulars.",
+  "rules": [
+    {
+      "start": "2018-01-01",
+      "end": "2021-02-01",
+      "b3_bps": 3.25,
+      "brokerage_fixed": 0.0,
+      "quality": "modeled",
+      "source": "B3 historical tariff notice: non-day-trade total was 0.0325% before the tariff change effective 2021-02-02"
+    },
+    {
+      "start": "2021-02-02",
+      "end": "2099-12-31",
+      "b3_bps": 3.20,
+      "brokerage_fixed": 0.0,
+      "quality": "modeled",
+      "source": "B3: 0.0300% regular non-day-trade base from 2021-02-02; current opening/closing auction negotiation component is higher, producing an approximately 0.0320% modeled opening-auction total for the lowest ADTV tier"
+    }
+  ],
+  "brokerage_note": "Zero fixed brokerage is an assumption, not a universal historical fact. Supply a broker-specific schedule before claiming an exact personal-account reconstruction.",
+  "validity_note": "Because opening-auction and broker fees are not fully certified for every date from 2018 onward, realistic summaries must retain the MODELED_FEES validity suffix."
+}

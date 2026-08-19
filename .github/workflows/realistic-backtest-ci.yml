@@ -1,0 +1,90 @@
+name: Realistic backtest CI
+
+on:
+  pull_request:
+    paths:
+      - "b3_strategy_lab/realistic.py"
+      - "b3_strategy_lab/realistic_portfolio.py"
+      - "b3_strategy_lab/point_in_time.py"
+      - "b3_strategy_lab/cash_distributions.py"
+      - "scripts/*realistic*.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "scripts/build_ticker_transitions.py"
+      - "scripts/sync_point_in_time_universe.py"
+      - "tests/test_realistic_accounting.py"
+      - "tests/test_cash_distributions.py"
+      - "data/fees/**"
+      - ".github/workflows/realistic-backtest-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile realistic modules
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/realistic.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/point_in_time.py \
+            b3_strategy_lab/cash_distributions.py \
+            scripts/build_point_in_time_universe.py \
+            scripts/build_ticker_transitions.py \
+            scripts/sync_point_in_time_universe.py \
+            scripts/sync_point_in_time_universe_realistic.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/audit_realistic_backtest_inputs.py \
+            scripts/run_realistic_pipeline.py
+      - name: Unit tests
+        run: |
+          python -m unittest \
+            tests.test_realistic_accounting \
+            tests.test_cash_distributions -v
+
+  cotahist-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build 2018 point-in-time universe from real B3 archives
+        run: |
+          python scripts/build_point_in_time_universe.py \
+            --download \
+            --years 2017:2018 \
+            --start 2018-01-02 \
+            --end 2018-12-28 \
+            --top-n 40
+      - name: Validate standard and fractional execution books
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          snapshots = list(csv.DictReader(Path('data/universes/point_in_time_weekly.csv').open(encoding='utf-8')))
+          assert snapshots, 'point-in-time snapshots are empty'
+          manifest = json.loads(Path('data/universes/point_in_time_union.json').read_text(encoding='utf-8'))
+          assert manifest['point_in_time'] is True
+          assert manifest['survivorship_safe'] is True
+          assert manifest['execution_sources']['standard'] == {'market_type': '010', 'bdi_code': '02'}
+          assert manifest['execution_sources']['fractional'] == {'market_type': '020', 'bdi_code': '96'}
+          assert len({row['ticker'] for row in snapshots}) >= 40
+          execution = list(csv.DictReader(Path('data/execution/b3_standard_fractional_open.csv').open(encoding='utf-8')))
+          standard = [row for row in execution if row['market_type'] == '010']
+          fractional = [row for row in execution if row['market_type'] == '020']
+          assert standard, 'standard execution book is empty'
+          assert fractional, 'fractional execution book is empty'
+          print('snapshots', len(snapshots), 'historical symbols', len(manifest['tickers']), 'standard', len(standard), 'fractional', len(fractional))
+          PY
+      - name: Detect historical ticker transitions without future-price filling
+        run: |
+          python scripts/build_ticker_transitions.py --years 2017:2018
