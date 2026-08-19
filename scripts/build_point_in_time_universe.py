@@ -19,7 +19,7 @@ from b3_strategy_lab.point_in_time import (  # noqa: E402
     parse_years,
     read_fractional_cotahist,
     read_standard_company_equity_cotahist,
-    snapshot_rows,
+    weekly_decision_dates,
     write_csv,
 )
 
@@ -29,6 +29,123 @@ DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_ALLOWED_UNIVERSE = Path("data/universes/fixed_40_2018.json")
 EXCLUDED_TICKERS = {"BOAC34"}
+
+
+def _snapshot_rows_allow_fewer(
+    quotes: list,
+    *,
+    start: str,
+    end: str,
+    lookback_sessions: int,
+    top_n: int,
+    minimum_presence: float,
+) -> list[dict[str, object]]:
+    """Build weekly snapshots with up to top_n eligible fixed-universe stocks.
+
+    Unlike the generic research helper, this realistic replay never invents
+    replacement symbols just to keep a constant universe size. If only 36 of the
+    user's pre-existing stocks satisfy the trailing-data rules on a decision date,
+    that snapshot contains 36 stocks. If 40 qualify later, all 40 are available.
+    """
+    by_date: dict[str, list] = defaultdict(list)
+    all_dates: set[str] = set()
+    for quote in quotes:
+        if not is_company_equity(quote):
+            continue
+        by_date[quote.date].append(quote)
+        all_dates.add(quote.date)
+
+    dates = sorted(all_dates)
+    if not dates:
+        raise ValueError("No eligible company-equity dates remain after fixed-universe filtering.")
+    date_index = {value: index for index, value in enumerate(dates)}
+    decisions = weekly_decision_dates(dates, start, end)
+    rows: list[dict[str, object]] = []
+
+    for decision in decisions:
+        end_index = date_index[decision]
+        first = max(0, end_index - lookback_sessions + 1)
+        window_dates = dates[first : end_index + 1]
+        if len(window_dates) < max(20, lookback_sessions // 2):
+            continue
+
+        stats: dict[str, dict[str, object]] = {}
+        for current in window_dates:
+            for quote in by_date[current]:
+                ticker = quote.ticker.upper()
+                item = stats.setdefault(
+                    ticker,
+                    {
+                        "ticker": ticker,
+                        "issuer_name": quote.issuer_name.strip().upper(),
+                        "issuer_code": ticker[:4],
+                        "days": 0,
+                        "financial_volume": 0.0,
+                    },
+                )
+                item["days"] = int(item["days"]) + 1
+                item["financial_volume"] = float(item["financial_volume"]) + float(
+                    quote.financial_volume
+                )
+
+        candidates: list[dict[str, object]] = []
+        for item in stats.values():
+            presence = int(item["days"]) / len(window_dates)
+            if presence < minimum_presence:
+                continue
+            avg_financial = float(item["financial_volume"]) / max(1, int(item["days"]))
+            candidates.append(
+                {
+                    **item,
+                    "presence": presence,
+                    "avg_financial_volume": avg_financial,
+                }
+            )
+
+        candidates.sort(
+            key=lambda item: (
+                float(item["avg_financial_volume"]),
+                float(item["presence"]),
+                str(item["ticker"]),
+            ),
+            reverse=True,
+        )
+
+        selected: list[dict[str, object]] = []
+        used_issuers: set[str] = set()
+        for item in candidates:
+            issuer_key = str(item["issuer_name"]) or str(item["issuer_code"])
+            if issuer_key in used_issuers:
+                continue
+            used_issuers.add(issuer_key)
+            selected.append(item)
+            if len(selected) >= top_n:
+                break
+
+        # No replacement is allowed. A decision date with fewer qualifying stocks
+        # remains a smaller snapshot instead of aborting or importing outside names.
+        if not selected:
+            raise ValueError(
+                f"{decision}: none of the fixed-universe stocks satisfy the trailing-data rules."
+            )
+
+        for rank, item in enumerate(selected, start=1):
+            rows.append(
+                {
+                    "effective_date": decision,
+                    "ticker": item["ticker"],
+                    "rank": rank,
+                    "presence": f"{float(item['presence']):.8f}",
+                    "avg_financial_volume": f"{float(item['avg_financial_volume']):.2f}",
+                    "issuer_name": item["issuer_name"],
+                    "issuer_code": item["issuer_code"],
+                    "lookback_sessions": len(window_dates),
+                }
+            )
+
+    if not rows:
+        raise ValueError("No point-in-time snapshots were generated.")
+    return rows
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -103,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("No standard-lot quotes remain for the pre-existing stock universe.")
 
     end = args.end or max(quote.date for quote in standard_quotes)
-    snapshots = snapshot_rows(
+    snapshots = _snapshot_rows_allow_fewer(
         standard_quotes,
         start=args.start,
         end=end,
@@ -125,6 +242,12 @@ def main(argv: list[str] | None = None) -> int:
             "lookback_sessions",
         ],
     )
+
+    snapshot_sizes: dict[str, int] = defaultdict(int)
+    for row in snapshots:
+        snapshot_sizes[str(row["effective_date"])] += 1
+    min_snapshot_size = min(snapshot_sizes.values())
+    max_snapshot_size = max(snapshot_sizes.values())
 
     selected_union = sorted({str(row["ticker"]) for row in snapshots})
     selected_set = set(selected_union)
@@ -161,9 +284,9 @@ def main(argv: list[str] | None = None) -> int:
             isin_by_ticker[ticker].add(quote.isin)
 
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "id": "existing_project_stock_universe_no_replacements",
-        "selection_mode": "fixed_existing_project_universe_weekly_trailing_information",
+        "selection_mode": "fixed_existing_project_universe_variable_weekly_eligibility",
         "selected_as_of": args.start,
         "warmup_start": f"{min(years):04d}-01-01",
         "survivorship_safe": False,
@@ -177,7 +300,10 @@ def main(argv: list[str] | None = None) -> int:
             "instrument_filter": "existing_project_tickers_only; BDI02 market010 ON/PN/UNT; no BDRs",
             "lookback_sessions": args.lookback_sessions,
             "minimum_presence": args.minimum_presence,
-            "top_n": args.top_n,
+            "maximum_weekly_candidates": args.top_n,
+            "minimum_actual_weekly_candidates": min_snapshot_size,
+            "maximum_actual_weekly_candidates": max_snapshot_size,
+            "variable_candidate_count": True,
             "issuer_deduplication": True,
             "decision_frequency": "weekly",
             "future_continuity_filter": False,
@@ -197,9 +323,10 @@ def main(argv: list[str] | None = None) -> int:
         "bias_disclosure": (
             "The candidate universe is intentionally frozen to the project's pre-existing "
             "fixed_40_2018 list at the user's request. No outside symbol is added as a "
-            "replacement. This preserves the historical selection/survivorship bias of "
-            "that list, so results are a retrospective replay of the chosen universe, not "
-            "a survivorship-safe claim that these names could have been selected ex ante."
+            "replacement. Weekly candidate count is allowed to shrink when one or more "
+            "fixed symbols lack sufficient trailing data. This preserves the historical "
+            "selection/survivorship bias of the original list, so results are a retrospective "
+            "replay of the chosen universe, not a survivorship-safe ex-ante selection claim."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -231,6 +358,10 @@ def main(argv: list[str] | None = None) -> int:
         )
     print(f"Allowed pre-existing symbols: {len(allowed_tickers)}")
     print(f"Explicit exclusions: {', '.join(sorted(EXCLUDED_TICKERS))}")
+    print(
+        f"Weekly eligible candidates: min={min_snapshot_size}, max={max_snapshot_size}, "
+        "with no replacements"
+    )
     print(f"Snapshots: {args.snapshots_output} ({len(snapshots)} rows)")
     print(
         f"Universe: {args.manifest_output} ({len(selected_union)} selectable + "
