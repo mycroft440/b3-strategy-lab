@@ -18,7 +18,11 @@ from b3_strategy_lab.realistic import (
     SlippageModel,
     UniverseSnapshot,
 )
-from b3_strategy_lab.realistic_portfolio import _event_key, _gap_adjusted_eligibility
+from b3_strategy_lab.realistic_portfolio import (
+    _event_key,
+    _gap_adjusted_eligibility,
+    _provisional_ordinary_tax,
+)
 
 
 class PointInTimeUniverseTests(unittest.TestCase):
@@ -114,6 +118,13 @@ class GapAdjustmentTests(unittest.TestCase):
 
 
 class TaxTests(unittest.TestCase):
+    def _account(self) -> RealCashAccount:
+        return RealCashAccount(
+            100_000.0,
+            FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)]),
+            SlippageModel(base_bps=0, participation_bps_at_1pct=0),
+        )
+
     def test_small_month_positive_gain_is_exempt(self) -> None:
         ledger = BrazilEquityTaxLedger()
         ledger.record_sale("2024-01-10", 19_000.0, 2_000.0)
@@ -129,6 +140,29 @@ class TaxTests(unittest.TestCase):
         feb = ledger.finalize("2024-02")
         self.assertAlmostEqual(feb.taxable_gain, 2_000.0)
         self.assertAlmostEqual(feb.tax_due, 300.0)
+
+    def test_provisional_tax_reserves_cash_after_taxable_sales(self) -> None:
+        account = self._account()
+        account.tax.record_sale("2024-03-05", 30_000.0, 10_000.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-05"), 1_500.0)
+
+    def test_later_same_month_loss_reduces_provisional_reserve(self) -> None:
+        account = self._account()
+        account.tax.record_sale("2024-03-05", 30_000.0, 10_000.0)
+        account.tax.record_sale("2024-03-20", 10_000.0, -4_000.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-20"), 900.0)
+
+    def test_prior_loss_carry_reduces_provisional_reserve(self) -> None:
+        account = self._account()
+        account.tax.record_sale("2024-01-10", 30_000.0, -1_000.0)
+        account.tax.finalize("2024-01")
+        account.tax.record_sale("2024-02-10", 30_000.0, 3_000.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-02-10"), 300.0)
+
+    def test_provisional_tax_is_zero_below_sales_exemption_limit(self) -> None:
+        account = self._account()
+        account.tax.record_sale("2024-03-05", 19_000.0, 10_000.0)
+        self.assertEqual(_provisional_ordinary_tax(account, "2024-03-05"), 0.0)
 
     def test_jcp_withholding_through_2025_is_15_percent(self) -> None:
         ledger = CashDistributionTaxLedger()
