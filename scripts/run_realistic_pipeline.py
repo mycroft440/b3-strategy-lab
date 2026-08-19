@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
             transitions.append("--download")
         _run(transitions)
 
-        sync = [python, "scripts/sync_point_in_time_universe.py"]
+        sync = [python, "scripts/sync_point_in_time_universe_realistic.py"]
         if args.download:
             sync.append("--download")
         if args.refresh_actions:
