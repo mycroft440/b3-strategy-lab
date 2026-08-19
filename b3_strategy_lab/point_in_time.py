@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import re
 import zipfile
 from collections import defaultdict
@@ -15,6 +16,18 @@ STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
 STANDARD_BDI = "02"
 FRACTIONAL_BDI = "96"
+
+# Audited against the official B3 COTAHIST_A2020 archive. These four positive-price
+# company-equity records, all on 2020-06-08, have PREULT below PREMIN in the raw
+# source. Only the OHLC envelope is repaired, preserving official open, close,
+# average, trade count, quantity and financial volume. Hash pinning means any future
+# source change fails closed instead of being silently normalized.
+KNOWN_COTAHIST_OHLC_ENVELOPE_REPAIRS = {
+    "8ac96d6b2dc976d06c90003952f92e5eee8ade0358b7afc06d81c2f7f83eeac1",  # EALT3
+    "bfa588ef289a349ad8663c0c8dc88a05136ab7d57f8447c25343eee0959b63bd",  # RPAD6
+    "baa1b7377ab67fa1b4d102ad2fdfc7515cbb7ff1aebba667329ace75ad28da9f",  # SULA3
+    "fac58effbb5d77c898978362b061f15116798e7326c7f37c613c81bead312fe1",  # TRPL3
+}
 
 
 def parse_years(values: list[str]) -> list[int]:
@@ -45,28 +58,147 @@ def base_fractional_ticker(ticker: str) -> str:
     return value
 
 
-def read_fractional_cotahist(path: Path | str) -> list:
-    """Read B3 fractional-market records.
+def _raw_record_sha256(line: str) -> str:
+    core = line.rstrip("\r\n")
+    return hashlib.sha256(core.encode("latin-1")).hexdigest()
 
-    COTAHIST identifies the fractional segment with market type 020 and BDI 96.
-    Both filters must be changed together; keeping the standard-lot BDI 02 while
-    requesting market 020 yields an empty book.
+
+def _all_ohlc_fields_zero(line: str) -> bool:
+    core = line.rstrip("\r\n")
+    if len(core) < 121:
+        return False
+    fields = (core[56:69], core[69:82], core[82:95], core[108:121])
+    try:
+        return all(int(value) == 0 for value in fields)
+    except ValueError:
+        return False
+
+
+def _repair_known_ohlc_envelope(line: str) -> str:
+    """Repair only hash-pinned official B3 envelope anomalies.
+
+    Open and close are never changed. The high/low envelope is expanded only enough
+    to contain the official open/close. Unknown positive-price inconsistencies are
+    intentionally left untouched so the generic COTAHIST parser still fails closed.
     """
+    if _raw_record_sha256(line) not in KNOWN_COTAHIST_OHLC_ENVELOPE_REPAIRS:
+        return line
+    core = line.rstrip("\r\n")
+    suffix = line[len(core) :]
+    open_raw = int(core[56:69])
+    high_raw = int(core[69:82])
+    low_raw = int(core[82:95])
+    close_raw = int(core[108:121])
+    repaired_high = max(high_raw, open_raw, close_raw)
+    repaired_low = min(low_raw, open_raw, close_raw)
+    repaired = (
+        core[:69]
+        + f"{repaired_high:013d}"
+        + f"{repaired_low:013d}"
+        + core[95:]
+    )
+    return repaired + suffix
+
+
+def _mask_non_company_equity_records(
+    lines,
+    *,
+    bdi_code: str,
+    market_type: str,
+):
+    """Keep the COTAHIST envelope/count intact while sanitizing stock inputs.
+
+    Detail rows remain counted for trailer integrity. Records outside company
+    equities are masked before stock-specific validation. Company-equity rows whose
+    four official OHLC fields are all zero are also masked: they carry no usable
+    official opening price, so they must be absent from the execution book rather
+    than converted into a synthetic quote. If such a quote is later required by a
+    real-money rebalance, the simulator fails closed because the execution price is
+    missing.
+
+    Four hash-pinned positive-price envelope anomalies from 2020-06-08 are minimally
+    repaired in high/low only. Every other company-equity record remains subject to
+    the generic strict COTAHIST validation.
+    """
+    for raw_line in lines:
+        line = raw_line.decode("latin-1") if isinstance(raw_line, bytes) else raw_line
+        if len(line.rstrip("\r\n")) < 49 or line[:2] != "01":
+            yield line
+            continue
+        if line[10:12] != bdi_code or line[24:27] != market_type:
+            yield line
+            continue
+
+        ticker = line[12:24].strip().upper()
+        base_ticker = base_fractional_ticker(ticker)
+        specification = line[39:49].strip().upper()
+        company_equity = bool(
+            TICKER_RE.fullmatch(base_ticker)
+            and specification.startswith(("ON", "PN", "UNT"))
+        )
+        if not company_equity or _all_ohlc_fields_zero(line):
+            # Preserve line length and trailer accounting; force the parser's
+            # normal BDI filter to skip this non-investable/unpriced detail row.
+            yield line[:10] + "ZZ" + line[12:]
+            continue
+        yield _repair_known_ohlc_envelope(line)
+
+
+def _read_company_equity_cotahist(
+    path: Path | str,
+    *,
+    bdi_code: str,
+    market_type: str,
+) -> list:
     source = Path(path)
     kwargs = {
-        "bdi_codes": (FRACTIONAL_BDI,),
-        "market_types": (FRACTIONAL_MARKET,),
+        "bdi_codes": (bdi_code,),
+        "market_types": (market_type,),
         "require_envelope": True,
     }
+
+    def parse(lines) -> list:
+        return parse_cotahist_lines(
+            _mask_non_company_equity_records(
+                lines,
+                bdi_code=bdi_code,
+                market_type=market_type,
+            ),
+            **kwargs,
+        )
+
     if source.suffix.lower() != ".zip":
         with source.open("rb") as file:
-            return parse_cotahist_lines(file, **kwargs)
+            return parse(file)
     with zipfile.ZipFile(source) as archive:
         members = [name for name in archive.namelist() if not name.endswith("/")]
         if len(members) != 1:
             raise ValueError(f"{source}: expected one COTAHIST member.")
         with archive.open(members[0]) as file:
-            return parse_cotahist_lines(file, **kwargs)
+            return parse(file)
+
+
+def read_standard_company_equity_cotahist(path: Path | str) -> list:
+    """Read only standard-lot company equities used by the point-in-time universe."""
+    return _read_company_equity_cotahist(
+        path,
+        bdi_code=STANDARD_BDI,
+        market_type=STANDARD_MARKET,
+    )
+
+
+def read_fractional_cotahist(path: Path | str) -> list:
+    """Read B3 fractional-market company-equity records.
+
+    COTAHIST identifies the fractional segment with market type 020 and BDI 96.
+    Both filters must be changed together; keeping the standard-lot BDI 02 while
+    requesting market 020 yields an empty book.
+    """
+    return _read_company_equity_cotahist(
+        path,
+        bdi_code=FRACTIONAL_BDI,
+        market_type=FRACTIONAL_MARKET,
+    )
 
 
 def week_key(value: str) -> tuple[int, int]:

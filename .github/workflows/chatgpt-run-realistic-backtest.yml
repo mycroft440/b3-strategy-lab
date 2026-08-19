@@ -1,0 +1,68 @@
+name: ChatGPT realistic backtest run
+
+on:
+  push:
+    branches:
+      - chatgpt/run-realistic-backtest-20260819
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/chatgpt-run-realistic-backtest.yml"
+      - "b3_strategy_lab/point_in_time.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "tests/test_point_in_time_cotahist.py"
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run realistic-input regression tests
+        run: |
+          python -m unittest \
+            tests.test_point_in_time_cotahist \
+            tests.test_realistic_accounting \
+            tests.test_cash_distributions -v
+      - name: Run realistic R$1000 backtest
+        run: |
+          python scripts/run_realistic_pipeline.py \
+            --download \
+            --refresh-actions \
+            --skip-walk-forward \
+            --initial-cash 1000 \
+            --status-output reports/chatgpt_realistic_pipeline_status.json
+      - name: Print status
+        if: always()
+        run: |
+          if [ -f reports/chatgpt_realistic_pipeline_status.json ]; then
+            cat reports/chatgpt_realistic_pipeline_status.json
+          fi
+      - name: Upload realistic backtest reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: realistic-backtest-reports
+          path: |
+            reports/chatgpt_realistic_pipeline_status.json
+            reports/realistic_input_audit.json
+            reports/realistic_raw_gap_summary.json
+            reports/realistic_economic_gap_summary.json
+            reports/realistic_raw_gap_curve.csv
+            reports/realistic_economic_gap_curve.csv
+            reports/realistic_raw_gap_trades.csv
+            reports/realistic_economic_gap_trades.csv
+            reports/realistic_raw_gap_distributions.csv
+            reports/realistic_economic_gap_distributions.csv
+            reports/realistic_raw_gap_tax.csv
+            reports/realistic_economic_gap_tax.csv
+          if-no-files-found: warn
+
+# fresh run requested 2026-08-19 19:18 America/Sao_Paulo
