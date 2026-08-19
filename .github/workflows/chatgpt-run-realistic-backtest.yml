@@ -9,6 +9,9 @@ on:
       - main
     paths:
       - ".github/workflows/chatgpt-run-realistic-backtest.yml"
+      - "b3_strategy_lab/point_in_time.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "tests/test_point_in_time_cotahist.py"
 
 permissions:
   contents: read
