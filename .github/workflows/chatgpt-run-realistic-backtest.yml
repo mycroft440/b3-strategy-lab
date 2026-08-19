@@ -65,4 +65,4 @@ jobs:
             reports/realistic_economic_gap_tax.csv
           if-no-files-found: warn
 
-# rerun after point-in-time COTAHIST filtering fix
+# fresh run requested 2026-08-19 19:18 America/Sao_Paulo
