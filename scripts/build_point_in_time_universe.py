@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--end")
     parser.add_argument("--lookback-sessions", type=int, default=252)
-    parser.add_argument("--top-n", type=int, default=40)
+    parser.add_argument("--top-n", type=int, default=39)
     parser.add_argument("--minimum-presence", type=float, default=0.90)
     parser.add_argument("--snapshots-output", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--manifest-output", type=Path, default=DEFAULT_MANIFEST)
