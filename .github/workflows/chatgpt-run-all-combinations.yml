@@ -1,0 +1,49 @@
+name: ChatGPT all combinations backtest
+
+on:
+  push:
+    branches:
+      - chatgpt/run-all-combinations-20260819
+
+permissions:
+  contents: read
+
+jobs:
+  combinations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile combination engine
+        run: |
+          python -m py_compile \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/research_portfolio_allocation.py
+      - name: Run all strategy-management combinations
+        run: |
+          python scripts/backtest_strategy_management_combinations.py \
+            --universe-manifest data/universes/fixed_40_2018.json \
+            --start 2018-01-02 \
+            --initial-cash 1000 \
+            --signal-mode adjusted \
+            --config-set all \
+            --workers 4 \
+            --top 20 \
+            --output reports/chatgpt_all_combinations.csv.gz
+      - name: Show generated files
+        if: always()
+        run: |
+          ls -lh reports/ || true
+      - name: Upload combination reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-combinations-backtest-results
+          path: |
+            reports/chatgpt_all_combinations.csv.gz
+            reports/chatgpt_all_combinations.manifest.json
+            reports/chatgpt_all_combinations_top20_annual.md
+          if-no-files-found: warn
