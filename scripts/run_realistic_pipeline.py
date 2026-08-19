@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATUS = Path("reports/realistic_pipeline_status.json")
+FREEZE_DATE = "2026-08-19"
 
 
 def _run(arguments: list[str]) -> None:
@@ -20,12 +21,21 @@ def _read(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _account_classification(audit: dict[str, object]) -> str:
+    return (
+        "EXACT_CONDITIONAL_ACCOUNT_RECONSTRUCTION"
+        if audit.get("ready_for_exact_historical_account_claim")
+        else "REALISTIC_ACCOUNT_ESTIMATE_NOT_EXACT"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "End-to-end realistic B3 validation pipeline. It preserves historical "
             "research artifacts and writes separate point-in-time/real-money-oriented "
-            "reports. Exact-account wording is prohibited unless the input audit says so."
+            "reports. Account reconstruction quality and strategy-selection evidence "
+            "are reported separately."
         )
     )
     parser.add_argument("--start", default="2018-01-02")
@@ -83,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     if audit_proc.returncode not in {0, 2}:
         raise RuntimeError(f"Input audit exited with {audit_proc.returncode}.")
 
-    runs = []
+    runs: list[dict[str, object]] = []
     for label, economic in (("raw_gap", False), ("economic_gap", True)):
         summary_path = Path(f"reports/realistic_{label}_summary.json")
         command = [
@@ -93,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
             args.start,
             "--initial-cash",
             str(args.initial_cash),
+            "--selection-status",
+            "retrospective_hypothesis_replay",
             "--output",
             str(summary_path),
             "--curve-output",
@@ -109,11 +121,9 @@ def main(argv: list[str] | None = None) -> int:
             command.append("--economic-gap-adjustment")
         _run(command)
         summary = _read(summary_path)
-        summary["claim_classification"] = (
-            "EXACT_HISTORICAL_ACCOUNT_RECONSTRUCTION"
-            if audit.get("ready_for_exact_historical_account_claim")
-            else "REALISTIC_ESTIMATE_NOT_EXACT_ACCOUNT_CLAIM"
-        )
+        summary["account_reconstruction_classification"] = _account_classification(audit)
+        summary["strategy_selection_classification"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
+        summary["ex_ante_selection_claim_allowed"] = False
         summary["input_audit"] = str(audit_path)
         summary_path.write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
@@ -121,41 +131,67 @@ def main(argv: list[str] | None = None) -> int:
         )
         runs.append({"label": label, **summary})
 
+    walk_forward_reports: dict[str, object] = {}
     if not args.skip_walk_forward:
-        walk = [
-            python,
-            "scripts/walk_forward_realistic.py",
-            "--start",
-            args.start,
-            "--first-test-year",
-            str(args.first_test_year),
-            "--initial-cash",
-            str(args.initial_cash),
-        ]
-        _run(walk)
+        for label, economic in (("raw_gap", False), ("economic_gap", True)):
+            output = Path(f"reports/realistic_walk_forward_{label}.csv")
+            summary_output = Path(f"reports/realistic_walk_forward_{label}_summary.json")
+            walk = [
+                python,
+                "scripts/walk_forward_realistic.py",
+                "--start",
+                args.start,
+                "--first-test-year",
+                str(args.first_test_year),
+                "--initial-cash",
+                str(args.initial_cash),
+                "--output",
+                str(output),
+                "--summary-output",
+                str(summary_output),
+            ]
+            if economic:
+                walk.append("--economic-gap-adjustment")
+            _run(walk)
+            walk_forward_reports[label] = {
+                "csv": str(output),
+                "summary": _read(summary_output),
+            }
 
     raw = next(item for item in runs if item["label"] == "raw_gap")
     economic = next(item for item in runs if item["label"] == "economic_gap")
+    exact_conditional = bool(audit.get("ready_for_exact_historical_account_claim"))
     status = {
-        "schema_version": 1,
+        "schema_version": 2,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
+        "methodology_frozen_at": FREEZE_DATE,
         "input_audit": audit,
-        "raw_gap": raw,
-        "economic_gap": economic,
+        "continuous_replay": {
+            "selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
+            "ex_ante_selection_claim_allowed": False,
+            "interpretation": (
+                "This answers the conditional question 'what if this exact frozen rule "
+                "had been followed from the start?' It does not prove the rule could "
+                "have been selected in 2018 without hindsight."
+            ),
+            "raw_gap": raw,
+            "economic_gap": economic,
+        },
+        "walk_forward": walk_forward_reports,
         "gap_signal_sensitivity": {
             "final_equity_difference": float(raw["final_equity"]) - float(economic["final_equity"]),
             "total_return_difference": float(raw["total_return"]) - float(economic["total_return"]),
         },
-        "exact_account_claim_allowed": bool(
-            audit.get("ready_for_exact_historical_account_claim")
-        ),
+        "conditional_account_reconstruction_exact": exact_conditional,
+        "prospective_selection_validation_begins": FREEZE_DATE,
         "interpretation": (
-            "The economic-gap run removes known cash-distribution mechanical gaps "
-            "from Gap Momentum signal construction. The raw-gap run preserves actual "
-            "quoted openings. Large divergence is a warning that the strategy depends "
-            "materially on ex-distribution price mechanics."
+            "Account reconstruction quality and strategy selection are separate claims. "
+            "The economic-gap run removes known split-normalized cash-distribution "
+            "mechanics from Gap Momentum signal construction. Walk-forward measures "
+            "selection outside the training window. Data after the freeze can provide "
+            "prospective evidence if no rules are changed."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -164,13 +200,17 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"Pipeline status: {args.status_output}")
-    if status["exact_account_claim_allowed"]:
-        print("Exact historical-account claim: ALLOWED by current input audit.")
+    if exact_conditional:
+        print("Conditional account reconstruction: exact-input audit PASSED.")
     else:
         print(
-            "Exact historical-account claim: NOT ALLOWED; outputs are realistic estimates "
-            "until the remaining input certifications are completed."
+            "Conditional account reconstruction: ESTIMATE ONLY; remaining input "
+            "certifications still block an exact-account statement."
         )
+    print(
+        "2018 strategy-selection claim: RETROSPECTIVE only; use walk-forward and "
+        "post-2026-08-19 prospective results for selection evidence."
+    )
     return 0
 
 
