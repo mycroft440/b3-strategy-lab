@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import shutil
 import tempfile
 import unittest
@@ -7,8 +8,17 @@ from pathlib import Path
 
 from b3_strategy_lab.cotahist import CotahistError
 from b3_strategy_lab.point_in_time import (
+    KNOWN_COTAHIST_OHLC_ENVELOPE_REPAIRS,
     read_fractional_cotahist,
     read_standard_company_equity_cotahist,
+)
+
+
+EALT3_20200608_RAW = (
+    "012020060802EALT3       010ACO ALTONA  ON  EDJ      R$  "
+    "000000000202100000000025100000000001843000000000217300000000018400"
+    "000000001840000000000197800257000000000000045700000000000099348100"
+    "000000000000009999123100000010000000000000BREALTACNOR4133"
 )
 
 
@@ -100,7 +110,7 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
 
         self.assertEqual([quote.ticker for quote in quotes], ["PETR4"])
 
-    def test_company_equity_bad_ohlc_still_fails_closed(self) -> None:
+    def test_unknown_positive_company_equity_bad_ohlc_still_fails_closed(self) -> None:
         bad_equity = cotahist_line(
             ticker="PETR4",
             specification="PN N2",
@@ -116,6 +126,81 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
             read_standard_company_equity_cotahist(
                 self._write(envelope([bad_equity]))
             )
+
+    def test_all_zero_standard_ohlc_is_unavailable_not_synthetic(self) -> None:
+        zero_price = cotahist_line(
+            ticker="BGIP4",
+            specification="PN",
+            bdi_code="02",
+            market_type="010",
+            open_=0.0,
+            high=0.0,
+            low=0.0,
+            close=0.0,
+        )
+        good_equity = cotahist_line(
+            ticker="PETR4",
+            specification="PN N2",
+            bdi_code="02",
+            market_type="010",
+            open_=30.0,
+            high=31.0,
+            low=29.0,
+            close=30.5,
+        )
+
+        quotes = read_standard_company_equity_cotahist(
+            self._write(envelope([zero_price, good_equity]))
+        )
+
+        self.assertEqual([quote.ticker for quote in quotes], ["PETR4"])
+
+    def test_all_zero_fractional_ohlc_is_unavailable_not_synthetic(self) -> None:
+        zero_price = cotahist_line(
+            ticker="HETA4F",
+            specification="PN",
+            bdi_code="96",
+            market_type="020",
+            open_=0.0,
+            high=0.0,
+            low=0.0,
+            close=0.0,
+        )
+        good_equity = cotahist_line(
+            ticker="PETR4F",
+            specification="PN N2",
+            bdi_code="96",
+            market_type="020",
+            open_=30.0,
+            high=31.0,
+            low=29.0,
+            close=30.5,
+        )
+
+        quotes = read_fractional_cotahist(
+            self._write(envelope([zero_price, good_equity]))
+        )
+
+        self.assertEqual([quote.ticker for quote in quotes], ["PETR4F"])
+
+    def test_hash_pinned_ealt3_envelope_repair_preserves_open_and_close(self) -> None:
+        raw_hash = hashlib.sha256(EALT3_20200608_RAW.encode("latin-1")).hexdigest()
+        self.assertIn(raw_hash, KNOWN_COTAHIST_OHLC_ENVELOPE_REPAIRS)
+
+        quotes = read_standard_company_equity_cotahist(
+            self._write(envelope([EALT3_20200608_RAW]))
+        )
+
+        self.assertEqual(len(quotes), 1)
+        quote = quotes[0]
+        self.assertEqual(quote.ticker, "EALT3")
+        self.assertAlmostEqual(quote.open, 20.21)
+        self.assertAlmostEqual(quote.high, 25.10)
+        self.assertAlmostEqual(quote.low, 18.40)
+        self.assertAlmostEqual(quote.close, 18.40)
+        self.assertEqual(quote.trades, 257)
+        self.assertEqual(quote.quantity, 45_700)
+        self.assertAlmostEqual(quote.financial_volume, 993_481.0)
 
     def test_fractional_reader_filters_non_equities_before_validation(self) -> None:
         bad_non_equity = cotahist_line(
