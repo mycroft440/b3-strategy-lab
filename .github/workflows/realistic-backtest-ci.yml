@@ -13,6 +13,7 @@ on:
       - "scripts/sync_point_in_time_universe.py"
       - "tests/test_realistic_accounting.py"
       - "tests/test_cash_distributions.py"
+      - "tests/test_point_in_time_cotahist.py"
       - "tests/test_control_panel.py"
       - "data/fees/**"
       - ".github/workflows/realistic-backtest-ci.yml"
@@ -48,6 +49,7 @@ jobs:
       - name: Unit tests
         run: |
           python -m unittest \
+            tests.test_point_in_time_cotahist \
             tests.test_realistic_accounting \
             tests.test_cash_distributions \
             tests.test_control_panel -v
