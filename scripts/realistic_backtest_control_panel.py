@@ -7,7 +7,6 @@ import signal
 import subprocess
 import sys
 import threading
-import time
 import webbrowser
 from copy import deepcopy
 from datetime import date, datetime, timezone
@@ -399,7 +398,7 @@ HTML = r"""<!doctype html>
 <div class="card">
 <div class="stocks-head"><div><strong>Ações testadas</strong><div class="count"><span id="selectedCount">0</span> selecionadas</div></div><div class="actions"><button class="btn soft" onclick="selectAll(true)">Todas</button><button class="btn soft" onclick="selectAll(false)">Limpar</button></div></div>
 <div class="stocks">__TICKERS__</div>
-<div class="hint" style="margin-top:12px">BOAC34 e qualquer ativo fora da lista fixa permanecem bloqueados. Se uma ação não tiver dados válidos em determinada semana, o teste usa apenas as disponíveis, sem reposição.</div>
+<div class="hint" style="margin-top:12px">BOAC34 e qualquer ativo fora da lista fixa permanecem bloqueados. Se uma ação selecionada não tiver dados válidos em determinada semana, o teste usa apenas as disponíveis, sem reposição.</div>
 </div>
 </div>
 <div class="card" style="margin-top:18px"><strong>Log da execução</strong><div id="log" class="log">Nenhuma execução iniciada.</div></div>
@@ -415,7 +414,7 @@ async function runBacktest(){
 }
 async function stopBacktest(){await fetch('/api/stop',{method:'POST'});refresh()}
 function money(v){if(v===null||v===undefined)return '—';return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
-function pct(v){if(v===null||v===undefined)return '—';let n=Number(v);if(Math.abs(n)<5)n*=100;return n.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%'}
+function pct(v){if(v===null||v===undefined)return '—';const n=Number(v)*100;return n.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%'}
 async function refresh(){
  try{const r=await fetch('/api/status');const d=await r.json();const box=document.getElementById('statusBox');box.className='status '+d.state;document.getElementById('statusText').textContent=d.message||d.state;document.getElementById('step').textContent=d.current_step||'';document.getElementById('log').textContent=d.log||'Nenhum log.';document.getElementById('log').scrollTop=999999;document.getElementById('run').disabled=d.state==='running';document.getElementById('stop').disabled=d.state!=='running';
  if(d.result){document.getElementById('result').innerHTML=`<div class="metric">raw_gap final<b>${money(d.result.raw_final_equity)}</b><span>${pct(d.result.raw_total_return)}</span></div><div class="metric">economic_gap final<b>${money(d.result.economic_final_equity)}</b><span>${pct(d.result.economic_total_return)}</span></div>`}
