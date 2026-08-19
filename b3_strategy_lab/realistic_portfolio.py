@@ -156,6 +156,22 @@ def _event_key(event: CashDistribution) -> tuple[str, str, str, str, float]:
     )
 
 
+def _credit_event(
+    account: RealCashAccount,
+    event: CashDistribution,
+    entitlements: dict[tuple[str, str, str, str, float], int],
+) -> float:
+    entitled = entitlements.get(_event_key(event), 0)
+    row = account.credit_distribution(
+        event.payment_date,
+        event.ticker,
+        event.label,
+        entitled,
+        event.gross_per_share,
+    )
+    return row.net
+
+
 def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
     for ticker, position in list(account.positions.items()):
         if position.shares <= 0:
@@ -378,11 +394,26 @@ def run_realistic(
     distributions_net = 0.0
 
     for index, current in enumerate(dates):
+        previous = dates[index - 1] if index > 0 else None
         next_date = dates[index + 1] if index + 1 < len(dates) else None
+        payment_events = payment_map.get(current, [])
+        preopen_payments = [event for event in payment_events if event.payment_date < current]
+        same_day_payments = [event for event in payment_events if event.payment_date == current]
 
         _apply_split_from_adjustment_factors(account, data, current)
         if current in transitions:
             _apply_ticker_transitions(account, transitions[current])
+
+        # A payment made on a non-trading day is already cash before the next
+        # market opening, so it must be available to the opening rebalance.
+        for event in preopen_payments:
+            distributions_net += _credit_event(account, event, entitlements)
+
+        # Close the prior tax month only after all non-trading-day payments from
+        # that month have been registered. The debit timing is intentionally
+        # conservative; the model targets economic tax burden, not DARF timing.
+        if previous is not None and previous[:7] != current[:7]:
+            account.finalize_month(previous[:7])
 
         if pending_targets is not None:
             account = rebalance_atomic(
@@ -393,21 +424,11 @@ def run_realistic(
                 pending_targets,
             )
 
-        for event in payment_map.get(current, []):
-            entitled = entitlements.get(_event_key(event), 0)
-            # Cash becomes tradeable on this market session, but the tax ledger
-            # retains the event's official payment date/month.
-            row = account.credit_distribution(
-                event.payment_date,
-                event.ticker,
-                event.label,
-                entitled,
-                event.gross_per_share,
-            )
-            distributions_net += row.net
-
-        if next_date is None or current[:7] != next_date[:7]:
-            account.finalize_month(current[:7])
+        # A payment dated on this trading session is not assumed to be available
+        # at the opening auction. It is credited after the open and contributes to
+        # the session-close equity.
+        for event in same_day_payments:
+            distributions_net += _credit_event(account, event, entitlements)
 
         equity = account.cash
         selected = []
@@ -453,6 +474,23 @@ def run_realistic(
             )
         else:
             pending_targets = None
+
+    # Include the economic tax liability generated in the final (possibly partial)
+    # month in the final net equity. Earlier months were finalized at the first
+    # market session of the following month, after weekend/holiday payments.
+    cash_before_final_tax = account.cash
+    account.finalize_month(dates[-1][:7])
+    final_tax_debit = cash_before_final_tax - account.cash
+    if final_tax_debit:
+        equities[-1] -= final_tax_debit
+        curve[-1] = replace(
+            curve[-1],
+            equity=curve[-1].equity - final_tax_debit,
+            cash=account.cash,
+            tax_paid=account.tax_paid + account.dividend_jcp_tax_paid,
+        )
+        if equities[-1] <= 0:
+            raise ValueError("Final tax liability makes portfolio equity non-positive.")
 
     metrics = _portfolio_metrics(equities, dates, initial_cash)
     yearly = _yearly_returns(equities, dates, initial_cash)
