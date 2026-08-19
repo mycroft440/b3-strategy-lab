@@ -120,9 +120,6 @@ def _gap_adjusted_eligibility(
         for candle in candles:
             raw_distribution = per_ex.get((ticker, candle.date), 0.0)
             if raw_distribution:
-                # Signal candles are split-normalized. Cash distributions are quoted
-                # per historical raw share, so convert the distribution to the same
-                # split-normalized basis before removing its mechanical ex-date gap.
                 normalized_distribution = raw_distribution * candle.adjustment_factor
                 modified.append(replace(candle, open=candle.open + normalized_distribution))
             else:
@@ -173,13 +170,6 @@ def _credit_event(
 
 
 def _provisional_ordinary_tax(account: RealCashAccount, value_date: str) -> float:
-    """Reserve the current month's estimated ordinary-equity income tax.
-
-    This prevents a self-financing simulation from reinvesting cash that is already
-    economically committed to the month's tax liability. Later losses in the same
-    month automatically reduce the reserve because the estimate is recomputed from
-    the current aggregate gain.
-    """
     ledger = account.tax
     month = value_date[:7]
     if month in ledger._finalized:
@@ -373,6 +363,7 @@ def run_realistic(
     transitions: dict[str, list[TickerTransition]],
     economic_gap_adjustment: bool,
     selection_status: str = "retrospective_hypothesis_replay",
+    progress_callback=None,
 ) -> tuple[RealisticSummary, list[CurveRow], RealCashAccount]:
     from scripts.backtest_strategy_management_combinations import _build_eligibility
     from scripts.research_portfolio_allocation import (
@@ -414,6 +405,9 @@ def run_realistic(
     curve: list[CurveRow] = []
     equities: list[float] = []
     distributions_net = 0.0
+    progress_interval = max(1, len(dates) // 100)
+    if progress_callback is not None:
+        progress_callback(0, len(dates), dates[0])
 
     for index, current in enumerate(dates):
         previous = dates[index - 1] if index > 0 else None
@@ -426,14 +420,9 @@ def run_realistic(
         if current in transitions:
             _apply_ticker_transitions(account, transitions[current])
 
-        # A payment made on a non-trading day is already cash before the next
-        # market opening, so it must be available to the opening rebalance.
         for event in preopen_payments:
             distributions_net += _credit_event(account, event, entitlements)
 
-        # Close the prior tax month only after all non-trading-day payments from
-        # that month have been registered. The debit timing is intentionally
-        # conservative; the model targets economic tax burden, not DARF timing.
         if previous is not None and previous[:7] != current[:7]:
             account.finalize_month(previous[:7])
 
@@ -446,9 +435,6 @@ def run_realistic(
                 pending_targets,
             )
 
-        # A payment dated on this trading session is not assumed to be available
-        # at the opening auction. It is credited after the open and contributes to
-        # the session-close equity.
         for event in same_day_payments:
             distributions_net += _credit_event(account, event, entitlements)
 
@@ -497,9 +483,12 @@ def run_realistic(
         else:
             pending_targets = None
 
-    # Include the economic tax liability generated in the final (possibly partial)
-    # month in the final net equity. Earlier months were finalized at the first
-    # market session of the following month, after weekend/holiday payments.
+        completed = index + 1
+        if progress_callback is not None and (
+            completed == len(dates) or completed % progress_interval == 0
+        ):
+            progress_callback(completed, len(dates), current)
+
     cash_before_final_tax = account.cash
     account.finalize_month(dates[-1][:7])
     final_tax_debit = cash_before_final_tax - account.cash
