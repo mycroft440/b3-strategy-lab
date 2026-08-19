@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import signal
 import subprocess
@@ -24,6 +25,7 @@ AUDIT_PATH = ROOT / "reports/realistic_input_audit.json"
 RAW_SUMMARY = ROOT / "reports/realistic_raw_gap_summary.json"
 ECONOMIC_SUMMARY = ROOT / "reports/realistic_economic_gap_summary.json"
 EXCLUDED_TICKERS = {"BOAC34"}
+MIN_START = date(2018, 1, 2)
 
 STATE_LOCK = threading.Lock()
 STATE: dict[str, object] = {
@@ -105,9 +107,11 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
     if unknown:
         raise ValueError(f"Ações não permitidas: {', '.join(unknown)}")
 
-    start = str(payload.get("start", "2018-01-02")).strip() or "2018-01-02"
+    start = str(payload.get("start", MIN_START.isoformat())).strip() or MIN_START.isoformat()
     end = str(payload.get("end", "")).strip()
     start_date = date.fromisoformat(start)
+    if start_date < MIN_START:
+        raise ValueError(f"A data inicial mínima é {MIN_START.strftime('%d/%m/%Y')}.")
     if end:
         end_date = date.fromisoformat(end)
         if end_date < start_date:
@@ -118,8 +122,8 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
         raise ValueError("A data inicial não pode estar no futuro.")
 
     initial_cash = float(payload.get("initial_cash", 1000.0))
-    if initial_cash <= 0:
-        raise ValueError("O capital inicial deve ser maior que zero.")
+    if not math.isfinite(initial_cash) or initial_cash <= 0:
+        raise ValueError("O capital inicial deve ser um valor finito maior que zero.")
 
     return {
         "tickers": selected,
@@ -386,8 +390,8 @@ HTML = r"""<!doctype html>
 <div class="hero"><h1>Painel de Backtest B3</h1><p>Escolha as ações, o período e o capital. Nenhuma ação fora da lista original será adicionada.</p></div>
 <div class="grid">
 <div class="card">
-<div class="field"><label class="title">Data inicial</label><input id="start" type="date" value="2018-01-02"></div>
-<div class="field"><label class="title">Data final</label><input id="end" type="date" value="__TODAY__"></div>
+<div class="field"><label class="title">Data inicial</label><input id="start" type="date" min="2018-01-02" value="2018-01-02"></div>
+<div class="field"><label class="title">Data final</label><input id="end" type="date" min="2018-01-02" value="__TODAY__"></div>
 <div class="field"><label class="title">Capital inicial (R$)</label><input id="cash" type="number" min="1" step="100" value="1000"></div>
 <div class="field"><label><input id="download" type="checkbox" checked> Atualizar dados da B3 antes de testar</label><div class="hint">Desmarque apenas se os dados já estiverem em cache.</div></div>
 <div class="actions"><button id="run" class="btn primary" onclick="runBacktest()">Iniciar backtest</button><button id="stop" class="btn danger" onclick="stopBacktest()">Parar</button></div>
