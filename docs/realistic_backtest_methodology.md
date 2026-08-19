@@ -17,7 +17,8 @@ O pipeline `scripts/run_realistic_pipeline.py` aplica, em ordem:
    que a ação sobreviva ou permaneça líquida em anos futuros;
 2. dados oficiais B3 para todos os símbolos que entram em algum snapshot;
 3. reconciliação fail-closed de splits/grupamentos/bonificações;
-4. preços de abertura separados para mercado padrão (`010`) e fracionário (`020`);
+4. preços de abertura separados para mercado padrão (`010`, BDI `02`) e
+   fracionário (`020`, BDI `96`);
 5. sinais no fechamento e execução somente na abertura de rebalanceamento seguinte;
 6. quantidade inteira de ações, caixa real e preço médio fiscal;
 7. tarifas por data, corretagem configurável e slippage dependente da participação
@@ -29,7 +30,8 @@ O pipeline `scripts/run_realistic_pipeline.py` aplica, em ordem:
 10. reconciliação de mudança de ticker por mesma ISIN e bloqueio de desaparecimentos
     históricos ainda não explicados por fonte primária;
 11. comparação de Gap Momentum bruto contra Gap Momentum com remoção do componente
-    mecânico de proventos na abertura ex;
+    mecânico de proventos na abertura ex, convertido para a mesma base normalizada
+    por splits usada pelo sinal;
 12. validação walk-forward com cada ano de teste totalmente fora da seleção.
 
 ## Universo point-in-time
@@ -44,9 +46,11 @@ Por padrão, cada decisão semanal usa somente as 252 sessões anteriores, exige
 90% de presença nesse intervalo e seleciona as 40 ações/units de companhias com
 maior volume financeiro médio, sem filtro de continuidade para anos futuros.
 
-O filtro aceita somente registros COTAHIST de mercado padrão/BDI usados pelo
-parser e especificações `ON`, `PN` ou `UNT`. ETFs e outros instrumentos que não
-são ações/units de companhias não entram por essa regra.
+O filtro de universo usa o mercado padrão/BDI de ações e especificações `ON`, `PN`
+ou `UNT`. ETFs e outros instrumentos que não são ações/units de companhias não
+entram por essa regra. Para execução, o construtor lê separadamente o COTAHIST do
+mercado fracionário usando `market_type=020` e `BDI=96`; manter o BDI `02` do lote
+padrão nesse parser produziria um livro fracionário vazio.
 
 Saídas:
 
@@ -56,11 +60,17 @@ Saídas:
 
 ## Ações corporativas e proventos
 
-Execute:
+Execute o entry point realista:
 
 ```powershell
-python scripts\sync_point_in_time_universe.py --download --refresh-actions
+python scripts\sync_point_in_time_universe_realistic.py --download --refresh-actions
 ```
+
+Esse entry point usa o sincronizador base, mas substitui o coletor de proventos
+pela versão não destrutiva em `b3_strategy_lab/cash_distributions.py`. A identidade
+de um evento inclui ticker, ISIN, data-com, data de pagamento, tipo e valor por
+ação. Assim, parcelas com a mesma data-com/tipo/valor, mas pagamentos em datas
+diferentes, não são colapsadas indevidamente.
 
 O sincronizador não infere automaticamente um split para fazer a curva ficar
 bonita. Se houver marcador de mudança de quantidade no COTAHIST sem evidência
@@ -82,8 +92,8 @@ rotulados como reconstrução exata da conta.
 
 Uma ordem de 114 ações é tratada como duas pernas quando necessário:
 
-- 100 ações no mercado padrão;
-- 14 ações no mercado fracionário.
+- 100 ações no mercado padrão (`010`, BDI `02`);
+- 14 ações no mercado fracionário (`020`, BDI `96`).
 
 Se a abertura fracionária não existir, o motor interrompe o rebalanceamento; ele
 não substitui silenciosamente a cotação fracionária pela abertura do lote padrão.
@@ -167,8 +177,15 @@ python scripts\run_realistic_pipeline.py --download --refresh-actions --initial-
 ```
 
 Ele produz Gap Momentum com o gap bruto e com o componente conhecido de provento
-removido do gap de sinal. Divergência grande entre os dois é um alerta de que a
-estratégia depende de mecânica ex-provento.
+removido do gap de sinal. Como os candles do sinal são normalizados por splits, o
+valor nominal do provento é multiplicado pelo `adjustment_factor` daquele candle
+antes de ser removido do gap. Divergência grande entre os dois resultados é um
+alerta de dependência da mecânica ex-provento.
+
+O replay contínuo de 2018 é explicitamente rotulado como
+`retrospective_hypothesis_replay`: ele responde ao contrafactual “e se esta regra,
+que hoje conhecemos, já tivesse sido seguida?”, mas não prova que a regra teria
+sido escolhida em 2018 sem olhar o futuro.
 
 ## Walk-forward
 
@@ -176,17 +193,26 @@ estratégia depende de mecânica ex-provento.
 python scripts\walk_forward_realistic.py --initial-cash 1000
 ```
 
-Para cada ano de teste, a combinação é escolhida somente no histórico anterior.
-Os folds de teste usam contas padronizadas independentes. Os retornos anuais não
-são multiplicados para fingir uma única conta contínua, porque lote inteiro,
-mercado fracionário, limite mensal de vendas e prejuízos fiscais tornam essa
-multiplicação economicamente incorreta.
+Para cada ano de teste, a combinação é escolhida somente no histórico anterior e
+o fold de teste é rotulado como `walk_forward_out_of_sample`. Os folds usam contas
+padronizadas independentes. Os retornos anuais não são multiplicados para fingir
+uma única conta contínua, porque lote inteiro, mercado fracionário, limite mensal
+de vendas e prejuízos fiscais tornam essa multiplicação economicamente incorreta.
+
+A metodologia realista foi congelada em 19/08/2026 antes da geração dos novos
+resultados. Dados posteriores podem fornecer validação prospectiva desde que as
+regras congeladas não sejam reotimizadas.
 
 ## Critério para uma afirmação final
 
+Qualidade da reconstrução da conta e evidência de seleção da estratégia são duas
+alegações diferentes. Mesmo com inputs perfeitos, um replay 2018–2026 da estratégia
+vencedora continua retrospectivo quanto à escolha da regra.
+
 Só é permitido escrever algo equivalente a:
 
-> "R$ 1.000 em 2018 teriam se transformado em aproximadamente R$ X nesta data"
+> "R$ 1.000, condicionados a esta regra já estar escolhida, teriam se transformado
+> em aproximadamente R$ X nesta data"
 
 quando o relatório de auditoria estiver `ready_for_exact_historical_account_claim=true`.
 
@@ -194,3 +220,6 @@ Se apenas `ready_for_realistic_estimate=true`, a formulação correta é:
 
 > "Sob estas premissas e com estas limitações certificadas, a estimativa simulada
 > é R$ X; ela ainda não é uma reconstrução exata da conta da corretora."
+
+Para afirmar que a **escolha da estratégia** também teria sido válida sem hindsight,
+use os folds walk-forward ou a validação prospectiva posterior ao congelamento.
