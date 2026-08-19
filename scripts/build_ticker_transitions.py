@@ -16,6 +16,7 @@ from b3_strategy_lab.cotahist import download_cotahist, read_cotahist  # noqa: E
 from scripts.sync_official_universe import _parse_years  # noqa: E402
 
 
+DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
 DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
@@ -32,11 +33,12 @@ def _write(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Detect deterministic ticker renames from full historical COTAHIST. "
-            "Only same-ISIN continuity is auto-approved. Other disappearances are "
-            "reported and remain fail-closed in the realistic engine."
+            "Detect deterministic ticker renames relevant to the point-in-time "
+            "backtest. Same-ISIN continuity is auto-approved; other disappearances "
+            "of relevant symbols remain fail-closed."
         )
     )
+    parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
     parser.add_argument("--archives-dir", type=Path, default=Path(".cache/cotahist"))
     parser.add_argument("--download", action="store_true")
@@ -44,6 +46,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--unresolved-output", type=Path, default=DEFAULT_UNRESOLVED)
     args = parser.parse_args(argv)
+
+    universe = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
+    relevant_tickers = {
+        str(ticker).upper()
+        for ticker in universe.get("market_data_tickers", universe.get("tickers", []))
+    }
+    if not relevant_tickers:
+        parser.error("Point-in-time universe contains no relevant market-data tickers.")
 
     quotes = []
     for year in _parse_years(args.years):
@@ -65,12 +75,19 @@ def main(argv: list[str] | None = None) -> int:
         if not ticker or not quote.isin:
             continue
         by_isin[quote.isin.strip().upper()].append(quote)
-        by_ticker[ticker].append(quote)
+        if ticker in relevant_tickers:
+            by_ticker[ticker].append(quote)
+
+    relevant_isins = {
+        isin
+        for isin, items in by_isin.items()
+        if any(item.ticker.upper() in relevant_tickers for item in items)
+    }
 
     transitions: list[dict[str, object]] = []
     seen: set[tuple[str, str, str]] = set()
-    for isin, items in by_isin.items():
-        ordered = sorted(items, key=lambda item: item.date)
+    for isin in sorted(relevant_isins):
+        ordered = sorted(by_isin[isin], key=lambda item: item.date)
         previous_ticker = ordered[0].ticker.upper()
         previous_date = ordered[0].date
         for item in ordered[1:]:
@@ -118,11 +135,26 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
 
+    relevant_quotes = [quote for quote in quotes if quote.ticker.upper() in relevant_tickers]
+    if not relevant_quotes:
+        raise ValueError("No COTAHIST rows found for relevant market-data tickers.")
     last_market_date = max(quote.date for quote in quotes)
     cutoff = date.fromisoformat(last_market_date) - timedelta(days=45)
     transitioned_old = {str(row["old_ticker"]) for row in transitions}
     unresolved: list[dict[str, object]] = []
-    for ticker, items in sorted(by_ticker.items()):
+    for ticker in sorted(relevant_tickers):
+        items = by_ticker.get(ticker, [])
+        if not items:
+            unresolved.append(
+                {
+                    "ticker": ticker,
+                    "last_quote_date": "",
+                    "isin": "",
+                    "issuer_name": "",
+                    "reason": "relevant ticker has no COTAHIST rows in requested archive window",
+                }
+            )
+            continue
         ordered = sorted(items, key=lambda item: item.date)
         last = ordered[-1]
         if date.fromisoformat(last.date) >= cutoff or ticker in transitioned_old:
@@ -134,8 +166,8 @@ def main(argv: list[str] | None = None) -> int:
                 "isin": last.isin,
                 "issuer_name": last.issuer_name,
                 "reason": (
-                    "symbol disappeared before the end of the archive without an "
-                    "auto-approved same-ISIN successor; merger, cancellation, cash-out "
+                    "relevant symbol disappeared before the end of the archive without "
+                    "an auto-approved same-ISIN successor; merger, cancellation, cash-out "
                     "or other primary-source event must be supplied before a held "
                     "position can be valued through this date"
                 ),
@@ -148,16 +180,20 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "method": "same_isin_continuity_only",
+        "scope": "point_in_time_market_data_tickers",
+        "universe_manifest": str(args.universe_manifest),
+        "scoped_ticker_count": len(relevant_tickers),
         "auto_approved_transitions": len(transitions),
         "unresolved_disappearances": len(unresolved),
         "complete": len(unresolved) == 0,
         "policy": (
-            "Same-ISIN ticker changes are treated as 1:1 renames. Any historical "
-            "symbol disappearance without same-ISIN continuity remains unresolved; "
-            "the realistic backtest must fail if such a symbol is held instead of "
-            "assuming a sale price or forward-filling its last quote."
+            "Same-ISIN ticker changes are treated as 1:1 renames. Only symbols needed "
+            "by the point-in-time account are used to determine completeness. A relevant "
+            "symbol disappearance without same-ISIN continuity remains unresolved; the "
+            "backtest must fail if such a symbol is held instead of assuming a sale price "
+            "or forward-filling its last quote."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -166,8 +202,9 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    print(f"Scoped market-data tickers: {len(relevant_tickers)}")
     print(f"Auto-approved ticker transitions: {len(transitions)}")
-    print(f"Unresolved historical disappearances: {len(unresolved)}")
+    print(f"Unresolved relevant disappearances: {len(unresolved)}")
     return 0
 
 
