@@ -9,9 +9,11 @@ from scripts.realistic_backtest_control_panel import (
     EXCLUDED_TICKERS,
     HTML,
     MIN_START,
+    _backtest_progress_parser,
     _load_available_tickers,
     _parse_run_request,
     _selected_payload,
+    _sync_progress_parser,
 )
 
 
@@ -82,9 +84,34 @@ class ControlPanelTests(unittest.TestCase):
                         }
                     )
 
-    def test_html_formats_decimal_return_as_percentage(self) -> None:
+    def test_html_formats_decimal_return_and_shows_progress(self) -> None:
         self.assertIn("const n=Number(v)*100", HTML)
         self.assertIn('min="2018-01-02"', HTML)
+        self.assertIn('id="progressBar"', HTML)
+        self.assertIn('id="progressPercent"', HTML)
+        self.assertIn('id="progressDetail"', HTML)
+
+    def test_backtest_progress_maps_session_fraction_into_stage(self) -> None:
+        parser = _backtest_progress_parser(60, 80, "raw_gap")
+        update = parser("BACKTEST_PROGRESS 500 1000 2022-01-03")
+        self.assertIsNotNone(update)
+        assert update is not None
+        self.assertAlmostEqual(float(update["progress_percent"]), 70.0)
+        self.assertIn("500/1000 pregões", str(update["progress_detail"]))
+        self.assertIn("50.0% da etapa", str(update["progress_detail"]))
+
+    def test_sync_progress_counts_unique_verified_assets(self) -> None:
+        parser = _sync_progress_parser(4, 25, 55)
+        first = parser("PETR4: verified through 2026-08-18")
+        duplicate = parser("PETR4: verified through 2026-08-18")
+        second = parser("VALE3: verified through 2026-08-18")
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(duplicate)
+        self.assertIsNotNone(second)
+        assert first is not None and duplicate is not None and second is not None
+        self.assertAlmostEqual(float(first["progress_percent"]), 32.5)
+        self.assertAlmostEqual(float(duplicate["progress_percent"]), 32.5)
+        self.assertAlmostEqual(float(second["progress_percent"]), 40.0)
 
     def test_generated_subset_json_remains_serializable(self) -> None:
         payload = _selected_payload(["ABEV3", "PETR4", "VALE3"])
