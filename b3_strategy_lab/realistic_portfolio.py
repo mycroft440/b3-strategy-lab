@@ -172,6 +172,26 @@ def _credit_event(
     return row.net
 
 
+def _provisional_ordinary_tax(account: RealCashAccount, value_date: str) -> float:
+    """Reserve the current month's estimated ordinary-equity income tax.
+
+    This prevents a self-financing simulation from reinvesting cash that is already
+    economically committed to the month's tax liability. Later losses in the same
+    month automatically reduce the reserve because the estimate is recomputed from
+    the current aggregate gain.
+    """
+    ledger = account.tax
+    month = value_date[:7]
+    if month in ledger._finalized:
+        return 0.0
+    sales = float(ledger._sales.get(month, 0.0))
+    gain = float(ledger._gains.get(month, 0.0))
+    if sales <= ledger.exemption_sales_limit or gain <= 0:
+        return 0.0
+    offset = min(float(ledger.loss_carry), gain)
+    return max(0.0, gain - offset) * float(ledger.ordinary_rate)
+
+
 def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
     for ticker, position in list(account.positions.items()):
         if position.shares <= 0:
@@ -256,11 +276,13 @@ def _max_affordable(
     ticker: str,
     upper: int,
 ) -> int:
+    reserved_tax = _provisional_ordinary_tax(account, value_date)
+    available_cash = max(0.0, account.cash - reserved_tax)
     low, high = 0, max(0, upper)
     while low < high:
         mid = (low + high + 1) // 2
         cost = _estimate_buy_cost(account, pricebook, value_date, ticker, mid)
-        if cost <= account.cash + 1e-9:
+        if cost <= available_cash + 1e-9:
             low = mid
         else:
             high = mid - 1
@@ -316,8 +338,8 @@ def rebalance_atomic(
         for qty, quote in pricebook.legs(current, ticker, affordable):
             trial.buy_leg(current, ticker, qty, quote)
 
-    if trial.cash < -1e-7:
-        raise ValueError(f"{current}: atomic rebalance would create negative cash.")
+    if trial.cash < _provisional_ordinary_tax(trial, current) - 1e-7:
+        raise ValueError(f"{current}: atomic rebalance consumed the reserved tax cash.")
     return trial
 
 
