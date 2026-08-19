@@ -50,15 +50,43 @@ def main(argv: list[str] | None = None) -> int:
     universe_payload = json.loads(args.universe.read_text(encoding="utf-8"))
     universe = PointInTimeUniverse.from_csv(args.snapshots)
     expected_union = {str(item).upper() for item in universe_payload.get("tickers", [])}
+    excluded = {
+        str(item).strip().upper()
+        for item in universe_payload.get("excluded_tickers", [])
+        if str(item).strip()
+    }
+
     checks["universe_is_point_in_time"] = universe_payload.get("point_in_time") is True
     checks["universe_declares_survivorship_safe"] = universe_payload.get("survivorship_safe") is True
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
     checks["no_replacement_policy_declared"] = universe_payload.get("no_replacements") is True
+    checks["excluded_tickers_absent"] = not bool(universe.union & excluded)
+
+    allowed_file_value = str(universe_payload.get("allowed_universe_file", "")).strip()
+    allowed_tickers: set[str] = set()
+    if allowed_file_value:
+        allowed_file = Path(allowed_file_value)
+        if allowed_file.exists():
+            allowed_payload = json.loads(allowed_file.read_text(encoding="utf-8"))
+            allowed_tickers = {
+                str(item).strip().upper()
+                for item in allowed_payload.get("tickers", [])
+                if str(item).strip()
+            }
+    if universe_payload.get("no_replacements") is True:
+        checks["snapshot_union_within_allowed_universe"] = bool(allowed_tickers) and universe.union <= allowed_tickers
+    else:
+        checks["snapshot_union_within_allowed_universe"] = True
+
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
+    details["minimum_snapshot_size"] = min(len(snapshot.tickers) for snapshot in universe.snapshots)
+    details["maximum_snapshot_size"] = max(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["selection_mode"] = universe_payload.get("selection_mode", "")
-    details["excluded_tickers"] = universe_payload.get("excluded_tickers", [])
+    details["excluded_tickers"] = sorted(excluded)
     details["selection_bias_disclosure"] = universe_payload.get("bias_disclosure", "")
+    details["allowed_universe_file"] = allowed_file_value
+    details["allowed_universe_size"] = len(allowed_tickers)
 
     split_payload = json.loads(args.split_evidence.read_text(encoding="utf-8"))
     checks["split_markers_fully_covered"] = int(split_payload.get("uncovered_count", -1)) == 0
@@ -113,6 +141,16 @@ def main(argv: list[str] | None = None) -> int:
     }
     checks["execution_book_has_standard_quotes"] = bool(standard)
     checks["execution_book_has_fractional_quotes"] = bool(fractional_base)
+    execution_bases = {
+        (row.get("ticker", "")[:-1] if row.get("ticker", "").endswith("F") else row.get("ticker", "")).upper()
+        for row in execution_rows
+        if row.get("ticker")
+    }
+    checks["execution_book_excludes_forbidden_tickers"] = not bool(execution_bases & excluded)
+    if universe_payload.get("no_replacements") is True:
+        checks["execution_book_within_allowed_universe"] = bool(allowed_tickers) and execution_bases <= allowed_tickers
+    else:
+        checks["execution_book_within_allowed_universe"] = True
     details["standard_execution_rows"] = len(standard)
     details["fractional_execution_rows"] = len(fractional_base)
 
@@ -123,42 +161,61 @@ def main(argv: list[str] | None = None) -> int:
     structural_account = [
         "universe_is_point_in_time",
         "snapshot_union_matches_manifest",
+        "no_replacement_policy_declared",
+        "snapshot_union_within_allowed_universe",
+        "excluded_tickers_absent",
         "split_markers_fully_covered",
         "cash_response_has_no_parse_issues",
         "execution_book_has_standard_quotes",
         "execution_book_has_fractional_quotes",
+        "execution_book_excludes_forbidden_tickers",
+        "execution_book_within_allowed_universe",
     ]
     ready_for_estimate = all(checks[name] for name in structural_account)
-    ready_for_exact_claim = ready_for_estimate and all(
-        checks[name]
-        for name in [
-            "cash_history_coverage_certified",
-            "ticker_transitions_have_no_unresolved_disappearances",
-            "all_fee_periods_are_official",
-        ]
-    )
+
+    exact_requirements = [
+        "cash_history_coverage_certified",
+        "ticker_transitions_have_no_unresolved_disappearances",
+        "all_fee_periods_are_official",
+    ]
+    ready_for_exact_claim = ready_for_estimate and all(checks[name] for name in exact_requirements)
 
     selection_validity = (
         "SURVIVORSHIP_SAFE_POINT_IN_TIME"
         if checks["universe_declares_survivorship_safe"]
         else "RETROSPECTIVE_FIXED_UNIVERSE_ONLY"
     )
-    blockers = [name for name, ok in checks.items() if not ok]
+    estimate_blockers = [name for name in structural_account if not checks[name]]
+    exact_claim_blockers = estimate_blockers + [
+        name for name in exact_requirements if not checks[name]
+    ]
+    selection_limitations = []
+    if not checks["universe_declares_survivorship_safe"]:
+        selection_limitations.append("universe_is_fixed_and_not_survivorship_safe")
+    if universe_payload.get("no_replacements") is True:
+        selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
+
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
         "ready_for_exact_historical_account_claim": ready_for_exact_claim,
         "selection_validity": selection_validity,
         "ex_ante_selection_claim_allowed": checks["universe_declares_survivorship_safe"],
-        "blockers": blockers,
+        "estimate_blockers": estimate_blockers,
+        "exact_claim_blockers": exact_claim_blockers,
+        "selection_limitations": selection_limitations,
+        # Backward-compatible field: blockers now means blockers to running the
+        # realistic estimate, not intentional methodological limitations.
+        "blockers": estimate_blockers,
         "interpretation": (
             "Account reconstruction and strategy-selection validity are separate. "
             "A realistic conditional account replay may run when structural market-data "
             "checks pass even if the candidate list is a fixed hindsight-selected universe. "
-            "Such a run must remain labeled retrospective and cannot be presented as proof "
-            "that the same securities would have been selected ex ante."
+            "The fixed/no-replacement constraint and explicit exclusions are audited as "
+            "data-integrity rules. Such a run remains retrospective and cannot be presented "
+            "as proof that the same securities would have been selected ex ante."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
