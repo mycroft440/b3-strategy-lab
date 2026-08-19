@@ -75,9 +75,9 @@ def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Sync all symbols ever selected by the point-in-time universe. "
-            "Splits are fail-closed: uncovered COTAHIST share-count markers stop "
-            "the build instead of silently adjusting with an inferred ratio."
+            "Sync all symbols required by the point-in-time account, including "
+            "same-ISIN continuity-only tickers. Splits are fail-closed: uncovered "
+            "COTAHIST share-count markers stop the build."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -104,12 +104,22 @@ def main(argv: list[str] | None = None) -> int:
     if universe.get("point_in_time") is not True or universe.get("survivorship_safe") is not True:
         parser.error("--universe must be a survivorship-safe point-in-time manifest.")
 
-    tickers = [str(ticker).strip().upper() for ticker in universe["tickers"]]
+    selected_tickers = [str(ticker).strip().upper() for ticker in universe["tickers"]]
+    tickers = [
+        str(ticker).strip().upper()
+        for ticker in universe.get("market_data_tickers", selected_tickers)
+    ]
+    if not set(selected_tickers).issubset(tickers):
+        parser.error("market_data_tickers must contain every selectable ticker.")
     coverage_start = str(universe["warmup_start"])
     issuer_by_ticker = {
         str(ticker).upper(): str(issuer).upper()
         for ticker, issuer in universe["issuing_company_by_ticker"].items()
     }
+    missing_issuer_codes = sorted(set(tickers) - set(issuer_by_ticker))
+    if missing_issuer_codes:
+        parser.error(f"Missing issuing-company codes for: {missing_issuer_codes}")
+
     years = _parse_years(args.years)
     archives = _prepare_archives(
         years,
@@ -123,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         exclude_date=date.today().isoformat(),
     )
     payloads = _load_supplements(
-        sorted(set(issuer_by_ticker.values())),
+        sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),
         args.supplements_dir,
         refresh=args.refresh_actions,
         workers=args.action_workers,
@@ -203,10 +213,12 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     evidence_payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "coverage_start": coverage_start,
         "survivorship_safe_universe": True,
         "point_in_time_universe": str(args.universe),
+        "selectable_ticker_count": len(selected_tickers),
+        "market_data_ticker_count": len(tickers),
         "marker_count": len(marker_rows),
         "uncovered_count": 0,
         "events": sorted(evidence_events, key=lambda row: (row["ex_date"], row["ticker"])),
@@ -268,10 +280,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     _write_cash(args.cash_output, cash_rows)
     cash_manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source": "B3 GetListedSupplementCompany.cashDividends",
         "source_authority": "B3",
         "universe": str(args.universe),
+        "selectable_ticker_count": len(selected_tickers),
+        "market_data_ticker_count": len(tickers),
         "event_identity": "ticker+isin+last_date_prior+payment_date+label+rate",
         "event_count": len(cash_rows),
         "issues": cash_issues,
@@ -286,7 +300,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     print(f"Cash events: {args.cash_output} ({len(cash_rows)} events)")
-    print("Point-in-time union is synchronized with verified split handling.")
+    print(
+        f"Point-in-time account data synchronized: {len(selected_tickers)} selectable + "
+        f"{len(set(tickers) - set(selected_tickers))} continuity-only tickers."
+    )
     return 0
 
 
