@@ -4,7 +4,6 @@ import argparse
 import csv
 import json
 import sys
-from bisect import bisect_right
 from collections import defaultdict
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -15,11 +14,11 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.b3_official import (  # noqa: E402
     audit_share_count_markers,
-    b3_supplement_url,
     extract_official_split_events,
     merge_official_split_events,
     parse_supplemental_split_events,
 )
+from b3_strategy_lab.cash_distributions import build_cash_events  # noqa: E402
 from b3_strategy_lab.candles import actions_path, cache_path, load_actions, save_actions  # noqa: E402
 from b3_strategy_lab.cotahist import (  # noqa: E402
     DEFAULT_MANIFESTS_DIR,
@@ -52,124 +51,6 @@ DEFAULT_CASH = Path("data/corporate_actions/point_in_time_cash_distributions.csv
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
 DEFAULT_MISSING_SPLITS = Path("reports/point_in_time_missing_split_evidence.json")
 DEFAULT_SUPPLEMENTAL_SPLITS = Path("data/corporate_actions/supplemental_split_events.json")
-
-
-def _parse_any_date(value: object) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return ""
-    text = text.split("T", 1)[0]
-    if "/" in text:
-        day, month, year = text.split("/")
-        return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-    return date.fromisoformat(text).isoformat()
-
-
-def _cash_events(
-    tickers: list[str],
-    issuer_by_ticker: dict[str, str],
-    payloads: dict[str, list[dict[str, object]]],
-    quotes_by_ticker: dict[str, list],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    isins_by_ticker = {
-        ticker: {quote.isin.strip().upper() for quote in quotes_by_ticker[ticker] if quote.isin}
-        for ticker in tickers
-    }
-    rows: list[dict[str, object]] = []
-    issues: list[dict[str, object]] = []
-    seen: set[tuple[str, str, str, float]] = set()
-
-    for ticker in tickers:
-        issuer = issuer_by_ticker[ticker]
-        payload = payloads[issuer]
-        company = next(
-            (
-                item
-                for item in payload
-                if str(item.get("code", "")).strip().upper() == issuer
-            ),
-            payload[0] if len(payload) == 1 else None,
-        )
-        if company is None:
-            issues.append({"ticker": ticker, "issue": "issuer_missing_in_b3_payload"})
-            continue
-        quote_dates = [quote.date for quote in quotes_by_ticker[ticker]]
-        for event in company.get("cashDividends") or []:
-            if not isinstance(event, dict):
-                continue
-            label = str(event.get("label", "")).strip().upper()
-            if label not in {"DIVIDENDO", "DIVIDEND", "JCP", "JSCP"}:
-                continue
-            isin = str(event.get("isinCode", "")).strip().upper()
-            if isins_by_ticker[ticker] and isin not in isins_by_ticker[ticker]:
-                continue
-            last_date_prior = _parse_any_date(event.get("lastDatePrior"))
-            payment_date = _parse_any_date(event.get("paymentDate"))
-            if not last_date_prior:
-                issues.append(
-                    {
-                        "ticker": ticker,
-                        "label": label,
-                        "issue": "missing_last_date_prior",
-                    }
-                )
-                continue
-            index = bisect_right(quote_dates, last_date_prior)
-            if index >= len(quote_dates):
-                continue
-            ex_date = quote_dates[index]
-            if not payment_date:
-                issues.append(
-                    {
-                        "ticker": ticker,
-                        "label": label,
-                        "last_date_prior": last_date_prior,
-                        "issue": "missing_payment_date",
-                    }
-                )
-                continue
-            try:
-                rate = float(str(event.get("rate", "0")).replace(",", "."))
-            except ValueError:
-                issues.append(
-                    {
-                        "ticker": ticker,
-                        "label": label,
-                        "last_date_prior": last_date_prior,
-                        "issue": "invalid_rate",
-                    }
-                )
-                continue
-            if rate <= 0:
-                continue
-            key = (ticker, last_date_prior, label, rate)
-            if key in seen:
-                continue
-            seen.add(key)
-            rows.append(
-                {
-                    "ticker": ticker,
-                    "label": label,
-                    "last_date_prior": last_date_prior,
-                    "ex_date": ex_date,
-                    "payment_date": payment_date,
-                    "gross_per_share": f"{rate:.12g}",
-                    "isin": isin,
-                    "source_authority": "B3",
-                    "source_url": b3_supplement_url(issuer),
-                }
-            )
-    return (
-        sorted(
-            rows,
-            key=lambda row: (
-                str(row["payment_date"]),
-                str(row["ticker"]),
-                str(row["label"]),
-            ),
-        ),
-        issues,
-    )
 
 
 def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
@@ -379,7 +260,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         print(f"{ticker}: verified through {daily[-1].date}", flush=True)
 
-    cash_rows, cash_issues = _cash_events(
+    cash_rows, cash_issues = build_cash_events(
         tickers,
         issuer_by_ticker,
         payloads,
@@ -391,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
         "source": "B3 GetListedSupplementCompany.cashDividends",
         "source_authority": "B3",
         "universe": str(args.universe),
+        "event_identity": "ticker+isin+last_date_prior+payment_date+label+rate",
         "event_count": len(cash_rows),
         "issues": cash_issues,
         "complete": not cash_issues,
