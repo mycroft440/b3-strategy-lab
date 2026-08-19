@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-08-19",
+  "status": "prospective_validation",
+  "purpose": "Congelar a hipotese antes de observar dados futuros, evitando nova otimizacao retrospectiva.",
+  "strategy": {
+    "name": "gap_momentum",
+    "parameters": {
+      "period": 40,
+      "signal_period": 20
+    }
+  },
+  "management": {
+    "name": "top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted",
+    "lookback": 63,
+    "skip": 0,
+    "trend_window": 0,
+    "vol_window": 21,
+    "top_n": 1,
+    "rebalance": "weekly",
+    "score": "momentum",
+    "weighting": "equal",
+    "absolute_momentum": true,
+    "max_weight": 1.0,
+    "signal_mode": "adjusted"
+  },
+  "execution_assumptions": {
+    "signal": "fechamento confirmado da sessao de decisao",
+    "execution": "abertura da sessao seguinte de rebalanceamento",
+    "cost_bps_per_side": 3.0,
+    "slippage_bps_per_side": 10.0,
+    "lot_size": 1,
+    "dividends_jcp": "excluded",
+    "income_tax": "excluded"
+  },
+  "universe_manifest": "data/universes/fixed_40_2018.json",
+  "known_limitations": [
+    "O universo atual declara survivorship_safe=false e portanto ainda possui vies de sobrevivencia.",
+    "Os resultados anteriores a frozen_at sao pesquisa retrospectiva e nao validacao prospectiva.",
+    "Depois de frozen_at, qualquer mudanca de parametros, universo, custos ou regra deve criar um novo freeze em vez de sobrescrever este arquivo."
+  ],
+  "no_reoptimization_after_freeze": true
+}
