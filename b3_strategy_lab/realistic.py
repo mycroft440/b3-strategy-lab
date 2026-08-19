@@ -380,8 +380,9 @@ class CashDistributionTaxLedger:
     )
     settled_months: set[str] = field(default_factory=set)
 
-    def net_jcp(self, gross: float) -> tuple[float, float]:
-        tax = gross * 0.15
+    def net_jcp(self, payment_date: str, gross: float) -> tuple[float, float]:
+        rate = 0.175 if payment_date >= "2026-01-01" else 0.15
+        tax = gross * rate
         return gross - tax, tax
 
     def record_dividend(self, payment_date: str, payer: str, gross: float) -> None:
@@ -393,11 +394,15 @@ class CashDistributionTaxLedger:
         self.settled_months.add(month)
         if int(month[:4]) < 2026:
             return 0.0
-        tax = 0.0
-        for (one_month, _payer), gross in self.monthly_dividends.items():
+        for (one_month, payer), gross in self.monthly_dividends.items():
             if one_month == month and gross > 50_000.0:
-                tax += gross * 0.10
-        return tax
+                raise ValueError(
+                    f"{month}/{payer}: dividends exceed R$50,000 in 2026+ but the "
+                    "B3 event ledger does not certify whether the payment is covered "
+                    "by the transitional/grandfathering exceptions of Lei 15.270/2025. "
+                    "Refusing to invent the 10% withholding treatment."
+                )
+        return 0.0
 
 
 @dataclass(frozen=True)
@@ -559,7 +564,7 @@ class RealCashAccount:
         gross = max(0, shares_entitled) * gross_per_share
         label = label.upper()
         if label in {"JCP", "JSCP"}:
-            net, tax = self.distribution_tax.net_jcp(gross)
+            net, tax = self.distribution_tax.net_jcp(payment_date, gross)
             self.dividend_jcp_tax_paid += tax
         else:
             net, tax = gross, 0.0
