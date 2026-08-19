@@ -37,7 +37,6 @@ DEFAULT_CASH_LEDGER = Path("reports/realistic_account_distributions.csv")
 DEFAULT_TAX = Path("reports/realistic_account_tax.csv")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
 
-# Backward-compatible import used by older callers.
 _load_transitions = load_transitions
 
 
@@ -46,6 +45,10 @@ def _config_by_name(name: str, signal_mode: str = "adjusted") -> PortfolioConfig
     if len(matches) != 1:
         raise ValueError(f"Management config not found or ambiguous: {name}")
     return matches[0]
+
+
+def _report_progress(completed: int, total: int, current_date: str) -> None:
+    print(f"BACKTEST_PROGRESS {completed} {total} {current_date}", flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         transitions=load_transitions(args.ticker_transitions),
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,
+        progress_callback=_report_progress,
     )
 
     payload = asdict(summary)
