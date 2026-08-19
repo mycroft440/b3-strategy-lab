@@ -1,0 +1,41 @@
+name: Realistic backtest CI
+
+on:
+  pull_request:
+    paths:
+      - "b3_strategy_lab/realistic.py"
+      - "scripts/*realistic*.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "scripts/build_ticker_transitions.py"
+      - "scripts/sync_point_in_time_universe.py"
+      - "tests/test_realistic_accounting.py"
+      - "data/fees/**"
+      - ".github/workflows/realistic-backtest-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Compile realistic modules
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/realistic.py \
+            scripts/build_point_in_time_universe.py \
+            scripts/build_ticker_transitions.py \
+            scripts/sync_point_in_time_universe.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/audit_realistic_backtest_inputs.py \
+            scripts/run_realistic_pipeline.py
+      - name: Unit tests
+        run: python -m unittest tests.test_realistic_accounting -v
