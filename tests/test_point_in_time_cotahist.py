@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -68,8 +69,7 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
         directory = Path(tempfile.mkdtemp())
         path = directory / "COTAHIST_TEST.TXT"
         path.write_text(content, encoding="latin-1")
-        self.addCleanup(lambda: path.unlink(missing_ok=True))
-        self.addCleanup(lambda: directory.rmdir())
+        self.addCleanup(lambda: shutil.rmtree(directory, ignore_errors=True))
         return path
 
     def test_non_equity_bad_ohlc_cannot_break_standard_stock_reader(self) -> None:
