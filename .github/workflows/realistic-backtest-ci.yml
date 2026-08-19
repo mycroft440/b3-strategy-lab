@@ -13,6 +13,7 @@ on:
       - "scripts/sync_point_in_time_universe.py"
       - "tests/test_realistic_accounting.py"
       - "tests/test_cash_distributions.py"
+      - "tests/test_control_panel.py"
       - "data/fees/**"
       - ".github/workflows/realistic-backtest-ci.yml"
   workflow_dispatch:
@@ -42,12 +43,14 @@ jobs:
             scripts/backtest_strategy_management_realistic.py \
             scripts/walk_forward_realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
-            scripts/run_realistic_pipeline.py
+            scripts/run_realistic_pipeline.py \
+            scripts/realistic_backtest_control_panel.py
       - name: Unit tests
         run: |
           python -m unittest \
             tests.test_realistic_accounting \
-            tests.test_cash_distributions -v
+            tests.test_cash_distributions \
+            tests.test_control_panel -v
 
   cotahist-smoke:
     runs-on: ubuntu-latest
@@ -56,7 +59,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build 2018 point-in-time universe from real B3 archives
+      - name: Build 2018 fixed-universe snapshots from real B3 archives
         run: |
           python scripts/build_point_in_time_universe.py \
             --download \
@@ -64,7 +67,7 @@ jobs:
             --start 2018-01-02 \
             --end 2018-12-28 \
             --top-n 40
-      - name: Validate standard and fractional execution books
+      - name: Validate fixed no-replacement and execution books
         run: |
           python - <<'PY'
           import csv, json
@@ -73,17 +76,38 @@ jobs:
           snapshots = list(csv.DictReader(Path('data/universes/point_in_time_weekly.csv').open(encoding='utf-8')))
           assert snapshots, 'point-in-time snapshots are empty'
           manifest = json.loads(Path('data/universes/point_in_time_union.json').read_text(encoding='utf-8'))
+          fixed = json.loads(Path('data/universes/fixed_40_2018.json').read_text(encoding='utf-8'))
+          fixed_tickers = {ticker.upper() for ticker in fixed['tickers']}
+          snapshot_tickers = {row['ticker'].upper() for row in snapshots}
+
           assert manifest['point_in_time'] is True
-          assert manifest['survivorship_safe'] is True
+          assert manifest['survivorship_safe'] is False
+          assert manifest['no_replacements'] is True
+          assert manifest['selection_rules']['variable_candidate_count'] is True
+          assert 'BOAC34' in manifest['excluded_tickers']
+          assert 'BOAC34' not in snapshot_tickers
+          assert snapshot_tickers <= fixed_tickers
+          assert set(manifest['tickers']) == snapshot_tickers
+          assert 0 < manifest['selection_rules']['minimum_actual_weekly_candidates'] <= 40
+          assert 0 < manifest['selection_rules']['maximum_actual_weekly_candidates'] <= 40
           assert manifest['execution_sources']['standard'] == {'market_type': '010', 'bdi_code': '02'}
           assert manifest['execution_sources']['fractional'] == {'market_type': '020', 'bdi_code': '96'}
-          assert len({row['ticker'] for row in snapshots}) >= 40
+
           execution = list(csv.DictReader(Path('data/execution/b3_standard_fractional_open.csv').open(encoding='utf-8')))
           standard = [row for row in execution if row['market_type'] == '010']
           fractional = [row for row in execution if row['market_type'] == '020']
           assert standard, 'standard execution book is empty'
           assert fractional, 'fractional execution book is empty'
-          print('snapshots', len(snapshots), 'historical symbols', len(manifest['tickers']), 'standard', len(standard), 'fractional', len(fractional))
+          assert all(row['ticker'].removesuffix('F').upper() in fixed_tickers for row in execution)
+          assert all(row['ticker'].removesuffix('F').upper() != 'BOAC34' for row in execution)
+          print(
+              'snapshots', len(snapshots),
+              'historical symbols', len(manifest['tickers']),
+              'weekly min', manifest['selection_rules']['minimum_actual_weekly_candidates'],
+              'weekly max', manifest['selection_rules']['maximum_actual_weekly_candidates'],
+              'standard', len(standard),
+              'fractional', len(fractional),
+          )
           PY
       - name: Detect historical ticker transitions without future-price filling
         run: |
