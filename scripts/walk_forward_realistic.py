@@ -68,8 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Expanding-window walk-forward using the real-money-oriented engine. "
             "Each test year is completely excluded from candidate selection. "
-            "Test folds use a fresh standardized account and are not presented as "
-            "one continuous tax account."
+            "Use --all-strategies to reproduce the full strategy-management "
+            "multiple-testing scope instead of validating only a frozen hypothesis."
         )
     )
     parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
@@ -79,7 +79,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
-    parser.add_argument("--strategies", nargs="+", default=["gap_momentum"])
+    strategy_group = parser.add_mutually_exclusive_group()
+    strategy_group.add_argument("--strategies", nargs="+")
+    strategy_group.add_argument(
+        "--all-strategies",
+        action="store_true",
+        help=(
+            "Test the full portfolio_strategies() catalog in every training fold. "
+            "This is computationally expensive but is the appropriate scope for "
+            "auditing the original across-strategy selection bias."
+        ),
+    )
     parser.add_argument("--managements", nargs="+")
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--first-test-year", type=int, default=2021)
@@ -116,8 +126,18 @@ def main(argv: list[str] | None = None) -> int:
     fee_schedule = FeeSchedule.from_json(args.fee_schedule)
     transitions = load_transitions(args.ticker_transitions)
 
-    strategies = [item.strip().lower() for item in args.strategies]
-    unknown = sorted(set(strategies) - set(portfolio_strategies()))
+    catalog = list(portfolio_strategies())
+    if args.all_strategies:
+        strategies = catalog
+        selection_scope = "full_strategy_and_management_catalog"
+    elif args.strategies:
+        strategies = [item.strip().lower() for item in args.strategies]
+        selection_scope = "explicit_strategy_subset"
+    else:
+        strategies = ["gap_momentum"]
+        selection_scope = "frozen_gap_momentum_managements_only"
+
+    unknown = sorted(set(strategies) - set(catalog))
     if unknown:
         parser.error(f"Unknown strategy names: {unknown}")
     configs = _configs("adjusted", "all")
@@ -129,6 +149,10 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"Unknown management configs: {sorted(missing)}")
     if not configs:
         parser.error("No management configs selected.")
+
+    full_strategy_scope = set(strategies) == set(catalog)
+    full_management_scope = args.managements is None
+    full_multiple_testing_scope = full_strategy_scope and full_management_scope
 
     last_available_year = int(max(data.dates)[:4])
     last_test_year = args.last_test_year or last_available_year
@@ -195,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
                 "test_start": test_start,
                 "test_end": test_end,
                 "objective": args.objective,
+                "selection_scope": selection_scope,
+                "full_multiple_testing_scope": full_multiple_testing_scope,
+                "strategy_count": len(strategies),
+                "management_count": len(configs),
                 "candidate_count": len(ranked),
                 "trading_strategy": winner_strategy,
                 "management_strategy": winner_config.name,
@@ -219,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(
             f"{test_year}: {winner_strategy} + {winner_config.name} | "
+            f"scope={selection_scope} candidates={len(ranked)} | "
             f"OOS {test_summary.total_return:.2%}",
             flush=True,
         )
@@ -226,8 +255,12 @@ def main(argv: list[str] | None = None) -> int:
     _write_csv(args.output, rows)
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "method": "expanding_window_walk_forward",
+        "selection_scope": selection_scope,
+        "strategy_count": len(strategies),
+        "management_count": len(configs),
+        "full_multiple_testing_scope": full_multiple_testing_scope,
         "selection_uses_test_data": False,
         "test_accounts_are_independent": True,
         "continuous_tax_account_claim": False,
@@ -238,6 +271,12 @@ def main(argv: list[str] | None = None) -> int:
             sum(float(row["test_total_return"]) for row in rows) / len(rows)
             if rows
             else 0.0
+        ),
+        "selection_bias_interpretation": (
+            "The original across-strategy multiple-testing bias is addressed only when "
+            "full_multiple_testing_scope=true. A gap_momentum-only run validates the "
+            "frozen hypothesis/management selection, not the historical choice among "
+            "the full strategy catalog."
         ),
         "note": (
             "Each fold starts from the same standardized initial cash because integer "
