@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-08-19",
+  "status": "realistic_methodology_freeze_before_result_generation",
+  "purpose": "Freeze the realistic point-in-time methodology before observing its newly generated performance, preventing post-result tuning of universe, execution and accounting assumptions.",
+  "strategy": {
+    "name": "gap_momentum",
+    "parameters": {
+      "period": 40,
+      "signal_period": 20
+    },
+    "sensitivity_variants": [
+      "raw_quoted_gap",
+      "economic_gap_removing_known_cash_distribution_component"
+    ]
+  },
+  "management": {
+    "name": "top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted",
+    "lookback": 63,
+    "top_n": 1,
+    "rebalance": "weekly",
+    "weighting": "equal",
+    "absolute_momentum": true
+  },
+  "point_in_time_universe": {
+    "source": "B3_COTAHIST_full_market",
+    "lookback_sessions": 252,
+    "minimum_presence": 0.90,
+    "top_n": 40,
+    "instrument_filter": "BDI02_market010_and_specification_ON_PN_UNT",
+    "issuer_deduplication": true,
+    "future_continuity_filter": false
+  },
+  "execution": {
+    "decision": "confirmed close at rebalance decision session",
+    "fill": "next rebalance session opening",
+    "standard_market": "010",
+    "fractional_market": "020",
+    "standard_lot": 100,
+    "base_slippage_bps": 10.0,
+    "participation_bps_at_1pct": 5.0,
+    "max_slippage_bps": 100.0
+  },
+  "accounting": {
+    "initial_cash_brl": 1000.0,
+    "integer_shares": true,
+    "cash_distributions": true,
+    "monthly_tax_ledger": true,
+    "fresh_close_required": true,
+    "stale_price_fallback": false
+  },
+  "selection_interpretation": {
+    "2018_to_freeze_date": "retrospective_hypothesis_replay_only",
+    "walk_forward": "out_of_sample_selection_test",
+    "after_freeze_date": "prospective_if_unchanged"
+  },
+  "no_reoptimization_after_freeze": true
+}
