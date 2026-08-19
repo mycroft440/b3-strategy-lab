@@ -26,13 +26,14 @@ O pipeline `scripts/run_realistic_pipeline.py` aplica, em ordem:
 8. dividendos/JCP com direito capturado na última data com direito e crédito na
    data de pagamento;
 9. tributação mensal de operações comuns, limite de vendas para isenção, prejuízo
-   acumulado e JCP retido;
+   acumulado, reserva fiscal no próprio caixa e retenção de JCP por data;
 10. reconciliação de mudança de ticker por mesma ISIN e bloqueio de desaparecimentos
     históricos ainda não explicados por fonte primária;
 11. comparação de Gap Momentum bruto contra Gap Momentum com remoção do componente
     mecânico de proventos na abertura ex, convertido para a mesma base normalizada
     por splits usada pelo sinal;
-12. validação walk-forward com cada ano de teste totalmente fora da seleção.
+12. validação walk-forward com cada ano de teste totalmente fora da seleção, com
+    opção de repetir o escopo completo de estratégias e gerenciamentos.
 
 ## Universo point-in-time
 
@@ -66,11 +67,11 @@ Execute o entry point realista:
 python scripts\sync_point_in_time_universe_realistic.py --download --refresh-actions
 ```
 
-Esse entry point usa o sincronizador base, mas substitui o coletor de proventos
-pela versão não destrutiva em `b3_strategy_lab/cash_distributions.py`. A identidade
-de um evento inclui ticker, ISIN, data-com, data de pagamento, tipo e valor por
-ação. Assim, parcelas com a mesma data-com/tipo/valor, mas pagamentos em datas
-diferentes, não são colapsadas indevidamente.
+O sincronizador usa o coletor não destrutivo em
+`b3_strategy_lab/cash_distributions.py`. A identidade de um evento inclui ticker,
+ISIN, data-com, data de pagamento, tipo e valor por ação. Assim, parcelas com a
+mesma data-com/tipo/valor, mas pagamentos em datas diferentes, não são colapsadas
+indevidamente.
 
 O sincronizador não infere automaticamente um split para fazer a curva ficar
 bonita. Se houver marcador de mudança de quantidade no COTAHIST sem evidência
@@ -121,8 +122,17 @@ acumulado. A modelagem padrão de operações comuns usa:
 - isenção de ganho em ações quando as vendas mensais elegíveis não excedem
   R$ 20.000;
 - compensação de perdas anteriores contra ganhos tributáveis;
-- retenção de 15% em JCP;
-- regra de dividendos vigente a partir de 2026 implementada separadamente.
+- retenção de JCP de 15% até 2025 e 17,5% a partir de 01/01/2026;
+- dividendos pagos em 2026 ou depois acima de R$ 50 mil no mesmo mês pelo mesmo
+  pagador ficam **fail-closed** quando o ledger não informa se a parcela está
+  abrangida por regra transitória/grandfathering: o motor não aplica 10% às cegas.
+
+Depois de vendas tributáveis, o simulador calcula uma reserva provisória de IR do
+mês e reduz o caixa disponível para novas compras. Uma perda realizada mais tarde
+no mesmo mês reduz essa reserva; prejuízos acumulados de meses anteriores também
+são considerados. Isso impede que a estratégia reinvista dinheiro que já está
+economicamente comprometido com imposto e depois dependa de um aporte externo
+para pagar o tributo.
 
 O objetivo é medir o ônus econômico. O motor não tenta reproduzir o calendário de
 DARF/IRRF de uma corretora específica centavo a centavo.
@@ -189,9 +199,29 @@ sido escolhida em 2018 sem olhar o futuro.
 
 ## Walk-forward
 
+A validação da hipótese Gap Momentum congelada contra todos os gerenciamentos usa:
+
 ```powershell
 python scripts\walk_forward_realistic.py --initial-cash 1000
 ```
+
+Para enfrentar também o viés de ter escolhido a melhor entre todo o catálogo de
+estratégias, use o escopo completo:
+
+```powershell
+python scripts\walk_forward_realistic.py --initial-cash 1000 --all-strategies
+```
+
+ou, no pipeline:
+
+```powershell
+python scripts\run_realistic_pipeline.py --initial-cash 1000 --walk-forward-all-strategies
+```
+
+O relatório grava `selection_scope`, quantidades de estratégias/gerenciamentos e
+`full_multiple_testing_scope`. Portanto uma execução limitada ao Gap Momentum não
+pode ser apresentada como se tivesse corrigido a seleção histórica entre todas as
+estratégias.
 
 Para cada ano de teste, a combinação é escolhida somente no histórico anterior e
 o fold de teste é rotulado como `walk_forward_out_of_sample`. Os folds usam contas
@@ -222,4 +252,5 @@ Se apenas `ready_for_realistic_estimate=true`, a formulação correta é:
 > é R$ X; ela ainda não é uma reconstrução exata da conta da corretora."
 
 Para afirmar que a **escolha da estratégia** também teria sido válida sem hindsight,
-use os folds walk-forward ou a validação prospectiva posterior ao congelamento.
+use `full_multiple_testing_scope=true` no walk-forward ou a validação prospectiva
+posterior ao congelamento.
