@@ -45,6 +45,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--refresh-actions", action="store_true")
     parser.add_argument("--skip-data-build", action="store_true")
     parser.add_argument("--skip-walk-forward", action="store_true")
+    parser.add_argument(
+        "--walk-forward-all-strategies",
+        action="store_true",
+        help=(
+            "Use every strategy and every management config in each training fold. "
+            "This is expensive but addresses the original across-strategy multiple-"
+            "testing selection scope. Without it, walk-forward validates the frozen "
+            "Gap Momentum hypothesis only across management choices."
+        ),
+    )
     parser.add_argument("--first-test-year", type=int, default=2021)
     parser.add_argument("--status-output", type=Path, default=DEFAULT_STATUS)
     args = parser.parse_args(argv)
@@ -150,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
                 "--summary-output",
                 str(summary_output),
             ]
+            if args.walk_forward_all_strategies:
+                walk.append("--all-strategies")
             if economic:
                 walk.append("--economic-gap-adjustment")
             _run(walk)
@@ -161,8 +173,13 @@ def main(argv: list[str] | None = None) -> int:
     raw = next(item for item in runs if item["label"] == "raw_gap")
     economic = next(item for item in runs if item["label"] == "economic_gap")
     exact_conditional = bool(audit.get("ready_for_exact_historical_account_claim"))
+    walk_scope = (
+        "full_strategy_and_management_catalog"
+        if args.walk_forward_all_strategies
+        else "frozen_gap_momentum_managements_only"
+    )
     status = {
-        "schema_version": 2,
+        "schema_version": 3,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
@@ -179,7 +196,11 @@ def main(argv: list[str] | None = None) -> int:
             "raw_gap": raw,
             "economic_gap": economic,
         },
-        "walk_forward": walk_forward_reports,
+        "walk_forward": {
+            "requested_selection_scope": walk_scope,
+            "full_multiple_testing_scope_requested": args.walk_forward_all_strategies,
+            "reports": walk_forward_reports,
+        },
         "gap_signal_sensitivity": {
             "final_equity_difference": float(raw["final_equity"]) - float(economic["final_equity"]),
             "total_return_difference": float(raw["total_return"]) - float(economic["total_return"]),
@@ -189,9 +210,10 @@ def main(argv: list[str] | None = None) -> int:
         "interpretation": (
             "Account reconstruction quality and strategy selection are separate claims. "
             "The economic-gap run removes known split-normalized cash-distribution "
-            "mechanics from Gap Momentum signal construction. Walk-forward measures "
-            "selection outside the training window. Data after the freeze can provide "
-            "prospective evidence if no rules are changed."
+            "mechanics from Gap Momentum signal construction. Gap-only walk-forward "
+            "tests management selection within the frozen hypothesis; full across-"
+            "strategy selection is tested only when --walk-forward-all-strategies is used. "
+            "Data after the freeze can provide prospective evidence if no rules change."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -208,8 +230,9 @@ def main(argv: list[str] | None = None) -> int:
             "certifications still block an exact-account statement."
         )
     print(
-        "2018 strategy-selection claim: RETROSPECTIVE only; use walk-forward and "
-        "post-2026-08-19 prospective results for selection evidence."
+        "2018 strategy-selection claim: RETROSPECTIVE only. For the original full "
+        "multiple-testing scope, run with --walk-forward-all-strategies; prospective "
+        "evidence starts after 2026-08-19 if the freeze is unchanged."
     )
     return 0
 
