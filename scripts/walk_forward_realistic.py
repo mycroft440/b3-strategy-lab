@@ -112,10 +112,19 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Walk-forward requires a cash ledger with no unresolved parse issue.")
 
     universe = PointInTimeUniverse.from_csv(args.snapshots)
-    if universe.union != {str(item).upper() for item in manifest.get("tickers", [])}:
-        parser.error("Snapshot union differs from universe manifest.")
+    selectable = {str(item).upper() for item in manifest.get("tickers", [])}
+    if universe.union != selectable:
+        parser.error("Snapshot union differs from selectable universe manifest.")
+    market_data_tickers = sorted(
+        {
+            str(item).upper()
+            for item in manifest.get("market_data_tickers", manifest.get("tickers", []))
+        }
+    )
+    if not selectable.issubset(market_data_tickers):
+        parser.error("market_data_tickers must contain every selectable ticker.")
     data = MarketData(
-        sorted(universe.union),
+        market_data_tickers,
         "1d",
         "adjusted",
         require_verified_splits_from=str(manifest["warmup_start"]),
