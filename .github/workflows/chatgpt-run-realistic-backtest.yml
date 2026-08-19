@@ -17,9 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  backtest:
+  diagnose-ealt3:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,36 +31,57 @@ jobs:
             tests.test_point_in_time_cotahist \
             tests.test_realistic_accounting \
             tests.test_cash_distributions -v
-      - name: Run realistic R$1000 backtest
+      - name: Inspect official EALT3 COTAHIST records around 2020-06-08
         run: |
-          python scripts/run_realistic_pipeline.py \
-            --download \
-            --refresh-actions \
-            --skip-walk-forward \
-            --initial-cash 1000 \
-            --status-output reports/chatgpt_realistic_pipeline_status.json
-      - name: Print status
-        if: always()
-        run: |
-          if [ -f reports/chatgpt_realistic_pipeline_status.json ]; then
-            cat reports/chatgpt_realistic_pipeline_status.json
-          fi
-      - name: Upload realistic backtest reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: realistic-backtest-reports
-          path: |
-            reports/chatgpt_realistic_pipeline_status.json
-            reports/realistic_input_audit.json
-            reports/realistic_raw_gap_summary.json
-            reports/realistic_economic_gap_summary.json
-            reports/realistic_raw_gap_curve.csv
-            reports/realistic_economic_gap_curve.csv
-            reports/realistic_raw_gap_trades.csv
-            reports/realistic_economic_gap_trades.csv
-            reports/realistic_raw_gap_distributions.csv
-            reports/realistic_economic_gap_distributions.csv
-            reports/realistic_raw_gap_tax.csv
-            reports/realistic_economic_gap_tax.csv
-          if-no-files-found: warn
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          from b3_strategy_lab.cotahist import download_cotahist
+
+          archive_path = download_cotahist(2020, Path('.cache/cotahist'), refresh=True)
+          with zipfile.ZipFile(archive_path) as archive:
+              members = [name for name in archive.namelist() if not name.endswith('/')]
+              if len(members) != 1:
+                  raise RuntimeError(f'unexpected COTAHIST members: {members}')
+              matches = []
+              with archive.open(members[0]) as fh:
+                  for line_number, raw in enumerate(fh, start=1):
+                      line = raw.decode('latin-1').rstrip('\r\n')
+                      if len(line) < 245 or line[:2] != '01':
+                          continue
+                      ticker = line[12:24].strip().upper()
+                      day = line[2:10]
+                      if ticker == 'EALT3' and '20200601' <= day <= '20200615':
+                          factor_text = line[210:217]
+                          factor = int(factor_text) if factor_text.strip() else 1
+                          factor = factor if factor > 0 else 1
+                          def price(start, end):
+                              return int(line[start:end]) / 100 / factor
+                          record = {
+                              'line': line_number,
+                              'date': day,
+                              'bdi': line[10:12],
+                              'ticker': ticker,
+                              'market': line[24:27],
+                              'issuer': line[27:39].strip(),
+                              'spec': line[39:49].strip(),
+                              'open': price(56,69),
+                              'high': price(69,82),
+                              'low': price(82,95),
+                              'avg': price(95,108),
+                              'close': price(108,121),
+                              'quotation_factor': factor,
+                              'trades_raw': line[147:152],
+                              'quantity_raw': line[152:170],
+                              'financial_volume_raw': line[170:188],
+                              'isin': line[230:242].strip(),
+                              'distribution_number': line[242:245],
+                          }
+                          matches.append((record, line))
+              if not matches:
+                  raise RuntimeError('No EALT3 records found in requested window')
+              for record, raw_line in matches:
+                  print('EALT3_RECORD', record)
+                  if record['date'] == '20200608':
+                      print('EALT3_20200608_RAW_LINE', raw_line)
+          PY
