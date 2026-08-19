@@ -29,8 +29,8 @@ def _rows(path: Path) -> list[dict[str, str]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit whether the realistic backtest inputs support an estimate and "
-            "whether they are strong enough for an exact historical-account claim."
+            "Audit whether realistic-account inputs support a retrospective estimate "
+            "and whether they are strong enough for an exact conditional account claim."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -53,8 +53,12 @@ def main(argv: list[str] | None = None) -> int:
     checks["universe_is_point_in_time"] = universe_payload.get("point_in_time") is True
     checks["universe_declares_survivorship_safe"] = universe_payload.get("survivorship_safe") is True
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
+    checks["no_replacement_policy_declared"] = universe_payload.get("no_replacements") is True
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
+    details["selection_mode"] = universe_payload.get("selection_mode", "")
+    details["excluded_tickers"] = universe_payload.get("excluded_tickers", [])
+    details["selection_bias_disclosure"] = universe_payload.get("bias_disclosure", "")
 
     split_payload = json.loads(args.split_evidence.read_text(encoding="utf-8"))
     checks["split_markers_fully_covered"] = int(split_payload.get("uncovered_count", -1)) == 0
@@ -112,16 +116,19 @@ def main(argv: list[str] | None = None) -> int:
     details["standard_execution_rows"] = len(standard)
     details["fractional_execution_rows"] = len(fractional_base)
 
-    structural = [
+    # Selection validity and account reconstruction are separate claims. A fixed,
+    # hindsight-selected universe can still support a realistic conditional replay
+    # of what the account mechanics would have done if that frozen rule had been
+    # followed. It cannot support an ex-ante strategy-selection claim.
+    structural_account = [
         "universe_is_point_in_time",
-        "universe_declares_survivorship_safe",
         "snapshot_union_matches_manifest",
         "split_markers_fully_covered",
         "cash_response_has_no_parse_issues",
         "execution_book_has_standard_quotes",
         "execution_book_has_fractional_quotes",
     ]
-    ready_for_estimate = all(checks[name] for name in structural)
+    ready_for_estimate = all(checks[name] for name in structural_account)
     ready_for_exact_claim = ready_for_estimate and all(
         checks[name]
         for name in [
@@ -131,19 +138,27 @@ def main(argv: list[str] | None = None) -> int:
         ]
     )
 
+    selection_validity = (
+        "SURVIVORSHIP_SAFE_POINT_IN_TIME"
+        if checks["universe_declares_survivorship_safe"]
+        else "RETROSPECTIVE_FIXED_UNIVERSE_ONLY"
+    )
     blockers = [name for name, ok in checks.items() if not ok]
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
         "ready_for_exact_historical_account_claim": ready_for_exact_claim,
+        "selection_validity": selection_validity,
+        "ex_ante_selection_claim_allowed": checks["universe_declares_survivorship_safe"],
         "blockers": blockers,
         "interpretation": (
-            "A realistic estimate may run when structural market-data checks pass. "
-            "An exact 'this is what the brokerage account would have contained' claim "
-            "is prohibited until cash-event history, ticker/delisting transitions and "
-            "historical opening-auction/broker fees are all certified."
+            "Account reconstruction and strategy-selection validity are separate. "
+            "A realistic conditional account replay may run when structural market-data "
+            "checks pass even if the candidate list is a fixed hindsight-selected universe. "
+            "Such a run must remain labeled retrospective and cannot be presented as proof "
+            "that the same securities would have been selected ex ante."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
