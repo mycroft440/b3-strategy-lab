@@ -22,6 +22,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Run point-in-time parser regression tests
+        run: |
+          python -m unittest \
+            tests.test_point_in_time_cotahist \
+            tests.test_realistic_accounting \
+            tests.test_cash_distributions -v
       - name: Run realistic R$1000 backtest
         run: |
           python scripts/run_realistic_pipeline.py \

@@ -45,28 +45,100 @@ def base_fractional_ticker(ticker: str) -> str:
     return value
 
 
-def read_fractional_cotahist(path: Path | str) -> list:
-    """Read B3 fractional-market records.
+def _mask_non_company_equity_records(
+    lines,
+    *,
+    bdi_code: str,
+    market_type: str,
+):
+    """Keep the COTAHIST envelope/count intact while skipping irrelevant instruments.
 
-    COTAHIST identifies the fractional segment with market type 020 and BDI 96.
-    Both filters must be changed together; keeping the standard-lot BDI 02 while
-    requesting market 020 yields an empty book.
+    parse_cotahist_lines counts every detail record before applying its BDI/market
+    filters. For point-in-time stock selection, records outside ON/PN/UNT are not
+    investable and should not be able to fail stock-specific OHLC validation. We
+    therefore mask only their BDI code in-memory so the generic parser skips them
+    after counting the detail row. Company equities are passed through unchanged
+    and remain subject to all strict validations.
     """
+    for raw_line in lines:
+        line = raw_line.decode("latin-1") if isinstance(raw_line, bytes) else raw_line
+        if len(line.rstrip("\r\n")) < 49 or line[:2] != "01":
+            yield line
+            continue
+        if line[10:12] != bdi_code or line[24:27] != market_type:
+            yield line
+            continue
+
+        ticker = line[12:24].strip().upper()
+        base_ticker = base_fractional_ticker(ticker)
+        specification = line[39:49].strip().upper()
+        company_equity = bool(
+            TICKER_RE.fullmatch(base_ticker)
+            and specification.startswith(("ON", "PN", "UNT"))
+        )
+        if company_equity:
+            yield line
+        else:
+            # Preserve line length and trailer accounting; force the parser's
+            # normal BDI filter to skip a non-company-equity detail record.
+            yield line[:10] + "ZZ" + line[12:]
+
+
+def _read_company_equity_cotahist(
+    path: Path | str,
+    *,
+    bdi_code: str,
+    market_type: str,
+) -> list:
     source = Path(path)
     kwargs = {
-        "bdi_codes": (FRACTIONAL_BDI,),
-        "market_types": (FRACTIONAL_MARKET,),
+        "bdi_codes": (bdi_code,),
+        "market_types": (market_type,),
         "require_envelope": True,
     }
+
+    def parse(lines) -> list:
+        return parse_cotahist_lines(
+            _mask_non_company_equity_records(
+                lines,
+                bdi_code=bdi_code,
+                market_type=market_type,
+            ),
+            **kwargs,
+        )
+
     if source.suffix.lower() != ".zip":
         with source.open("rb") as file:
-            return parse_cotahist_lines(file, **kwargs)
+            return parse(file)
     with zipfile.ZipFile(source) as archive:
         members = [name for name in archive.namelist() if not name.endswith("/")]
         if len(members) != 1:
             raise ValueError(f"{source}: expected one COTAHIST member.")
         with archive.open(members[0]) as file:
-            return parse_cotahist_lines(file, **kwargs)
+            return parse(file)
+
+
+def read_standard_company_equity_cotahist(path: Path | str) -> list:
+    """Read only standard-lot company equities used by the point-in-time universe."""
+    return _read_company_equity_cotahist(
+        path,
+        bdi_code=STANDARD_BDI,
+        market_type=STANDARD_MARKET,
+    )
+
+
+def read_fractional_cotahist(path: Path | str) -> list:
+    """Read B3 fractional-market company-equity records.
+
+    COTAHIST identifies the fractional segment with market type 020 and BDI 96.
+    Both filters must be changed together; keeping the standard-lot BDI 02 while
+    requesting market 020 yields an empty book.
+    """
+    return _read_company_equity_cotahist(
+        path,
+        bdi_code=FRACTIONAL_BDI,
+        market_type=FRACTIONAL_MARKET,
+    )
 
 
 def week_key(value: str) -> tuple[int, int]:

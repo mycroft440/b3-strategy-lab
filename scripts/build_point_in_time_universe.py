@@ -11,12 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from b3_strategy_lab.cotahist import download_cotahist, read_cotahist  # noqa: E402
+from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
 from b3_strategy_lab.point_in_time import (  # noqa: E402
     execution_rows,
     is_company_equity,
     parse_years,
     read_fractional_cotahist,
+    read_standard_company_equity_cotahist,
     snapshot_rows,
     write_csv,
 )
@@ -71,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     standard_quotes = []
     fractional_quotes = []
     for archive in archives:
-        standard_quotes.extend(read_cotahist(archive))
+        standard_quotes.extend(read_standard_company_equity_cotahist(archive))
         fractional_quotes.extend(read_fractional_cotahist(archive))
 
     end = args.end or max(quote.date for quote in standard_quotes)
