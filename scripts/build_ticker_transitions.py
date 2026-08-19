@@ -21,6 +21,7 @@ DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
 DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
+EXCLUDED_TICKERS = {"BOAC34"}
 
 
 def _write(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None:
@@ -53,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         str(ticker).upper()
         for ticker in universe.get("market_data_tickers", universe.get("tickers", []))
     }
+    relevant_tickers.difference_update(EXCLUDED_TICKERS)
     if not relevant_tickers:
         parser.error("Point-in-time universe contains no relevant market-data tickers.")
 
@@ -67,13 +69,17 @@ def main(argv: list[str] | None = None) -> int:
             )
         if not archive.exists():
             raise FileNotFoundError(f"{archive} missing; use --download.")
-        quotes.extend(read_standard_company_equity_cotahist(archive))
+        quotes.extend(
+            quote
+            for quote in read_standard_company_equity_cotahist(archive)
+            if quote.ticker.strip().upper() not in EXCLUDED_TICKERS
+        )
 
     by_isin: dict[str, list] = defaultdict(list)
     by_ticker: dict[str, list] = defaultdict(list)
     for quote in quotes:
         ticker = quote.ticker.strip().upper()
-        if not ticker or not quote.isin:
+        if ticker in EXCLUDED_TICKERS or not ticker or not quote.isin:
             continue
         by_isin[quote.isin.strip().upper()].append(quote)
         if ticker in relevant_tickers:
@@ -93,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
         previous_date = ordered[0].date
         for item in ordered[1:]:
             ticker = item.ticker.upper()
+            if ticker in EXCLUDED_TICKERS:
+                continue
             if ticker != previous_ticker:
                 key = (item.date, previous_ticker, ticker)
                 if key not in seen:
@@ -185,16 +193,16 @@ def main(argv: list[str] | None = None) -> int:
         "method": "same_isin_continuity_only",
         "scope": "point_in_time_market_data_tickers",
         "universe_manifest": str(args.universe_manifest),
+        "excluded_tickers": sorted(EXCLUDED_TICKERS),
         "scoped_ticker_count": len(relevant_tickers),
         "auto_approved_transitions": len(transitions),
         "unresolved_disappearances": len(unresolved),
         "complete": len(unresolved) == 0,
         "policy": (
             "Same-ISIN ticker changes are treated as 1:1 renames. Only symbols needed "
-            "by the point-in-time account are used to determine completeness. A relevant "
-            "symbol disappearance without same-ISIN continuity remains unresolved; the "
-            "backtest must fail if such a symbol is held instead of assuming a sale price "
-            "or forward-filling its last quote."
+            "by the point-in-time account are used to determine completeness. Explicitly "
+            "excluded tickers are never eligible for transition or valuation. A relevant "
+            "symbol disappearance without same-ISIN continuity remains unresolved."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -204,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"Scoped market-data tickers: {len(relevant_tickers)}")
+    print(f"Explicitly excluded tickers: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(f"Auto-approved ticker transitions: {len(transitions)}")
     print(f"Unresolved relevant disappearances: {len(unresolved)}")
     return 0
