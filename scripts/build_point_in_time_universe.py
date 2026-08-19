@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 from b3_strategy_lab.cotahist import download_cotahist, read_cotahist  # noqa: E402
 from b3_strategy_lab.point_in_time import (  # noqa: E402
     execution_rows,
+    is_company_equity,
     parse_years,
     read_fractional_cotahist,
     snapshot_rows,
@@ -97,14 +98,33 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
 
-    union = sorted({str(row["ticker"]) for row in snapshots})
-    union_set = set(union)
+    selected_union = sorted({str(row["ticker"]) for row in snapshots})
+    selected_set = set(selected_union)
+
+    # A selected symbol may later change ticker while preserving the same ISIN.
+    # Those related symbols are required market data for continuity of an already
+    # held position, but they are NOT added to point-in-time candidate snapshots.
+    selected_isins = {
+        quote.isin.strip().upper()
+        for quote in standard_quotes
+        if quote.ticker.upper() in selected_set and quote.isin
+    }
+    continuity_set = {
+        quote.ticker.upper()
+        for quote in standard_quotes
+        if quote.isin
+        and quote.isin.strip().upper() in selected_isins
+        and is_company_equity(quote)
+    }
+    market_data_set = selected_set | continuity_set
+    market_data_tickers = sorted(market_data_set)
+
     issuer_by_ticker: dict[str, str] = {}
     issuer_names: dict[str, str] = {}
     isin_by_ticker: dict[str, set[str]] = defaultdict(set)
     for quote in standard_quotes:
         ticker = quote.ticker.upper()
-        if ticker not in union_set:
+        if ticker not in market_data_set:
             continue
         issuer_by_ticker[ticker] = ticker[:4]
         issuer_names[ticker] = quote.issuer_name.strip().upper()
@@ -112,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             isin_by_ticker[ticker].add(quote.isin)
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "id": "point_in_time_trailing_liquidity_weekly",
         "selection_mode": "weekly_trailing_liquidity_only_past_information",
         "selected_as_of": args.start,
@@ -134,15 +154,19 @@ def main(argv: list[str] | None = None) -> int:
             "standard": {"market_type": "010", "bdi_code": "02"},
             "fractional": {"market_type": "020", "bdi_code": "96"}
         },
-        "tickers": union,
+        "tickers": selected_union,
+        "market_data_tickers": market_data_tickers,
+        "continuity_only_tickers": sorted(market_data_set - selected_set),
+        "continuity_rule": "same_isin_as_any_point_in_time_selected_symbol",
         "issuing_company_by_ticker": issuer_by_ticker,
         "issuer_name_by_ticker": issuer_names,
         "isins_by_ticker": {ticker: sorted(values) for ticker, values in isin_by_ticker.items()},
         "bias_disclosure": (
             "Each snapshot is selected only from COTAHIST observations at or before "
             "its effective_date. Historical symbols are not removed because they later "
-            "delist or cease satisfying liquidity rules. Delisted and renamed symbols "
-            "remain in the historical candidate set while they actually traded."
+            "delist or cease satisfying liquidity rules. Same-ISIN related tickers may "
+            "be loaded only for continuity of held positions; they are not investable "
+            "unless they independently appear in a point-in-time snapshot."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -155,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
     executions = execution_rows(
         standard_quotes,
         fractional_quotes,
-        union=union_set,
+        union=market_data_set,
         start=args.start,
         end=end,
     )
@@ -173,7 +197,10 @@ def main(argv: list[str] | None = None) -> int:
             "is required for an R$1,000 realistic account."
         )
     print(f"Snapshots: {args.snapshots_output} ({len(snapshots)} rows)")
-    print(f"Union: {args.manifest_output} ({len(union)} historical symbols)")
+    print(
+        f"Universe: {args.manifest_output} ({len(selected_union)} selectable + "
+        f"{len(market_data_set - selected_set)} continuity-only symbols)"
+    )
     print(
         f"Execution quotes: {args.execution_output} "
         f"({standard_count} standard + {fractional_count} fractional rows)"
