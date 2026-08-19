@@ -199,7 +199,7 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
         self.assertAlmostEqual(quote.low, 18.40)
         self.assertAlmostEqual(quote.close, 18.40)
         self.assertEqual(quote.trades, 257)
-        self.assertEqual(quote.quantity, 45_700)
+        self.assertEqual(quote.volume, 45_700)
         self.assertAlmostEqual(quote.financial_volume, 993_481.0)
 
     def test_fractional_reader_filters_non_equities_before_validation(self) -> None:
