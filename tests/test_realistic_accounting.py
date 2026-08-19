@@ -130,16 +130,28 @@ class TaxTests(unittest.TestCase):
         self.assertAlmostEqual(feb.taxable_gain, 2_000.0)
         self.assertAlmostEqual(feb.tax_due, 300.0)
 
-    def test_jcp_withholding(self) -> None:
+    def test_jcp_withholding_through_2025_is_15_percent(self) -> None:
         ledger = CashDistributionTaxLedger()
-        net, tax = ledger.net_jcp(100.0)
+        net, tax = ledger.net_jcp("2025-12-31", 100.0)
         self.assertAlmostEqual(net, 85.0)
         self.assertAlmostEqual(tax, 15.0)
 
-    def test_2026_large_same_payer_dividend_month(self) -> None:
+    def test_jcp_withholding_from_2026_is_17_5_percent(self) -> None:
+        ledger = CashDistributionTaxLedger()
+        net, tax = ledger.net_jcp("2026-01-02", 100.0)
+        self.assertAlmostEqual(net, 82.5)
+        self.assertAlmostEqual(tax, 17.5)
+
+    def test_2026_dividends_below_monthly_threshold_do_not_withhold(self) -> None:
+        ledger = CashDistributionTaxLedger()
+        ledger.record_dividend("2026-02-10", "AAA3", 49_999.99)
+        self.assertEqual(ledger.settle_dividend_month("2026-02"), 0.0)
+
+    def test_2026_large_dividend_fails_without_transition_classification(self) -> None:
         ledger = CashDistributionTaxLedger()
         ledger.record_dividend("2026-02-10", "AAA3", 60_000.0)
-        self.assertAlmostEqual(ledger.settle_dividend_month("2026-02"), 6_000.0)
+        with self.assertRaisesRegex(ValueError, "transitional/grandfathering"):
+            ledger.settle_dividend_month("2026-02")
 
 
 class CashAccountTests(unittest.TestCase):
