@@ -37,7 +37,7 @@ DEFAULT_CASH_LEDGER = Path("reports/realistic_account_distributions.csv")
 DEFAULT_TAX = Path("reports/realistic_account_tax.csv")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
 
-# Backward-compatible import used by walk_forward_realistic.py.
+# Backward-compatible import used by older callers.
 _load_transitions = load_transitions
 
 
@@ -99,10 +99,20 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Refusing realistic mode: B3 cash-distribution response has unresolved parsing issues.")
 
     universe = PointInTimeUniverse.from_csv(args.snapshots)
-    if universe.union != {str(item).upper() for item in manifest["tickers"]}:
-        parser.error("Snapshot union differs from universe manifest.")
+    selectable = {str(item).upper() for item in manifest["tickers"]}
+    if universe.union != selectable:
+        parser.error("Snapshot union differs from selectable universe manifest.")
+    market_data_tickers = sorted(
+        {
+            str(item).upper()
+            for item in manifest.get("market_data_tickers", manifest["tickers"])
+        }
+    )
+    if not selectable.issubset(market_data_tickers):
+        parser.error("market_data_tickers must contain every selectable ticker.")
+
     data = MarketData(
-        sorted(universe.union),
+        market_data_tickers,
         "1d",
         "adjusted",
         require_verified_splits_from=str(manifest["warmup_start"]),
