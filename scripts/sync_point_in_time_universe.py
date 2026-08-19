@@ -75,9 +75,9 @@ def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Sync all symbols required by the point-in-time account, including "
-            "same-ISIN continuity-only tickers. Splits are fail-closed: uncovered "
-            "COTAHIST share-count markers stop the build."
+            "Sync all symbols required by the realistic account, including same-ISIN "
+            "continuity-only tickers. Splits are fail-closed: uncovered COTAHIST "
+            "share-count markers stop the build."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -101,8 +101,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
-    if universe.get("point_in_time") is not True or universe.get("survivorship_safe") is not True:
-        parser.error("--universe must be a survivorship-safe point-in-time manifest.")
+    if universe.get("point_in_time") is not True:
+        parser.error("--universe must provide point-in-time historical snapshots.")
+    survivorship_safe = universe.get("survivorship_safe") is True
+    retrospective_fixed = not survivorship_safe
+    if retrospective_fixed and universe.get("no_replacements") is not True:
+        parser.error(
+            "A non-survivorship-safe universe is accepted only for the explicitly "
+            "retrospective fixed-universe/no-replacements replay."
+        )
 
     selected_tickers = [str(ticker).strip().upper() for ticker in universe["tickers"]]
     tickers = [
@@ -213,9 +220,15 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     evidence_payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "coverage_start": coverage_start,
-        "survivorship_safe_universe": True,
+        "survivorship_safe_universe": survivorship_safe,
+        "selection_validity": (
+            "SURVIVORSHIP_SAFE_POINT_IN_TIME"
+            if survivorship_safe
+            else "RETROSPECTIVE_FIXED_UNIVERSE_ONLY"
+        ),
+        "no_replacements": universe.get("no_replacements") is True,
         "point_in_time_universe": str(args.universe),
         "selectable_ticker_count": len(selected_tickers),
         "market_data_ticker_count": len(tickers),
@@ -280,10 +293,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     _write_cash(args.cash_output, cash_rows)
     cash_manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source": "B3 GetListedSupplementCompany.cashDividends",
         "source_authority": "B3",
         "universe": str(args.universe),
+        "selection_validity": (
+            "SURVIVORSHIP_SAFE_POINT_IN_TIME"
+            if survivorship_safe
+            else "RETROSPECTIVE_FIXED_UNIVERSE_ONLY"
+        ),
+        "no_replacements": universe.get("no_replacements") is True,
         "selectable_ticker_count": len(selected_tickers),
         "market_data_ticker_count": len(tickers),
         "event_identity": "ticker+isin+last_date_prior+payment_date+label+rate",
@@ -301,8 +320,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Cash events: {args.cash_output} ({len(cash_rows)} events)")
     print(
-        f"Point-in-time account data synchronized: {len(selected_tickers)} selectable + "
-        f"{len(set(tickers) - set(selected_tickers))} continuity-only tickers."
+        f"Realistic account data synchronized: {len(selected_tickers)} selectable + "
+        f"{len(set(tickers) - set(selected_tickers))} continuity-only tickers; "
+        f"selection validity={'survivorship-safe' if survivorship_safe else 'retrospective-fixed'}"
     )
     return 0
 

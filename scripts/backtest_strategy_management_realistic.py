@@ -37,7 +37,6 @@ DEFAULT_CASH_LEDGER = Path("reports/realistic_account_distributions.csv")
 DEFAULT_TAX = Path("reports/realistic_account_tax.csv")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
 
-# Backward-compatible import used by older callers.
 _load_transitions = load_transitions
 
 
@@ -48,10 +47,14 @@ def _config_by_name(name: str, signal_mode: str = "adjusted") -> PortfolioConfig
     return matches[0]
 
 
+def _report_progress(completed: int, total: int, current_date: str) -> None:
+    print(f"BACKTEST_PROGRESS {completed} {total} {current_date}", flush=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Real-money-oriented B3 backtest: point-in-time universe, official "
+            "Real-money-oriented B3 backtest: historical snapshots, official "
             "standard/fractional openings, cash distributions, monthly Brazilian "
             "tax accounting, liquidity-aware slippage and no stale-price fallback."
         )
@@ -92,8 +95,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     manifest = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
-    if manifest.get("point_in_time") is not True or manifest.get("survivorship_safe") is not True:
-        parser.error("Refusing realistic mode: universe must be point-in-time and survivorship-safe.")
+    if manifest.get("point_in_time") is not True:
+        parser.error("Refusing realistic mode: historical snapshots must be point-in-time.")
+    if manifest.get("survivorship_safe") is not True and args.selection_status != "retrospective_hypothesis_replay":
+        parser.error(
+            "A fixed/survivorship-biased universe is allowed only for a retrospective "
+            "hypothesis replay; it cannot be labeled walk-forward or prospective."
+        )
     cash_manifest = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     if cash_manifest.get("complete") is not True:
         parser.error("Refusing realistic mode: B3 cash-distribution response has unresolved parsing issues.")
@@ -141,11 +149,18 @@ def main(argv: list[str] | None = None) -> int:
         transitions=load_transitions(args.ticker_transitions),
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,
+        progress_callback=_report_progress,
     )
+
+    payload = asdict(summary)
+    payload["universe_survivorship_safe"] = bool(manifest.get("survivorship_safe"))
+    payload["universe_selection_mode"] = manifest.get("selection_mode")
+    payload["no_replacements"] = bool(manifest.get("no_replacements"))
+    payload["excluded_tickers"] = manifest.get("excluded_tickers", [])
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps(asdict(summary), indent=2, ensure_ascii=False) + "\n",
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     write_dataclass_csv(args.curve_output, curve)
@@ -153,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     write_dataclass_csv(args.cash_ledger_output, account.cash_ledger)
     write_dataclass_csv(args.tax_output, account.tax.finalized())
 
-    print(json.dumps(asdict(summary), indent=2, ensure_ascii=False))
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
     print(f"Curve: {args.curve_output}")
     print(f"Trades: {args.trades_output}")
     print(f"Tax: {args.tax_output}")
