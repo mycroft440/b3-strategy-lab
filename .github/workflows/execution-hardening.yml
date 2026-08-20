@@ -7,16 +7,16 @@ permissions:
   contents: read
 
 jobs:
-  phase2-source:
+  source:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: fix/execution-hardening-20260820
-      - name: Phase 2 source
+      - name: Source hardening
         run: |
           python - <<'PY'
           from pathlib import Path
-          source = Path("scripts/_execution_hardening_phase2.py").read_text(encoding="utf-8")
-          exec(compile(source, "execution-hardening-phase2", "exec"), {})
+          source = Path("scripts/_execution_hardening_source.py").read_text(encoding="utf-8")
+          exec(compile(source, "execution-hardening-source", "exec"), {})
           PY
