@@ -29,7 +29,7 @@ on:
         default: "0"
         type: string
 
-run-name: "Backtest completo — Top 10 — ${{ inputs.start }}${{ inputs.end && format(' → {0}', inputs.end) || '' }}"
+run-name: "Backtest completo — Top 10"
 
 permissions:
   contents: read
@@ -176,7 +176,7 @@ jobs:
           compression-level: 0
 
   merge:
-    name: Consolidar 90.820 combinações e gerar Top 10
+    name: Consolidar matriz e gerar Top 10
     needs: [prepare, backtest]
     runs-on: ubuntu-latest
     timeout-minutes: 60
