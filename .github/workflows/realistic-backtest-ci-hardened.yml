@@ -1,0 +1,116 @@
+name: Realistic backtest CI — hardened
+
+on:
+  pull_request:
+    paths:
+      - "b3_strategy_lab/**"
+      - "scripts/*realistic*.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "scripts/build_ticker_transitions.py"
+      - "scripts/sync_point_in_time_universe*.py"
+      - "scripts/research_portfolio_allocation.py"
+      - "tests/**"
+      - "data/fees/**"
+      - ".github/workflows/realistic-backtest-ci-hardened.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "b3_strategy_lab/**"
+      - "scripts/*realistic*.py"
+      - "scripts/build_point_in_time_universe.py"
+      - "scripts/build_ticker_transitions.py"
+      - "scripts/sync_point_in_time_universe*.py"
+      - "scripts/research_portfolio_allocation.py"
+      - "tests/**"
+      - "data/fees/**"
+      - ".github/workflows/realistic-backtest-ci-hardened.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: realistic-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile realistic and matrix modules
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/realistic.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/point_in_time.py \
+            b3_strategy_lab/cash_distributions.py \
+            b3_strategy_lab/extended_strategies.py \
+            scripts/build_point_in_time_universe.py \
+            scripts/build_ticker_transitions.py \
+            scripts/sync_point_in_time_universe.py \
+            scripts/sync_point_in_time_universe_realistic.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/audit_realistic_backtest_inputs.py \
+            scripts/run_realistic_pipeline.py \
+            scripts/research_portfolio_allocation.py \
+            scripts/backtest_strategy_management_combinations.py
+
+      - name: Full unit suite
+        run: python -m unittest discover -s tests -v
+
+  realistic-2018-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute realistic pipeline end to end for 2018
+        run: |
+          python scripts/run_realistic_pipeline.py \
+            --start 2018-01-02 \
+            --end 2018-12-28 \
+            --initial-cash 1000 \
+            --skip-walk-forward \
+            --status-output reports/realistic_pipeline_ci_status.json
+
+      - name: Validate realistic pipeline outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path("reports/realistic_pipeline_ci_status.json").read_text())
+          audit = status["input_audit"]
+          if not audit.get("ready_for_realistic_estimate"):
+              raise SystemExit(f"realistic input audit not ready: {audit.get('blockers')}")
+          runs = status["continuous_replay"]
+          for label in ("raw_gap", "economic_gap"):
+              summary = runs[label]
+              if summary.get("survivorship_safe") is not False:
+                  raise SystemExit(f"{label}: survivorship flag must reflect retrospective universe")
+              if "RETROSPECTIVE_UNIVERSE" not in summary.get("validity", ""):
+                  raise SystemExit(f"{label}: retrospective-universe validity tag missing")
+              if float(summary["final_equity"]) <= 0:
+                  raise SystemExit(f"{label}: invalid final equity")
+          print("realistic 2018 end-to-end smoke passed")
+          PY
+
+      - name: Upload diagnostic reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: realistic-2018-ci-${{ github.run_number }}
+          path: reports/realistic_*.json
+          if-no-files-found: warn
+          retention-days: 7
