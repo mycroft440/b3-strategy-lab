@@ -1,0 +1,130 @@
+name: Recover backtest merge — hardened
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Run ID que contém os shards a recuperar
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: backtest-results-publication
+  cancel-in-progress: false
+
+env:
+  TOP_N: "10"
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar ferramentas de merge/auditoria
+        run: |
+          python -m py_compile scripts/merge_matrix_shards.py scripts/audit_matrix_results.py
+
+      - name: Baixar shards do run informado
+        uses: actions/download-artifact@v4
+        with:
+          pattern: matrix-shard-*
+          path: reports/shards
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
+      - name: Validar conjunto de shards
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          csvs = sorted(Path("reports/shards").glob("shard_*.csv.gz"))
+          manifests = sorted(Path("reports/shards").glob("shard_*.manifest.json"))
+          annual = sorted(Path("reports/shards").glob("shard_*_top10_annual.md"))
+          if not csvs or len(csvs) != len(manifests) or len(csvs) != len(annual):
+              raise SystemExit(
+                  f"shards incompletos: csv={len(csvs)} manifests={len(manifests)} annual={len(annual)}"
+              )
+          source_commits = {
+              json.loads(path.read_text(encoding="utf-8")).get("git_commit")
+              for path in manifests
+          }
+          if len(source_commits) != 1 or None in source_commits:
+              raise SystemExit(f"proveniência inconsistente entre shards: {source_commits}")
+          print(f"shards={len(csvs)} calculation_sha={next(iter(source_commits))}")
+          PY
+
+      - name: Consolidar
+        run: |
+          python scripts/merge_matrix_shards.py \
+            --input-dir reports/shards \
+            --top "$TOP_N" \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --summary-output reports/TOP_10.md \
+            --json-output reports/TOP_10.json
+
+      - name: Auditar
+        run: |
+          python scripts/audit_matrix_results.py \
+            --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+
+      - name: Preparar latest recuperado
+        run: |
+          set -euo pipefail
+          rm -rf reports/latest_backtest
+          mkdir -p reports/latest_backtest
+          cp reports/TOP_10.md reports/latest_backtest/TOP_10.md
+          cp reports/TOP_10.json reports/latest_backtest/TOP_10.json
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/TOP_10_ANNUAL.md
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          latest = Path("reports/latest_backtest")
+          audit = json.loads((latest / "AUDIT.json").read_text())
+          manifest = json.loads((latest / "MANIFEST.json").read_text())
+          if audit.get("ready") is not True:
+              raise SystemExit("auditoria do recovery não está pronta")
+          payload = {
+              "status": "SUCCESS",
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "recovery_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "source_run_id": int(os.environ["SOURCE_RUN_ID"]),
+              "recovery_workflow_sha": os.environ["GITHUB_SHA"],
+              "calculation_sha": manifest.get("git_commit"),
+              "strategy_count": int(manifest["strategy_count"]),
+              "management_count": int(manifest["management_count"]),
+              "combination_count": int(manifest["combinations"]),
+              "top_n": 10,
+              "audit_ready": True,
+          }
+          (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+          PY
+
+      - name: Publicar em backtest-results
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/latest_backtest
+          git commit -m "Backtest recovery ${{ github.run_number }}: publish [skip ci]"
+          git push --force origin HEAD:backtest-results
