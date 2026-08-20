@@ -63,21 +63,21 @@ test_same_day_cash_events_do_not_change_price_series (test_cotahist.VerifiedCand
 test_warns_when_split_normalization_leaves_a_large_price_jump (test_cotahist.VerifiedCandleTests.test_warns_when_split_normalization_leaves_a_large_price_jump) ... ok
 test_weekly_ohlc_uses_split_normalized_price_only_basis (test_cotahist.VerifiedCandleTests.test_weekly_ohlc_uses_split_normalized_price_only_basis) ... ok
 test_weekly_raw_ohlc_preserves_scale_change_inside_split_week (test_cotahist.VerifiedCandleTests.test_weekly_raw_ohlc_preserves_scale_change_inside_split_week) ... ok
-test_serial_and_parallel_small_matrix_are_identical (test_execution_hardening.MatrixParallelDeterminismTests.test_serial_and_parallel_small_matrix_are_identical) ... 1/2 estrategias; 160/320 combinacoes; 4.6s
-2/2 estrategias; 320/320 combinacoes; 5.2s
-Salvo: /tmp/tmpldt7w1ct/serial.csv.gz (320 combinacoes)
-Relatorio anual: /tmp/tmpldt7w1ct/serial_top3_annual.md
-Manifesto: /tmp/tmpldt7w1ct/serial.manifest.json
+test_serial_and_parallel_small_matrix_are_identical (test_execution_hardening.MatrixParallelDeterminismTests.test_serial_and_parallel_small_matrix_are_identical) ... 1/2 estrategias; 160/320 combinacoes; 4.9s
+2/2 estrategias; 320/320 combinacoes; 5.6s
+Salvo: /tmp/tmpiclgz90t/serial.csv.gz (320 combinacoes)
+Relatorio anual: /tmp/tmpiclgz90t/serial_top3_annual.md
+Manifesto: /tmp/tmpiclgz90t/serial.manifest.json
 
 Top combinacoes por retorno total composto
 01. gap_momentum + top1_risk_adjusted_lb63_skip0_trend0_vol63_equal_weekly_abs_cap1_adjusted | ret=44.96% media anual=44.96% CAGR=114.23%
 02. gap_momentum + top1_risk_adjusted_lb63_skip0_trend200_vol63_equal_weekly_abs_cap1_adjusted | ret=24.73% media anual=24.73% CAGR=57.36%
 03. gap_momentum + top1_risk_adjusted_lb126_skip21_trend200_vol63_equal_weekly_abs_cap1_adjusted | ret=24.38% media anual=24.38% CAGR=56.47%
-1/2 estrategias; 160/320 combinacoes; 2.3s
-2/2 estrategias; 320/320 combinacoes; 4.6s
-Salvo: /tmp/tmpldt7w1ct/parallel.csv.gz (320 combinacoes)
-Relatorio anual: /tmp/tmpldt7w1ct/parallel_top3_annual.md
-Manifesto: /tmp/tmpldt7w1ct/parallel.manifest.json
+1/2 estrategias; 160/320 combinacoes; 2.5s
+2/2 estrategias; 320/320 combinacoes; 5.0s
+Salvo: /tmp/tmpiclgz90t/parallel.csv.gz (320 combinacoes)
+Relatorio anual: /tmp/tmpiclgz90t/parallel_top3_annual.md
+Manifesto: /tmp/tmpiclgz90t/parallel.manifest.json
 
 Top combinacoes por retorno total composto
 01. gap_momentum + top1_risk_adjusted_lb63_skip0_trend0_vol63_equal_weekly_abs_cap1_adjusted | ret=44.96% media anual=44.96% CAGR=114.23%
@@ -86,8 +86,7 @@ Top combinacoes por retorno total composto
 ok
 test_proportional_buy_plan_does_not_starve_later_ticker (test_execution_hardening.RealisticExecutionHardeningTests.test_proportional_buy_plan_does_not_starve_later_ticker) ... ok
 test_realistic_summary_uses_supplied_survivorship_status (test_execution_hardening.RealisticExecutionHardeningTests.test_realistic_summary_uses_supplied_survivorship_status) ... ok
-test_every_portfolio_strategy_is_prefix_causal_and_deterministic (test_execution_hardening.StrategyCausalityTests.test_every_portfolio_strategy_is_prefix_causal_and_deterministic) ... 
-  test_every_portfolio_strategy_is_prefix_causal_and_deterministic (test_execution_hardening.StrategyCausalityTests.test_every_portfolio_strategy_is_prefix_causal_and_deterministic) (strategy='halloween_effect') ... FAIL
+test_every_portfolio_strategy_is_prefix_causal_and_deterministic (test_execution_hardening.StrategyCausalityTests.test_every_portfolio_strategy_is_prefix_causal_and_deterministic) ... ok
 test_portfolio_refuses_stale_close_for_held_position (test_execution_hardening.StrictResearchExecutionTests.test_portfolio_refuses_stale_close_for_held_position) ... ok
 test_ranking_ties_are_name_deterministic (test_execution_hardening.StrictResearchExecutionTests.test_ranking_ties_are_name_deterministic) ... ok
 test_rebalance_refuses_missing_open_for_held_or_target_ticker (test_execution_hardening.StrictResearchExecutionTests.test_rebalance_refuses_missing_open_for_held_or_target_ticker) ... ok
@@ -104,8 +103,8 @@ test_nr7_breakout_uses_setup_high_and_low (test_extended_strategies.ExtendedStra
 test_parabolic_sar_flips_in_both_directions (test_extended_strategies.ExtendedStrategyTests.test_parabolic_sar_flips_in_both_directions) ... ok
 test_price_engines_do_not_rewrite_past_signals (test_extended_strategies.ExtendedStrategyTests.test_price_engines_do_not_rewrite_past_signals) ... ok
 test_vertical_horizontal_filter_enters_trend_then_exits_flat_regime (test_extended_strategies.ExtendedStrategyTests.test_vertical_horizontal_filter_enters_trend_then_exits_flat_regime) ... ok
-test_compressed_results_are_readable_and_deterministic (test_matrix_reports.MatrixReportTests.test_compressed_results_are_readable_and_deterministic) ... Salvo: /tmp/tmp07mcqxfx/matrix.csv.gz (1 combinacoes)
-Salvo: /tmp/tmp07mcqxfx/matrix.csv.gz (1 combinacoes)
+test_compressed_results_are_readable_and_deterministic (test_matrix_reports.MatrixReportTests.test_compressed_results_are_readable_and_deterministic) ... Salvo: /tmp/tmp5ssnt07i/matrix.csv.gz (1 combinacoes)
+Salvo: /tmp/tmp5ssnt07i/matrix.csv.gz (1 combinacoes)
 ok
 test_csv_gzip_uses_the_same_sidecar_base (test_matrix_reports.MatrixReportTests.test_csv_gzip_uses_the_same_sidecar_base) ... ok
 test_preserves_raw_and_split_normalized_heikin_ashi_bases (test_organize_market_data.HeikinAshiTests.test_preserves_raw_and_split_normalized_heikin_ashi_bases) ... ok
@@ -177,21 +176,7 @@ test_valid_top1_rotation_keeps_cash_nonnegative (test_strict_portfolio_engine.St
 test_inventory_covers_volume_families_and_parameterized_filters (test_volume_audit.VolumeAuditTests.test_inventory_covers_volume_families_and_parameterized_filters) ... ok
 test_static_inventory_covers_every_source_function_that_reads_volume (test_volume_audit.VolumeAuditTests.test_static_inventory_covers_every_source_function_that_reads_volume) ... ok
 
-======================================================================
-FAIL: test_every_portfolio_strategy_is_prefix_causal_and_deterministic (test_execution_hardening.StrategyCausalityTests.test_every_portfolio_strategy_is_prefix_causal_and_deterministic) (strategy='halloween_effect')
 ----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/home/runner/work/b3-strategy-lab/b3-strategy-lab/tests/test_execution_hardening.py", line 201, in test_every_portfolio_strategy_is_prefix_causal_and_deterministic
-    self.assertEqual(first, extended[: len(first)])
-AssertionError: Lists differ: [1, 1[2332 chars] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0] != [1, 1[2332 chars] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+Ran 155 tests in 23.800s
 
-First differing element 799:
-0
-1
-
-Diff is 4806 characters long. Set self.maxDiff to None to see it.
-
-----------------------------------------------------------------------
-Ran 155 tests in 22.745s
-
-FAILED (failures=1)
+OK
