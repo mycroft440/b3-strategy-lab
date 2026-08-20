@@ -1,5 +1,6 @@
 name: Execution hardening driver
 
+# Temporary driver: applies and validates the execution-hardening patch on the review branch.
 on:
   push:
     branches:
