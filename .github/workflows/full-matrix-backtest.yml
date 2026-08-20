@@ -1,0 +1,230 @@
+name: Full matrix backtest — Top 10
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: Data inicial do backteste
+        required: true
+        default: "2018-01-02"
+        type: string
+      end:
+        description: Data final (vazio = último pregão comum disponível)
+        required: false
+        default: ""
+        type: string
+      initial_cash:
+        description: Capital inicial em reais
+        required: true
+        default: "1000"
+        type: string
+      cost_bps:
+        description: Custo por ordem em bps
+        required: true
+        default: "0"
+        type: string
+      slippage_bps:
+        description: Slippage em bps
+        required: true
+        default: "0"
+        type: string
+
+run-name: "Backtest completo — Top 10 — ${{ inputs.start }}${{ inputs.end && format(' → {0}', inputs.end) || '' }}"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-matrix-backtest
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  SHARD_COUNT: "8"
+  TOP_N: "10"
+
+jobs:
+  prepare:
+    name: Preparar shards
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.shards.outputs.matrix }}
+      strategy_count: ${{ steps.shards.outputs.strategy_count }}
+      management_count: ${{ steps.shards.outputs.management_count }}
+      combination_count: ${{ steps.shards.outputs.combination_count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validar módulos críticos
+        run: |
+          python -m py_compile \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/audit_matrix_results.py \
+            scripts/merge_matrix_shards.py
+
+      - name: Validar dados verificados
+        run: python -m b3_strategy_lab verify-data --interval 1d
+
+      - name: Montar matriz de shards
+        id: shards
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          from b3_strategy_lab.strategies import portfolio_strategies
+          from scripts.research_portfolio_allocation import _configs
+
+          strategies = list(portfolio_strategies())
+          shard_count = int(os.environ["SHARD_COUNT"])
+          shards = []
+          for index in range(shard_count):
+              subset = strategies[index::shard_count]
+              if subset:
+                  shards.append({
+                      "index": index,
+                      "strategies": " ".join(subset),
+                      "strategy_count": len(subset),
+                  })
+          management_count = len(_configs("adjusted", "all"))
+          print("matrix=" + json.dumps({"include": shards}, separators=(",", ":")))
+          print(f"strategy_count={len(strategies)}")
+          print(f"management_count={management_count}")
+          print(f"combination_count={len(strategies) * management_count}")
+          PY
+
+      - name: Resumo da execução
+        run: |
+          {
+            echo "## Backtest completo preparado"
+            echo ""
+            echo "- Estratégias: **${{ steps.shards.outputs.strategy_count }}**"
+            echo "- Gerenciamentos: **${{ steps.shards.outputs.management_count }}**"
+            echo "- Combinações: **${{ steps.shards.outputs.combination_count }}**"
+            echo "- Shards paralelos: **${SHARD_COUNT}**"
+            echo "- Resultado final: **Top ${TOP_N} global**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  backtest:
+    name: "Shard ${{ matrix.index }} — ${{ matrix.strategy_count }} estratégias"
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Executar shard da matriz
+        shell: bash
+        env:
+          STRATEGIES: ${{ matrix.strategies }}
+          SHARD_INDEX: ${{ matrix.index }}
+          START_DATE: ${{ inputs.start }}
+          END_DATE: ${{ inputs.end }}
+          INITIAL_CASH: ${{ inputs.initial_cash }}
+          COST_BPS: ${{ inputs.cost_bps }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/shards
+          read -r -a STRATEGY_ARGS <<< "$STRATEGIES"
+          WORKERS="$(nproc)"
+          if [ "$WORKERS" -gt 2 ]; then WORKERS=2; fi
+
+          CMD=(
+            python scripts/backtest_strategy_management_combinations.py
+            --strategies "${STRATEGY_ARGS[@]}"
+            --start "$START_DATE"
+            --initial-cash "$INITIAL_CASH"
+            --cost-bps "$COST_BPS"
+            --slippage-bps "$SLIPPAGE_BPS"
+            --lot-size 1
+            --top "$TOP_N"
+            --workers "$WORKERS"
+            --output "reports/shards/shard_${SHARD_INDEX}.csv.gz"
+          )
+          if [ -n "$END_DATE" ]; then
+            CMD+=(--end "$END_DATE")
+          fi
+
+          printf '+ %q ' "${CMD[@]}"
+          printf '\n'
+          "${CMD[@]}"
+
+      - name: Publicar shard temporário
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-shard-${{ matrix.index }}
+          path: |
+            reports/shards/shard_${{ matrix.index }}.csv.gz
+            reports/shards/shard_${{ matrix.index }}.manifest.json
+            reports/shards/shard_${{ matrix.index }}_top10_annual.md
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  merge:
+    name: Consolidar 90.820 combinações e gerar Top 10
+    needs: [prepare, backtest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Baixar todos os shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: matrix-shard-*
+          path: reports/shards
+          merge-multiple: true
+
+      - name: Consolidar ranking global
+        run: |
+          python scripts/merge_matrix_shards.py \
+            --input-dir reports/shards \
+            --top "$TOP_N" \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --summary-output reports/TOP_10.md \
+            --json-output reports/TOP_10.json
+
+      - name: Auditar resultado completo
+        run: |
+          python scripts/audit_matrix_results.py \
+            --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+
+      - name: Exibir Top 10 no resumo do GitHub Actions
+        run: cat reports/TOP_10.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar resultado final
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
+          path: |
+            reports/TOP_10.md
+            reports/TOP_10.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
