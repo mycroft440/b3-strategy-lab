@@ -37,7 +37,7 @@ on:
 run-name: "Backtest completo — Top 10"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: full-matrix-backtest
@@ -45,7 +45,7 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
-  SHARD_COUNT: "8"
+  SHARD_COUNT: "32"
   TOP_N: "10"
 
 jobs:
@@ -110,18 +110,66 @@ jobs:
             echo "- Estratégias: **${{ steps.shards.outputs.strategy_count }}**"
             echo "- Gerenciamentos: **${{ steps.shards.outputs.management_count }}**"
             echo "- Combinações: **${{ steps.shards.outputs.combination_count }}**"
-            echo "- Shards paralelos: **${SHARD_COUNT}**"
+            echo "- Shards: **${SHARD_COUNT}**"
             echo "- Resultado final: **Top ${TOP_N} global**"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  announce:
+    name: Registrar execução
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publicar marcador RUNNING
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SOURCE_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
+          MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
+          COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
+        run: |
+          set -euo pipefail
+          rm -rf reports/latest_backtest
+          mkdir -p reports/latest_backtest
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          payload = {
+              "status": "RUNNING",
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "source_sha": os.environ["SOURCE_SHA"],
+              "event_name": os.environ["EVENT_NAME"],
+              "strategy_count": int(os.environ["STRATEGY_COUNT"]),
+              "management_count": int(os.environ["MANAGEMENT_COUNT"]),
+              "combination_count": int(os.environ["COMBINATION_COUNT"]),
+              "top_n": 10,
+          }
+          Path("reports/latest_backtest/STATUS.json").write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/latest_backtest/STATUS.json
+          git commit -m "Backtest ${RUN_NUMBER}: running [skip ci]"
+          git push --force origin HEAD:backtest-results
+
   backtest:
     name: "Shard ${{ matrix.index }} — ${{ matrix.strategy_count }} estratégias"
-    needs: prepare
+    needs: [prepare, announce]
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 16
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
@@ -219,7 +267,7 @@ jobs:
       - name: Exibir Top 10 no resumo do GitHub Actions
         run: cat reports/TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publicar resultado final
+      - name: Publicar resultado final como artifact
         uses: actions/upload-artifact@v4
         with:
           name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
@@ -233,3 +281,93 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+  publish:
+    name: Publicar status e resultado verificável
+    needs: [prepare, announce, backtest, merge]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar resultado final
+        if: ${{ needs.merge.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
+          path: final-artifact
+
+      - name: Preparar publicação
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SOURCE_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          ANNOUNCE_RESULT: ${{ needs.announce.result }}
+          BACKTEST_RESULT: ${{ needs.backtest.result }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
+          MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
+          COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
+        run: |
+          set -euo pipefail
+          rm -rf reports/latest_backtest
+          mkdir -p reports/latest_backtest
+          if [ "$MERGE_RESULT" = "success" ]; then
+            cp final-artifact/TOP_10.md reports/latest_backtest/TOP_10.md
+            cp final-artifact/TOP_10.json reports/latest_backtest/TOP_10.json
+            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
+            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
+            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/TOP_10_ANNUAL.md
+          fi
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          audit_path = Path("reports/latest_backtest/AUDIT.json")
+          audit = json.loads(audit_path.read_text(encoding="utf-8")) if audit_path.exists() else None
+          merge_ok = os.environ["MERGE_RESULT"] == "success"
+          audit_ok = bool(audit and audit.get("ready") is True)
+          status = "SUCCESS" if merge_ok and audit_ok else "FAILED"
+          payload = {
+              "status": status,
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "source_sha": os.environ["SOURCE_SHA"],
+              "event_name": os.environ["EVENT_NAME"],
+              "jobs": {
+                  "prepare": os.environ["PREPARE_RESULT"],
+                  "announce": os.environ["ANNOUNCE_RESULT"],
+                  "backtest": os.environ["BACKTEST_RESULT"],
+                  "merge": os.environ["MERGE_RESULT"],
+              },
+              "strategy_count": int(os.environ.get("STRATEGY_COUNT") or 0),
+              "management_count": int(os.environ.get("MANAGEMENT_COUNT") or 0),
+              "combination_count": int(os.environ.get("COMBINATION_COUNT") or 0),
+              "top_n": 10,
+              "audit_ready": audit_ok,
+          }
+          Path("reports/latest_backtest/STATUS.json").write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          if status != "SUCCESS":
+              Path("reports/latest_backtest/FAILURE.md").write_text(
+                  "# Backtest não aprovado\n\n" +
+                  f"Run: {payload['run_id']}\n\n" +
+                  f"Jobs: {payload['jobs']}\n",
+                  encoding="utf-8",
+              )
+          PY
+
+      - name: Gravar resultado na branch backtest-results
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/latest_backtest
+          git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
+          git push --force origin HEAD:backtest-results
