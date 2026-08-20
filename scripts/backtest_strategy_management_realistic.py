@@ -149,11 +149,14 @@ def main(argv: list[str] | None = None) -> int:
         transitions=load_transitions(args.ticker_transitions),
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,
+        survivorship_safe=bool(manifest.get("survivorship_safe")),
         progress_callback=_report_progress,
     )
 
     payload = asdict(summary)
     payload["universe_survivorship_safe"] = bool(manifest.get("survivorship_safe"))
+    if payload["survivorship_safe"] != payload["universe_survivorship_safe"]:
+        raise RuntimeError("Realistic summary survivorship flag diverges from universe manifest.")
     payload["universe_selection_mode"] = manifest.get("selection_mode")
     payload["no_replacements"] = bool(manifest.get("no_replacements"))
     payload["excluded_tickers"] = manifest.get("excluded_tickers", [])

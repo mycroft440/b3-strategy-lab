@@ -258,9 +258,21 @@ def run_portfolio(
         for ticker, candle in today_candles.items():
             last_prices[ticker] = candle.close
 
-        equity = cash + sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
-        invested_value = sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
         selected = [ticker for ticker in data.tickers if shares[ticker] > 0]
+        missing_closes = sorted(
+            ticker
+            for ticker in selected
+            if ticker not in today_candles or today_candles[ticker].close <= 0
+        )
+        if missing_closes:
+            raise ValueError(
+                f"{current_date}: fechamento fresco obrigatorio ausente para "
+                + ", ".join(missing_closes)
+            )
+        invested_value = sum(
+            shares[ticker] * today_candles[ticker].close for ticker in selected
+        )
+        equity = cash + invested_value
         invested_weight = invested_value / equity if equity > 0 else 0.0
         equities.append(equity)
         exposure_days += int(invested_weight > 0.01)
@@ -865,12 +877,27 @@ def _rebalance(
     slippage_rate: float,
     lot_size: int,
 ) -> tuple[int, float, float]:
-    prices = {
-        ticker: today_candles[ticker].open
+    required_tickers = {
+        ticker
         for ticker in tickers
-        if ticker in today_candles and today_candles[ticker].open > 0
+        if shares[ticker] > 0 or target_weights.get(ticker, 0.0) > 0
     }
-    equity = cash + sum(shares[ticker] * prices.get(ticker, last_prices.get(ticker, 0.0)) for ticker in tickers)
+    missing_opens = sorted(
+        ticker
+        for ticker in required_tickers
+        if ticker not in today_candles or today_candles[ticker].open <= 0
+    )
+    if missing_opens:
+        raise ValueError(
+            f"{current_date}: abertura fresca obrigatoria ausente para "
+            + ", ".join(missing_opens)
+        )
+    prices = {ticker: today_candles[ticker].open for ticker in required_tickers}
+    equity = cash + sum(
+        shares[ticker] * prices[ticker]
+        for ticker in tickers
+        if shares[ticker] > 0
+    )
     if equity <= 0:
         return 0, 0.0, cash
 
@@ -885,7 +912,7 @@ def _rebalance(
         if current_value <= target_value:
             continue
         execution_price = _slipped_price(price, "SELL", slippage_rate)
-        shares_to_sell = min(shares[ticker], (current_value - target_value) / execution_price)
+        shares_to_sell = min(shares[ticker], (current_value - target_value) / price)
         shares_to_sell = _floor_lot(shares_to_sell, lot_size)
         if shares_to_sell <= 0:
             continue
@@ -894,6 +921,8 @@ def _rebalance(
         traded_notional += shares_to_sell * execution_price
         trade_count += 1
 
+    buy_plan: dict[str, float] = {}
+    execution_prices: dict[str, float] = {}
     for ticker, weight in target_weights.items():
         price = prices.get(ticker)
         if price is None or weight <= 0:
@@ -901,13 +930,35 @@ def _rebalance(
         execution_price = _slipped_price(price, "BUY", slippage_rate)
         current_value = shares[ticker] * price
         target_value = equity * weight
-        desired_value = max(0.0, target_value - current_value)
-        affordable_shares = cash / (execution_price * (1 + cost_rate)) if execution_price > 0 else 0.0
-        shares_to_buy = min(desired_value / execution_price, affordable_shares)
-        shares_to_buy = _floor_lot(shares_to_buy, lot_size)
+        desired_shares = max(0.0, target_value - current_value) / price
+        planned_shares = _floor_lot(desired_shares, lot_size)
+        if planned_shares <= 0:
+            continue
+        buy_plan[ticker] = planned_shares
+        execution_prices[ticker] = execution_price
+
+    planned_cost = sum(
+        quantity * execution_prices[ticker] * (1 + cost_rate)
+        for ticker, quantity in buy_plan.items()
+    )
+    if planned_cost > cash + 1e-9 and planned_cost > 0:
+        scale = max(0.0, min(1.0, cash / planned_cost))
+        buy_plan = {
+            ticker: _floor_lot(quantity * scale, lot_size)
+            for ticker, quantity in buy_plan.items()
+        }
+
+    for ticker in sorted(buy_plan):
+        shares_to_buy = buy_plan[ticker]
         if shares_to_buy <= 0:
             continue
-        cash -= shares_to_buy * execution_price * (1 + cost_rate)
+        execution_price = execution_prices[ticker]
+        debit = shares_to_buy * execution_price * (1 + cost_rate)
+        if debit > cash + 1e-9:
+            raise ValueError(
+                f"{current_date}/{ticker}: plano proporcional excedeu o caixa disponivel."
+            )
+        cash -= debit
         shares[ticker] += shares_to_buy
         traded_notional += shares_to_buy * execution_price
         trade_count += 1

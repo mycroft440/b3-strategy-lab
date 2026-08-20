@@ -117,8 +117,6 @@ class ExtendedStrategyTests(unittest.TestCase):
         candles = rich_market_candles()
 
         for strategy in EXTENDED_STRATEGIES:
-            if strategy.name == "halloween_effect":
-                continue
             with self.subTest(strategy=strategy.name):
                 complete = build_signals(strategy.name, candles, **strategy_parameters(strategy.name))
                 prefix = build_signals(strategy.name, candles[:-1], **strategy_parameters(strategy.name))
@@ -208,7 +206,10 @@ class ExtendedStrategyTests(unittest.TestCase):
 
         signals = build_signals("halloween_effect", candles)
 
-        self.assertEqual(signals, [1, 1, 0, 0, 1, 0])
+        self.assertEqual(signals, [1, 1, 0, 0, 1, 1])
+
+        prefix = build_signals("halloween_effect", candles[:-1])
+        self.assertEqual(prefix, signals[:-1])
 
     def test_invalid_indicator_contracts_are_rejected(self) -> None:
         candles = [candle(0, 10), candle(1, 11)]

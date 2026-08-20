@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Callable
 
 from .candles import Candle
@@ -757,8 +757,18 @@ def halloween_effect(
             return month >= entry_month or month < exit_month
         return entry_month <= month < exit_month
 
-    # The signal at a close is the desired position at the next known session's open.
-    return [int(is_invested(sessions[index + 1].month)) if index + 1 < len(sessions) else 0 for index in range(len(sessions))]
+    def next_business_month(session: date) -> int:
+        # Calendar information is known ex ante. We only need the month of the
+        # next potential trading day; weekends are skipped. No future candle,
+        # price, volume, or observed session is read.
+        candidate = session + timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate += timedelta(days=1)
+        return candidate.month
+
+    # A close signal is the desired position for the following open. This remains
+    # prefix-causal even when the current candle is the final candle in the input.
+    return [int(is_invested(next_business_month(session))) for session in sessions]
 
 
 EXTENDED_STRATEGIES = (

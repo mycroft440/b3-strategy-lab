@@ -43,6 +43,15 @@ DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_40_2018.json")
 _WORKER_STATE: tuple | None = None
 
 
+def _ranking_key(row: dict[str, object]) -> tuple[float, float, str, str]:
+    return (
+        -float(row["total_return"]),
+        -float(row["cagr"]),
+        str(row["trading_strategy"]),
+        str(row["management_strategy"]),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -125,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
     dates = [value for value in data.dates if args.start <= value <= end]
     if len(dates) < 3:
         raise ValueError("Periodo comum insuficiente para executar o backtest.")
+    args.start = dates[0]
+    end = dates[-1]
 
     signals_by_strategy = _build_eligibility(
         data,
@@ -184,10 +195,7 @@ def main(argv: list[str] | None = None) -> int:
                 rows.extend(future.result())
                 _print_progress(strategy_index, len(strategies), len(configs), total, started)
 
-    rows.sort(
-        key=lambda row: (float(row["total_return"]), float(row["cagr"])),
-        reverse=True,
-    )
+    rows.sort(key=_ranking_key)
     for rank, row in enumerate(rows, start=1):
         row["rank"] = rank
 
@@ -620,7 +628,9 @@ def _write_manifest(
         "cost_bps": args.cost_bps,
         "slippage_bps": args.slippage_bps,
         "lot_size": args.lot_size,
-        "ranking": "total_return_desc_then_cagr_desc",
+        "ranking": "total_return_desc_then_cagr_desc_then_strategy_management_asc",
+        "execution_missing_price_policy": "fail_closed_fresh_open_and_close_required",
+        "buy_allocation_policy": "target_shares_at_market_open_then_common_scale_for_costs",
         "evaluation_scope": "full_period",
         "train_ratio_applied": False,
         "workers": args.workers,
@@ -682,7 +692,17 @@ def _git_state() -> tuple[str, bool]:
             stderr=subprocess.DEVNULL,
         ).strip()
         status = subprocess.check_output(
-            ["git", "status", "--porcelain"],
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--",
+                "b3_strategy_lab",
+                "scripts",
+                "data",
+                ".github/workflows",
+            ],
             cwd=PROJECT_ROOT,
             text=True,
             stderr=subprocess.DEVNULL,

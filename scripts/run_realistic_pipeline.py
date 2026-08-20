@@ -41,7 +41,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--end")
     parser.add_argument("--initial-cash", type=float, default=1_000.0)
-    parser.add_argument("--download", action="store_true")
+    download_group = parser.add_mutually_exclusive_group()
+    download_group.add_argument("--download", dest="download", action="store_true", default=True)
+    download_group.add_argument("--no-download", dest="download", action="store_false")
     parser.add_argument("--refresh-actions", action="store_true")
     parser.add_argument("--skip-data-build", action="store_true")
     parser.add_argument("--skip-walk-forward", action="store_true")
@@ -155,6 +157,7 @@ def main(argv: list[str] | None = None) -> int:
                 str(args.first_test_year),
                 "--initial-cash",
                 str(args.initial_cash),
+                *common_end,
                 "--output",
                 str(output),
                 "--summary-output",

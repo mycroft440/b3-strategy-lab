@@ -1,4 +1,4 @@
-name: Full matrix backtest — Top 10
+name: Full matrix backtest — Top 10 hardened
 
 on:
   workflow_dispatch:
@@ -32,15 +32,25 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/full-matrix-backtest.yml"
+      - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - "b3_strategy_lab/**"
+      - "scripts/backtest_strategy_management_combinations.py"
+      - "scripts/research_portfolio_allocation.py"
+      - "scripts/merge_matrix_shards.py"
+      - "scripts/audit_matrix_results.py"
+      - "data/candles/**"
+      - "data/corporate_actions/**"
+      - "data/universes/fixed_40_2018.json"
+      - "tests/**"
 
-run-name: "Backtest completo — Top 10"
+run-name: "Backtest completo endurecido — Top 10"
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
-  group: full-matrix-backtest
+  group: backtest-results-publication
   cancel-in-progress: false
 
 env:
@@ -50,7 +60,7 @@ env:
 
 jobs:
   prepare:
-    name: Preparar shards
+    name: Validar e preparar shards
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.shards.outputs.matrix }}
@@ -59,24 +69,34 @@ jobs:
       combination_count: ${{ steps.shards.outputs.combination_count }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Validar módulos críticos
+      - name: Compilar módulos críticos
         run: |
           python -m py_compile \
+            b3_strategy_lab/extended_strategies.py \
+            b3_strategy_lab/realistic_portfolio.py \
             scripts/backtest_strategy_management_combinations.py \
+            scripts/research_portfolio_allocation.py \
+            scripts/merge_matrix_shards.py \
             scripts/audit_matrix_results.py \
-            scripts/merge_matrix_shards.py
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/run_realistic_pipeline.py
+
+      - name: Executar suíte completa antes da matriz
+        run: python -m unittest discover -s tests -v
 
       - name: Validar dados verificados
         run: python -m b3_strategy_lab verify-data --interval 1d
 
       - name: Montar matriz de shards
         id: shards
-        shell: bash
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
@@ -102,31 +122,18 @@ jobs:
           print(f"combination_count={len(strategies) * management_count}")
           PY
 
-      - name: Resumo da execução
-        run: |
-          {
-            echo "## Backtest completo preparado"
-            echo ""
-            echo "- Estratégias: **${{ steps.shards.outputs.strategy_count }}**"
-            echo "- Gerenciamentos: **${{ steps.shards.outputs.management_count }}**"
-            echo "- Combinações: **${{ steps.shards.outputs.combination_count }}**"
-            echo "- Shards: **${SHARD_COUNT}**"
-            echo "- Resultado final: **Top ${TOP_N} global**"
-          } >> "$GITHUB_STEP_SUMMARY"
-
   announce:
-    name: Registrar execução
+    name: Registrar execução atual
     needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Publicar marcador RUNNING
+      - name: Publicar RUNNING em backtest-results
         env:
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
-          SOURCE_SHA: ${{ github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_SHA: ${{ github.sha }}
           STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
           MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
@@ -138,14 +145,12 @@ jobs:
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-
           payload = {
               "status": "RUNNING",
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
               "run_id": int(os.environ["RUN_ID"]),
               "run_number": int(os.environ["RUN_NUMBER"]),
-              "source_sha": os.environ["SOURCE_SHA"],
-              "event_name": os.environ["EVENT_NAME"],
+              "workflow_sha": os.environ["WORKFLOW_SHA"],
               "strategy_count": int(os.environ["STRATEGY_COUNT"]),
               "management_count": int(os.environ["MANAGEMENT_COUNT"]),
               "combination_count": int(os.environ["COMBINATION_COUNT"]),
@@ -171,16 +176,16 @@ jobs:
       fail-fast: false
       max-parallel: 16
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Executar shard da matriz
-        shell: bash
+      - name: Executar shard
         env:
           STRATEGIES: ${{ matrix.strategies }}
           SHARD_INDEX: ${{ matrix.index }}
@@ -195,7 +200,6 @@ jobs:
           read -r -a STRATEGY_ARGS <<< "$STRATEGIES"
           WORKERS="$(nproc)"
           if [ "$WORKERS" -gt 2 ]; then WORKERS=2; fi
-
           CMD=(
             python scripts/backtest_strategy_management_combinations.py
             --strategies "${STRATEGY_ARGS[@]}"
@@ -208,15 +212,10 @@ jobs:
             --workers "$WORKERS"
             --output "reports/shards/shard_${SHARD_INDEX}.csv.gz"
           )
-          if [ -n "$END_DATE" ]; then
-            CMD+=(--end "$END_DATE")
-          fi
-
-          printf '+ %q ' "${CMD[@]}"
-          printf '\n'
+          if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
           "${CMD[@]}"
 
-      - name: Publicar shard temporário
+      - name: Publicar shard
         uses: actions/upload-artifact@v4
         with:
           name: matrix-shard-${{ matrix.index }}
@@ -229,13 +228,14 @@ jobs:
           compression-level: 0
 
   merge:
-    name: Consolidar matriz e gerar Top 10
+    name: Consolidar e auditar 90k+
     needs: [prepare, backtest]
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -264,10 +264,10 @@ jobs:
             --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
             --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
 
-      - name: Exibir Top 10 no resumo do GitHub Actions
+      - name: Exibir Top 10
         run: cat reports/TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publicar resultado final como artifact
+      - name: Publicar artifact final
         uses: actions/upload-artifact@v4
         with:
           name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
@@ -283,7 +283,7 @@ jobs:
           compression-level: 0
 
   publish:
-    name: Publicar status e resultado verificável
+    name: Publicar resultado verificável
     needs: [prepare, announce, backtest, merge]
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -297,12 +297,11 @@ jobs:
           name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
           path: final-artifact
 
-      - name: Preparar publicação
+      - name: Montar status final
         env:
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
-          SOURCE_SHA: ${{ github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_SHA: ${{ github.sha }}
           PREPARE_RESULT: ${{ needs.prepare.result }}
           ANNOUNCE_RESULT: ${{ needs.announce.result }}
           BACKTEST_RESULT: ${{ needs.backtest.result }}
@@ -325,45 +324,43 @@ jobs:
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-
-          audit_path = Path("reports/latest_backtest/AUDIT.json")
-          audit = json.loads(audit_path.read_text(encoding="utf-8")) if audit_path.exists() else None
-          merge_ok = os.environ["MERGE_RESULT"] == "success"
+          latest = Path("reports/latest_backtest")
+          audit_path = latest / "AUDIT.json"
+          manifest_path = latest / "MANIFEST.json"
+          audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
+          manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
           audit_ok = bool(audit and audit.get("ready") is True)
-          status = "SUCCESS" if merge_ok and audit_ok else "FAILED"
+          jobs_ok = all(os.environ[name] == "success" for name in (
+              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT"
+          ))
+          source_matches = bool(manifest and manifest.get("git_commit") == os.environ["WORKFLOW_SHA"])
+          status = "SUCCESS" if jobs_ok and audit_ok and source_matches else "FAILED"
           payload = {
               "status": status,
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
               "run_id": int(os.environ["RUN_ID"]),
               "run_number": int(os.environ["RUN_NUMBER"]),
-              "source_sha": os.environ["SOURCE_SHA"],
-              "event_name": os.environ["EVENT_NAME"],
+              "workflow_sha": os.environ["WORKFLOW_SHA"],
+              "calculation_sha": manifest.get("git_commit") if manifest else None,
+              "source_sha_matches": source_matches,
               "jobs": {
                   "prepare": os.environ["PREPARE_RESULT"],
                   "announce": os.environ["ANNOUNCE_RESULT"],
                   "backtest": os.environ["BACKTEST_RESULT"],
                   "merge": os.environ["MERGE_RESULT"],
               },
-              "strategy_count": int(os.environ.get("STRATEGY_COUNT") or 0),
-              "management_count": int(os.environ.get("MANAGEMENT_COUNT") or 0),
-              "combination_count": int(os.environ.get("COMBINATION_COUNT") or 0),
+              "strategy_count": int(manifest.get("strategy_count", 0)) if manifest else int(os.environ.get("STRATEGY_COUNT") or 0),
+              "management_count": int(manifest.get("management_count", 0)) if manifest else int(os.environ.get("MANAGEMENT_COUNT") or 0),
+              "combination_count": int(manifest.get("combinations", 0)) if manifest else int(os.environ.get("COMBINATION_COUNT") or 0),
               "top_n": 10,
               "audit_ready": audit_ok,
           }
-          Path("reports/latest_backtest/STATUS.json").write_text(
-              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
+          (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
           if status != "SUCCESS":
-              Path("reports/latest_backtest/FAILURE.md").write_text(
-                  "# Backtest não aprovado\n\n" +
-                  f"Run: {payload['run_id']}\n\n" +
-                  f"Jobs: {payload['jobs']}\n",
-                  encoding="utf-8",
-              )
+              (latest / "FAILURE.md").write_text("# Backtest não aprovado\n\n" + json.dumps(payload, indent=2) + "\n")
           PY
 
-      - name: Gravar resultado na branch backtest-results
+      - name: Gravar latest em backtest-results
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -371,3 +368,13 @@ jobs:
           git add -- reports/latest_backtest
           git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
           git push --force origin HEAD:backtest-results
+
+      - name: Exigir aprovação
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path("reports/latest_backtest/STATUS.json").read_text())
+          if status["status"] != "SUCCESS":
+              raise SystemExit("full matrix backtest not approved")
+          PY

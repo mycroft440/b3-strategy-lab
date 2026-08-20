@@ -92,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--managements", nargs="+")
     parser.add_argument("--start", default="2018-01-02")
+    parser.add_argument("--end")
     parser.add_argument("--first-test-year", type=int, default=2021)
     parser.add_argument("--last-test-year", type=int)
     parser.add_argument("--initial-cash", type=float, default=1_000.0)
@@ -105,8 +106,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     manifest = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
-    if manifest.get("point_in_time") is not True or manifest.get("survivorship_safe") is not True:
-        parser.error("Walk-forward requires a point-in-time survivorship-safe universe.")
+    if manifest.get("point_in_time") is not True:
+        parser.error("Walk-forward requires a point-in-time universe.")
+    survivorship_safe = manifest.get("survivorship_safe") is True
+    if not survivorship_safe and manifest.get("no_replacements") is not True:
+        parser.error(
+            "A non-survivorship-safe walk-forward is accepted only for the "
+            "explicit retrospective fixed/no-replacements universe."
+        )
     cash_manifest = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     if cash_manifest.get("complete") is not True:
         parser.error("Walk-forward requires a cash ledger with no unresolved parse issue.")
@@ -130,6 +137,13 @@ def main(argv: list[str] | None = None) -> int:
         require_verified_splits_from=str(manifest["warmup_start"]),
         history_start=str(manifest["warmup_start"]),
     )
+    evaluation_dates = [
+        value
+        for value in data.dates
+        if value >= args.start and (not args.end or value <= args.end)
+    ]
+    if len(evaluation_dates) < 2:
+        parser.error("Insufficient market sessions inside the requested walk-forward window.")
     pricebook = ExecutionPriceBook.from_csv(args.execution_prices)
     events = load_cash_distributions(args.cash_events)
     fee_schedule = FeeSchedule.from_json(args.fee_schedule)
@@ -163,16 +177,16 @@ def main(argv: list[str] | None = None) -> int:
     full_management_scope = args.managements is None
     full_multiple_testing_scope = full_strategy_scope and full_management_scope
 
-    last_available_year = int(max(data.dates)[:4])
+    last_available_year = int(max(evaluation_dates)[:4])
     last_test_year = args.last_test_year or last_available_year
     rows: list[dict[str, object]] = []
 
     for test_year in range(args.first_test_year, last_test_year + 1):
-        bounds = _year_bounds(data.dates, test_year)
+        bounds = _year_bounds(evaluation_dates, test_year)
         if bounds is None:
             continue
         test_start, test_end = bounds
-        prior_dates = [value for value in data.dates if args.start <= value < test_start]
+        prior_dates = [value for value in evaluation_dates if value < test_start]
         if not prior_dates:
             continue
         train_end = prior_dates[-1]
@@ -197,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
                     transitions=transitions,
                     economic_gap_adjustment=args.economic_gap_adjustment,
                     selection_status="retrospective_hypothesis_replay",
+                    survivorship_safe=survivorship_safe,
                 )
                 ranked.append((_metric(train, args.objective), strategy, config, train))
         ranked.sort(key=lambda item: item[0], reverse=True)
@@ -219,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
             transitions=transitions,
             economic_gap_adjustment=args.economic_gap_adjustment,
             selection_status="walk_forward_out_of_sample",
+            survivorship_safe=survivorship_safe,
         )
         rows.append(
             {
@@ -271,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
         "management_count": len(configs),
         "full_multiple_testing_scope": full_multiple_testing_scope,
         "selection_uses_test_data": False,
+        "survivorship_safe_universe": survivorship_safe,
+        "ex_ante_selection_claim_allowed": survivorship_safe,
         "test_accounts_are_independent": True,
         "continuous_tax_account_claim": False,
         "folds": len(rows),
