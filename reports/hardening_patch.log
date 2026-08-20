@@ -30,4 +30,4 @@ fixed: b3_strategy_lab/extended_strategies.py
 fixed: b3_strategy_lab/extended_strategies.py
 fixed: tests/test_extended_strategies.py
 fixed: tests/test_extended_strategies.py
-Halloween causality fix complete
+Halloween causality fix complete and staged
