@@ -33,13 +33,16 @@ jobs:
           mkdir -p reports
           python - <<'PY' > reports/hardening_patch.log 2>&1
           from pathlib import Path
-          import textwrap
 
           text = Path('.github/workflows/execution-hardening.yml').read_text(encoding='utf-8')
           start_marker = "          python - <<'PY'\n"
           start = text.index(start_marker) + len(start_marker)
           end = text.index("\n          PY\n", start)
-          patch_script = textwrap.dedent(text[start:end])
+          raw_script = text[start:end]
+          patch_script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in raw_script.splitlines()
+          )
           exec(compile(patch_script, 'execution-hardening-patch', 'exec'), {})
           PY
           rc=$?
