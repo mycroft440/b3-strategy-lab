@@ -258,9 +258,21 @@ def run_portfolio(
         for ticker, candle in today_candles.items():
             last_prices[ticker] = candle.close
 
-        equity = cash + sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
-        invested_value = sum(shares[ticker] * last_prices.get(ticker, 0.0) for ticker in data.tickers)
         selected = [ticker for ticker in data.tickers if shares[ticker] > 0]
+        missing_closes = sorted(
+            ticker
+            for ticker in selected
+            if ticker not in today_candles or today_candles[ticker].close <= 0
+        )
+        if missing_closes:
+            raise ValueError(
+                f"{current_date}: fechamento fresco obrigatorio ausente para "
+                + ", ".join(missing_closes)
+            )
+        invested_value = sum(
+            shares[ticker] * today_candles[ticker].close for ticker in selected
+        )
+        equity = cash + invested_value
         invested_weight = invested_value / equity if equity > 0 else 0.0
         equities.append(equity)
         exposure_days += int(invested_weight > 0.01)
@@ -865,12 +877,27 @@ def _rebalance(
     slippage_rate: float,
     lot_size: int,
 ) -> tuple[int, float, float]:
-    prices = {
-        ticker: today_candles[ticker].open
+    required_tickers = {
+        ticker
         for ticker in tickers
-        if ticker in today_candles and today_candles[ticker].open > 0
+        if shares[ticker] > 0 or target_weights.get(ticker, 0.0) > 0
     }
-    equity = cash + sum(shares[ticker] * prices.get(ticker, last_prices.get(ticker, 0.0)) for ticker in tickers)
+    missing_opens = sorted(
+        ticker
+        for ticker in required_tickers
+        if ticker not in today_candles or today_candles[ticker].open <= 0
+    )
+    if missing_opens:
+        raise ValueError(
+            f"{current_date}: abertura fresca obrigatoria ausente para "
+            + ", ".join(missing_opens)
+        )
+    prices = {ticker: today_candles[ticker].open for ticker in required_tickers}
+    equity = cash + sum(
+        shares[ticker] * prices[ticker]
+        for ticker in tickers
+        if shares[ticker] > 0
+    )
     if equity <= 0:
         return 0, 0.0, cash
 

@@ -1,5 +1,5 @@
 Traceback (most recent call last):
-  File "<stdin>", line 9, in <module>
-  File "execution-hardening-patch", line 1
-    from pathlib import Path
-IndentationError: unexpected indent
+  File "<stdin>", line 12, in <module>
+  File "execution-hardening-patch", line 115, in <module>
+  File "execution-hardening-patch", line 8, in replace_once
+RuntimeError: scripts/backtest_strategy_management_combinations.py: expected one match, found 0: '        status = subprocess.check_output(\n        ["git", "status", "--porcelain"],\n        cwd=PROJECT_ROOT,\n        te'
