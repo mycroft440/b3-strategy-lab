@@ -629,6 +629,8 @@ def _write_manifest(
         "slippage_bps": args.slippage_bps,
         "lot_size": args.lot_size,
         "ranking": "total_return_desc_then_cagr_desc_then_strategy_management_asc",
+        "execution_missing_price_policy": "fail_closed_fresh_open_and_close_required",
+        "buy_allocation_policy": "target_shares_at_market_open_then_common_scale_for_costs",
         "evaluation_scope": "full_period",
         "train_ratio_applied": False,
         "workers": args.workers,
@@ -690,7 +692,17 @@ def _git_state() -> tuple[str, bool]:
             stderr=subprocess.DEVNULL,
         ).strip()
         status = subprocess.check_output(
-            ["git", "status", "--porcelain"],
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--",
+                "b3_strategy_lab",
+                "scripts",
+                "data",
+                ".github/workflows",
+            ],
             cwd=PROJECT_ROOT,
             text=True,
             stderr=subprocess.DEVNULL,

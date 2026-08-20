@@ -318,14 +318,45 @@ def rebalance_atomic(
         for qty, quote in pricebook.legs(current, ticker, excess):
             trial.sell_leg(current, ticker, qty, quote)
 
-    for ticker in sorted(targets):
-        wanted = desired_shares.get(ticker, 0) - trial.shares(ticker)
-        if wanted <= 0:
+    wanted_by_ticker = {
+        ticker: max(0, desired_shares.get(ticker, 0) - trial.shares(ticker))
+        for ticker in targets
+    }
+    wanted_by_ticker = {
+        ticker: quantity for ticker, quantity in wanted_by_ticker.items() if quantity > 0
+    }
+    reserved_tax = _provisional_ordinary_tax(trial, current)
+    available_cash = max(0.0, trial.cash - reserved_tax)
+
+    def total_buy_cost(plan: dict[str, int]) -> float:
+        return sum(
+            _estimate_buy_cost(trial, pricebook, current, ticker, quantity)
+            for ticker, quantity in plan.items()
+            if quantity > 0
+        )
+
+    buy_plan = dict(wanted_by_ticker)
+    if wanted_by_ticker and total_buy_cost(buy_plan) > available_cash + 1e-9:
+        low, high = 0.0, 1.0
+        best = {ticker: 0 for ticker in wanted_by_ticker}
+        for _ in range(48):
+            scale = (low + high) / 2
+            candidate = {
+                ticker: int(math.floor(quantity * scale))
+                for ticker, quantity in wanted_by_ticker.items()
+            }
+            if total_buy_cost(candidate) <= available_cash + 1e-9:
+                best = candidate
+                low = scale
+            else:
+                high = scale
+        buy_plan = best
+
+    for ticker in sorted(buy_plan):
+        quantity = buy_plan[ticker]
+        if quantity <= 0:
             continue
-        affordable = _max_affordable(trial, pricebook, current, ticker, wanted)
-        if affordable <= 0:
-            continue
-        for qty, quote in pricebook.legs(current, ticker, affordable):
+        for qty, quote in pricebook.legs(current, ticker, quantity):
             trial.buy_leg(current, ticker, qty, quote)
 
     if trial.cash < _provisional_ordinary_tax(trial, current) - 1e-7:
@@ -363,6 +394,7 @@ def run_realistic(
     transitions: dict[str, list[TickerTransition]],
     economic_gap_adjustment: bool,
     selection_status: str = "retrospective_hypothesis_replay",
+    survivorship_safe: bool = False,
     progress_callback=None,
 ) -> tuple[RealisticSummary, list[CurveRow], RealCashAccount]:
     from scripts.backtest_strategy_management_combinations import _build_eligibility
@@ -510,6 +542,8 @@ def run_realistic(
     validity = "REALISTIC_POINT_IN_TIME"
     if fee_qualities != {"official"}:
         validity += "__MODELED_FEES"
+    if not survivorship_safe:
+        validity += "__RETROSPECTIVE_UNIVERSE"
     if selection_status == "retrospective_hypothesis_replay":
         validity += "__RETROSPECTIVE_SELECTION"
 
@@ -533,7 +567,7 @@ def run_realistic(
         distributions_net=distributions_net,
         validity=validity,
         point_in_time_universe=True,
-        survivorship_safe=True,
+        survivorship_safe=survivorship_safe,
         fractional_execution=True,
         cash_events_complete=True,
         fee_quality=fee_quality,

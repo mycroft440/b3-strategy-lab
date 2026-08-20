@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     returns_match_equity = True
     dates_and_candles_match = True
     sorted_as_declared = True
-    previous_sort_key: tuple[float, float] | None = None
+    previous_sort_key: tuple[float, float, str, str] | None = None
     with _open_results(args.results) as source:
         for row_count, row in enumerate(csv.DictReader(source), start=1):
             try:
@@ -106,9 +106,14 @@ def main(argv: list[str] | None = None) -> int:
                 and row["end"] == manifest["end"]
                 and candles > 0
             )
-            sort_key = (values["total_return"], values["cagr"])
+            sort_key = (
+                -values["total_return"],
+                -values["cagr"],
+                row["trading_strategy"],
+                row["management_strategy"],
+            )
             if previous_sort_key is not None:
-                sorted_as_declared &= previous_sort_key >= sort_key
+                sorted_as_declared &= previous_sort_key <= sort_key
             previous_sort_key = sort_key
             pair = (row["trading_strategy"], row["management_strategy"])
             seen_pairs.add(pair)
@@ -162,7 +167,15 @@ def main(argv: list[str] | None = None) -> int:
             and observed_strategies == expected_strategies
             and observed_managements == expected_managements
         ),
-        "ranking_is_total_return_then_cagr_desc": sorted_as_declared,
+        "ranking_is_deterministic_total_return_cagr_names": sorted_as_declared,
+        "execution_policy_is_fail_closed": (
+            manifest.get("execution_missing_price_policy")
+            == "fail_closed_fresh_open_and_close_required"
+        ),
+        "buy_allocation_policy_is_declared": (
+            manifest.get("buy_allocation_policy")
+            == "target_shares_at_market_open_then_common_scale_for_costs"
+        ),
         "all_numeric_metrics_are_finite": metrics_are_finite,
         "total_return_matches_equity_ratio": returns_match_equity,
         "all_rows_match_manifest_window": dates_and_candles_match,

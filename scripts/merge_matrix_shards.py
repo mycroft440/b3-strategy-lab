@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.strategies import portfolio_strategies
-from scripts.backtest_strategy_management_combinations import _write_results
+from scripts.backtest_strategy_management_combinations import _ranking_key, _write_results
 
 
 DEFAULT_INPUT_DIR = Path("reports/shards")
@@ -260,10 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         missing = sorted(set(catalog) - set(expected_strategies))
         raise ValueError(f"Shards não cobrem o catálogo completo. Faltando: {missing}.")
 
-    all_rows.sort(
-        key=lambda row: (float(row["total_return"]), float(row["cagr"])),
-        reverse=True,
-    )
+    all_rows.sort(key=_ranking_key)
     for rank, row in enumerate(all_rows, start=1):
         row["rank"] = rank
 

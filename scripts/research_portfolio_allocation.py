@@ -912,7 +912,7 @@ def _rebalance(
         if current_value <= target_value:
             continue
         execution_price = _slipped_price(price, "SELL", slippage_rate)
-        shares_to_sell = min(shares[ticker], (current_value - target_value) / execution_price)
+        shares_to_sell = min(shares[ticker], (current_value - target_value) / price)
         shares_to_sell = _floor_lot(shares_to_sell, lot_size)
         if shares_to_sell <= 0:
             continue
@@ -921,6 +921,8 @@ def _rebalance(
         traded_notional += shares_to_sell * execution_price
         trade_count += 1
 
+    buy_plan: dict[str, float] = {}
+    execution_prices: dict[str, float] = {}
     for ticker, weight in target_weights.items():
         price = prices.get(ticker)
         if price is None or weight <= 0:
@@ -928,13 +930,35 @@ def _rebalance(
         execution_price = _slipped_price(price, "BUY", slippage_rate)
         current_value = shares[ticker] * price
         target_value = equity * weight
-        desired_value = max(0.0, target_value - current_value)
-        affordable_shares = cash / (execution_price * (1 + cost_rate)) if execution_price > 0 else 0.0
-        shares_to_buy = min(desired_value / execution_price, affordable_shares)
-        shares_to_buy = _floor_lot(shares_to_buy, lot_size)
+        desired_shares = max(0.0, target_value - current_value) / price
+        planned_shares = _floor_lot(desired_shares, lot_size)
+        if planned_shares <= 0:
+            continue
+        buy_plan[ticker] = planned_shares
+        execution_prices[ticker] = execution_price
+
+    planned_cost = sum(
+        quantity * execution_prices[ticker] * (1 + cost_rate)
+        for ticker, quantity in buy_plan.items()
+    )
+    if planned_cost > cash + 1e-9 and planned_cost > 0:
+        scale = max(0.0, min(1.0, cash / planned_cost))
+        buy_plan = {
+            ticker: _floor_lot(quantity * scale, lot_size)
+            for ticker, quantity in buy_plan.items()
+        }
+
+    for ticker in sorted(buy_plan):
+        shares_to_buy = buy_plan[ticker]
         if shares_to_buy <= 0:
             continue
-        cash -= shares_to_buy * execution_price * (1 + cost_rate)
+        execution_price = execution_prices[ticker]
+        debit = shares_to_buy * execution_price * (1 + cost_rate)
+        if debit > cash + 1e-9:
+            raise ValueError(
+                f"{current_date}/{ticker}: plano proporcional excedeu o caixa disponivel."
+            )
+        cash -= debit
         shares[ticker] += shares_to_buy
         traded_notional += shares_to_buy * execution_price
         trade_count += 1
