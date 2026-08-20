@@ -1,0 +1,77 @@
+name: Execution hardening driver
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/execution-hardening-driver.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/execution-hardening-20260820
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute reviewed patch from branch workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          text = Path('.github/workflows/execution-hardening.yml').read_text(encoding='utf-8')
+          start_marker = "          python - <<'PY'\n"
+          start = text.index(start_marker) + len(start_marker)
+          end = text.index("\n          PY\n", start)
+          patch_script = textwrap.dedent(text[start:end])
+          exec(compile(patch_script, 'execution-hardening-patch', 'exec'), {})
+          PY
+
+      - name: Compile touched Python
+        run: |
+          python -m py_compile \
+            scripts/research_portfolio_allocation.py \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/merge_matrix_shards.py \
+            scripts/audit_matrix_results.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/run_realistic_pipeline.py \
+            tests/test_execution_hardening.py
+
+      - name: Run full unit suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Commit validated fixes to review branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            scripts/research_portfolio_allocation.py \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/merge_matrix_shards.py \
+            scripts/audit_matrix_results.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/run_realistic_pipeline.py \
+            .github/workflows/full-matrix-backtest.yml \
+            .github/workflows/recover-backtest-merge.yml \
+            .github/workflows/realistic-backtest-ci.yml \
+            tests/test_execution_hardening.py
+          git diff --cached --check
+          git commit -m "Harden backtest execution and audit invariants"
+          git push origin HEAD:fix/execution-hardening-20260820
