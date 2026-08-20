@@ -6,8 +6,13 @@ import gzip
 import hashlib
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.strategies import portfolio_strategies
 from scripts.backtest_strategy_management_combinations import _write_results
