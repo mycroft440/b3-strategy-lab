@@ -1,6 +1,7 @@
 name: Execution hardening driver
 
 # Temporary driver: applies and validates the execution-hardening patch on the review branch.
+# Triggered through a fast-forward ref update so GitHub Actions sees a normal push event.
 on:
   push:
     branches:
