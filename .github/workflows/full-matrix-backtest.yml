@@ -28,6 +28,11 @@ on:
         required: true
         default: "0"
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/full-matrix-backtest.yml"
 
 run-name: "Backtest completo — Top 10"
 
@@ -131,11 +136,11 @@ jobs:
         env:
           STRATEGIES: ${{ matrix.strategies }}
           SHARD_INDEX: ${{ matrix.index }}
-          START_DATE: ${{ inputs.start }}
-          END_DATE: ${{ inputs.end }}
-          INITIAL_CASH: ${{ inputs.initial_cash }}
-          COST_BPS: ${{ inputs.cost_bps }}
-          SLIPPAGE_BPS: ${{ inputs.slippage_bps }}
+          START_DATE: ${{ inputs.start || '2018-01-02' }}
+          END_DATE: ${{ inputs.end || '' }}
+          INITIAL_CASH: ${{ inputs.initial_cash || '1000' }}
+          COST_BPS: ${{ inputs.cost_bps || '0' }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps || '0' }}
         run: |
           set -euo pipefail
           mkdir -p reports/shards
