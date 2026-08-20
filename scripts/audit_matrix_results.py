@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     seen_pairs: set[tuple[str, str]] = set()
     observed_strategies: set[str] = set()
     observed_managements: set[str] = set()
-    top_pairs: list[tuple[str, str]] = []
+    ranked_pairs: list[tuple[str, str]] = []
     row_count = 0
     ranks_are_sequential = True
     metrics_are_finite = True
@@ -114,8 +114,7 @@ def main(argv: list[str] | None = None) -> int:
             seen_pairs.add(pair)
             observed_strategies.add(pair[0])
             observed_managements.add(pair[1])
-            if row_count <= 5:
-                top_pairs.append(pair)
+            ranked_pairs.append(pair)
 
     annual_text = annual_path.read_text(encoding="utf-8")
     annual_pairs = [
@@ -126,6 +125,11 @@ def main(argv: list[str] | None = None) -> int:
             flags=re.MULTILINE,
         )
     ]
+    annual_top_n = len(annual_pairs)
+    annual_report_top_matches_csv = (
+        annual_top_n > 0 and annual_pairs == ranked_pairs[:annual_top_n]
+    )
+
     source_hashes_match = all(
         Path(path).exists() and _sha256(Path(path)) == expected_hash
         for path, expected_hash in manifest["source_sha256"].items()
@@ -162,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         "all_numeric_metrics_are_finite": metrics_are_finite,
         "total_return_matches_equity_ratio": returns_match_equity,
         "all_rows_match_manifest_window": dates_and_candles_match,
-        "annual_report_top5_matches_csv": annual_pairs == top_pairs,
+        "annual_report_top_matches_csv": annual_report_top_matches_csv,
         "source_hashes_match": source_hashes_match,
         "universe_hash_matches": universe_hash_matches,
         "dataset_hashes_match": dataset_hashes_match,
@@ -176,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         "manifest_sha256": _sha256(manifest_path),
         "annual_report": str(annual_path),
         "annual_report_sha256": _sha256(annual_path),
+        "annual_report_top_n": annual_top_n,
         "rows": row_count,
         "strategy_count": len(observed_strategies),
         "management_count": len(observed_managements),
@@ -191,7 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     temporary.replace(output_path)
     print(
         f"{output_path}: ready={payload['ready']}, linhas={row_count}, "
-        f"estrategias={len(observed_strategies)}, gestoes={len(observed_managements)}"
+        f"estrategias={len(observed_strategies)}, gestoes={len(observed_managements)}, "
+        f"top_n={annual_top_n}"
     )
     return 0 if payload["ready"] else 1
 
