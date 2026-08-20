@@ -63,21 +63,21 @@ test_same_day_cash_events_do_not_change_price_series (test_cotahist.VerifiedCand
 test_warns_when_split_normalization_leaves_a_large_price_jump (test_cotahist.VerifiedCandleTests.test_warns_when_split_normalization_leaves_a_large_price_jump) ... ok
 test_weekly_ohlc_uses_split_normalized_price_only_basis (test_cotahist.VerifiedCandleTests.test_weekly_ohlc_uses_split_normalized_price_only_basis) ... ok
 test_weekly_raw_ohlc_preserves_scale_change_inside_split_week (test_cotahist.VerifiedCandleTests.test_weekly_raw_ohlc_preserves_scale_change_inside_split_week) ... ok
-test_serial_and_parallel_small_matrix_are_identical (test_execution_hardening.MatrixParallelDeterminismTests.test_serial_and_parallel_small_matrix_are_identical) ... 1/2 estrategias; 160/320 combinacoes; 4.9s
-2/2 estrategias; 320/320 combinacoes; 5.6s
-Salvo: /tmp/tmpiclgz90t/serial.csv.gz (320 combinacoes)
-Relatorio anual: /tmp/tmpiclgz90t/serial_top3_annual.md
-Manifesto: /tmp/tmpiclgz90t/serial.manifest.json
+test_serial_and_parallel_small_matrix_are_identical (test_execution_hardening.MatrixParallelDeterminismTests.test_serial_and_parallel_small_matrix_are_identical) ... 1/2 estrategias; 160/320 combinacoes; 4.2s
+2/2 estrategias; 320/320 combinacoes; 4.8s
+Salvo: /tmp/tmph15jbhaj/serial.csv.gz (320 combinacoes)
+Relatorio anual: /tmp/tmph15jbhaj/serial_top3_annual.md
+Manifesto: /tmp/tmph15jbhaj/serial.manifest.json
 
 Top combinacoes por retorno total composto
 01. gap_momentum + top1_risk_adjusted_lb63_skip0_trend0_vol63_equal_weekly_abs_cap1_adjusted | ret=44.96% media anual=44.96% CAGR=114.23%
 02. gap_momentum + top1_risk_adjusted_lb63_skip0_trend200_vol63_equal_weekly_abs_cap1_adjusted | ret=24.73% media anual=24.73% CAGR=57.36%
 03. gap_momentum + top1_risk_adjusted_lb126_skip21_trend200_vol63_equal_weekly_abs_cap1_adjusted | ret=24.38% media anual=24.38% CAGR=56.47%
-1/2 estrategias; 160/320 combinacoes; 2.5s
-2/2 estrategias; 320/320 combinacoes; 5.0s
-Salvo: /tmp/tmpiclgz90t/parallel.csv.gz (320 combinacoes)
-Relatorio anual: /tmp/tmpiclgz90t/parallel_top3_annual.md
-Manifesto: /tmp/tmpiclgz90t/parallel.manifest.json
+1/2 estrategias; 160/320 combinacoes; 2.2s
+2/2 estrategias; 320/320 combinacoes; 4.4s
+Salvo: /tmp/tmph15jbhaj/parallel.csv.gz (320 combinacoes)
+Relatorio anual: /tmp/tmph15jbhaj/parallel_top3_annual.md
+Manifesto: /tmp/tmph15jbhaj/parallel.manifest.json
 
 Top combinacoes por retorno total composto
 01. gap_momentum + top1_risk_adjusted_lb63_skip0_trend0_vol63_equal_weekly_abs_cap1_adjusted | ret=44.96% media anual=44.96% CAGR=114.23%
@@ -103,8 +103,8 @@ test_nr7_breakout_uses_setup_high_and_low (test_extended_strategies.ExtendedStra
 test_parabolic_sar_flips_in_both_directions (test_extended_strategies.ExtendedStrategyTests.test_parabolic_sar_flips_in_both_directions) ... ok
 test_price_engines_do_not_rewrite_past_signals (test_extended_strategies.ExtendedStrategyTests.test_price_engines_do_not_rewrite_past_signals) ... ok
 test_vertical_horizontal_filter_enters_trend_then_exits_flat_regime (test_extended_strategies.ExtendedStrategyTests.test_vertical_horizontal_filter_enters_trend_then_exits_flat_regime) ... ok
-test_compressed_results_are_readable_and_deterministic (test_matrix_reports.MatrixReportTests.test_compressed_results_are_readable_and_deterministic) ... Salvo: /tmp/tmp5ssnt07i/matrix.csv.gz (1 combinacoes)
-Salvo: /tmp/tmp5ssnt07i/matrix.csv.gz (1 combinacoes)
+test_compressed_results_are_readable_and_deterministic (test_matrix_reports.MatrixReportTests.test_compressed_results_are_readable_and_deterministic) ... Salvo: /tmp/tmpqfoilmi8/matrix.csv.gz (1 combinacoes)
+Salvo: /tmp/tmpqfoilmi8/matrix.csv.gz (1 combinacoes)
 ok
 test_csv_gzip_uses_the_same_sidecar_base (test_matrix_reports.MatrixReportTests.test_csv_gzip_uses_the_same_sidecar_base) ... ok
 test_preserves_raw_and_split_normalized_heikin_ashi_bases (test_organize_market_data.HeikinAshiTests.test_preserves_raw_and_split_normalized_heikin_ashi_bases) ... ok
@@ -177,6 +177,6 @@ test_inventory_covers_volume_families_and_parameterized_filters (test_volume_aud
 test_static_inventory_covers_every_source_function_that_reads_volume (test_volume_audit.VolumeAuditTests.test_static_inventory_covers_every_source_function_that_reads_volume) ... ok
 
 ----------------------------------------------------------------------
-Ran 155 tests in 23.800s
+Ran 155 tests in 22.058s
 
 OK
