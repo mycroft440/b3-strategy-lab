@@ -1,7 +1,6 @@
 name: Execution hardening driver
 
-# Temporary driver: applies and validates the execution-hardening patch on the review branch.
-# Triggered through a fast-forward ref update so GitHub Actions sees a normal push event.
+# Temporary diagnostic driver for the execution-hardening review branch.
 on:
   push:
     branches:
@@ -26,9 +25,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Execute reviewed patch from branch workflow
+      - name: Apply reviewed patch with diagnostics
+        id: patch
+        shell: bash
         run: |
-          python - <<'PY'
+          set +e
+          mkdir -p reports
+          python - <<'PY' > reports/hardening_patch.log 2>&1
           from pathlib import Path
           import textwrap
 
@@ -39,24 +42,13 @@ jobs:
           patch_script = textwrap.dedent(text[start:end])
           exec(compile(patch_script, 'execution-hardening-patch', 'exec'), {})
           PY
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          cat reports/hardening_patch.log
+          exit 0
 
-      - name: Compile touched Python
-        run: |
-          python -m py_compile \
-            scripts/research_portfolio_allocation.py \
-            scripts/backtest_strategy_management_combinations.py \
-            scripts/merge_matrix_shards.py \
-            scripts/audit_matrix_results.py \
-            b3_strategy_lab/realistic_portfolio.py \
-            scripts/backtest_strategy_management_realistic.py \
-            scripts/walk_forward_realistic.py \
-            scripts/run_realistic_pipeline.py \
-            tests/test_execution_hardening.py
-
-      - name: Run full unit suite
-        run: python -m unittest discover -s tests -v
-
-      - name: Commit validated fixes to review branch
+      - name: Commit patch attempt and diagnostics
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -73,7 +65,89 @@ jobs:
             .github/workflows/full-matrix-backtest.yml \
             .github/workflows/recover-backtest-merge.yml \
             .github/workflows/realistic-backtest-ci.yml \
-            tests/test_execution_hardening.py
+            reports/hardening_patch.log
+          if [ -f tests/test_execution_hardening.py ]; then
+            git add -- tests/test_execution_hardening.py
+          fi
           git diff --cached --check
-          git commit -m "Harden backtest execution and audit invariants"
-          git push origin HEAD:fix/execution-hardening-20260820
+          if ! git diff --cached --quiet; then
+            git commit -m "Apply execution hardening patch attempt"
+            git push origin HEAD:fix/execution-hardening-20260820
+          fi
+
+      - name: Compile touched Python
+        id: compile
+        if: ${{ steps.patch.outputs.rc == '0' }}
+        shell: bash
+        run: |
+          set +e
+          python -m py_compile \
+            scripts/research_portfolio_allocation.py \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/merge_matrix_shards.py \
+            scripts/audit_matrix_results.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/run_realistic_pipeline.py \
+            tests/test_execution_hardening.py \
+            > reports/hardening_compile.log 2>&1
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          cat reports/hardening_compile.log
+          exit 0
+
+      - name: Run full unit suite
+        id: tests
+        if: ${{ steps.patch.outputs.rc == '0' && steps.compile.outputs.rc == '0' }}
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v > reports/hardening_tests.log 2>&1
+          rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          tail -n 250 reports/hardening_tests.log
+          exit 0
+
+      - name: Publish hardening status
+        if: ${{ always() }}
+        env:
+          PATCH_RC: ${{ steps.patch.outputs.rc }}
+          COMPILE_RC: ${{ steps.compile.outputs.rc }}
+          TEST_RC: ${{ steps.tests.outputs.rc }}
+          DRIVER_RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              "patch_rc": int(os.environ.get("PATCH_RC") or -1),
+              "compile_rc": int(os.environ.get("COMPILE_RC") or -1),
+              "test_rc": int(os.environ.get("TEST_RC") or -1),
+              "driver_run_id": int(os.environ["DRIVER_RUN_ID"]),
+          }
+          payload["ready"] = all(payload[key] == 0 for key in ("patch_rc", "compile_rc", "test_rc"))
+          Path("reports/hardening_status.json").write_text(
+              json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(payload, indent=2))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/hardening_status.json
+          for file in reports/hardening_patch.log reports/hardening_compile.log reports/hardening_tests.log; do
+            if [ -f "$file" ]; then git add -- "$file"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "Record execution hardening validation"
+            git push origin HEAD:fix/execution-hardening-20260820
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path("reports/hardening_status.json").read_text())
+          if not status["ready"]:
+              raise SystemExit("execution hardening validation failed")
+          PY
