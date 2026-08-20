@@ -25,26 +25,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Apply reviewed patch with diagnostics
+      - name: Apply idempotent hardening phase 2
         id: patch
         shell: bash
         run: |
           set +e
           mkdir -p reports
-          python - <<'PY' > reports/hardening_patch.log 2>&1
-          from pathlib import Path
-
-          text = Path('.github/workflows/execution-hardening.yml').read_text(encoding='utf-8')
-          start_marker = "          python - <<'PY'\n"
-          start = text.index(start_marker) + len(start_marker)
-          end = text.index("\n          PY\n", start)
-          raw_script = text[start:end]
-          patch_script = "\n".join(
-              line[10:] if line.startswith("          ") else line
-              for line in raw_script.splitlines()
-          )
-          exec(compile(patch_script, 'execution-hardening-patch', 'exec'), {})
-          PY
+          python scripts/_execution_hardening_phase2.py > reports/hardening_patch.log 2>&1
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           cat reports/hardening_patch.log
@@ -74,7 +61,7 @@ jobs:
           fi
           git diff --cached --check
           if ! git diff --cached --quiet; then
-            git commit -m "Apply execution hardening patch attempt"
+            git commit -m "Apply execution hardening phase 2"
             git push origin HEAD:fix/execution-hardening-20260820
           fi
 
@@ -109,7 +96,7 @@ jobs:
           python -m unittest discover -s tests -v > reports/hardening_tests.log 2>&1
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          tail -n 250 reports/hardening_tests.log
+          tail -n 300 reports/hardening_tests.log
           exit 0
 
       - name: Publish hardening status
