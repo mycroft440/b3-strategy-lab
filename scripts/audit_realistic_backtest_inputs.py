@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Audit realistic B3 inputs. Market-input certification, counterfactual "
-            "execution, strategy-selection validity and personal-account exactness are "
+            "execution, strategy-selection validity and brokerage-account exactness are "
             "intentionally separate claims."
         )
     )
@@ -114,12 +114,16 @@ def main(argv: list[str] | None = None) -> int:
     }
     survivorship_safe = universe_payload.get("survivorship_safe") is True
     no_replacements = universe_payload.get("no_replacements") is True
+    tax_instrument_scope = str(universe_payload.get("tax_instrument_scope", "")).strip().upper()
 
     checks["universe_is_point_in_time"] = universe_payload.get("point_in_time") is True
     checks["universe_declares_survivorship_safe"] = survivorship_safe
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
     checks["excluded_tickers_absent"] = not bool(universe.union & excluded)
     checks["universe_policy_consistent"] = survivorship_safe or no_replacements
+    checks["certified_tax_instrument_scope_is_on_pn_shares"] = (
+        tax_instrument_scope == "ON_PN_SHARES_ONLY"
+    )
 
     allowed_file_value = str(universe_payload.get("allowed_universe_file", "")).strip()
     allowed_tickers: set[str] = set()
@@ -146,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     details["minimum_snapshot_size"] = min(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["maximum_snapshot_size"] = max(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["selection_mode"] = universe_payload.get("selection_mode", "")
+    details["tax_instrument_scope"] = tax_instrument_scope
     details["excluded_tickers"] = sorted(excluded)
     details["selection_bias_disclosure"] = universe_payload.get("bias_disclosure", "")
     details["allowed_universe_file"] = allowed_file_value
@@ -275,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     certified_market_requirements = [
         *structural_account,
         "universe_declares_survivorship_safe",
+        "certified_tax_instrument_scope_is_on_pn_shares",
         "snapshot_next_open_execution_coverage_complete",
         "cash_history_coverage_certified",
         "ticker_transitions_have_no_unresolved_disappearances",
@@ -293,12 +299,12 @@ def main(argv: list[str] | None = None) -> int:
         name for name in certified_market_requirements if not checks[name]
     ]
 
-    personal_account_requirements = [
+    brokerage_account_requirements = [
         "documentary_opening_snapshot_not_audited_here",
         "documentary_closing_snapshot_not_audited_here",
         "actual_broker_fills_not_audited_here",
         "complete_broker_cash_ledger_not_audited_here",
-        "source_hashes_for_personal_account_evidence_not_audited_here",
+        "source_hashes_for_brokerage_account_evidence_not_audited_here",
     ]
 
     selection_limitations = []
@@ -308,26 +314,27 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 5,
+        "schema_version": 6,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
         "ready_for_certified_market_inputs": ready_for_certified_market_inputs,
-        # Deprecated compatibility field. A public-data counterfactual can never
-        # establish the exact fill of an order that did not actually exist.
         "ready_for_exact_historical_account_claim": False,
         "counterfactual_execution_exact": False,
         "selection_validity": selection_validity,
         "ex_ante_selection_claim_allowed": survivorship_safe,
         "estimate_blockers": estimate_blockers,
         "certified_market_input_blockers": certified_market_blockers,
-        "exact_personal_account_requirements": personal_account_requirements,
+        "exact_brokerage_account_requirements": brokerage_account_requirements,
+        # Deprecated compatibility key retained to avoid breaking old readers.
+        "exact_personal_account_requirements": brokerage_account_requirements,
         "selection_limitations": selection_limitations,
         "blockers": estimate_blockers,
         "interpretation": (
             "Certified public market inputs make a counterfactual replay reproducible, not "
-            "execution-exact. Daily COTAHIST does not prove the fill of a hypothetical order. "
-            "The exact personal-account label is reserved for reconciliation of actual broker "
+            "execution-exact. Certified small-account tax scope is restricted to ON/PN "
+            "shares. Daily COTAHIST does not prove the fill of a hypothetical order. The "
+            "exact brokerage-account label is reserved for reconciliation of actual broker "
             "fills, complete cash events and source-hashed opening/closing broker snapshots."
         ),
     }
