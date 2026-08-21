@@ -5,6 +5,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/backtest_strategy_management_strict.py"
       - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
       - "scripts/backtest_research_catalog_priority.py"
@@ -23,6 +24,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/backtest_strategy_management_strict.py"
       - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
       - "scripts/backtest_research_catalog_priority.py"
@@ -77,6 +79,7 @@ jobs:
             scripts/sync_point_in_time_universe.py \
             scripts/sync_point_in_time_universe_realistic.py \
             scripts/backtest_strategy_management_realistic.py \
+            scripts/backtest_strategy_management_strict.py \
             scripts/walk_forward_realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
             scripts/audit_backtest_integrity.py \
