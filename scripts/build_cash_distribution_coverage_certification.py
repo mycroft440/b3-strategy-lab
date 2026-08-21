@@ -4,7 +4,7 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,6 +74,13 @@ def _required_cash_tickers(universe_payload: dict[str, object], selectable: set[
     return required
 
 
+def _iso_date(value: object, label: str) -> str:
+    try:
+        return date.fromisoformat(str(value)[:10]).isoformat()
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be a valid ISO date.") from error
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -140,12 +147,38 @@ def main(argv: list[str] | None = None) -> int:
         )
     )[:10]
     end = args.end or declared_end
+    try:
+        start = _iso_date(start, "start")
+        end = _iso_date(end, "end")
+        declared_end = _iso_date(declared_end, "universe selection_end")
+        manifest_start = _iso_date(manifest.get("coverage_start"), "cash manifest coverage_start")
+        manifest_end = _iso_date(manifest.get("coverage_end"), "cash manifest coverage_end")
+    except ValueError as exc:
+        parser.error(str(exc))
     if end < start:
         parser.error("--end must not precede --start.")
+    if end > declared_end:
+        parser.error("Cash coverage cannot be certified beyond the universe selection_end.")
+    if manifest_start > start or manifest_end < end:
+        parser.error(
+            "Cash ledger manifest coverage does not contain the requested certification period."
+        )
 
     evidence = _load_evidence(args.evidence_file)
     authorities = {str(item["source_authority"]) for item in evidence}
-    source_authority = "B3" if authorities == {"B3"} else "B3+CVM+issuer"
+    # Keep the summary authority truthful without claiming sources that were not
+    # reviewed. Mixed evidence remains fully visible in the evidence list; the
+    # summary uses a validator-supported primary authority actually present.
+    if "B3" in authorities:
+        source_authority = "B3"
+    elif "CVM" in authorities:
+        source_authority = "CVM"
+    else:
+        parser.error(
+            "Issuer-only evidence is primary-source evidence but the current certificate "
+            "validator does not expose an issuer-only summary authority. Add B3/CVM "
+            "coverage or extend the validator before certifying; do not overstate sources."
+        )
 
     payload = {
         "schema_version": 1,
@@ -164,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
         "cash_events_sha256": _sha256(args.events),
         "cash_manifest_sha256": _sha256(args.cash_manifest),
         "cash_event_count": int(manifest.get("event_count", 0)),
+        "cash_manifest_coverage_start": manifest_start,
+        "cash_manifest_coverage_end": manifest_end,
         "attestation": (
             "The reviewer attests that primary-source coverage was checked for the "
             "full market-data ticker set used by the replay, including continuity-only "
