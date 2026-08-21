@@ -8,6 +8,14 @@ from b3_strategy_lab import realistic_core as _core
 
 IRRF_COMMON_RATE = 0.00005
 IRRF_RETENTION_MINIMUM = 1.0
+DARF_MINIMUM_PAYMENT = 10.0
+
+
+def _next_month(month: str) -> str:
+    year, number = (int(item) for item in month.split("-"))
+    if number == 12:
+        return f"{year + 1:04d}-01"
+    return f"{year:04d}-{number + 1:02d}"
 
 
 @dataclass
@@ -111,6 +119,15 @@ class BrazilEquityTaxLedger(_core.BrazilEquityTaxLedger):
 
 
 class RealCashAccount(_core.RealCashAccount):
+    """Cash account with source withholding and date-aware DARF liabilities.
+
+    Monthly tax is *accrued* when a month closes so loss carry and IRRF credits
+    remain causal. Cash leaves the brokerage account only on the modeled legal
+    due session: the final B3 session of the following calendar month. Known
+    liabilities remain reserved from new purchases, keeping the replay
+    self-financing without inventing later cash contributions.
+    """
+
     def __init__(
         self,
         initial_cash: float,
@@ -125,6 +142,11 @@ class RealCashAccount(_core.RealCashAccount):
             tax_ledger=tax_ledger or BrazilEquityTaxLedger(),
         )
         self.ordinary_irrf_withheld = 0.0
+        self.darf_paid = 0.0
+        self._darf_carry = 0.0
+        self._scheduled_darfs: dict[str, float] = defaultdict(float)
+        self._scheduled_tax_months: set[str] = set()
+        self._due_session_cache: dict[str, str] = {}
 
     def sell_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
         # Core sale computes gain and records the sale. Our ledger then exposes the
@@ -140,9 +162,64 @@ class RealCashAccount(_core.RealCashAccount):
             )
         self.cash -= delta
         self.ordinary_irrf_withheld += delta
-        # tax_paid is a cumulative cash-tax field in realistic curves/summaries.
-        # The later DARF is net of this credit, so adding it here does not double count.
+        # tax_paid is cumulative tax cash that actually left the brokerage account.
         self.tax_paid += delta
+
+    def finalize_month(self, month: str):
+        tax = self.tax.finalize(month)
+        dividend_tax = self.distribution_tax.settle_dividend_month(month)
+        if dividend_tax:
+            raise ValueError(
+                "A nonzero dividend tax settlement requires explicit source-withholding "
+                "cash timing; refusing to treat it as an ordinary DARF."
+            )
+        if month not in self._scheduled_tax_months:
+            self._scheduled_tax_months.add(month)
+            self._darf_carry += max(0.0, float(tax.tax_due))
+            if self._darf_carry + 1e-12 >= DARF_MINIMUM_PAYMENT:
+                self._scheduled_darfs[_next_month(month)] += self._darf_carry
+                self._darf_carry = 0.0
+        return tax, dividend_tax
+
+    def known_darf_reserve(self) -> float:
+        """Tax cash already accrued and therefore unavailable to new purchases."""
+
+        return self._darf_carry + sum(self._scheduled_darfs.values())
+
+    def outstanding_tax_liability(self) -> float:
+        return self.known_darf_reserve()
+
+    def process_due_taxes(self, value_date: str, market_dates) -> float:
+        """Pay scheduled DARFs on the final B3 session of their legal due month."""
+
+        month = value_date[:7]
+        overdue = sorted(due_month for due_month in self._scheduled_darfs if due_month < month)
+        if overdue:
+            raise ValueError(
+                "Unpaid DARF passed its modeled due month: " + ", ".join(overdue)
+            )
+        amount = float(self._scheduled_darfs.get(month, 0.0))
+        if amount <= 0:
+            return 0.0
+        due_session = self._due_session_cache.get(month)
+        if due_session is None:
+            sessions = [str(day)[:10] for day in market_dates if str(day)[:7] == month]
+            if not sessions:
+                raise ValueError(f"No B3 session is available to place DARF due in {month}.")
+            due_session = max(sessions)
+            self._due_session_cache[month] = due_session
+        if value_date != due_session:
+            return 0.0
+        if amount > self.cash + 1e-9:
+            raise ValueError(
+                f"DARF due on {value_date} exceeds reserved brokerage cash: "
+                f"{amount:.2f} > {self.cash:.2f}."
+            )
+        self.cash -= amount
+        self.tax_paid += amount
+        self.darf_paid += amount
+        del self._scheduled_darfs[month]
+        return amount
 
 
 # Explicit public names changed by this hardening layer.
