@@ -103,8 +103,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("No B3 ON/PN market session exists at or before --end.")
     end = max(eligible_end_dates)
 
+    # Everything that defines the market-data scope must be knowable at or before
+    # the replay horizon. In particular, a same-ISIN ticker introduced after --end
+    # must not leak into continuity_only_tickers for an earlier replay.
+    causal_standard_quotes = [quote for quote in standard_quotes if quote.date <= end]
+    causal_fractional_quotes = [quote for quote in fractional_quotes if quote.date <= end]
+
     snapshots = snapshot_rows(
-        standard_quotes,
+        causal_standard_quotes,
         start=args.start,
         end=end,
         lookback_sessions=args.lookback_sessions,
@@ -131,12 +137,12 @@ def main(argv: list[str] | None = None) -> int:
 
     selected_isins = {
         quote.isin.strip().upper()
-        for quote in standard_quotes
+        for quote in causal_standard_quotes
         if quote.ticker.upper() in selected_set and quote.isin
     }
     continuity_set = {
         quote.ticker.upper()
-        for quote in standard_quotes
+        for quote in causal_standard_quotes
         if quote.isin
         and quote.isin.strip().upper() in selected_isins
         and is_company_equity(quote)
@@ -147,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     issuer_by_ticker: dict[str, str] = {}
     issuer_names: dict[str, str] = {}
     isin_by_ticker: dict[str, set[str]] = defaultdict(set)
-    for quote in standard_quotes:
+    for quote in causal_standard_quotes:
         ticker = quote.ticker.upper()
         if ticker not in market_data_set:
             continue
@@ -163,11 +169,13 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_sizes: dict[str, int] = defaultdict(int)
     for row in snapshots:
         snapshot_sizes[str(row["effective_date"])] += 1
+    if not snapshot_sizes:
+        raise ValueError("Survivorship-safe universe contains no historical snapshots.")
     if min(snapshot_sizes.values()) != args.top_n:
         raise ValueError("Survivorship-safe universe unexpectedly contains incomplete snapshots.")
 
     manifest = {
-        "schema_version": 7,
+        "schema_version": 8,
         "id": "full_b3_on_pn_survivorship_safe_weekly_top_liquidity",
         "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",
         "selected_as_of": args.start,
@@ -199,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             "ranking_metric": "trailing_average_financial_volume",
             "future_continuity_filter": False,
             "future_return_filter": False,
+            "continuity_scope_end": end,
             "replacement_policy": "full historical eligible-share market re-ranked from trailing data only",
         },
         "execution_sources": {
@@ -208,7 +217,9 @@ def main(argv: list[str] | None = None) -> int:
         "tickers": selected_union,
         "market_data_tickers": market_data_tickers,
         "continuity_only_tickers": sorted(market_data_set - selected_set),
-        "continuity_rule": "same_isin_ON_PN_history_only; never grants selection eligibility",
+        "continuity_rule": (
+            "same_isin_ON_PN_history_only_at_or_before_selection_end; never grants selection eligibility"
+        ),
         "issuing_company_by_ticker": issuer_by_ticker,
         "issuer_name_by_ticker": issuer_names,
         "isins_by_ticker": {ticker: sorted(values) for ticker, values in isin_by_ticker.items()},
@@ -216,10 +227,10 @@ def main(argv: list[str] | None = None) -> int:
             "Each weekly candidate set is reconstructed from the full historical B3 "
             "ON/PN company-share COTAHIST scope using only trailing observations available "
             "by that decision date. No requirement uses future survival, future returns, "
-            "current index membership, or the project's later fixed-40 list. Strategy/model "
-            "selection can still be retrospective and is reported separately from universe "
-            "validity. UNITS and other instrument classes are intentionally out of this "
-            "certified share-tax scope."
+            "current index membership, post-horizon same-ISIN symbols, or the project's "
+            "later fixed-40 list. Strategy/model selection can still be retrospective and "
+            "is reported separately from universe validity. UNITS and other instrument "
+            "classes are intentionally out of this certified share-tax scope."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -230,11 +241,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     standard_filtered = [
-        quote for quote in standard_quotes if quote.ticker.upper() in market_data_set
+        quote for quote in causal_standard_quotes if quote.ticker.upper() in market_data_set
     ]
     fractional_filtered = [
         quote
-        for quote in fractional_quotes
+        for quote in causal_fractional_quotes
         if base_fractional_ticker(quote.ticker) in market_data_set
     ]
     executions = execution_rows(
@@ -260,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Requested end {args.end} normalized to last B3 session {end}")
     print(f"Survivorship-safe weekly ON/PN snapshots: {len(snapshot_sizes)}")
     print(f"Selectable historical ON/PN union: {len(selected_union)} tickers")
-    print(f"Continuity-only symbols: {len(market_data_set - selected_set)}")
+    print(f"Continuity-only symbols through {end}: {len(market_data_set - selected_set)}")
     print(f"Execution rows: standard={standard_count}, fractional={fractional_count}")
     return 0
 
