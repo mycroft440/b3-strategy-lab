@@ -95,8 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=DEFAULT_SPLIT_EVIDENCE_PATH,
         help=(
-            "Ledger canônico usado nos manifests compartilhados de candles. O ledger "
-            "point-in-time de --split-evidence permanece como auditoria do universo."
+            "Ledger de evidencia usado para assinar e verificar os manifests de candles."
         ),
     )
     parser.add_argument("--cash-output", type=Path, default=DEFAULT_CASH)
@@ -156,6 +155,13 @@ def main(argv: list[str] | None = None) -> int:
             universe.get("selected_as_of", coverage_start)
         ),
     )
+    coverage_dates = [
+        quote.date for quotes in quotes_by_ticker.values() for quote in quotes
+    ]
+    if not coverage_dates:
+        raise ValueError("No official COTAHIST rows found for point-in-time market-data tickers.")
+    coverage_end = max(coverage_dates)
+
     payloads = _load_supplements(
         sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),
         args.supplements_dir,
@@ -251,9 +257,14 @@ def main(argv: list[str] | None = None) -> int:
             f"See {args.missing_splits_report}; realistic build stopped."
         )
 
+    # Schema 3 is the latest evidence contract accepted by cotahist.verify_split_evidence.
+    # The point-in-time fields below are additive scope metadata and remain fully checked
+    # by the realistic input auditor.
     evidence_payload = {
-        "schema_version": 4,
+        "schema_version": 3,
         "coverage_start": coverage_start,
+        "coverage_end": coverage_end,
+        "source_years": years,
         "survivorship_safe_universe": survivorship_safe,
         "selection_validity": (
             "SURVIVORSHIP_SAFE_POINT_IN_TIME"
@@ -331,6 +342,9 @@ def main(argv: list[str] | None = None) -> int:
         "source": "B3 GetListedSupplementCompany.cashDividends",
         "source_authority": "B3",
         "universe": str(args.universe),
+        "coverage_start": coverage_start,
+        "coverage_end": coverage_end,
+        "source_years": years,
         "selection_validity": (
             "SURVIVORSHIP_SAFE_POINT_IN_TIME"
             if survivorship_safe
