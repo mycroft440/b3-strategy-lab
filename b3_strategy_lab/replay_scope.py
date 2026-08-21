@@ -14,13 +14,18 @@ def audit_small_account_replay(
     *,
     limit: float = SMALL_ACCOUNT_EXACT_LIMIT,
 ) -> dict[str, object]:
-    """Fail closed when the replay leaves the small-account exactness envelope.
+    """Fail closed when a certified replay leaves the small-account envelope.
 
-    The existing tax engine intentionally models the economic tax burden rather
-    than every IRRF/DARF cash-timing detail. For a strict deterministic replay we
-    therefore require a conservative envelope: close equity and aggregate monthly
-    stock sales must remain at or below R$20,000. The same guard also keeps the
-    replay far below the B3 high-ADTV transaction-fee tiers.
+    The realistic engine now models ordinary-operation IRRF credits and dated
+    DARF liabilities. The stricter certified deterministic replay nevertheless
+    keeps a conservative R$20,000 envelope. If aggregate stock sales remain at
+    or below that threshold, positive ordinary stock gains stay inside the
+    monthly cash-market exemption and the theoretical 0.005% source withholding
+    remains at or below R$1, avoiding reliance on DARF timing for certification.
+
+    This is an isolated brokerage-replay scope. It does not and cannot prove the
+    person's CPF-wide annual income, including the separate 2026+ minimum tax for
+    high-income individuals.
     """
 
     if limit <= 0:
@@ -82,12 +87,16 @@ def audit_small_account_replay(
         "max_monthly_sales": max_monthly_sales,
         "max_monthly_sales_month": max_monthly_sales_month,
         "small_account_scope_passed": not blockers,
+        "ordinary_stock_monthly_exemption_guard": True,
+        "ordinary_irrf_retention_guard": "monthly sales <= R$20,000 implies 0.005% <= R$1",
+        "cpf_wide_annual_minimum_tax_scope": "OUT_OF_SCOPE",
         "blockers": blockers,
         "interpretation": (
             "Passing this guard means the deterministic replay stayed inside the "
-            "conservative R$20,000 small-account envelope: close equity, any single "
-            "day's sales and aggregate stock sales in each month all remain at or below "
-            "the limit. It does not turn a counterfactual strategy replay into proof of "
-            "actual broker fills or of the user's complete personal tax history."
+            "conservative R$20,000 brokerage envelope: close equity, any single day's "
+            "sales and aggregate stock sales in each month all remain at or below the "
+            "limit. It does not turn a counterfactual strategy replay into proof of "
+            "actual broker fills, and it does not prove the person's complete CPF-wide "
+            "tax position or the 2026+ annual minimum high-income tax."
         ),
     }
