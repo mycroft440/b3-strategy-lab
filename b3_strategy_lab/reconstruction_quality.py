@@ -21,9 +21,9 @@ class BrokerFeeRule:
     end: str
     brokerage_bps: float
     brokerage_fixed_per_order: float
-    fixed_fee_application: str
     quality: str
     evidence: tuple[str, ...]
+    fixed_fee_application: str = "unspecified"
 
     def contains(self, value: str) -> bool:
         return self.start <= value <= self.end
@@ -59,9 +59,9 @@ class BrokerProfile:
                 end=str(item["end"]),
                 brokerage_bps=float(item.get("brokerage_bps", 0.0)),
                 brokerage_fixed_per_order=float(item.get("brokerage_fixed_per_order", 0.0)),
-                fixed_fee_application=str(item.get("fixed_fee_application", "unspecified")).strip(),
                 quality=str(item.get("quality", "unverified")),
                 evidence=tuple(str(value) for value in item.get("evidence", []) if str(value).strip()),
+                fixed_fee_application=str(item.get("fixed_fee_application", "unspecified")).strip(),
             )
             for item in raw_rules
         )
@@ -280,9 +280,9 @@ def write_composite_fee_schedule(
             end=str(item["end"]),
             brokerage_bps=0.0,
             brokerage_fixed_per_order=0.0,
-            fixed_fee_application=FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG,
             quality="broker_certified",
             evidence=("composite",),
+            fixed_fee_application=FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG,
         )
         for item in combined
     )
