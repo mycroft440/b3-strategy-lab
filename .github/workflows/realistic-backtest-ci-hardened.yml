@@ -77,6 +77,7 @@ jobs:
             scripts/backtest_research_catalog_priority.py \
             scripts/run_realistic_pipeline.py \
             scripts/run_exact_realistic_reconstruction.py \
+            scripts/run_certified_realistic_replay.py \
             scripts/reconcile_actual_personal_account.py \
             scripts/research_portfolio_allocation.py \
             scripts/backtest_strategy_management_combinations.py
