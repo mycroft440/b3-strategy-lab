@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.extensions import build_indicator
+from b3_strategy_lab import research_indicators as _research_indicators  # noqa: F401
 
 
 def _candle(index: int, *, close: float, volume: int, raw_volume: int | None = None, factor: float = 1.0) -> Candle:
