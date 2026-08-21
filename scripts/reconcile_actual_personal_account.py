@@ -22,15 +22,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Reconcile an actually executed personal account from broker-source fills, "
-            "non-trade cash events, position adjustments and a final broker snapshot. "
-            "This is the only path allowed to emit an exact personal-account label."
+            "non-trade cash events, position adjustments and documentary opening/closing "
+            "broker snapshots. This is the only path allowed to emit an exact "
+            "personal-account reconciliation label."
         )
     )
     parser.add_argument("--fills", type=Path, required=True)
     parser.add_argument("--cash-events", type=Path, required=True)
     parser.add_argument("--position-events", type=Path)
-    parser.add_argument("--snapshot", type=Path, required=True)
-    parser.add_argument("--start-cash", type=float, required=True)
+    parser.add_argument("--opening-snapshot", type=Path, required=True)
+    parser.add_argument("--closing-snapshot", type=Path, required=True)
     parser.add_argument(
         "--output",
         type=Path,
@@ -43,20 +44,22 @@ def main(argv: list[str] | None = None) -> int:
     position_events = (
         load_position_events(args.position_events) if args.position_events else []
     )
-    snapshot = load_snapshot(args.snapshot)
+    opening_snapshot = load_snapshot(args.opening_snapshot)
+    closing_snapshot = load_snapshot(args.closing_snapshot)
     result = reconcile_actual_account(
-        start_cash=args.start_cash,
+        opening_snapshot=opening_snapshot,
+        closing_snapshot=closing_snapshot,
         fills=fills,
         cash_events=cash_events,
         position_events=position_events,
-        snapshot=snapshot,
     )
     payload = result.as_dict()
     payload["inputs"] = {
         "fills": str(args.fills),
         "cash_events": str(args.cash_events),
         "position_events": str(args.position_events) if args.position_events else None,
-        "snapshot": str(args.snapshot),
+        "opening_snapshot": str(args.opening_snapshot),
+        "closing_snapshot": str(args.closing_snapshot),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
