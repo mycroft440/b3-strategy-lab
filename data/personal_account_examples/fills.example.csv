@@ -1,0 +1,2 @@
+trade_date,settlement_date,sequence,execution_id,order_id,side,ticker,shares,price,source_document,source_sha256
+2018-01-02,2018-01-04,10,EXEMPLO-EXEC-1,EXEMPLO-ORDER-1,BUY,PETR4,1,16.50,PRIVATE/nota_corretagem_2018-01-02.pdf,0000000000000000000000000000000000000000000000000000000000000000
