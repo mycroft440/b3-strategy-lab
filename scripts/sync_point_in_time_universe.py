@@ -5,7 +5,7 @@ import csv
 import json
 import sys
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,6 +122,14 @@ def main(argv: list[str] | None = None) -> int:
             "retrospective fixed-universe/no-replacements replay."
         )
 
+    replay_end = str(universe.get("selection_end", "")).strip()[:10]
+    try:
+        replay_end_date = date.fromisoformat(replay_end)
+    except ValueError as error:
+        parser.error("Point-in-time universe must declare a valid selection_end.")
+        raise AssertionError from error
+    exclude_date = (replay_end_date + timedelta(days=1)).isoformat()
+
     selected_tickers = [str(ticker).strip().upper() for ticker in universe["tickers"]]
     tickers = [
         str(ticker).strip().upper()
@@ -141,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"Missing issuing-company codes for: {missing_issuer_codes}")
 
     years = _parse_years(args.years)
+    if max(years) < replay_end_date.year:
+        parser.error("Requested COTAHIST years do not reach the universe selection_end year.")
     archives = _prepare_archives(
         years,
         args.archives_dir,
@@ -150,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     quotes_by_ticker, sources = _read_official_quotes(
         archives,
         tickers,
-        exclude_date=date.today().isoformat(),
+        exclude_date=exclude_date,
         require_standard_for_fractional_from=str(
             universe.get("selected_as_of", coverage_start)
         ),
@@ -161,6 +171,11 @@ def main(argv: list[str] | None = None) -> int:
     if not coverage_dates:
         raise ValueError("No official COTAHIST rows found for point-in-time market-data tickers.")
     coverage_end = max(coverage_dates)
+    if coverage_end != replay_end:
+        raise ValueError(
+            f"Point-in-time market data ends at {coverage_end}, but universe selection_end "
+            f"is {replay_end}; refusing a partially covered replay."
+        )
 
     payloads = _load_supplements(
         sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),
@@ -369,7 +384,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Cash events: {args.cash_output} ({len(cash_rows)} events)")
     print(
-        f"Realistic account data synchronized: {len(selected_tickers)} selectable + "
+        f"Realistic account data synchronized through {coverage_end}: "
+        f"{len(selected_tickers)} selectable + "
         f"{len(set(tickers) - set(selected_tickers))} continuity-only tickers; "
         f"selection validity={'survivorship-safe' if survivorship_safe else 'retrospective-fixed'}"
     )
