@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "coverage_start": "2018-01-01",
+  "coverage_end": "2018-12-28",
+  "coverage_complete": false,
+  "reviewed_by": "",
+  "reviewed_at_utc": "",
+  "documents": [
+    {
+      "path": "PRIVATE/extrato_abertura.pdf",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "kind": "account_statement"
+    },
+    {
+      "path": "PRIVATE/nota_corretagem_2018-01-02.pdf",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "kind": "trade_note"
+    },
+    {
+      "path": "PRIVATE/extrato_fechamento.pdf",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "kind": "account_statement"
+    }
+  ]
+}
