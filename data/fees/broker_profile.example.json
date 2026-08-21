@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "broker_name": "PREENCHA_A_CORRETORA",
   "account_label": "conta hipotetica dedicada ao backtest",
   "settlement_currency": "BRL",
@@ -7,7 +7,7 @@
     "mode": "isolated_strategy_account",
     "other_equity_trades": false,
     "initial_loss_carry": 0.0,
-    "note": "Para reconstrução condicional estrita, a conta não pode compartilhar vendas, ganhos, perdas ou IRRF com outras operações em ações."
+    "note": "Para o replay certificado, a conta não pode compartilhar vendas, ganhos, perdas ou IRRF com outras operações em ações."
   },
   "monthly_custody_fee": 0.0,
   "other_recurring_monthly_fee": 0.0,
@@ -19,17 +19,19 @@
       "end": "2099-12-31",
       "brokerage_bps": 0.0,
       "brokerage_fixed_per_order": 0.0,
+      "fixed_fee_application": "per_market_order_leg",
       "quality": "unverified",
       "evidence": [
-        "Substitua por nota de corretagem, tabela oficial da corretora ou contrato que prove a tarifa vigente em cada período."
+        "Substitua por nota de corretagem, tabela oficial da corretora ou contrato que prove a tarifa vigente em cada período e sua unidade de cobrança."
       ]
     }
   ],
   "instructions": [
     "Não troque quality para broker_certified sem evidência documental.",
-    "Se havia corretagem fixa, informe brokerage_fixed_per_order.",
+    "Se havia corretagem fixa, informe brokerage_fixed_per_order e comprove que a cobrança era por ordem/perna de mercado; o motor trata lote padrão 010 e fracionário 020 como ordens separadas.",
+    "Para qualquer regra com brokerage_fixed_per_order maior que zero, fixed_fee_application deve ser per_market_order_leg; outra unidade de cobrança bloqueia o replay certificado.",
     "Se havia corretagem percentual, informe brokerage_bps.",
-    "Se havia custódia ou outra mensalidade, o modo estrito continuará bloqueado até o motor passar a debitá-la explicitamente."
+    "Se havia custódia ou outra mensalidade, o replay certificado continuará bloqueado até o motor passar a debitá-la explicitamente."
   ],
   "recurring_fee_evidence": [
     "Inclua extrato/contrato/tabela da corretora que prove se custódia, manutenção e mensalidades eram zero ou seus valores."
