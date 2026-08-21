@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import math
 import statistics
-from dataclasses import replace
 
 from b3_strategy_lab import realistic_portfolio_core as _core
 
@@ -251,7 +250,6 @@ def run_realistic(
         progress_callback(0, len(dates), dates[0])
 
     for index, current in enumerate(dates):
-        previous = dates[index - 1] if index > 0 else None
         next_date = dates[index + 1] if index + 1 < len(dates) else None
         payment_events = payment_map.get(current, [])
         preopen_payments = [event for event in payment_events if event.payment_date < current]
@@ -264,14 +262,19 @@ def run_realistic(
         for event in preopen_payments:
             distributions_net += _credit_event(account, event, entitlements)
 
-        if previous is not None and previous[:7] != current[:7]:
-            account.finalize_month(previous[:7])
-
         if pending_targets is not None:
             account = rebalance_atomic(account, data, pricebook, current, pending_targets)
 
         for event in same_day_payments:
             distributions_net += _credit_event(account, event, entitlements)
+
+        # Once the final B3 session of a month has traded, every ordinary sale for
+        # that month is known. Accrue the liability before recording the month-end
+        # close so the economic equity curve is not temporarily overstated. The
+        # escrow is already non-investable; the later DARF payment only settles it.
+        month_ends_here = next_date is None or next_date[:7] != current[:7]
+        if month_ends_here:
+            account.finalize_month(current[:7])
 
         equity = account.cash + _receivable_value(account)
         selected = []
@@ -325,20 +328,6 @@ def run_realistic(
             completed == len(dates) or completed % progress_interval == 0
         ):
             progress_callback(completed, len(dates), current)
-
-    cash_before_final_tax = account.cash
-    account.finalize_month(dates[-1][:7])
-    final_tax_debit = cash_before_final_tax - account.cash
-    if final_tax_debit:
-        equities[-1] -= final_tax_debit
-        curve[-1] = replace(
-            curve[-1],
-            equity=curve[-1].equity - final_tax_debit,
-            cash=account.cash,
-            tax_paid=account.tax_paid + account.dividend_jcp_tax_paid,
-        )
-        if equities[-1] <= 0:
-            raise ValueError("Final tax liability makes portfolio equity non-positive.")
 
     metrics = _portfolio_metrics(equities, dates, initial_cash)
     yearly = _yearly_returns(equities, dates, initial_cash)
