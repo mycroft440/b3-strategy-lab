@@ -19,8 +19,10 @@ from b3_strategy_lab.realistic import (  # noqa: E402
 from b3_strategy_lab.realistic_portfolio import load_transitions, run_realistic  # noqa: E402
 from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
+    DEFAULT_ACTIONS,
     DEFAULT_CASH_EVENTS,
     DEFAULT_CASH_MANIFEST,
+    DEFAULT_DATA,
     DEFAULT_EXECUTION,
     DEFAULT_FEES,
     DEFAULT_MANIFESTS,
@@ -79,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execution-prices", type=Path, default=DEFAULT_EXECUTION)
     parser.add_argument("--cash-events", type=Path, default=DEFAULT_CASH_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--actions-dir", type=Path, default=DEFAULT_ACTIONS)
     parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
@@ -140,6 +144,8 @@ def main(argv: list[str] | None = None) -> int:
         "adjusted",
         require_verified_splits_from=str(manifest["warmup_start"]),
         history_start=str(manifest["warmup_start"]),
+        data_dir=args.data_dir,
+        actions_dir=args.actions_dir,
         manifests_dir=args.manifests_dir,
         split_evidence_path=args.split_evidence,
     )
@@ -286,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     _write_csv(args.output, rows)
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
     summary = {
-        "schema_version": 3,
+        "schema_version": 4,
         "method": "expanding_window_walk_forward",
         "selection_scope": selection_scope,
         "strategy_count": len(strategies),
@@ -295,6 +301,8 @@ def main(argv: list[str] | None = None) -> int:
         "selection_uses_test_data": False,
         "survivorship_safe_universe": survivorship_safe,
         "ex_ante_selection_claim_allowed": survivorship_safe,
+        "market_data_directory": str(args.data_dir),
+        "action_directory": str(args.actions_dir),
         "market_data_manifest_directory": str(args.manifests_dir),
         "split_evidence_file": str(args.split_evidence),
         "test_accounts_are_independent": True,
