@@ -112,15 +112,12 @@ class BrazilEquityTaxLedger(_core.BrazilEquityTaxLedger):
 
 
 class RealCashAccount(_core.RealCashAccount):
-    """Cash account with IRRF and economically accrued DARF liabilities.
+    """Cash account with tax escrow and earned-but-unpaid distribution receivables.
 
-    Once an ordinary-stock tax month is finalized, its net DARF liability is
-    removed from *investable* cash and placed in ``tax_escrow``. This makes the
-    equity curve economic/net of a known tax obligation immediately while still
-    distinguishing legal payment timing: ``tax_paid`` and ``darf_paid`` increase
-    only when the obligation reaches its modeled due session. The escrow amount
-    can be added back to economic equity to reconstruct the gross mark-to-market
-    brokerage balance before the unpaid tax leaves the account.
+    Ordinary tax already determined by the closed month is removed from investable
+    cash into ``tax_escrow``. Separately, a dividend/JCP right is recognized only
+    after the cum-right close, as a non-investable receivable. On payment the
+    receivable is replaced by cash instead of creating a second economic gain.
     """
 
     def __init__(
@@ -143,6 +140,10 @@ class RealCashAccount(_core.RealCashAccount):
         self._scheduled_darfs: dict[str, float] = defaultdict(float)
         self._scheduled_tax_months: set[str] = set()
         self._due_session_cache: dict[str, str] = {}
+        self._distribution_receivables: dict[
+            object, tuple[float, float, str, str, str]
+        ] = {}
+        self._pending_dividend_gross: dict[tuple[str, str], float] = defaultdict(float)
 
     def sell_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
         super().sell_leg(value_date, ticker, quantity, quote)
@@ -157,6 +158,72 @@ class RealCashAccount(_core.RealCashAccount):
         self.cash -= delta
         self.ordinary_irrf_withheld += delta
         self.tax_paid += delta
+
+    def register_distribution_receivable(
+        self,
+        event_key: object,
+        *,
+        ticker: str,
+        label: str,
+        shares_entitled: int,
+        gross_per_share: float,
+        payment_date: str,
+    ) -> float:
+        """Recognize a distribution right without making it spendable cash."""
+
+        if event_key in self._distribution_receivables:
+            return self._distribution_receivables[event_key][0]
+        shares = max(0, int(shares_entitled))
+        gross = shares * max(0.0, float(gross_per_share))
+        normalized_label = str(label).upper()
+        payer = str(ticker).upper()
+        payment_month = str(payment_date)[:7]
+
+        if normalized_label in {"JCP", "JSCP"}:
+            rate = 0.175 if str(payment_date) >= "2026-01-01" else 0.15
+            net = gross * (1.0 - rate)
+        else:
+            key = (payment_month, payer)
+            previous = self._pending_dividend_gross[key]
+            updated = previous + gross
+            # For 2026+, dividends above R$50k/month from the same payer can require
+            # source withholding subject to transitional exceptions. The isolated B3
+            # event ledger cannot prove those exceptions, so fail before overstating
+            # the receivable as gross when its net amount is uncertain.
+            if int(payment_month[:4]) >= 2026 and updated > 50_000.0 + 1e-9:
+                raise ValueError(
+                    f"{payment_month}/{payer}: pending dividends exceed R$50,000 but "
+                    "the event ledger does not certify the Lei 15.270/2025 transitional "
+                    "withholding treatment."
+                )
+            self._pending_dividend_gross[key] = updated
+            net = gross
+
+        self._distribution_receivables[event_key] = (
+            net,
+            gross,
+            payment_month,
+            payer,
+            normalized_label,
+        )
+        return net
+
+    def settle_distribution_receivable(self, event_key: object) -> float:
+        """Remove the economic receivable immediately before the cash credit."""
+
+        item = self._distribution_receivables.pop(event_key, None)
+        if item is None:
+            return 0.0
+        net, gross, payment_month, payer, label = item
+        if label not in {"JCP", "JSCP"}:
+            key = (payment_month, payer)
+            self._pending_dividend_gross[key] = max(
+                0.0, self._pending_dividend_gross[key] - gross
+            )
+        return net
+
+    def distribution_receivable_value(self) -> float:
+        return float(sum(item[0] for item in self._distribution_receivables.values()))
 
     def finalize_month(self, month: str):
         tax = self.tax.finalize(month)
@@ -174,8 +241,6 @@ class RealCashAccount(_core.RealCashAccount):
                     f"Accrued ordinary tax for {month} exceeds investable brokerage cash: "
                     f"{accrued:.2f} > {self.cash:.2f}."
                 )
-            # Economic recognition: remove the known liability from investable cash
-            # immediately, but do not call it paid until the legal payment event.
             self.cash -= accrued
             self.tax_escrow += accrued
             self._darf_carry += accrued
@@ -185,8 +250,6 @@ class RealCashAccount(_core.RealCashAccount):
         return tax, dividend_tax
 
     def known_darf_reserve(self) -> float:
-        """Economic tax liability already removed from investable cash."""
-
         return float(self.tax_escrow)
 
     def outstanding_tax_liability(self) -> float:
