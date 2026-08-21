@@ -36,7 +36,14 @@ def main(argv: list[str] | None = None) -> int:
             "company-equity market using only information available by each decision date."
         )
     )
-    parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
+    parser.add_argument(
+        "--years",
+        nargs="+",
+        help=(
+            "Explicit COTAHIST years/ranges. When omitted, infer one warm-up year before "
+            "--start through the year of --end (or the current year)."
+        ),
+    )
     parser.add_argument("--archives-dir", type=Path, default=Path(".cache/cotahist"))
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--start", default="2018-01-02")
@@ -54,9 +61,16 @@ def main(argv: list[str] | None = None) -> int:
     if not 0 < args.minimum_presence <= 1:
         parser.error("minimum-presence must be in (0, 1].")
 
-    years = parse_years(args.years)
-    if min(years) >= int(args.start[:4]):
+    start_year = int(args.start[:4])
+    end_year = int(args.end[:4]) if args.end else date.today().year
+    if end_year < start_year:
+        parser.error("--end cannot precede --start")
+    requested_years = args.years or [f"{start_year - 1}:{end_year}"]
+    years = parse_years(requested_years)
+    if min(years) >= start_year:
         parser.error("At least one pre-start year is required for causal warm-up.")
+    if max(years) < end_year:
+        parser.error("COTAHIST years do not cover the requested --end year.")
 
     archives: list[Path] = []
     for year in years:
@@ -148,11 +162,12 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Survivorship-safe universe unexpectedly contains incomplete snapshots.")
 
     manifest = {
-        "schema_version": 5,
+        "schema_version": 6,
         "id": "full_b3_survivorship_safe_weekly_top_liquidity",
         "selection_mode": "full_b3_trailing_liquidity_point_in_time",
         "selected_as_of": args.start,
         "warmup_start": f"{min(years):04d}-01-01",
+        "source_years": years,
         "survivorship_safe": True,
         "point_in_time": True,
         "snapshot_file": str(args.snapshots_output),
@@ -199,9 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     standard_filtered = [
-        quote
-        for quote in standard_quotes
-        if quote.ticker.upper() in market_data_set
+        quote for quote in standard_quotes if quote.ticker.upper() in market_data_set
     ]
     fractional_filtered = [
         quote
@@ -226,6 +239,7 @@ def main(argv: list[str] | None = None) -> int:
     if standard_count == 0 or fractional_count == 0:
         raise ValueError("Both standard and fractional execution books are required.")
 
+    print(f"COTAHIST years: {years[0]}..{years[-1]}")
     print(f"Survivorship-safe weekly snapshots: {len(snapshot_sizes)}")
     print(f"Selectable historical union: {len(selected_union)} tickers")
     print(f"Continuity-only symbols: {len(market_data_set - selected_set)}")
