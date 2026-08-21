@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -27,6 +28,14 @@ def _account_classification(audit: dict[str, object]) -> str:
         if audit.get("ready_for_certified_market_inputs")
         else "REALISTIC_ACCOUNT_ESTIMATE_WITH_UNCERTIFIED_INPUTS"
     )
+
+
+def _source_year_range(start: str, end: str | None) -> str:
+    start_year = int(start[:4])
+    end_year = int(end[:4]) if end else date.today().year
+    if end_year < start_year:
+        raise ValueError("--end cannot precede --start")
+    return f"{start_year - 1}:{end_year}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -63,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
 
     python = sys.executable
     common_end = ["--end", args.end] if args.end else []
+    source_years = _source_year_range(args.start, args.end)
 
     if not args.skip_data_build:
         build = [
@@ -70,18 +80,30 @@ def main(argv: list[str] | None = None) -> int:
             "scripts/build_survivorship_safe_realistic_universe.py",
             "--start",
             args.start,
+            "--years",
+            source_years,
             *common_end,
         ]
         if args.download:
             build.append("--download")
         _run(build)
 
-        transitions = [python, "scripts/build_ticker_transitions.py"]
+        transitions = [
+            python,
+            "scripts/build_ticker_transitions.py",
+            "--years",
+            source_years,
+        ]
         if args.download:
             transitions.append("--download")
         _run(transitions)
 
-        sync = [python, "scripts/sync_point_in_time_universe_realistic.py"]
+        sync = [
+            python,
+            "scripts/sync_point_in_time_universe_realistic.py",
+            "--years",
+            source_years,
+        ]
         if args.download:
             sync.append("--download")
         if args.refresh_actions:
@@ -185,10 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         else "frozen_gap_momentum_managements_only"
     )
     status = {
-        "schema_version": 4,
+        "schema_version": 5,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
+        "source_years": source_years,
         "methodology_frozen_at": FREEZE_DATE,
         "input_audit": audit,
         "continuous_replay": {
@@ -213,8 +236,6 @@ def main(argv: list[str] | None = None) -> int:
             "total_return_difference": float(raw["total_return"]) - float(economic["total_return"]),
         },
         "certified_market_inputs_ready": certified_market_inputs,
-        # Deprecated compatibility field. Counterfactual public-data execution is
-        # never exact even when every available market input is certified.
         "conditional_account_reconstruction_exact": False,
         "actual_personal_account_reconstruction_exact": False,
         "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
