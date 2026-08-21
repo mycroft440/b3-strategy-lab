@@ -9,6 +9,7 @@ from b3_strategy_lab.realistic import (
     RealCashAccount,
     SlippageModel,
 )
+from b3_strategy_lab.realistic_portfolio import _provisional_tax_reserve
 
 
 class OrdinaryIrrfCashTimingTests(unittest.TestCase):
@@ -64,6 +65,19 @@ class OrdinaryIrrfCashTimingTests(unittest.TestCase):
         # IRRF + DARF equals the gross monthly tax, without double charging.
         self.assertAlmostEqual(account.tax_paid, gross_tax, places=8)
         self.assertAlmostEqual(account.outstanding_tax_liability(), 0.0)
+
+    def test_accrued_tax_escrow_is_not_reserved_twice_from_next_month_cash(self) -> None:
+        account = self._account(50_000.0)
+        self._seed(account, 2500, 5.0)
+        account.sell_leg("2026-01-05", "AAA3", 2500, self._quote("2026-01-05", 10.0))
+        tax, _ = account.finalize_month("2026-01")
+
+        self.assertGreater(tax.tax_due, 0.0)
+        self.assertAlmostEqual(account.tax_escrow, tax.tax_due, places=8)
+        # January's known liability has already been removed from account.cash into
+        # tax_escrow. February must reserve only any new provisional February tax;
+        # subtracting tax_escrow here again would reduce purchasing power twice.
+        self.assertAlmostEqual(_provisional_tax_reserve(account, "2026-02-02"), 0.0)
 
     def test_unused_irrf_credit_carries_into_later_taxable_month(self) -> None:
         account = self._account(50_000.0)
