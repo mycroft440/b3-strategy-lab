@@ -7,7 +7,11 @@ from pathlib import Path
 
 
 CERTIFIED_BROKER_QUALITIES = {"broker_statement", "broker_certified"}
-EXACT_EXECUTION_POLICY = "official_open_market_order"
+CERTIFIED_EXECUTION_POLICY = "official_open_market_order"
+# Backward-compatible alias. Public COTAHIST data can support a deterministic,
+# certified counterfactual replay but cannot prove the exact fill of a hypothetical
+# order. Exact personal-account labels are reserved for broker-source fills.
+EXACT_EXECUTION_POLICY = CERTIFIED_EXECUTION_POLICY
 
 
 @dataclass(frozen=True)
@@ -110,7 +114,7 @@ def broker_profile_issues(profile: BrokerProfile, *, start: str, end: str) -> li
     if profile.other_equity_trades:
         issues.append("other_equity_trades_make_tax_reconstruction_non_isolated")
     if profile.initial_loss_carry != 0.0:
-        issues.append("nonzero_initial_loss_carry_is_not_supported_by_exact_runner")
+        issues.append("nonzero_initial_loss_carry_is_not_supported_by_certified_replay")
     if profile.monthly_custody_fee != 0.0 or profile.other_recurring_monthly_fee != 0.0:
         issues.append("recurring_broker_fees_are_not_yet_debited_by_account_engine")
     if not profile.recurring_fee_evidence:
@@ -135,6 +139,37 @@ def broker_profile_issues(profile: BrokerProfile, *, start: str, end: str) -> li
     return sorted(set(issues))
 
 
+def certified_replay_blockers(
+    audit: dict[str, object],
+    profile: BrokerProfile,
+    *,
+    start: str,
+    end: str,
+    execution_policy: str,
+    base_slippage_bps: float,
+    participation_bps_at_1pct: float,
+    max_slippage_bps: float,
+) -> list[str]:
+    """Gate a deterministic official-open counterfactual replay.
+
+    Passing this gate certifies input provenance and declared assumptions. It does
+    not prove that a hypothetical order would have received the public daily open;
+    exact execution requires actual broker fills and is handled separately.
+    """
+
+    blockers: list[str] = []
+    if audit.get("ready_for_certified_market_inputs") is not True:
+        blockers.extend(str(item) for item in audit.get("certified_market_input_blockers", []))
+    if audit.get("ex_ante_selection_claim_allowed") is not True:
+        blockers.append("survivorship_safe_point_in_time_universe_required")
+    if execution_policy != CERTIFIED_EXECUTION_POLICY:
+        blockers.append("execution_policy_must_use_official_open_market_order")
+    if any(value != 0.0 for value in (base_slippage_bps, participation_bps_at_1pct, max_slippage_bps)):
+        blockers.append("modeled_slippage_must_be_disabled_for_certified_official_open_replay")
+    blockers.extend(broker_profile_issues(profile, start=start, end=end))
+    return sorted(set(blockers))
+
+
 def strict_exact_blockers(
     audit: dict[str, object],
     profile: BrokerProfile,
@@ -146,17 +181,18 @@ def strict_exact_blockers(
     participation_bps_at_1pct: float,
     max_slippage_bps: float,
 ) -> list[str]:
-    blockers: list[str] = []
-    if audit.get("ready_for_certified_market_inputs") is not True:
-        blockers.extend(str(item) for item in audit.get("certified_market_input_blockers", []))
-    if audit.get("ex_ante_selection_claim_allowed") is not True:
-        blockers.append("survivorship_safe_point_in_time_universe_required")
-    if execution_policy != EXACT_EXECUTION_POLICY:
-        blockers.append("execution_policy_must_use_official_open_market_order")
-    if any(value != 0.0 for value in (base_slippage_bps, participation_bps_at_1pct, max_slippage_bps)):
-        blockers.append("modeled_slippage_must_be_disabled_for_exact_conditional_replay")
-    blockers.extend(broker_profile_issues(profile, start=start, end=end))
-    return sorted(set(blockers))
+    """Deprecated compatibility wrapper for certified_replay_blockers."""
+
+    return certified_replay_blockers(
+        audit,
+        profile,
+        start=start,
+        end=end,
+        execution_policy=execution_policy,
+        base_slippage_bps=base_slippage_bps,
+        participation_bps_at_1pct=participation_bps_at_1pct,
+        max_slippage_bps=max_slippage_bps,
+    )
 
 
 def _load_b3_rules(path: Path | str) -> list[dict[str, object]]:
@@ -175,12 +211,7 @@ def write_composite_fee_schedule(
     end: str,
     output: Path | str,
 ) -> Path:
-    """Combine official B3 percentage fees with certified broker order fees.
-
-    The existing account engine charges one fixed fee per execution leg. Standard
-    and fractional quantities are separate B3 orders, so a fixed per-order broker
-    charge is correctly applied to each leg.
-    """
+    """Combine official B3 percentage fees with certified broker order fees."""
 
     b3_rules = _load_b3_rules(b3_fee_schedule)
     combined: list[dict[str, object]] = []
@@ -237,7 +268,7 @@ def write_composite_fee_schedule(
         json.dumps(
             {
                 "schema_version": 2,
-                "purpose": "Certified B3 plus broker fee schedule for strict conditional replay.",
+                "purpose": "Certified B3 plus broker fee schedule for deterministic official-open replay.",
                 "broker_name": broker_profile.broker_name,
                 "rules": combined,
             },
