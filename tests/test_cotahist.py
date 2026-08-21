@@ -20,6 +20,7 @@ from b3_strategy_lab.cotahist import (
     verify_dataset,
     write_manifest,
 )
+from scripts.sync_official_universe import _with_fractional_volume
 
 
 def cotahist_line(
@@ -149,6 +150,45 @@ class CotahistParsingTests(unittest.TestCase):
 
 
 class VerifiedCandleTests(unittest.TestCase):
+    def test_consolidates_fractional_activity_without_mixing_ohlc(self) -> None:
+        standard = quote(
+            "2024-01-02",
+            open_=10.0,
+            high=11.0,
+            low=9.0,
+            close=10.5,
+            volume=1_000,
+        )
+        fractional = OfficialQuote(
+            date="2024-01-02",
+            ticker="TEST3F",
+            open=10.1,
+            high=10.8,
+            low=9.2,
+            close=10.4,
+            volume=37,
+            trades=12,
+            financial_volume=380.0,
+            quotation_factor=1,
+            bdi_code="96",
+            market_type="020",
+        )
+
+        consolidated = _with_fractional_volume(standard, fractional)
+        candles, _warnings = build_verified_daily_candles(
+            "TEST3",
+            [consolidated],
+            [],
+        )
+
+        self.assertEqual(consolidated.open, standard.open)
+        self.assertEqual(consolidated.volume, 1_037)
+        self.assertEqual(candles[0].raw_volume, 1_037)
+        self.assertEqual(candles[0].fractional_raw_volume, 37)
+        self.assertEqual(candles[0].fractional_trades, 12)
+        self.assertEqual(candles[0].volume_scope, "consolidated_010_020")
+        self.assertEqual(validate_candles(candles), [])
+
     def test_normalizes_prices_and_volume_but_ignores_cash_distributions(self) -> None:
         quotes = [
             quote("2024-01-01", open_=0.100, high=0.102, low=0.099, close=0.100, volume=1_000_000),
@@ -338,6 +378,34 @@ class DatasetManifestTests(unittest.TestCase):
             with self.assertRaises(DataVerificationError):
                 verify_split_evidence("TEST3", action_file, evidence_file)
 
+    def test_point_in_time_split_evidence_schema_is_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            action_file = save_actions([], root / "test3_actions.csv")
+            evidence_file = root / "point_in_time_splits.json"
+            evidence_file.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 3,
+                        "coverage_start": "2024-01-01",
+                        "ticker_reviews": [
+                            {
+                                "ticker": "TEST3",
+                                "source_authority": "B3",
+                                "source_url": "https://example.test/b3-official",
+                            }
+                        ],
+                        "events": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                verify_split_evidence("TEST3", action_file, evidence_file),
+                "2024-01-01",
+            )
+
     def test_manifest_ignores_cash_changes_but_rejects_split_changes(self) -> None:
         quotes = [
             quote("2024-01-01", open_=10.0, high=10.0, low=10.0, close=10.0, volume=100),
@@ -440,6 +508,43 @@ class DatasetManifestTests(unittest.TestCase):
                     manifest_file,
                     require_verified_actions=True,
                 )
+
+    def test_manifest_schema_five_remains_compatible(self) -> None:
+        quotes = [
+            quote("2024-01-01", open_=10.0, high=10.0, low=10.0, close=10.0, volume=100),
+            quote("2024-01-02", open_=11.0, high=11.0, low=11.0, close=11.0, volume=100),
+        ]
+        candles, _warnings = build_verified_daily_candles("TEST3", quotes, [])
+
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            candle_file = save_verified_candles(candles, root / "test3_1d.csv")
+            action_file = save_actions([], root / "test3_actions.csv")
+            archive_file = root / "COTAHIST_A2024.ZIP"
+            archive_file.write_bytes(b"official archive fixture")
+            manifest_file = root / "test3_1d.json"
+            write_manifest(
+                create_manifest(
+                    ticker="TEST3",
+                    interval="1d",
+                    candles_path=candle_file,
+                    actions_path=action_file,
+                    source_archives=[source_archive(archive_file, 2024)],
+                ),
+                manifest_file,
+            )
+            payload = json.loads(manifest_file.read_text(encoding="utf-8"))
+            self.assertIn("standard market 010", payload["volume_source"])
+            self.assertIn("standard market 010 only", payload["volume_basis"])
+            payload["schema_version"] = 5
+            payload.pop("volume_source")
+            payload.pop("volume_basis")
+            manifest_file.write_text(json.dumps(payload), encoding="utf-8")
+
+            verified = verify_dataset(candle_file, action_file, manifest_file)
+
+            self.assertEqual(verified.schema_version, 5)
+            self.assertEqual(verified.volume_basis, "legacy standard_010")
 
     def test_manifest_rejects_tampered_candles(self) -> None:
         quotes = [

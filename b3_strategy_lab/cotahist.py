@@ -28,7 +28,8 @@ from .candles import (
 
 COTAHIST_URL = "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A{year}.ZIP"
 VERIFIED_SOURCE = "B3_COTAHIST"
-MANIFEST_SCHEMA_VERSION = 5
+MANIFEST_SCHEMA_VERSION = 6
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = frozenset({5, MANIFEST_SCHEMA_VERSION})
 DEFAULT_MANIFESTS_DIR = Path("data/manifests")
 DEFAULT_SPLIT_EVIDENCE_PATH = Path("data/corporate_actions/split_evidence.json")
 USER_AGENT = "Mozilla/5.0 (compatible; b3-strategy-lab/0.2)"
@@ -63,6 +64,10 @@ class OfficialQuote:
     distribution_number: int = 0
     specification: str = ""
     issuer_name: str = ""
+    fractional_volume: int = 0
+    fractional_trades: int = 0
+    fractional_financial_volume: float = 0.0
+    volume_scope: str = "standard_010"
 
 
 @dataclass(frozen=True)
@@ -91,6 +96,8 @@ class DataManifest:
     end: str
     price_source: str
     price_basis: str
+    volume_source: str
+    volume_basis: str
     adjustment_method: str
     corporate_action_source: str
     corporate_action_status: str
@@ -336,6 +343,10 @@ def build_verified_daily_candles(
                 distribution_number=quote.distribution_number,
                 specification=quote.specification,
                 issuer_name=quote.issuer_name,
+                fractional_raw_volume=quote.fractional_volume,
+                fractional_trades=quote.fractional_trades,
+                fractional_financial_volume=quote.fractional_financial_volume,
+                volume_scope=quote.volume_scope,
             )
         )
 
@@ -393,6 +404,21 @@ def resample_daily_to_weekly(candles: list[Candle]) -> list[Candle]:
                 distribution_number=last.distribution_number,
                 specification=last.specification,
                 issuer_name=last.issuer_name,
+                fractional_raw_volume=sum(
+                    candle.fractional_raw_volume for candle in bucket
+                ),
+                fractional_trades=sum(candle.fractional_trades for candle in bucket),
+                fractional_financial_volume=sum(
+                    candle.fractional_financial_volume for candle in bucket
+                ),
+                volume_scope=(
+                    "consolidated_010_020"
+                    if any(
+                        candle.volume_scope == "consolidated_010_020"
+                        for candle in bucket
+                    )
+                    else "standard_010"
+                ),
             )
         )
     issues = validate_candles(result)
@@ -425,6 +451,9 @@ def create_manifest(
 ) -> DataManifest:
     candles = load_candles(candles_path)
     issues = tuple(validation_issues) or tuple(validate_candles(candles))
+    has_fractional_activity = any(
+        candle.volume_scope == "consolidated_010_020" for candle in candles
+    )
     warning_values = tuple(warnings)
     review_values = warning_reviews or {}
     split_action_source = "legacy action CSV without official evidence"
@@ -452,6 +481,20 @@ def create_manifest(
         price_basis=(
             "B3 official raw per-share OHLC retained in raw_*; open/high/low/close "
             "normalized for splits; cash distributions excluded"
+        ),
+        volume_source=(
+            "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; market 010 BDI 02 plus market "
+            "020 BDI 96 when fractional records are available"
+            if has_fractional_activity
+            else "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; standard market 010 BDI 02 only"
+        ),
+        volume_basis=(
+            "raw_volume/trades/financial_volume consolidate standard and fractional "
+            "markets; fractional_* preserves the market-020 contribution; volume is "
+            "split-normalized from consolidated raw_volume"
+            if has_fractional_activity
+            else "raw_volume/trades/financial_volume use standard market 010 only; "
+            "volume is split-normalized from standard-market raw_volume"
         ),
         adjustment_method=(
             "split normalization only; dividends and JCP ignored; no tax; no fees"
@@ -496,6 +539,8 @@ def load_manifest(path: Path | str) -> DataManifest:
     payload.setdefault("split_action_status", UNVERIFIED_ACTION_STATUS)
     payload.setdefault("split_verified_from", "")
     payload.setdefault("split_evidence_sha256", "")
+    payload.setdefault("volume_source", "legacy standard-market volume")
+    payload.setdefault("volume_basis", "legacy standard_010")
     payload["source_archives"] = tuple(SourceArchive(**item) for item in payload.get("source_archives", []))
     payload["validation_issues"] = tuple(payload.get("validation_issues", []))
     payload["warnings"] = tuple(payload.get("warnings", []))
@@ -527,9 +572,11 @@ def verify_dataset(
         )
     manifest = load_manifest(manifest_path_value)
     expected_ticker = ticker.strip().upper() if ticker else None
-    if manifest.schema_version != MANIFEST_SCHEMA_VERSION:
+    if manifest.schema_version not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        supported = ", ".join(str(value) for value in sorted(SUPPORTED_MANIFEST_SCHEMA_VERSIONS))
         raise DataVerificationError(
-            f"Schema de manifesto nao suportado: {manifest.schema_version}; esperado {MANIFEST_SCHEMA_VERSION}."
+            f"Schema de manifesto nao suportado: {manifest.schema_version}; "
+            f"suportados: {supported}."
         )
     if manifest.status != PRICE_VERIFIED_STATUS or manifest.validation_issues:
         raise DataVerificationError(f"Dataset rejeitado no manifesto: {manifest.validation_issues}.")
@@ -679,7 +726,7 @@ def verify_split_evidence(
     """
     normalized_ticker = ticker.strip().upper()
     payload = json.loads(Path(evidence_file).read_text(encoding="utf-8"))
-    if payload.get("schema_version") != 1:
+    if payload.get("schema_version") not in {1, 3}:
         raise DataVerificationError(
             f"Schema de evidencia de splits invalido em {evidence_file}."
         )

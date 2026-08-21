@@ -4,12 +4,12 @@
   "corporate_action_source": "Yahoo Chart cash events (legacy, not certified)",
   "corporate_action_status": "unverified",
   "end": "2026-07-31",
-  "generated_at_utc": "2026-08-03T03:04:21+00:00",
+  "generated_at_utc": "2026-08-21T00:48:50+00:00",
   "interval": "1d",
   "price_basis": "B3 official raw per-share OHLC retained in raw_*; open/high/low/close normalized for splits; cash distributions excluded",
   "price_source": "B3_COTAHIST",
   "rows": 1892,
-  "schema_version": 5,
+  "schema_version": 6,
   "source_archives": [
     {
       "filename": "COTAHIST_A2000.ZIP",
@@ -201,15 +201,17 @@
       "year": 2026
     }
   ],
-  "split_action_source": "B3 official records and issuer investor-relations evidence",
-  "split_action_status": "verified",
+  "split_action_source": "legacy action CSV without official evidence",
+  "split_action_status": "unverified",
   "split_actions_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-  "split_evidence_sha256": "b9cea32f4c2ac5bda0f3b1f3bb79ffc1e85750f9194ed1797070675a590fac29",
-  "split_verified_from": "2017-01-01",
+  "split_evidence_sha256": "",
+  "split_verified_from": "",
   "start": "2018-12-21",
   "status": "price_verified",
   "ticker": "LOGG3",
   "validation_issues": [],
+  "volume_basis": "raw_volume/trades/financial_volume use standard market 010 only; volume is split-normalized from standard-market raw_volume",
+  "volume_source": "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; standard market 010 BDI 02 only",
   "warning_reviews": [],
   "warnings": []
 }

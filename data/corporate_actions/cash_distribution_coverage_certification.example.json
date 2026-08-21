@@ -2,9 +2,12 @@
   "schema_version": 1,
   "coverage_certified": false,
   "start": "2018-01-02",
-  "end": "2026-08-10",
+  "end": "2026-08-19",
   "source_authority": "B3",
   "method": "Replace this example only after an independent primary-source coverage audit confirms that the cash-distribution ledger is historically complete for every symbol used by the point-in-time universe.",
+  "tickers": [],
+  "cash_events_sha256": "",
+  "cash_manifest_sha256": "",
   "reviewed_by": "",
   "reviewed_at_utc": "",
   "evidence": []

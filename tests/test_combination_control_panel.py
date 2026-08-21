@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import gzip
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,12 +11,14 @@ from pathlib import Path
 from scripts.realistic_combination_backtest_control_panel import (
     EXCLUDED_TICKERS,
     MIN_START,
+    RECOMMENDED_WORKERS,
     _load_available_tickers,
     _parse_combination_progress,
     _parse_run_request,
     _read_winner,
     _selected_payload,
 )
+from scripts.backtest_strategy_management_combinations import _load_universe
 
 
 class CombinationControlPanelTests(unittest.TestCase):
@@ -40,7 +43,28 @@ class CombinationControlPanelTests(unittest.TestCase):
         )
         self.assertEqual(parsed["tickers"], ["PETR4", "VALE3"])
         self.assertEqual(parsed["initial_cash"], 1000.0)
+        self.assertEqual(parsed["cost_bps"], 3.2)
+        self.assertEqual(parsed["slippage_bps"], 10.0)
+        self.assertEqual(parsed["workers"], RECOMMENDED_WORKERS)
+        self.assertTrue(parsed["refresh_data"])
         self.assertEqual(MIN_START.isoformat(), "2018-01-02")
+
+    def test_request_rejects_more_workers_than_available_cpus(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Processos"):
+            _parse_run_request(
+                {
+                    "tickers": ["PETR4"],
+                    "workers": max(1, os.cpu_count() or 1) + 1,
+                }
+            )
+
+    def test_user_subset_is_a_valid_universe_manifest(self) -> None:
+        payload = _selected_payload(["PETR4", "VALE3"])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "subset.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            loaded = _load_universe(path)
+        self.assertEqual(loaded["tickers"], ["PETR4", "VALE3"])
 
     def test_progress_parser_reports_combinations(self) -> None:
         progress = _parse_combination_progress(
@@ -86,11 +110,24 @@ class CombinationControlPanelTests(unittest.TestCase):
                 writer = csv.DictWriter(file, fieldnames=fields)
                 writer.writeheader()
                 writer.writerows(rows)
+            path.with_name("matrix.manifest.json").write_text(
+                json.dumps(
+                    {
+                        "start": "2018-01-02",
+                        "end": "2026-08-19",
+                        "cost_bps": 3.2,
+                        "slippage_bps": 10.0,
+                    }
+                ),
+                encoding="utf-8",
+            )
             winner = _read_winner(path)
         assert winner is not None
         self.assertEqual(winner["strategy"], "gap_momentum")
         self.assertEqual(winner["management"], "top1_test")
         self.assertAlmostEqual(winner["total_return"], 31.1689)
+        self.assertEqual(winner["end"], "2026-08-19")
+        self.assertEqual(winner["cost_bps"], 3.2)
 
     def test_selected_payload_is_serializable(self) -> None:
         payload = _selected_payload(["ABEV3", "PETR4"])

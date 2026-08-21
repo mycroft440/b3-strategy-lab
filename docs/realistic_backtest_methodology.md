@@ -87,7 +87,12 @@ certificação de cobertura independente em:
 `data/corporate_actions/cash_distribution_coverage_certification.json`.
 
 Sem essa certificação, os números podem ser usados como estimativa, mas nunca
-rotulados como reconstrução exata da conta.
+rotulados como reconstrução exata da conta. O resumo propaga essa condição no
+campo `cash_events_complete`; ele só pode ser `true` quando a certificação cobre
+toda a janela efetivamente simulada e declara uma autoridade aceita. A
+certificação também precisa identificar o revisor, listar evidências primárias,
+cobrir exatamente os ativos usados e corresponder aos hashes do CSV de eventos e
+de seu manifesto.
 
 ## Mercado fracionário
 
@@ -185,6 +190,9 @@ O pipeline completo roda duas variantes:
 ```powershell
 python scripts\run_realistic_pipeline.py --download --refresh-actions --initial-cash 1000
 ```
+
+Para iniciar por interface, dê dois cliques em `abrir_painel_realista.bat` no
+Windows ou execute `./abrir_painel_realista.sh` no Linux/macOS.
 
 Ele produz Gap Momentum com o gap bruto e com o componente conhecido de provento
 removido do gap de sinal. Como os candles do sinal são normalizados por splits, o

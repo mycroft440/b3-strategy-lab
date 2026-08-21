@@ -395,6 +395,7 @@ def run_realistic(
     economic_gap_adjustment: bool,
     selection_status: str = "retrospective_hypothesis_replay",
     survivorship_safe: bool = False,
+    cash_events_complete: bool = False,
     progress_callback=None,
 ) -> tuple[RealisticSummary, list[CurveRow], RealCashAccount]:
     from scripts.backtest_strategy_management_combinations import _build_eligibility
@@ -546,6 +547,8 @@ def run_realistic(
         validity += "__RETROSPECTIVE_UNIVERSE"
     if selection_status == "retrospective_hypothesis_replay":
         validity += "__RETROSPECTIVE_SELECTION"
+    if not cash_events_complete:
+        validity += "__UNCERTIFIED_CASH_EVENTS"
 
     summary = RealisticSummary(
         strategy=strategy,
@@ -569,7 +572,7 @@ def run_realistic(
         point_in_time_universe=True,
         survivorship_safe=survivorship_safe,
         fractional_execution=True,
-        cash_events_complete=True,
+        cash_events_complete=cash_events_complete,
         fee_quality=fee_quality,
         economic_gap_adjustment=economic_gap_adjustment,
         selection_status=selection_status,

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -13,6 +14,87 @@ from typing import Iterable, Sequence
 STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
 STANDARD_LOT = 100
+
+
+def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path: Path | str,
+    cash_manifest_path: Path | str,
+    tickers: Iterable[str],
+    start: str,
+    end: str,
+) -> list[str]:
+    """Validate and bind an independent cash-event coverage certificate."""
+
+    issues: list[str] = []
+    try:
+        required_start = date.fromisoformat(start).isoformat()
+        required_end = date.fromisoformat(end).isoformat()
+        certified_start = date.fromisoformat(
+            str(certification.get("start", ""))
+        ).isoformat()
+        certified_end = date.fromisoformat(
+            str(certification.get("end", ""))
+        ).isoformat()
+    except ValueError:
+        issues.append("certification dates must be valid ISO dates")
+        required_start = required_end = certified_start = certified_end = ""
+
+    if certification.get("schema_version") != 1:
+        issues.append("unsupported certification schema")
+    if certification.get("coverage_certified") is not True:
+        issues.append("coverage is not certified")
+    if required_start and (
+        certified_start > required_start or certified_end < required_end
+    ):
+        issues.append("certified period does not cover the backtest")
+    if certification.get("source_authority") not in {
+        "B3",
+        "CVM",
+        "B3+CVM+issuer",
+    }:
+        issues.append("source authority is not accepted")
+    if not str(certification.get("reviewed_by", "")).strip():
+        issues.append("independent reviewer is missing")
+    try:
+        reviewed_at = datetime.fromisoformat(
+            str(certification.get("reviewed_at_utc", "")).replace("Z", "+00:00")
+        )
+        if reviewed_at.tzinfo is None:
+            raise ValueError
+    except ValueError:
+        issues.append("review timestamp must be timezone-aware ISO datetime")
+    evidence = certification.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        issues.append("primary-source evidence is missing")
+
+    expected_tickers = sorted({str(ticker).strip().upper() for ticker in tickers})
+    certified_tickers = (
+        sorted(
+            {
+                str(ticker).strip().upper()
+                for ticker in certification.get("tickers", [])
+                if str(ticker).strip()
+            }
+        )
+        if isinstance(certification.get("tickers"), list)
+        else []
+    )
+    if certified_tickers != expected_tickers:
+        issues.append("certified ticker set does not match the backtest")
+
+    for field, path in (
+        ("cash_events_sha256", Path(cash_events_path)),
+        ("cash_manifest_sha256", Path(cash_manifest_path)),
+    ):
+        if not path.exists():
+            issues.append(f"certified input is missing: {path}")
+            continue
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if certification.get(field) != actual:
+            issues.append(f"{field} does not match the certified input")
+    return issues
 
 
 def _month(value: str) -> str:

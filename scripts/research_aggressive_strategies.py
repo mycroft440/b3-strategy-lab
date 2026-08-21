@@ -25,9 +25,9 @@ from b3_strategy_lab.strategies import build_signals
 
 TICKERS = list(DEFAULT_TICKERS)
 INTERVAL = "1d"
-INITIAL_CASH = 10_000.0
-COST_BPS = 0.0
-SLIPPAGE_BPS = 0.0
+INITIAL_CASH = 1_000.0
+COST_BPS = 3.2
+SLIPPAGE_BPS = 10.0
 LOT_SIZE = 1
 TRAIN_RATIO = 0.7
 REPORTS_DIR = Path("reports")

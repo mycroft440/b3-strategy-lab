@@ -27,7 +27,7 @@ Por padrao:
 
 - pesquisa/treino: `2018-01-02` ate `2022-12-29`;
 - holdout: `2023-01-02` ate o ultimo pregao comum disponivel;
-- custos: 3 bps por lado;
+- custos: 3,2 bps por lado;
 - slippage: 10 bps por lado;
 - lote: 1 acao.
 

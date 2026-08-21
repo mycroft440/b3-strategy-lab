@@ -997,6 +997,21 @@ for _extended in EXTENDED_STRATEGIES:
     )
 
 
+# Importar o módulo do usuário executa apenas os decorators declarados nele.
+from . import user_extensions as _user_extensions  # noqa: E402,F401
+from .extensions import registered_strategies  # noqa: E402
+
+for _extension in registered_strategies():
+    if _extension.name in STRATEGIES or _extension.name in STRATEGY_INFO:
+        raise RuntimeError(f"Estratégia de extensão duplicada: {_extension.name}")
+    STRATEGIES[_extension.name] = _extension.function
+    STRATEGY_INFO[_extension.name] = StrategyInfo(
+        _extension.name,
+        _extension.family,
+        _extension.description,
+    )
+
+
 def available_strategies() -> list[str]:
     return sorted(name for name in STRATEGIES if name != "sma")
 

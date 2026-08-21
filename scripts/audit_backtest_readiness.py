@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--universe", type=Path, default=Path("data/universes/fixed_40_2018.json"))
     parser.add_argument("--output", type=Path, default=Path("reports/backtest_data_audit_40.json"))
+    parser.add_argument(
+        "--max-age-calendar-days",
+        type=int,
+        default=4,
+        help="Falha se o último pregão comum estiver mais antigo que este limite.",
+    )
     args = parser.parse_args(argv)
+    if args.max_age_calendar_days < 0:
+        parser.error("--max-age-calendar-days não pode ser negativo.")
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     tickers = [str(ticker).upper() for ticker in universe["tickers"]]
@@ -80,6 +88,9 @@ def main(argv: list[str] | None = None) -> int:
             for row in rows
         ),
         "universe_discloses_survivorship_bias": universe["survivorship_safe"] is False,
+        "data_is_recent": 0
+        <= (date.today() - date.fromisoformat(evaluation_end)).days
+        <= args.max_age_calendar_days,
     }
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -90,6 +101,10 @@ def main(argv: list[str] | None = None) -> int:
         "warmup_start": coverage_start,
         "evaluation_start": evaluation_start,
         "evaluation_end": evaluation_end,
+        "age_calendar_days": (
+            date.today() - date.fromisoformat(evaluation_end)
+        ).days,
+        "maximum_age_calendar_days": args.max_age_calendar_days,
         "common_sessions": len(common_dates),
         "union_sessions": len(union_dates),
         "checks": checks,

@@ -95,6 +95,10 @@ class Candle:
     distribution_number: int = 0
     specification: str = ""
     issuer_name: str = ""
+    fractional_raw_volume: int = 0
+    fractional_trades: int = 0
+    fractional_financial_volume: float = 0.0
+    volume_scope: str = "standard_010"
 
 
 @dataclass(frozen=True)
@@ -351,6 +355,23 @@ def resample_to_4h(candles: list[Candle]) -> list[Candle]:
                     distribution_number=last.distribution_number,
                     specification=last.specification,
                     issuer_name=last.issuer_name,
+                    fractional_raw_volume=sum(
+                        candle.fractional_raw_volume for candle in bucket
+                    ),
+                    fractional_trades=sum(
+                        candle.fractional_trades for candle in bucket
+                    ),
+                    fractional_financial_volume=sum(
+                        candle.fractional_financial_volume for candle in bucket
+                    ),
+                    volume_scope=(
+                        "consolidated_010_020"
+                        if any(
+                            candle.volume_scope == "consolidated_010_020"
+                            for candle in bucket
+                        )
+                        else "standard_010"
+                    ),
                 )
             )
     return result
@@ -510,6 +531,16 @@ def load_candles(path: Path | str, *, start: str | None = None, end: str | None 
                     distribution_number=int(float(row.get("distribution_number") or 0)),
                     specification=row.get("specification") or "",
                     issuer_name=row.get("issuer_name") or "",
+                    fractional_raw_volume=int(
+                        float(row.get("fractional_raw_volume") or 0)
+                    ),
+                    fractional_trades=int(
+                        float(row.get("fractional_trades") or 0)
+                    ),
+                    fractional_financial_volume=float(
+                        row.get("fractional_financial_volume") or 0.0
+                    ),
+                    volume_scope=row.get("volume_scope") or "standard_010",
                 )
             )
     return filter_candles(candles, start=start, end=end)
@@ -581,6 +612,31 @@ def validate_candles(candles: list[Candle]) -> list[str]:
             issues.append(f"{candle.ticker} {candle.date}: volume negativo.")
         if candle.trades < 0 or candle.financial_volume < 0:
             issues.append(f"{candle.ticker} {candle.date}: negocios/volume financeiro negativos.")
+        if (
+            candle.fractional_raw_volume < 0
+            or candle.fractional_trades < 0
+            or candle.fractional_financial_volume < 0
+        ):
+            issues.append(
+                f"{candle.ticker} {candle.date}: contribuicao fracionaria negativa."
+            )
+        if candle.fractional_raw_volume > candle.raw_volume:
+            issues.append(
+                f"{candle.ticker} {candle.date}: volume fracionario excede o consolidado."
+            )
+        if candle.fractional_trades > candle.trades:
+            issues.append(
+                f"{candle.ticker} {candle.date}: negocios fracionarios excedem o total."
+            )
+        if candle.fractional_financial_volume > candle.financial_volume + tolerance:
+            issues.append(
+                f"{candle.ticker} {candle.date}: financeiro fracionario excede o total."
+            )
+        if candle.volume_scope not in {"standard_010", "consolidated_010_020"}:
+            issues.append(
+                f"{candle.ticker} {candle.date}: escopo de volume desconhecido "
+                f"{candle.volume_scope}."
+            )
         if candle.quotation_factor <= 0:
             issues.append(f"{candle.ticker} {candle.date}: fator de cotacao nao positivo.")
         if candle.volume == 0 and (

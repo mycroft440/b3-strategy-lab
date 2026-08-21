@@ -14,14 +14,17 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.b3_official import (  # noqa: E402
     audit_share_count_markers,
+    b3_supplement_url,
     extract_official_split_events,
     merge_official_split_events,
     parse_supplemental_split_events,
+    payload_sha256,
 )
 from b3_strategy_lab.cash_distributions import build_cash_events  # noqa: E402
 from b3_strategy_lab.candles import actions_path, cache_path, load_actions, save_actions  # noqa: E402
 from b3_strategy_lab.cotahist import (  # noqa: E402
     DEFAULT_MANIFESTS_DIR,
+    DEFAULT_SPLIT_EVIDENCE_PATH,
     build_verified_daily_candles,
     create_manifest,
     manifest_path,
@@ -87,6 +90,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--actions-dir", type=Path, default=Path("data/corporate_actions"))
     parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS_DIR)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
+    parser.add_argument(
+        "--dataset-split-evidence",
+        type=Path,
+        default=DEFAULT_SPLIT_EVIDENCE_PATH,
+        help=(
+            "Ledger canônico usado nos manifests compartilhados de candles. O ledger "
+            "point-in-time de --split-evidence permanece como auditoria do universo."
+        ),
+    )
     parser.add_argument("--cash-output", type=Path, default=DEFAULT_CASH)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--missing-splits-report", type=Path, default=DEFAULT_MISSING_SPLITS)
@@ -138,6 +150,9 @@ def main(argv: list[str] | None = None) -> int:
         archives,
         tickers,
         exclude_date=date.today().isoformat(),
+        require_standard_for_fractional_from=str(
+            universe.get("selected_as_of", coverage_start)
+        ),
     )
     payloads = _load_supplements(
         sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),
@@ -170,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     events_by_ticker = {}
     marker_rows: list[dict[str, object]] = []
     missing_markers: list[dict[str, object]] = []
+    evidence_reviews: list[dict[str, object]] = []
     evidence_events: list[dict[str, object]] = []
     for ticker in tickers:
         issuer = issuer_by_ticker[ticker]
@@ -184,6 +200,20 @@ def main(argv: list[str] | None = None) -> int:
         )
         events = merge_official_split_events(current, supplemental_by_ticker[ticker])
         events_by_ticker[ticker] = events
+        evidence_reviews.append(
+            {
+                "ticker": ticker,
+                "issuing_company": issuer,
+                "source_authority": "B3",
+                "source_url": b3_supplement_url(issuer),
+                "source_payload_sha256": payload_sha256(payloads[issuer]),
+                "result": (
+                    f"{len(events)} evento(s) de quantidade desde {coverage_start}; "
+                    f"{len(current)} na consulta B3 corrente e "
+                    f"{len(supplemental_by_ticker[ticker])} em fontes históricas."
+                ),
+            }
+        )
         markers = audit_share_count_markers(
             quotes,
             events,
@@ -234,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         "market_data_ticker_count": len(tickers),
         "marker_count": len(marker_rows),
         "uncovered_count": 0,
+        "ticker_reviews": sorted(evidence_reviews, key=lambda row: row["ticker"]),
         "events": sorted(evidence_events, key=lambda row: (row["ex_date"], row["ticker"])),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -268,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
                     "B3 Listed Companies for share-count events; cash distributions "
                     "stored in a separate official ledger for realistic accounting"
                 ),
-                split_evidence_path=args.split_evidence,
+                split_evidence_path=args.dataset_split_evidence,
                 warnings=warnings,
                 warning_reviews=quality_reviews,
             )
@@ -281,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
                 ticker=ticker,
                 interval=interval,
                 require_verified_splits_from=coverage_start,
-                split_evidence_path=args.split_evidence,
+                split_evidence_path=args.dataset_split_evidence,
             )
         print(f"{ticker}: verified through {daily[-1].date}", flush=True)
 

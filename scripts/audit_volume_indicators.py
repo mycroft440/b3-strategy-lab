@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import inspect
 import json
 import math
 import sys
@@ -18,7 +19,9 @@ from b3_strategy_lab.cotahist import (  # noqa: E402
     DEFAULT_SPLIT_EVIDENCE_PATH,
     load_verified_candles,
 )
+from b3_strategy_lab.extensions import build_indicator, registered_indicators  # noqa: E402
 from b3_strategy_lab.strategies import (  # noqa: E402
+    STRATEGIES,
     build_signals,
     portfolio_strategies,
     strategy_info,
@@ -92,20 +95,28 @@ STRATEGY_SOURCE_FILES = (
     Path("b3_strategy_lab/researched_strategies.py"),
     Path("b3_strategy_lab/extended_strategies.py"),
     Path("b3_strategy_lab/strategies.py"),
+    Path("b3_strategy_lab/user_extensions.py"),
 )
 
 
 def volume_strategy_names() -> list[str]:
-    return sorted(
-        {
+    builtins = {
             strategy
             for group in VOLUME_CONSUMER_GROUPS
             for strategy in group["strategies"]
-        }
-    )
+    }
+    user_strategies = {
+        name
+        for name in portfolio_strategies()
+        if STRATEGIES[name].__module__ == "b3_strategy_lab.user_extensions"
+    }
+    return sorted(builtins | user_strategies)
 
 
-def source_volume_consumers(root: Path = PROJECT_ROOT) -> set[str]:
+def source_attribute_consumers(
+    attributes: set[str],
+    root: Path = PROJECT_ROOT,
+) -> set[str]:
     consumers: set[str] = set()
     for relative_path in STRATEGY_SOURCE_FILES:
         module = ".".join(relative_path.with_suffix("").parts)
@@ -114,11 +125,19 @@ def source_volume_consumers(root: Path = PROJECT_ROOT) -> set[str]:
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             if any(
-                isinstance(child, ast.Attribute) and child.attr == "volume"
+                isinstance(child, ast.Attribute) and child.attr in attributes
                 for child in ast.walk(node)
             ):
                 consumers.add(f"{module}.{node.name}")
     return consumers
+
+
+def source_volume_consumers(root: Path = PROJECT_ROOT) -> set[str]:
+    return source_attribute_consumers({"volume"}, root)
+
+
+def source_raw_volume_consumers(root: Path = PROJECT_ROOT) -> set[str]:
+    return source_attribute_consumers({"raw_volume"}, root)
 
 
 def _relative_outside(value: float, low: float, high: float) -> float:
@@ -185,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     official_vwap_outliers = []
     all_volume_adjustment_errors = []
     all_notional_errors = []
+    all_notional_rounding_excesses = []
     for ticker in tickers:
         window = [
             candle
@@ -193,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
         adjustment_errors = []
         notional_errors = []
+        notional_rounding_excesses = []
         ticker_outliers = []
         for candle in window:
             expected_adjusted_volume = (
@@ -215,10 +236,29 @@ def main(argv: list[str] | None = None) -> int:
             )
             notional_errors.append(notional_error)
             all_notional_errors.append(notional_error)
+            # ``volume`` is an integer after the inverse split adjustment.  A
+            # half-share of rounding is therefore the tight mathematical bound
+            # for the otherwise invariant price x quantity notional.
+            expected_adjusted_volume = candle.raw_volume / candle.adjustment_factor
+            rounding_tolerance = (
+                0.500001 / expected_adjusted_volume
+                if expected_adjusted_volume > 0
+                else math.inf
+            )
+            rounding_excess = max(0.0, notional_error - rounding_tolerance)
+            notional_rounding_excesses.append(rounding_excess)
+            all_notional_rounding_excesses.append(rounding_excess)
 
+            # OHLC belongs to the standard market (010).  Once activity from
+            # the fractional market (020) is consolidated, only the standard
+            # component is comparable with that OHLC interval.
+            standard_volume = candle.raw_volume - candle.fractional_raw_volume
+            standard_financial_volume = (
+                candle.financial_volume - candle.fractional_financial_volume
+            )
             official_vwap = (
-                candle.financial_volume / candle.raw_volume
-                if candle.raw_volume > 0
+                standard_financial_volume / standard_volume
+                if standard_volume > 0
                 else math.inf
             )
             outside = _relative_outside(
@@ -234,9 +274,11 @@ def main(argv: list[str] | None = None) -> int:
                     "official_vwap": official_vwap,
                     "raw_high": candle.raw_high,
                     "outside_range_pct": outside * 100,
-                    "raw_volume": candle.raw_volume,
-                    "trades": candle.trades,
-                    "financial_volume": candle.financial_volume,
+                    "standard_raw_volume": standard_volume,
+                    "standard_financial_volume": standard_financial_volume,
+                    "consolidated_raw_volume": candle.raw_volume,
+                    "consolidated_trades": candle.trades,
+                    "consolidated_financial_volume": candle.financial_volume,
                     "candle_sha256": manifests[ticker].candle_sha256,
                 }
                 ticker_outliers.append(item)
@@ -258,9 +300,26 @@ def main(argv: list[str] | None = None) -> int:
                 "zero_or_negative_financial_volume_rows": sum(
                     candle.financial_volume <= 0 for candle in window
                 ),
+                "non_consolidated_volume_rows": sum(
+                    candle.volume_scope != "consolidated_010_020"
+                    for candle in window
+                ),
+                "fractional_raw_volume": sum(
+                    candle.fractional_raw_volume for candle in window
+                ),
+                "fractional_trades": sum(
+                    candle.fractional_trades for candle in window
+                ),
+                "fractional_financial_volume": sum(
+                    candle.fractional_financial_volume for candle in window
+                ),
                 "max_adjusted_volume_rounding_error": max(adjustment_errors, default=0.0),
                 "max_price_quantity_notional_relative_error": max(
                     notional_errors,
+                    default=0.0,
+                ),
+                "max_notional_error_above_integer_rounding_bound": max(
+                    notional_rounding_excesses,
                     default=0.0,
                 ),
                 "official_vwap_outside_raw_ohlc_rows": len(ticker_outliers),
@@ -287,6 +346,7 @@ def main(argv: list[str] | None = None) -> int:
 
     signal_failures = []
     signal_runs = 0
+    indicator_runs = 0
     for ticker in tickers:
         signal_candles = [
             candle
@@ -315,7 +375,33 @@ def main(argv: list[str] | None = None) -> int:
             except Exception as error:  # pragma: no cover - materializado no relatorio
                 signal_failures.append(f"{ticker}/{strategy}: {error}")
 
+        for indicator_name, indicator_function in registered_indicators():
+            indicator_runs += 1
+            try:
+                parameters = {
+                    name: parameter.default
+                    for name, parameter in inspect.signature(
+                        indicator_function
+                    ).parameters.items()
+                    if name != "candles"
+                }
+                complete = build_indicator(indicator_name, adjusted, **parameters)
+                prefix = build_indicator(indicator_name, adjusted[:-1], **parameters)
+                if len(complete) != len(adjusted) or complete[:-1] != prefix:
+                    signal_failures.append(
+                        f"{ticker}/{indicator_name}: indicador com tamanho ou "
+                        "causalidade invalida"
+                    )
+            except Exception as error:  # pragma: no cover - materializado no relatorio
+                signal_failures.append(f"{ticker}/{indicator_name}: {error}")
+
     source_consumers = source_volume_consumers()
+    raw_volume_consumers = source_raw_volume_consumers()
+    user_source_consumers = {
+        name
+        for name in source_consumers
+        if name.startswith("b3_strategy_lab.user_extensions.")
+    }
     marker_audit = split_evidence.get("share_count_marker_audit") or {}
     marker_rows = marker_audit.get("markers") or []
     continuity_audit = split_evidence.get("event_continuity_audit") or {}
@@ -341,14 +427,17 @@ def main(argv: list[str] | None = None) -> int:
         "all_rows_have_financial_volume": all(
             row["zero_or_negative_financial_volume_rows"] == 0 for row in rows
         ),
+        "all_rows_use_consolidated_standard_and_fractional_volume": all(
+            row["non_consolidated_volume_rows"] == 0 for row in rows
+        ),
         "adjusted_volume_matches_split_factor_with_rounding": max(
             all_volume_adjustment_errors,
             default=0.0,
         ) <= 0.500001,
-        "adjusted_price_quantity_preserves_raw_notional": max(
-            all_notional_errors,
+        "adjusted_price_quantity_preserves_raw_notional_with_integer_rounding": max(
+            all_notional_rounding_excesses,
             default=0.0,
-        ) <= 0.00001,
+        ) <= 0.000000001,
         "all_cotahist_share_count_markers_have_official_events": (
             marker_audit.get("uncovered_count") == 0
             and bool(marker_rows)
@@ -369,12 +458,22 @@ def main(argv: list[str] | None = None) -> int:
         "official_financial_volume_has_no_large_ohlc_inconsistency": (
             max_vwap_outside <= 0.05
         ),
-        "source_volume_consumers_match_inventory": (
-            source_consumers == EXPECTED_SOURCE_CONSUMERS
+        "builtin_source_volume_consumers_match_inventory": (
+            source_consumers - user_source_consumers == EXPECTED_SOURCE_CONSUMERS
         ),
-        "all_volume_families_are_audited": family_volume == expected_family_volume,
+        "user_extensions_do_not_bypass_signal_volume_basis": not any(
+            name.startswith("b3_strategy_lab.user_extensions.")
+            for name in raw_volume_consumers
+        ),
+        "all_volume_families_are_audited": family_volume <= set(audited_strategies),
+        "builtin_volume_families_match_inventory": (
+            expected_family_volume <= family_volume
+        ),
         "all_volume_parameter_filters_are_audited": parameter_volume
-        == {"chandelier_breakout", "range_expansion_breakout"},
+        <= set(audited_strategies),
+        "builtin_volume_parameter_filters_match_inventory": (
+            {"chandelier_breakout", "range_expansion_breakout"} <= parameter_volume
+        ),
         "all_audited_strategies_are_in_full_matrix": set(audited_strategies) <= registered,
         "all_volume_signal_runs_are_binary_and_causal": not signal_failures,
     }
@@ -393,16 +492,21 @@ def main(argv: list[str] | None = None) -> int:
         "universe_manifest": str(args.universe),
         "source": {
             "name": "B3 COTAHIST",
-            "raw_quantity_field": "QUATOT",
-            "trade_count_field": "TOTNEG",
-            "financial_volume_field": "VOLTOT",
-            "price_basis": "PREABE/PREMAX/PREMIN/PREULT dividido por FATCOT",
+            "raw_quantity_field": "QUATOT consolidado dos mercados 010 e 020",
+            "trade_count_field": "TOTNEG consolidado dos mercados 010 e 020",
+            "financial_volume_field": "VOLTOT consolidado dos mercados 010 e 020",
+            "price_basis": "PREABE/PREMAX/PREMIN/PREULT do mercado 010 dividido por FATCOT",
+            "ohlc_market": "010 / BDI 02",
+            "fractional_activity_market": "020 / BDI 96",
         },
         "volume_policy": {
             "adjusted_signal_mode": (
-                "precos e quantidade normalizados inversamente pelos eventos de capital"
+                "precos e quantidade consolidada 010+020 normalizados inversamente "
+                "pelos eventos de capital"
             ),
-            "raw_signal_mode": "precos raw_* e raw_volume sem normalizacao",
+            "raw_signal_mode": (
+                "precos raw_* do mercado 010 e raw_volume consolidado 010+020 sem normalizacao"
+            ),
             "dividends_and_jcp": "excluidos",
         },
         "corporate_action_volume_basis": {
@@ -427,7 +531,10 @@ def main(argv: list[str] | None = None) -> int:
         "audited_strategies": audited_strategies,
         "indicator_groups": VOLUME_CONSUMER_GROUPS,
         "source_volume_consumers": sorted(source_consumers),
+        "source_raw_volume_consumers": sorted(raw_volume_consumers),
+        "user_source_volume_consumers": sorted(user_source_consumers),
         "signal_runs": signal_runs,
+        "indicator_runs": indicator_runs,
         "signal_failures": signal_failures,
         "checks": checks,
         "warnings": warnings,

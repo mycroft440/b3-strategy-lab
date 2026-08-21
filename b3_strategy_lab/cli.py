@@ -142,9 +142,9 @@ def main(argv: list[str] | None = None) -> int:
     backtest_parser = subparsers.add_parser("backtest", help="Roda uma estrategia contra buy and hold por ativo.")
     _add_common_data_args(backtest_parser, include_yearly=True, verified_options=True)
     backtest_parser.add_argument("--strategy", default="sma_cross", choices=available_strategies())
-    backtest_parser.add_argument("--initial-cash", type=float, default=10_000.0)
-    backtest_parser.add_argument("--cost-bps", type=float, default=0.0, help="Custo por ordem em basis points. 10 bps = 0,10 por cento.")
-    backtest_parser.add_argument("--slippage-bps", type=float, default=0.0, help="Slippage adverso por ordem em basis points.")
+    backtest_parser.add_argument("--initial-cash", type=float, default=1_000.0)
+    backtest_parser.add_argument("--cost-bps", type=float, default=3.2, help="Custo por ordem em basis points. 10 bps = 0,10 por cento.")
+    backtest_parser.add_argument("--slippage-bps", type=float, default=10.0, help="Slippage adverso por ordem em basis points.")
     backtest_parser.add_argument("--lot-size", type=int, default=1, help="1 permite mercado fracionario; 100 usa lote padrao; 0 permite fracao irreal.")
     backtest_parser.add_argument(
         "--price-mode",
@@ -204,9 +204,9 @@ def main(argv: list[str] | None = None) -> int:
         default="sma_cross",
         choices=SWEEP_STRATEGIES,
     )
-    sweep_parser.add_argument("--initial-cash", type=float, default=10_000.0)
-    sweep_parser.add_argument("--cost-bps", type=float, default=0.0, help="Custo por ordem em basis points.")
-    sweep_parser.add_argument("--slippage-bps", type=float, default=0.0, help="Slippage adverso por ordem em basis points.")
+    sweep_parser.add_argument("--initial-cash", type=float, default=1_000.0)
+    sweep_parser.add_argument("--cost-bps", type=float, default=3.2, help="Custo por ordem em basis points.")
+    sweep_parser.add_argument("--slippage-bps", type=float, default=10.0, help="Slippage adverso por ordem em basis points.")
     sweep_parser.add_argument("--lot-size", type=int, default=1, help="1 permite mercado fracionario; 100 usa lote padrao; 0 permite fracao irreal.")
     sweep_parser.add_argument(
         "--price-mode",
@@ -250,9 +250,9 @@ def main(argv: list[str] | None = None) -> int:
     train_test_parser = subparsers.add_parser("train-test", help="Escolhe parametros no treino e avalia no periodo futuro.")
     _add_common_data_args(train_test_parser, include_yearly=True, verified_options=True)
     train_test_parser.add_argument("--strategy", default="sma_cross", choices=SWEEP_STRATEGIES)
-    train_test_parser.add_argument("--initial-cash", type=float, default=10_000.0)
-    train_test_parser.add_argument("--cost-bps", type=float, default=0.0)
-    train_test_parser.add_argument("--slippage-bps", type=float, default=0.0)
+    train_test_parser.add_argument("--initial-cash", type=float, default=1_000.0)
+    train_test_parser.add_argument("--cost-bps", type=float, default=3.2)
+    train_test_parser.add_argument("--slippage-bps", type=float, default=10.0)
     train_test_parser.add_argument("--lot-size", type=int, default=1)
     train_test_parser.add_argument(
         "--price-mode",

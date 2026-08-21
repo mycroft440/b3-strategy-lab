@@ -5,6 +5,7 @@ import unittest
 from b3_strategy_lab.strategies import portfolio_strategies, strategy_info, strategy_parameters
 from scripts.audit_volume_indicators import (
     EXPECTED_SOURCE_CONSUMERS,
+    source_raw_volume_consumers,
     source_volume_consumers,
     volume_strategy_names,
 )
@@ -13,6 +14,7 @@ from scripts.audit_volume_indicators import (
 class VolumeAuditTests(unittest.TestCase):
     def test_static_inventory_covers_every_source_function_that_reads_volume(self) -> None:
         self.assertEqual(source_volume_consumers(), EXPECTED_SOURCE_CONSUMERS)
+        self.assertEqual(source_raw_volume_consumers(), set())
 
     def test_inventory_covers_volume_families_and_parameterized_filters(self) -> None:
         registered = set(portfolio_strategies())

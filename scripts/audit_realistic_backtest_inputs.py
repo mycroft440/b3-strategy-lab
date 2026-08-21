@@ -3,14 +3,25 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from pathlib import Path
 
-from b3_strategy_lab.realistic import FeeSchedule, PointInTimeUniverse
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from b3_strategy_lab.realistic import (  # noqa: E402
+    FeeSchedule,
+    PointInTimeUniverse,
+    cash_coverage_certification_issues,
+)
 
 
 DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
 DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+DEFAULT_CASH_EVENTS = Path("data/corporate_actions/point_in_time_cash_distributions.csv")
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
 DEFAULT_CASH_CERTIFICATION = Path("data/corporate_actions/cash_distribution_coverage_certification.json")
 DEFAULT_SPLITS = Path("data/corporate_actions/point_in_time_split_evidence.json")
@@ -36,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
     parser.add_argument("--snapshots", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--execution", type=Path, default=DEFAULT_EXECUTION)
+    parser.add_argument("--cash-events", type=Path, default=DEFAULT_CASH_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--cash-certification", type=Path, default=DEFAULT_CASH_CERTIFICATION)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLITS)
@@ -43,6 +55,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
+
+    required_inputs = {
+        "universe": args.universe,
+        "snapshots": args.snapshots,
+        "execution": args.execution,
+        "cash_events": args.cash_events,
+        "cash_manifest": args.cash_manifest,
+        "split_evidence": args.split_evidence,
+        "fee_schedule": args.fee_schedule,
+    }
+    missing_inputs = [f"{name}={path}" for name, path in required_inputs.items() if not path.exists()]
+    if missing_inputs:
+        parser.error(
+            "Entradas realistas ausentes. Execute scripts/run_realistic_pipeline.py "
+            "sem --skip-data-build antes da auditoria: " + ", ".join(missing_inputs)
+        )
 
     checks: dict[str, bool] = {}
     details: dict[str, object] = {}
@@ -97,18 +125,22 @@ def main(argv: list[str] | None = None) -> int:
     details["cash_source"] = cash_payload.get("source", "")
 
     cash_certified = False
+    certification_issues = ["cash coverage certification file is missing"]
     certification: dict[str, object] = {}
     if args.cash_certification.exists():
         certification = json.loads(args.cash_certification.read_text(encoding="utf-8"))
-        cash_certified = (
-            certification.get("schema_version") == 1
-            and certification.get("coverage_certified") is True
-            and str(certification.get("start", "")) <= str(universe_payload.get("selected_as_of", ""))
-            and str(certification.get("end", "")) >= max(snapshot.effective_date for snapshot in universe.snapshots)
-            and certification.get("source_authority") in {"B3", "CVM", "B3+CVM+issuer"}
+        certification_issues = cash_coverage_certification_issues(
+            certification,
+            cash_events_path=args.cash_events,
+            cash_manifest_path=args.cash_manifest,
+            tickers=universe.union,
+            start=str(universe_payload.get("selected_as_of", "")),
+            end=max(snapshot.effective_date for snapshot in universe.snapshots),
         )
+        cash_certified = not certification_issues
     checks["cash_history_coverage_certified"] = cash_certified
     details["cash_certification"] = certification
+    details["cash_certification_issues"] = certification_issues
 
     transition_payload: dict[str, object] = {}
     if args.transition_manifest.exists():

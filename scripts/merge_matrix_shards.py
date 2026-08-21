@@ -85,6 +85,10 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
         "ranking",
         "evaluation_scope",
         "train_ratio_applied",
+        "result_classification",
+        "real_money_claim_allowed",
+        "limitations",
+        "final_valuation",
     )
     for index, manifest in enumerate(manifests[1:], start=1):
         for key in keys:
@@ -156,6 +160,8 @@ def _write_summary(
         f"Combinações avaliadas: **{int(manifest['combinations']):,}**  ",
         f"Custos: **{float(manifest['cost_bps']):g} bps** | Slippage: **{float(manifest['slippage_bps']):g} bps**",
         "",
+        "> Pesquisa retrospectiva price-only: não inclui proventos nem impostos e não representa retorno real.",
+        "",
         "| # | Estratégia | Gerenciamento | Patrimônio final | Retorno total | CAGR | Média anual | Drawdown máx. | Trades | Sharpe |",
         "|---:|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
@@ -200,6 +206,9 @@ def _write_summary(
                 "combinations": manifest["combinations"],
                 "cost_bps": manifest["cost_bps"],
                 "slippage_bps": manifest["slippage_bps"],
+                "result_classification": manifest["result_classification"],
+                "real_money_claim_allowed": manifest["real_money_claim_allowed"],
+                "limitations": manifest["limitations"],
                 "top_10": payload_rows,
             },
             ensure_ascii=False,

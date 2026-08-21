@@ -8,9 +8,12 @@ pregao fechado e aquecimento desde 2017.
 ## Fonte e candles
 
 O caminho verificado usa os arquivos anuais COTAHIST, publicados gratuitamente
-pela B3. Os campos `raw_*` preservam o OHLC e o volume oficiais sem ajuste; os
-campos `open`, `high`, `low` e `close` sao normalizados somente por eventos que
-alteram a quantidade de acoes. Dividendos e JCP ficam excluidos.
+pela B3. Os campos `raw_open`, `raw_high`, `raw_low` e `raw_close` preservam o
+OHLC do mercado padrao (`010`, BDI `02`). `raw_volume`, `trades` e
+`financial_volume` consolidam a atividade oficial dos mercados padrao e
+fracionario (`020`, BDI `96`); os campos `fractional_*` preservam separadamente a
+parcela fracionaria. Precos e quantidade ajustados sao normalizados somente por
+eventos que alteram a quantidade de acoes. Dividendos e JCP ficam excluidos.
 
 Cada manifesto registra hashes dos candles, dos eventos e dos ZIPs de origem.
 As razoes de split usadas no periodo padrao estao ligadas a evidencias oficiais
@@ -26,6 +29,7 @@ que alteram a quantidade de acoes:
 ```powershell
 python scripts\sync_official_universe.py --download --refresh-current --refresh-actions --refresh-selection
 python -m b3_strategy_lab verify-data --interval 1d
+python scripts\audit_backtest_readiness.py --max-age-calendar-days 4
 python scripts\audit_volume_indicators.py
 ```
 
@@ -41,7 +45,8 @@ Como esse ranking usa o volume do ano completo de 2018 e a matriz comeca em
 2 de janeiro, o manifesto declara explicitamente o vies de selecao; o filtro de
 continuidade ate a atualizacao tambem produz vies de sobrevivencia.
 
-O auditor de volume verifica `QUATOT`, `TOTNEG` e `VOLTOT` em todos os pregoes,
+O auditor de volume verifica `QUATOT`, `TOTNEG` e `VOLTOT` dos mercados `010+020`
+em todos os pregoes,
 confere a normalizacao inversa de preco e quantidade nos eventos de capital e
 executa testes de causalidade para todas as 17 estrategias que usam volume. Isso
 inclui MFI, Chaikin Money Flow, Elder Force Index, Ease of Movement, Negative
@@ -140,23 +145,29 @@ entra normalmente na matriz. Uma execucao integral atual cruza 190 x 478 =
 90.820 combinacoes.
 
 ```powershell
-python scripts\backtest_strategy_management_combinations.py
+python scripts\backtest_strategy_management_combinations.py --initial-cash 1000 --cost-bps 3.2 --slippage-bps 10
 python scripts\audit_matrix_results.py
 ```
 
-O ranking atual dos 40 ativos, calculado de 2018-01-02 a 2026-08-10 depois da
-reconciliacao integral de preco e volume, esta nestes artefatos:
+O executor usa ate 8 processos por padrao e compartilha calculos de
+momentum/tendencia/volatilidade entre configuracoes semanticamente equivalentes.
+Use `--workers 1` para a referencia serial ou ajuste o valor conforme a memoria e
+as CPUs disponiveis.
 
-- [ranking completo das 90.820 combinacoes (CSV gzip)](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz);
-- [manifesto da execucao](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json);
-- [auditoria matematica e de hashes](reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json);
-- [retornos anuais das cinco melhores](reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top5_annual.md).
+Os resultados publicados ficam em um branch separado. A
+[ultima matriz publicada](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/TOP_10.md),
+seu [manifesto](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/MANIFEST.json)
+e sua [auditoria](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/AUDIT.json)
+devem ser lidos em conjunto. A execucao publicada em 20/08/2026 usou dados ate
+10/08/2026 e custos/slippage zero; por isso ela e apenas um artefato retrospectivo
+anterior a estas correcoes, nao uma estimativa de dinheiro real. Uma nova matriz
+so substitui essa referencia depois que o workflow publicar `STATUS=SUCCESS`,
+hashes coerentes e os novos custos no manifesto.
 
-A primeira colocada foi `gap_momentum` com
-`top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted`:
-retorno total de 3.116,89%, CAGR de 49,70% e drawdown maximo de -56,39%.
-Custos, impostos e slippage sao zero nessa execucao; o universo fixo declara
-explicitamente os vieses de selecao e sobrevivencia.
+Para iniciar sem terminal, use `abrir_painel_backtest.bat` no Windows ou
+`./abrir_painel_backtest.sh` no Linux/macOS. O painel atualiza e audita os dados,
+aceita subconjuntos do universo, aplica custos/slippage e mostra a janela
+efetivamente simulada. Consulte [docs/PAINEL_BACKTEST.md](docs/PAINEL_BACKTEST.md).
 
 Para testar somente Buy and Hold contra todos os gerenciamentos:
 
@@ -194,6 +205,13 @@ drawdown maximo de -39,26%.
 Os rankings usam todo o periodo (`full_period`), sem holdout ou walk-forward.
 O campo `train_ratio_applied=false` do manifesto torna isso explicito.
 
+Para validação econômica, use o painel separado
+`abrir_painel_realista.bat`/`abrir_painel_realista.sh` ou o pipeline documentado
+em [docs/realistic_backtest_methodology.md](docs/realistic_backtest_methodology.md).
+Ele modela universo point-in-time, lote padrão/fracionário, proventos, tarifas,
+slippage e tributação, mantendo `cash_events_complete=false` enquanto não houver
+certificação independente de cobertura histórica.
+
 Arquivos gerados:
 
 - `data/candles/<ticker>_1d.csv`: candles COTAHIST brutos e normalizados por splits.
@@ -229,6 +247,10 @@ documentados em [docs/extended_strategies.md](docs/extended_strategies.md), para
 um total de 189 estrategias com sweep de parametros. Somado ao sinal permanente
 `buy_and_hold`, o executor da matriz combina 190 estrategias com os
 gerenciamentos de carteira.
+
+Novas estrategias e indicadores podem ser adicionados apenas com decorators em
+`b3_strategy_lab/user_extensions.py`, sem editar o registro central. Veja
+[docs/adding_strategies.md](docs/adding_strategies.md).
 
 - `atr_breakout`: rompimento de maxima com stop movel baseado em ATR.
 - `bollinger_reversion`: compra na banda inferior de Bollinger e sai no retorno ao meio/superior.
@@ -291,5 +313,7 @@ fechamento de hoje e comprar no proprio fechamento de hoje.
 - `signal-mode adjusted` e o padrao seguro. `signal-mode raw` preserva saltos de escala de splits e serve apenas para diagnostico.
 - O universo de 40 acoes declara `survivorship_safe=false`: exigir continuidade ate a data atual usa informacao futura e introduz vies de sobrevivencia.
 - A certificacao atual de splits comeca em 2017. Periodos anteriores nao tem o mesmo nivel de garantia.
-- Custos e slippage devem ser ligados antes de comparar contra buy and hold.
+- A matriz retrospectiva usa por padrao 3,2 bps de custos e 10 bps de slippage,
+  mas ainda exclui impostos e proventos; valores pessoais precisam do caminho
+  realista e de uma tabela de corretagem adequada.
 - Impostos, aluguel, emolumentos e restricoes de liquidez nao sao modelados por padrao.

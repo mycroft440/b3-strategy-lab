@@ -34,7 +34,10 @@ from scripts.research_portfolio_allocation import (  # noqa: E402
 )
 
 
-INITIAL_CASH = 10_000.0
+INITIAL_CASH = 1_000.0
+DEFAULT_COST_BPS = 3.2
+DEFAULT_SLIPPAGE_BPS = 10.0
+DEFAULT_WORKERS = max(1, min(8, os.cpu_count() or 1))
 DEFAULT_START = "2018-01-02"
 DEFAULT_REPORT = Path(
     "reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz"
@@ -81,15 +84,18 @@ def main(argv: list[str] | None = None) -> int:
         default="all",
     )
     parser.add_argument("--initial-cash", type=float, default=INITIAL_CASH)
-    parser.add_argument("--cost-bps", type=float, default=0.0)
-    parser.add_argument("--slippage-bps", type=float, default=0.0)
+    parser.add_argument("--cost-bps", type=float, default=DEFAULT_COST_BPS)
+    parser.add_argument("--slippage-bps", type=float, default=DEFAULT_SLIPPAGE_BPS)
     parser.add_argument("--lot-size", type=int, default=1)
     parser.add_argument("--top", type=int, default=5)
     parser.add_argument(
         "--workers",
         type=int,
-        default=1,
-        help="Processos paralelos por estrategia; 1 preserva a execucao serial.",
+        default=DEFAULT_WORKERS,
+        help=(
+            f"Processos paralelos por estrategia (padrao seguro: {DEFAULT_WORKERS}; "
+            "use 1 para execucao serial reproduzivel)."
+        ),
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--allow-unverified-data", action="store_true")
@@ -570,6 +576,12 @@ def _write_manifest(
             "b3_strategy_lab/strategies.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/strategies.py"
             ),
+            "b3_strategy_lab/extensions.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/extensions.py"
+            ),
+            "b3_strategy_lab/user_extensions.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/user_extensions.py"
+            ),
             "b3_strategy_lab/additional_strategies.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/additional_strategies.py"
             ),
@@ -633,6 +645,17 @@ def _write_manifest(
         "buy_allocation_policy": "target_shares_at_market_open_then_common_scale_for_costs",
         "evaluation_scope": "full_period",
         "train_ratio_applied": False,
+        "result_classification": "RETROSPECTIVE_PRICE_ONLY_RESEARCH",
+        "real_money_claim_allowed": False,
+        "limitations": [
+            "strategy_and_management_selected_on_the_same_full_period",
+            "fixed_universe_is_not_survivorship_safe",
+            "dividends_and_jcp_excluded",
+            "taxes_excluded",
+            "standard_market_open_used_for_integer_share_research_execution",
+            "final_positions_marked_to_close_and_not_liquidated",
+        ],
+        "final_valuation": "mark_to_market_at_last_verified_close_not_liquidated",
         "workers": args.workers,
         "elapsed_seconds": elapsed_seconds,
     }
@@ -670,12 +693,20 @@ def _load_universe(path: Path) -> dict[str, object]:
         if (
             not isinstance(original, list)
             or not isinstance(added, list)
-            or len(original) != 10
-            or len(added) != 30
             or set(original).intersection(added)
             or set(original).union(added) != set(tickers)
         ):
-            raise ValueError("Composicao 10 + 30 invalida no manifesto de universo.")
+            raise ValueError(
+                "Composicao original_tickers + added_tickers invalida no manifesto "
+                "de universo. As listas precisam ser disjuntas e cobrir tickers."
+            )
+        if payload["selection_mode"] == (
+            "original_10_plus_30_by_2018_liquidity_and_continuous_coverage"
+        ) and (len(original) != 10 or len(added) != 30):
+            raise ValueError(
+                "O universo canonico original_10_plus_30 precisa conter exatamente "
+                "10 tickers originais e 30 adicionados."
+            )
     if payload["survivorship_safe"] is not False:
         raise ValueError(
             "Este universo fixo precisa declarar explicitamente survivorship_safe=false."

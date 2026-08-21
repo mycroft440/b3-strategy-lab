@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -17,6 +20,7 @@ from b3_strategy_lab.realistic import (
     RealCashAccount,
     SlippageModel,
     UniverseSnapshot,
+    cash_coverage_certification_issues,
 )
 from b3_strategy_lab.realistic_portfolio import (
     _event_key,
@@ -37,6 +41,53 @@ class PointInTimeUniverseTests(unittest.TestCase):
         self.assertEqual(universe.tickers_on("2018-01-12"), {"BBB3"})
         with self.assertRaises(ValueError):
             universe.tickers_on("2018-01-04")
+
+
+class CashCoverageCertificationTests(unittest.TestCase):
+    def test_certificate_is_bound_to_period_tickers_and_input_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            events = root / "events.csv"
+            manifest = root / "manifest.json"
+            events.write_text("ticker,amount\nAAA3,1.00\n", encoding="utf-8")
+            manifest.write_text('{"complete": true}\n', encoding="utf-8")
+            certification = {
+                "schema_version": 1,
+                "coverage_certified": True,
+                "start": "2018-01-01",
+                "end": "2024-12-31",
+                "source_authority": "B3",
+                "reviewed_by": "Independent reviewer",
+                "reviewed_at_utc": "2025-01-02T12:00:00+00:00",
+                "evidence": ["primary-source reconciliation"],
+                "tickers": ["AAA3"],
+                "cash_events_sha256": hashlib.sha256(events.read_bytes()).hexdigest(),
+                "cash_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            }
+
+            self.assertEqual(
+                cash_coverage_certification_issues(
+                    certification,
+                    cash_events_path=events,
+                    cash_manifest_path=manifest,
+                    tickers={"AAA3"},
+                    start="2018-01-02",
+                    end="2024-12-30",
+                ),
+                [],
+            )
+            events.write_text("ticker,amount\nAAA3,2.00\n", encoding="utf-8")
+            self.assertIn(
+                "cash_events_sha256 does not match the certified input",
+                cash_coverage_certification_issues(
+                    certification,
+                    cash_events_path=events,
+                    cash_manifest_path=manifest,
+                    tickers={"AAA3"},
+                    start="2018-01-02",
+                    end="2024-12-30",
+                ),
+            )
 
 
 class FractionalExecutionTests(unittest.TestCase):

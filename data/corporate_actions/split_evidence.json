@@ -1169,7 +1169,7 @@
     }
   ],
   "method": "Eventos consultados no cadastro oficial de companhias listadas da B3. Omissoes historicas da resposta corrente foram preenchidas somente com documentos primarios dos emissores ou da CVM. O ex_date e o primeiro pregao COTAHIST do ativo posterior a ultima data com direito. ISINs foram cruzados com o COTAHIST do ticker e todos os inicios de marcador EB/EG foram reconciliados.",
-  "retrieved_at_utc": "2026-08-11T19:42:10+00:00",
+  "retrieved_at_utc": "2026-08-21T00:59:04+00:00",
   "schema_version": 1,
   "scope": "Grupamentos, desdobramentos e bonificacoes que alteram a quantidade de acoes. Dividendos e JCP sao excluidos do backtest.",
   "share_count_marker_audit": {
@@ -1665,7 +1665,7 @@
       "issuing_company": "ABEV",
       "result": "0 evento(s) de quantidade de acoes desde 2017-01-01: 0 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "48cb82d4ecc0bcf8b653f414c056a7c8efa209798a2ac209ee3e3d6470b44655",
+      "source_payload_sha256": "b87e885f54ca1ec02b279b4f407a4b201ebab77e193a03150919c75db6f4df5c",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkFCRVYiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "ABEV3"
     },
@@ -1689,7 +1689,7 @@
       "issuing_company": "BBSE",
       "result": "0 evento(s) de quantidade de acoes desde 2017-01-01: 0 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "181b655df9ecaa1682bfa2d8c1d126847d806142b19c2a3d03fa2ba7f99c201b",
+      "source_payload_sha256": "cbced1024336cdbf510663fe9871129451c3385b47665804322981c8f93a4958",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkJCU0UiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "BBSE3"
     },
@@ -1769,7 +1769,7 @@
       "issuing_company": "FLRY",
       "result": "2 evento(s) de quantidade de acoes desde 2017-01-01: 2 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "496ebffc773d734e2f5f3c9dcb2cf7de115695b44ca9d7a23e68b767c95c5ae9",
+      "source_payload_sha256": "62b4cd2900e21bab87682235e83b751bb76be1b7a031a387daa4c160ba843504",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkZMUlkiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "FLRY3"
     },
@@ -1777,7 +1777,7 @@
       "issuing_company": "GGBR",
       "result": "2 evento(s) de quantidade de acoes desde 2017-01-01: 1 na consulta corrente da B3 e 1 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "857103a20b1dce522c91841b159982f57a52bc968416a5b2ba75a0e40e90e4dc",
+      "source_payload_sha256": "47437601ade4cd0cd2688daec733d873caed4e2f256dbf68f46d3934fb1885b3",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkdHQlIiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "GGBR3"
     },
@@ -1785,7 +1785,7 @@
       "issuing_company": "GOAU",
       "result": "1 evento(s) de quantidade de acoes desde 2017-01-01: 1 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "b3478438e6673386ebbdb9b4695695908faf75bb6b9d17040d3efb18ce22fed8",
+      "source_payload_sha256": "d310295aeae45c81c5cca765d87bc5d06b3ffa666135272daa7c0c34a4160820",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IkdPQVUiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "GOAU4"
     },
@@ -1809,7 +1809,7 @@
       "issuing_company": "ITSA",
       "result": "6 evento(s) de quantidade de acoes desde 2017-01-01: 1 na consulta corrente da B3 e 5 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "7596987bc08fc542e240d42dbdec928d92753819514ab9afa74955318f4d2b1d",
+      "source_payload_sha256": "191731efa886feea703a1a2f3ef20df30be2e526fd89a46271763223614ceb8a",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IklUU0EiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "ITSA4"
     },
@@ -1817,7 +1817,7 @@
       "issuing_company": "ITUB",
       "result": "3 evento(s) de quantidade de acoes desde 2017-01-01: 2 na consulta corrente da B3 e 1 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "0ee8fe8f9364c7e2acd89c38a6521fbf172c123177cd8aa89e14fa9f1f750fce",
+      "source_payload_sha256": "5efdb100edc20c96a2e2463a73e49ea17b31bb5604ad155f81eec8bb6b08b9dc",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IklUVUIiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "ITUB4"
     },
@@ -1937,7 +1937,7 @@
       "issuing_company": "TAEE",
       "result": "0 evento(s) de quantidade de acoes desde 2017-01-01: 0 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "6bb9229b6ac31fe10bf3260183088e6639dfdb2a8cc4ee548f3aa2ebcd050468",
+      "source_payload_sha256": "23d4b0da78905afdf90bfef1fcb3375a570ecaaa7b58e99f9f82b25aa2e4254c",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IlRBRUUiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "TAEE11"
     },
@@ -1969,7 +1969,7 @@
       "issuing_company": "VALE",
       "result": "0 evento(s) de quantidade de acoes desde 2017-01-01: 0 na consulta corrente da B3 e 0 no registro historico oficial; eventos em dinheiro ignorados.",
       "source_authority": "B3",
-      "source_payload_sha256": "34f8dddbe8ca68b06c071bd291ee7f1f37f0b1439c275eb03aa7b0e831a037f5",
+      "source_payload_sha256": "8b80c516f7022d0dad0f4dd67fb7445a5ca2be3de63f472146add66a907a99e6",
       "source_url": "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/eyJpc3N1aW5nQ29tcGFueSI6IlZBTEUiLCJsYW5ndWFnZSI6InB0LWJyIn0=",
       "ticker": "VALE3"
     },

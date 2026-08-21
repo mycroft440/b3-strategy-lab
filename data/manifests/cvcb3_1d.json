@@ -1,15 +1,15 @@
 {
   "adjustment_method": "split normalization only; dividends and JCP ignored; no tax; no fees",
-  "candle_sha256": "c8799ab57b63b2e7f983babf045619ea59b816ec669ef41dc0909727a2d7d5c9",
+  "candle_sha256": "7ff6490940c88a05c653af1d5e426eeee625e1767db37cf0318377a6d9c54ea7",
   "corporate_action_source": "B3 Listed Companies plus issuer/CVM historical share-count events; cash distributions excluded or retained only as unverified legacy evidence",
   "corporate_action_status": "unverified",
-  "end": "2026-08-10",
-  "generated_at_utc": "2026-08-11T19:42:15+00:00",
+  "end": "2026-08-19",
+  "generated_at_utc": "2026-08-21T00:59:11+00:00",
   "interval": "1d",
   "price_basis": "B3 official raw per-share OHLC retained in raw_*; open/high/low/close normalized for splits; cash distributions excluded",
   "price_source": "B3_COTAHIST",
-  "rows": 2385,
-  "schema_version": 5,
+  "rows": 2392,
+  "schema_version": 6,
   "source_archives": [
     {
       "filename": "COTAHIST_A2017.ZIP",
@@ -76,8 +76,8 @@
     },
     {
       "filename": "COTAHIST_A2026.ZIP",
-      "sha256": "0c059839f923af0c525064e1ea66a92e9b07327945a26a8f2f42ab684933292a",
-      "size_bytes": 68562434,
+      "sha256": "53c178ebf0a3212c20665a04c6f595c3f7db80d61d3f20ccd65bc7c529af898e",
+      "size_bytes": 75556229,
       "url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2026.ZIP",
       "year": 2026
     }
@@ -85,12 +85,14 @@
   "split_action_source": "B3 official records and issuer investor-relations evidence",
   "split_action_status": "verified",
   "split_actions_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-  "split_evidence_sha256": "e5de864393c7801e42038e1d255efc4512437c45088ba5767cf06bd3cb510b40",
+  "split_evidence_sha256": "8da1923b43a2c7a7d8bace8be590f4e8aebd63f751a32de3ff5cfde9c28cf222",
   "split_verified_from": "2017-01-01",
   "start": "2017-01-02",
   "status": "price_verified",
   "ticker": "CVCB3",
   "validation_issues": [],
+  "volume_basis": "raw_volume/trades/financial_volume consolidate standard and fractional markets; fractional_* preserves the market-020 contribution; volume is split-normalized from consolidated raw_volume",
+  "volume_source": "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; market 010 BDI 02 plus market 020 BDI 96 when fractional records are available",
   "warning_reviews": [],
   "warnings": []
 }

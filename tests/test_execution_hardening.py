@@ -10,6 +10,7 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.realistic import (
@@ -25,7 +26,13 @@ from b3_strategy_lab.realistic import (
 from b3_strategy_lab.realistic_portfolio import rebalance_atomic, run_realistic
 from b3_strategy_lab.strategies import build_signals, portfolio_strategies, strategy_parameters
 from scripts.backtest_strategy_management_combinations import _ranking_key
-from scripts.research_portfolio_allocation import PortfolioConfig, _rebalance, run_portfolio
+from scripts.research_portfolio_allocation import (
+    PortfolioConfig,
+    _candidate_profile,
+    _candidate_profile_uncached,
+    _rebalance,
+    run_portfolio,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -89,6 +96,29 @@ def synthetic_candles(count: int = 1000) -> list[Candle]:
 
 
 class StrictResearchExecutionTests(unittest.TestCase):
+    def test_candidate_profile_cache_reuses_semantically_identical_work(self) -> None:
+        data = SimpleNamespace(
+            signal_prices={"AAA3": [float(value) for value in range(1, 260)]},
+            raw_returns={"AAA3": [0.0] * 259},
+            candidate_profile_cache={},
+        )
+        one = PortfolioConfig(name="one", top_n=1, weighting="equal")
+        two = PortfolioConfig(
+            name="two",
+            top_n=5,
+            weighting="inverse_vol",
+            max_weight=0.25,
+            target_vol=0.12,
+        )
+        with patch(
+            "scripts.research_portfolio_allocation._candidate_profile_uncached",
+            wraps=_candidate_profile_uncached,
+        ) as uncached:
+            first = _candidate_profile(data, "AAA3", 250, one)
+            second = _candidate_profile(data, "AAA3", 250, two)
+        self.assertEqual(first, second)
+        self.assertEqual(uncached.call_count, 1)
+
     def test_rebalance_refuses_missing_open_for_held_or_target_ticker(self) -> None:
         shares = {"AAA3": 10.0, "BBB3": 0.0}
         with self.assertRaisesRegex(ValueError, "abertura fresca obrigatoria"):
@@ -271,9 +301,21 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
             economic_gap_adjustment=False,
             selection_status="retrospective_hypothesis_replay",
             survivorship_safe=False,
+            cash_events_complete=False,
         )
         self.assertFalse(summary.survivorship_safe)
+        self.assertFalse(summary.cash_events_complete)
         self.assertIn("RETROSPECTIVE_UNIVERSE", summary.validity)
+        self.assertIn("UNCERTIFIED_CASH_EVENTS", summary.validity)
+
+    def test_realistic_input_audit_is_runnable_from_repository_root(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "scripts/audit_realistic_backtest_inputs.py", "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
 
 @unittest.skipIf((os.cpu_count() or 1) < 2, "parallel smoke requires at least 2 CPUs")

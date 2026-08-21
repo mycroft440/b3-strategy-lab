@@ -25,9 +25,9 @@ from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle, cache_path, load_ca
 from b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402
 
 
-INITIAL_CASH = 10_000.0
-COST_BPS = 0.0
-SLIPPAGE_BPS = 0.0
+INITIAL_CASH = 1_000.0
+COST_BPS = 3.2
+SLIPPAGE_BPS = 10.0
 LOT_SIZE = 1
 REPORTS_DIR = Path("reports")
 
@@ -106,7 +106,7 @@ class MarketData:
         self.signal_prices: dict[str, list[float]] = {}
         self.raw_returns: dict[str, list[float]] = {}
         self.manifests: dict[str, object] = {}
-        self.candidate_profile_cache: dict[tuple[str, int, PortfolioConfig], dict | None] = {}
+        self.candidate_profile_cache: dict[tuple[object, ...], dict | None] = {}
         dates: set[str] = set()
 
         for ticker in tickers:
@@ -684,7 +684,25 @@ def _target_weights(
 
 def _candidate_profile(data: MarketData, ticker: str, index: int, config: PortfolioConfig) -> dict | None:
     cache = getattr(data, "candidate_profile_cache", None)
-    cache_key = (ticker, index, config)
+    # Portfolio name, rebalance frequency, number of selected assets, weighting,
+    # caps and target volatility do not change a per-ticker candidate profile.
+    # Excluding them lets semantically shared management configurations reuse the
+    # expensive momentum/trend/volatility calculation without changing results.
+    cache_key = (
+        ticker,
+        index,
+        config.lookback,
+        config.skip,
+        config.trend_window,
+        config.vol_window,
+        config.score,
+        config.absolute_momentum,
+        config.roc_windows,
+        config.roc_weights,
+        config.positive_rule,
+        config.short_window,
+        config.short_weight,
+    )
     if cache is not None and cache_key in cache:
         return cache[cache_key]
 

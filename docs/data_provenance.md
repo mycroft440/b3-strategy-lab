@@ -7,17 +7,27 @@ B3 em [Cotacoes historicas](https://www.b3.com.br/pt_br/market-data-e-indices/se
 O download automatizado usa a URL oficial
 `https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A<ANO>.ZIP`.
 
-O parser aceita somente o mercado a vista (`TPMERC=010`) e o BDI de lote
-padrao (`CODBDI=02`). Cada manifesto em `data/manifests` registra URL, nome,
-tamanho e SHA-256 de todos os ZIPs anuais usados. O arquivo do ano corrente e
-baixado novamente em cada atualizacao porque muda a cada pregao.
+Dois leitores independentes extraem os registros de ações: mercado padrão
+(`TPMERC=010`, `CODBDI=02`) e mercado fracionário (`TPMERC=020`,
+`CODBDI=96`). O OHLC canônico permanece o do mercado padrão; quantidade,
+negócios e volume financeiro somam os dois mercados. Cada manifesto em
+`data/manifests` registra URL, nome, tamanho e SHA-256 de todos os ZIPs anuais
+usados. O arquivo do ano corrente é baixado novamente em cada atualização porque
+muda a cada pregão.
 
 Os CSVs canonicos preservam duas bases diferentes:
 
-- `raw_open`, `raw_high`, `raw_low`, `raw_close` e `raw_volume`: valores por
-  acao e quantidade exatamente como lidos do COTAHIST;
-- `open`, `high`, `low`, `close` e `volume`: serie normalizada somente por
-  grupamentos, desdobramentos e bonificacoes que alteram a quantidade de acoes;
+- `raw_open`, `raw_high`, `raw_low` e `raw_close`: OHLC sem ajuste do mercado
+  padrão;
+- `raw_volume`, `trades` e `financial_volume`: atividade consolidada oficial dos
+  mercados padrão e fracionário;
+- `fractional_raw_volume`, `fractional_trades` e
+  `fractional_financial_volume`: contribuição do mercado fracionário, permitindo
+  reconstruir por subtração a atividade padrão;
+- `volume_scope`: `consolidated_010_020` nos datasets atuais e
+  `standard_010` somente em arquivos legados sem consolidação;
+- `open`, `high`, `low`, `close` e `volume`: série normalizada somente por
+  grupamentos, desdobramentos e bonificações que alteram a quantidade de ações;
 - `adjustment_factor`: relacao `close / raw_close`;
 - `trades`, `financial_volume`, `quotation_factor`, `bdi_code`, `market_type`,
   `isin`, `distribution_number`, `specification` e `issuer_name`: campos de
@@ -33,12 +43,19 @@ base economica, salvo o arredondamento da quantidade inteira. Todos os
 indicadores de volume usam essa base normalizada no modo `adjusted`; no modo
 `raw`, usam conjuntamente OHLC bruto e `raw_volume`.
 
+Se existir atividade fracionária em uma data sem qualquer OHLC padrão, o
+sincronizador não inventa um candle nem mistura o OHLC `020` na série `010`: ele
+registra a exclusão e falha se isso ocorrer dentro da janela avaliada. Registros
+anteriores usados apenas como histórico legado podem ser omitidos quando não há
+preço padrão ao qual associar o volume.
+
 `scripts/audit_volume_indicators.py` inventaria por codigo todos os leitores de
 volume e audita MFI, Chaikin Money Flow, Elder Force Index, Ease of Movement,
 Negative Volume Index, Klinger Volume Oscillator e os filtros de volume de
 Chandelier/Range Expansion: 17 estrategias ao todo. O relatorio tambem lista,
 sem alterar os dados, eventuais inconsistencias internas do proprio COTAHIST
-entre `VOLTOT/QUATOT` e o intervalo `PREMIN-PREMAX`.
+entre `VOLTOT/QUATOT` padrão e o intervalo `PREMIN-PREMAX` padrão. A validação
+não mistura o VWAP consolidado com um OHLC de apenas um dos mercados.
 
 ## Eventos que alteram a quantidade de acoes
 
@@ -114,8 +131,9 @@ informacao disponivel em cada data.
 python scripts\sync_official_universe.py --download --refresh-current --refresh-actions --refresh-selection
 python -m b3_strategy_lab verify-data --interval 1d
 python -m b3_strategy_lab verify-data --interval 1wk
+python scripts\audit_backtest_readiness.py --max-age-calendar-days 4
 python scripts\audit_volume_indicators.py
-python scripts\backtest_strategy_management_combinations.py --workers 8
+python scripts\backtest_strategy_management_combinations.py --initial-cash 1000 --cost-bps 3.2 --slippage-bps 10
 python scripts\audit_matrix_results.py
 python scripts\organize_market_data.py --quarantine-unverified
 ```

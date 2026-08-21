@@ -26,6 +26,8 @@ LOG_PATH = ROOT / "reports/control_panel_combinations.log"
 REPORT_PATH = ROOT / "reports/control_panel_strategy_management_combinations.csv.gz"
 EXCLUDED_TICKERS = {"BOAC34"}
 MIN_START = date(2018, 1, 2)
+MAX_WORKERS = max(1, os.cpu_count() or 1)
+RECOMMENDED_WORKERS = min(8, MAX_WORKERS)
 
 PROGRESS_RE = re.compile(
     r"^(?P<strategy_done>\d+)/(?P<strategy_total>\d+)\s+estrategias;\s+"
@@ -147,11 +149,29 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
     if not math.isfinite(initial_cash) or initial_cash <= 0:
         raise ValueError("O capital inicial deve ser um valor finito maior que zero.")
 
+    cost_bps = float(payload.get("cost_bps", 3.2))
+    slippage_bps = float(payload.get("slippage_bps", 10.0))
+    if (
+        not math.isfinite(cost_bps)
+        or not math.isfinite(slippage_bps)
+        or cost_bps < 0
+        or slippage_bps < 0
+    ):
+        raise ValueError("Custos e slippage precisam ser finitos e não negativos.")
+
+    workers = int(payload.get("workers", RECOMMENDED_WORKERS))
+    if workers <= 0 or workers > MAX_WORKERS:
+        raise ValueError(f"Processos precisa ficar entre 1 e {MAX_WORKERS}.")
+
     return {
         "tickers": selected,
         "start": start,
         "end": end,
         "initial_cash": initial_cash,
+        "cost_bps": cost_bps,
+        "slippage_bps": slippage_bps,
+        "workers": workers,
+        "refresh_data": bool(payload.get("refresh_data", True)),
     }
 
 
@@ -210,6 +230,9 @@ def _read_winner(path: Path = REPORT_PATH) -> dict[str, object] | None:
             row = next(csv.DictReader(file), None)
         if not row:
             return None
+        report_base = path.with_suffix("") if path.suffix == ".gz" else path
+        manifest_path = report_base.with_suffix("").with_suffix(".manifest.json")
+        manifest = _read_json(manifest_path) if manifest_path.exists() else {}
         return {
             "rank": int(row["rank"]),
             "strategy": row["trading_strategy"],
@@ -219,6 +242,18 @@ def _read_winner(path: Path = REPORT_PATH) -> dict[str, object] | None:
             "cagr": float(row["cagr"]),
             "max_drawdown": float(row["max_drawdown"]),
             "trades": int(float(row["trades"])),
+            "start": manifest.get("start"),
+            "end": manifest.get("end"),
+            "cost_bps": manifest.get("cost_bps"),
+            "slippage_bps": manifest.get("slippage_bps"),
+            "data_current_through": min(
+                (
+                    str(values.get("end", ""))
+                    for values in dict(manifest.get("datasets", {})).values()
+                    if values.get("end")
+                ),
+                default=None,
+            ),
         }
     except Exception:
         return None
@@ -257,6 +292,35 @@ def _terminate_process(process: subprocess.Popen[str]) -> None:
             pass
 
 
+def _run_preflight(step: str, command: list[str]) -> None:
+    global CURRENT_PROCESS
+    _set_state(
+        current_step=step,
+        message=step,
+        progress_detail=step,
+    )
+    _log(f"=== {step} ===")
+    _log("$ " + " ".join(command))
+    process = _spawn(command)
+    CURRENT_PROCESS = process
+    assert process.stdout is not None
+    for line in process.stdout:
+        _log(line.rstrip())
+        with STATE_LOCK:
+            stop_requested = bool(STATE.get("stop_requested"))
+        if stop_requested:
+            _terminate_process(process)
+            break
+    code = process.wait()
+    CURRENT_PROCESS = None
+    with STATE_LOCK:
+        stopped = bool(STATE.get("stop_requested"))
+    if stopped:
+        raise InterruptedError("Execução interrompida pelo usuário.")
+    if code != 0:
+        raise RuntimeError(f"{step} falhou com código {code}.")
+
+
 def _worker(config: dict[str, object]) -> None:
     global CURRENT_PROCESS
     try:
@@ -275,7 +339,36 @@ def _worker(config: dict[str, object]) -> None:
             encoding="utf-8",
         )
 
-        workers = max(1, min(4, os.cpu_count() or 1))
+        if config["refresh_data"]:
+            _run_preflight(
+                "Atualizando candles e eventos oficiais da B3",
+                [
+                    sys.executable,
+                    "scripts/sync_official_universe.py",
+                    "--download",
+                    "--refresh-current",
+                    "--refresh-actions",
+                ],
+            )
+
+        _run_preflight(
+            "Verificando hashes e cobertura dos candles",
+            [sys.executable, "-m", "b3_strategy_lab", "verify-data", "--interval", "1d"],
+        )
+        _run_preflight(
+            "Verificando atualidade e prontidão dos dados",
+            [
+                sys.executable,
+                "scripts/audit_backtest_readiness.py",
+                "--max-age-calendar-days",
+                "4",
+            ],
+        )
+        _run_preflight(
+            "Auditando indicadores de volume",
+            [sys.executable, "scripts/audit_volume_indicators.py"],
+        )
+
         command = [
             sys.executable,
             "scripts/backtest_strategy_management_combinations.py",
@@ -285,12 +378,16 @@ def _worker(config: dict[str, object]) -> None:
             str(config["start"]),
             "--initial-cash",
             str(config["initial_cash"]),
+            "--cost-bps",
+            str(config["cost_bps"]),
+            "--slippage-bps",
+            str(config["slippage_bps"]),
             "--signal-mode",
             "adjusted",
             "--config-set",
             "all",
             "--workers",
-            str(workers),
+            str(config["workers"]),
             "--top",
             "10",
             "--output",
@@ -406,6 +503,10 @@ input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-r
 <div class="field"><label class="title">Data inicial</label><input id="start" type="date" min="2018-01-02" value="2018-01-02"></div>
 <div class="field"><label class="title">Data final</label><input id="end" type="date" min="2018-01-02" value="__TODAY__"></div>
 <div class="field"><label class="title">Capital inicial (R$)</label><input id="cash" type="number" min="1" step="100" value="1000"></div>
+<div class="field"><label class="title">Custos por operação (bps)</label><input id="cost" type="number" min="0" step="0.1" value="3.2"></div>
+<div class="field"><label class="title">Slippage adverso (bps)</label><input id="slippage" type="number" min="0" step="0.1" value="10"></div>
+<div class="field"><label class="title">Processos paralelos</label><input id="workers" type="number" min="1" max="__MAX_WORKERS__" step="1" value="__DEFAULT_WORKERS__"></div>
+<div class="field"><label><input id="refreshData" type="checkbox" checked> Atualizar e auditar dados oficiais antes de testar</label><div class="hint">Inclui o volume consolidado dos mercados padrão e fracionário.</div></div>
 <div class="actions"><button id="run" class="btn primary" onclick="runBacktest()">Testar todas as combinações</button><button id="stop" class="btn danger" onclick="stopBacktest()">Parar</button></div>
 <div id="statusBox" class="status idle"><span class="dot"></span><strong id="statusText">Pronto para executar.</strong></div>
 <div id="step" class="hint"></div>
@@ -417,7 +518,7 @@ input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-r
 <div class="metric"><small>Velocidade</small><b id="speed">—</b></div>
 </div>
 <div id="winner" class="winner"><small>Melhor combinação final</small><b id="winnerName"></b><span id="winnerReturn"></span></div>
-<div class="notice">Esta é a matriz de pesquisa do projeto: sinais ajustados, execução conforme o motor de combinações e sem dividendos/JCP. A validação realista da combinação vencedora continua sendo uma etapa separada.</div>
+<div class="notice">Esta matriz continua sendo pesquisa retrospectiva. Custos e slippage são aplicados, mas dividendos/JCP, imposto e execução fracionária exata exigem a validação realista separada.</div>
 </div>
 <div class="card">
 <div class="stocks-head"><div><strong>Ações testadas</strong><div class="count"><span id="selectedCount">0</span> selecionadas</div></div><div class="actions"><button class="btn soft" onclick="selectAll(true)">Todas</button><button class="btn soft" onclick="selectAll(false)">Limpar</button></div></div>
@@ -433,7 +534,7 @@ function refreshCount(){document.getElementById('selectedCount').textContent=box
 function selectAll(v){boxes().forEach(x=>x.checked=v);refreshCount()}
 boxes().forEach(x=>x.addEventListener('change',refreshCount));selectAll(true);
 async function runBacktest(){
- const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value)};
+ const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value),cost_bps:Number(document.getElementById('cost').value),slippage_bps:Number(document.getElementById('slippage').value),workers:Number(document.getElementById('workers').value),refresh_data:document.getElementById('refreshData').checked};
  const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
  const d=await r.json();if(!r.ok)alert(d.error||'Falha ao iniciar');refresh();
 }
@@ -452,7 +553,7 @@ async function refresh(){
   document.getElementById('speed').textContent=d.combinations_per_second?Number(d.combinations_per_second).toLocaleString('pt-BR',{maximumFractionDigits:1})+' comb/s':'—';
   document.getElementById('log').textContent=d.log||'Nenhum log.';document.getElementById('log').scrollTop=999999;
   document.getElementById('run').disabled=d.state==='running';document.getElementById('stop').disabled=d.state!=='running';
-  if(d.winner){const w=document.getElementById('winner');w.style.display='block';document.getElementById('winnerName').textContent=d.winner.strategy+' + '+d.winner.management;document.getElementById('winnerReturn').textContent=money(d.winner.final_equity)+' • retorno '+pct(d.winner.total_return)+' • CAGR '+pct(d.winner.cagr)}
+  if(d.winner){const w=document.getElementById('winner');w.style.display='block';document.getElementById('winnerName').textContent=d.winner.strategy+' + '+d.winner.management;const period=d.winner.start&&d.winner.end?' • período efetivo '+d.winner.start+' a '+d.winner.end:'';document.getElementById('winnerReturn').textContent=money(d.winner.final_equity)+' • retorno '+pct(d.winner.total_return)+' • CAGR '+pct(d.winner.cagr)+period}
  }catch(e){}
 }
 setInterval(refresh,1000);refresh();
@@ -486,6 +587,8 @@ class Handler(BaseHTTPRequestHandler):
             body = (
                 HTML.replace("__TICKERS__", ticker_html)
                 .replace("__TODAY__", date.today().isoformat())
+                .replace("__MAX_WORKERS__", str(max(1, os.cpu_count() or 1)))
+                .replace("__DEFAULT_WORKERS__", str(RECOMMENDED_WORKERS))
                 .encode("utf-8")
             )
             self.send_response(200)

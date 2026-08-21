@@ -6,7 +6,7 @@ import json
 import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -47,6 +47,10 @@ from b3_strategy_lab.cotahist import (  # noqa: E402
     source_archive,
     verify_dataset,
     write_manifest,
+)
+from b3_strategy_lab.point_in_time import (  # noqa: E402
+    base_fractional_ticker,
+    read_fractional_cotahist,
 )
 
 
@@ -106,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         archives,
         tickers,
         exclude_date=date.today().isoformat(),
+        require_standard_for_fractional_from=str(universe["selected_as_of"]),
     )
     if args.selection_report:
         if args.selection_report.exists() and not args.refresh_selection:
@@ -384,20 +389,88 @@ def _read_official_quotes(
     tickers: list[str],
     *,
     exclude_date: str,
+    require_standard_for_fractional_from: str | None = None,
 ) -> tuple[dict[str, list[OfficialQuote]], list[SourceArchive]]:
     by_ticker: dict[str, list[OfficialQuote]] = defaultdict(list)
     sources = []
     for year, archive in archives:
-        quotes = read_cotahist(archive, tickers=tickers)
-        quotes = [quote for quote in quotes if quote.date < exclude_date]
+        quotes = [
+            quote
+            for quote in read_cotahist(archive, tickers=tickers)
+            if quote.date < exclude_date
+        ]
+        fractional = [
+            quote
+            for quote in read_fractional_cotahist(archive)
+            if base_fractional_ticker(quote.ticker) in tickers
+            and quote.date < exclude_date
+        ]
+        fractional_by_base_date = {
+            (base_fractional_ticker(quote.ticker), quote.date): quote
+            for quote in fractional
+        }
+        if len(fractional_by_base_date) != len(fractional):
+            raise ValueError(f"{year}: cotacoes fracionarias duplicadas por ativo/data.")
+        standard_keys = {(quote.ticker, quote.date) for quote in quotes}
+        fractional_only = sorted(set(fractional_by_base_date) - standard_keys)
+        if fractional_only:
+            print(
+                f"{year}: {len(fractional_only)} registro(s) fracionario(s) sem "
+                "OHLC padrao; nao foi sintetizado candle",
+                flush=True,
+            )
+        blocking_fractional_only = [
+            key
+            for key in fractional_only
+            if require_standard_for_fractional_from is not None
+            and key[1] >= require_standard_for_fractional_from
+        ]
+        if blocking_fractional_only:
+            raise ValueError(
+                f"{year}: atividade fracionaria sem candle padrao dentro da janela "
+                f"avaliada: {blocking_fractional_only[:5]}."
+            )
+        quotes = [
+            _with_fractional_volume(
+                quote,
+                fractional_by_base_date.get((quote.ticker, quote.date)),
+            )
+            for quote in quotes
+        ]
         for quote in quotes:
             by_ticker[quote.ticker].append(quote)
         sources.append(source_archive(archive, year))
-        print(f"{year}: {len(quotes)} cotacoes do universo", flush=True)
+        print(
+            f"{year}: {len(quotes)} cotacoes do universo; "
+            f"{len(fractional)} registros fracionarios consolidados",
+            flush=True,
+        )
     missing = [ticker for ticker in tickers if not by_ticker[ticker]]
     if missing:
         raise ValueError(f"Tickers sem cotacao oficial: {missing}.")
     return {ticker: sorted(by_ticker[ticker], key=lambda quote: quote.date) for ticker in tickers}, sources
+
+
+def _with_fractional_volume(
+    standard: OfficialQuote,
+    fractional: OfficialQuote | None,
+) -> OfficialQuote:
+    """Preserva o OHLC 010 e soma somente atividade oficial do mercado 020."""
+    fractional_volume = fractional.volume if fractional is not None else 0
+    fractional_trades = fractional.trades if fractional is not None else 0
+    fractional_financial = (
+        fractional.financial_volume if fractional is not None else 0.0
+    )
+    return replace(
+        standard,
+        volume=standard.volume + fractional_volume,
+        trades=standard.trades + fractional_trades,
+        financial_volume=standard.financial_volume + fractional_financial,
+        fractional_volume=fractional_volume,
+        fractional_trades=fractional_trades,
+        fractional_financial_volume=fractional_financial,
+        volume_scope="consolidated_010_020",
+    )
 
 
 def _load_supplements(
@@ -541,6 +614,10 @@ def _historical_quotes(path: Path, coverage_start: str) -> list[OfficialQuote]:
                 distribution_number=candle.distribution_number,
                 specification=candle.specification,
                 issuer_name=candle.issuer_name,
+                fractional_volume=candle.fractional_raw_volume,
+                fractional_trades=candle.fractional_trades,
+                fractional_financial_volume=candle.fractional_financial_volume,
+                volume_scope=candle.volume_scope,
             )
         )
     return result

@@ -14,6 +14,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     ExecutionPriceBook,
     FeeSchedule,
     PointInTimeUniverse,
+    cash_coverage_certification_issues,
     load_cash_distributions,
     write_dataclass_csv,
 )
@@ -29,6 +30,9 @@ DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_CASH_EVENTS = Path("data/corporate_actions/point_in_time_cash_distributions.csv")
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
+DEFAULT_CASH_CERTIFICATION = Path(
+    "data/corporate_actions/cash_distribution_coverage_certification.json"
+)
 DEFAULT_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_OUTPUT = Path("reports/realistic_account_summary.json")
 DEFAULT_CURVE = Path("reports/realistic_account_curve.csv")
@@ -64,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execution-prices", type=Path, default=DEFAULT_EXECUTION)
     parser.add_argument("--cash-events", type=Path, default=DEFAULT_CASH_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
+    parser.add_argument(
+        "--cash-certification",
+        type=Path,
+        default=DEFAULT_CASH_CERTIFICATION,
+    )
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
     parser.add_argument("--strategy", default="gap_momentum")
@@ -105,7 +114,11 @@ def main(argv: list[str] | None = None) -> int:
     cash_manifest = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     if cash_manifest.get("complete") is not True:
         parser.error("Refusing realistic mode: B3 cash-distribution response has unresolved parsing issues.")
-
+    cash_certification: dict[str, object] = {}
+    if args.cash_certification.exists():
+        cash_certification = json.loads(
+            args.cash_certification.read_text(encoding="utf-8")
+        )
     universe = PointInTimeUniverse.from_csv(args.snapshots)
     selectable = {str(item).upper() for item in manifest["tickers"]}
     if universe.union != selectable:
@@ -131,6 +144,16 @@ def main(argv: list[str] | None = None) -> int:
     if not eligible_end_dates:
         parser.error("No market session exists at or before --end.")
     end = max(eligible_end_dates)
+    cash_events_complete = bool(cash_certification) and not (
+        cash_coverage_certification_issues(
+            cash_certification,
+            cash_events_path=args.cash_events,
+            cash_manifest_path=args.cash_manifest,
+            tickers=universe.union,
+            start=args.start,
+            end=end,
+        )
+    )
 
     summary, curve, account = run_realistic(
         data=data,
@@ -150,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,
         survivorship_safe=bool(manifest.get("survivorship_safe")),
+        cash_events_complete=cash_events_complete,
         progress_callback=_report_progress,
     )
 
