@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,12 +22,14 @@ ALLOWED_CASH_KINDS = {
     "INTEREST",
     "OTHER_CERTIFIED",
 }
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
 class ActualFill:
     trade_date: str
     settlement_date: str
+    sequence: int
     execution_id: str
     order_id: str
     side: str
@@ -34,6 +37,7 @@ class ActualFill:
     shares: int
     price: float
     source_document: str
+    source_sha256: str
 
     @property
     def notional(self) -> float:
@@ -43,20 +47,24 @@ class ActualFill:
 @dataclass(frozen=True)
 class CashEvent:
     value_date: str
+    sequence: int
     event_id: str
     kind: str
     amount: float
     source_document: str
+    source_sha256: str
     ticker: str = ""
 
 
 @dataclass(frozen=True)
 class PositionEvent:
     value_date: str
+    sequence: int
     event_id: str
     ticker: str
     share_delta: int
     source_document: str
+    source_sha256: str
 
 
 @dataclass(frozen=True)
@@ -65,11 +73,14 @@ class AccountSnapshot:
     cash_balance: float
     positions: dict[str, int]
     source_document: str
+    source_sha256: str
 
 
 @dataclass(frozen=True)
 class AccountReconciliation:
-    start_cash: float
+    opening_date: str
+    closing_date: str
+    opening_cash: float
     reconstructed_cash: float
     snapshot_cash: float
     cash_difference: float
@@ -89,7 +100,9 @@ class AccountReconciliation:
                 if self.exact
                 else "ACTUAL_PERSONAL_ACCOUNT_RECONCILIATION_REJECTED"
             ),
-            "start_cash": self.start_cash,
+            "opening_date": self.opening_date,
+            "closing_date": self.closing_date,
+            "opening_cash": self.opening_cash,
             "reconstructed_cash": self.reconstructed_cash,
             "snapshot_cash": self.snapshot_cash,
             "cash_difference": self.cash_difference,
@@ -102,9 +115,10 @@ class AccountReconciliation:
             "exact": self.exact,
             "blockers": list(self.blockers),
             "interpretation": (
-                "Exact means the supplied broker-source ledger reconciles cash to the cent "
-                "and every final share quantity exactly. It does not infer missing trades, "
-                "fees, taxes, dividends or corporate-action quantities."
+                "Exact means the supplied broker-source ledger, bounded by documentary "
+                "opening and closing snapshots, reconciles cash to the cent and every final "
+                "share quantity exactly. Missing trades, fees, taxes, dividends or corporate "
+                "actions are never inferred."
             ),
         }
 
@@ -114,6 +128,31 @@ def _require_source(value: str, label: str) -> str:
     if not source:
         raise ValueError(f"{label}: source_document is required for exact reconciliation")
     return source
+
+
+def _require_sha256(value: str, label: str) -> str:
+    digest = value.strip().lower()
+    if not SHA256_RE.fullmatch(digest):
+        raise ValueError(f"{label}: source_sha256 must be a 64-character lowercase SHA-256")
+    return digest
+
+
+def _date(value: object, label: str) -> str:
+    text = str(value or "").strip()[:10]
+    if len(text) != 10:
+        raise ValueError(f"{label}: ISO date is required")
+    # stdlib validates calendar semantics without adding a dependency.
+    from datetime import date
+
+    date.fromisoformat(text)
+    return text
+
+
+def _sequence(value: object) -> int:
+    result = int(value or 0)
+    if result < 0:
+        raise ValueError("sequence must be non-negative")
+    return result
 
 
 def load_actual_fills(path: Path | str) -> list[ActualFill]:
@@ -131,26 +170,36 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
             side = str(row.get("side", "")).strip().upper()
             if side not in {"BUY", "SELL"}:
                 raise ValueError(f"invalid side for {execution_id}: {side}")
+            ticker = str(row.get("ticker", "")).strip().upper()
+            if not ticker:
+                raise ValueError(f"ticker is required: {execution_id}")
             shares = int(row.get("shares", 0) or 0)
             price = float(row.get("price", 0) or 0)
             if shares <= 0 or price <= 0 or not math.isfinite(price):
                 raise ValueError(f"invalid fill quantity/price: {execution_id}")
             result.append(
                 ActualFill(
-                    trade_date=str(row.get("trade_date", ""))[:10],
-                    settlement_date=str(row.get("settlement_date", ""))[:10],
+                    trade_date=_date(row.get("trade_date"), execution_id),
+                    settlement_date=_date(row.get("settlement_date"), execution_id),
+                    sequence=_sequence(row.get("sequence")),
                     execution_id=execution_id,
                     order_id=str(row.get("order_id", "")).strip(),
                     side=side,
-                    ticker=str(row.get("ticker", "")).strip().upper(),
+                    ticker=ticker,
                     shares=shares,
                     price=price,
                     source_document=_require_source(
                         str(row.get("source_document", "")), execution_id
                     ),
+                    source_sha256=_require_sha256(
+                        str(row.get("source_sha256", "")), execution_id
+                    ),
                 )
             )
-    return sorted(result, key=lambda item: (item.settlement_date, item.execution_id))
+    return sorted(
+        result,
+        key=lambda item: (item.trade_date, item.sequence, item.execution_id),
+    )
 
 
 def load_cash_events(path: Path | str) -> list[CashEvent]:
@@ -177,17 +226,21 @@ def load_cash_events(path: Path | str) -> list[CashEvent]:
                 raise ValueError(f"{kind} must be signed positive: {event_id}")
             result.append(
                 CashEvent(
-                    value_date=str(row.get("value_date", ""))[:10],
+                    value_date=_date(row.get("value_date"), event_id),
+                    sequence=_sequence(row.get("sequence")),
                     event_id=event_id,
                     kind=kind,
                     amount=amount,
                     source_document=_require_source(
                         str(row.get("source_document", "")), event_id
                     ),
+                    source_sha256=_require_sha256(
+                        str(row.get("source_sha256", "")), event_id
+                    ),
                     ticker=str(row.get("ticker", "")).strip().upper(),
                 )
             )
-    return sorted(result, key=lambda item: (item.value_date, item.event_id))
+    return sorted(result, key=lambda item: (item.value_date, item.sequence, item.event_id))
 
 
 def load_position_events(path: Path | str) -> list[PositionEvent]:
@@ -204,93 +257,130 @@ def load_position_events(path: Path | str) -> list[PositionEvent]:
             if event_id in seen:
                 raise ValueError(f"duplicate position event_id: {event_id}")
             seen.add(event_id)
+            ticker = str(row.get("ticker", "")).strip().upper()
+            if not ticker:
+                raise ValueError(f"ticker is required: {event_id}")
             delta = int(row.get("share_delta", 0) or 0)
             if delta == 0:
                 raise ValueError(f"zero share adjustment is not meaningful: {event_id}")
             result.append(
                 PositionEvent(
-                    value_date=str(row.get("value_date", ""))[:10],
+                    value_date=_date(row.get("value_date"), event_id),
+                    sequence=_sequence(row.get("sequence")),
                     event_id=event_id,
-                    ticker=str(row.get("ticker", "")).strip().upper(),
+                    ticker=ticker,
                     share_delta=delta,
                     source_document=_require_source(
                         str(row.get("source_document", "")), event_id
                     ),
+                    source_sha256=_require_sha256(
+                        str(row.get("source_sha256", "")), event_id
+                    ),
                 )
             )
-    return sorted(result, key=lambda item: (item.value_date, item.event_id))
+    return sorted(result, key=lambda item: (item.value_date, item.sequence, item.event_id))
 
 
 def load_snapshot(path: Path | str) -> AccountSnapshot:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if payload.get("schema_version") != 1:
         raise ValueError("account snapshot requires schema_version=1")
+    cash = float(payload.get("cash_balance", 0) or 0)
+    if not math.isfinite(cash):
+        raise ValueError("snapshot cash_balance must be finite")
     positions = {
         str(ticker).strip().upper(): int(shares)
         for ticker, shares in dict(payload.get("positions") or {}).items()
     }
+    if any(not ticker for ticker in positions):
+        raise ValueError("snapshot ticker cannot be empty")
     if any(shares < 0 for shares in positions.values()):
         raise ValueError("snapshot cannot contain negative long-only share quantities")
     return AccountSnapshot(
-        value_date=str(payload.get("value_date", ""))[:10],
-        cash_balance=float(payload.get("cash_balance", 0) or 0),
+        value_date=_date(payload.get("value_date"), "snapshot"),
+        cash_balance=cash,
         positions=positions,
         source_document=_require_source(
             str(payload.get("source_document", "")), "snapshot"
+        ),
+        source_sha256=_require_sha256(
+            str(payload.get("source_sha256", "")), "snapshot"
         ),
     )
 
 
 def reconcile_actual_account(
     *,
-    start_cash: float,
+    opening_snapshot: AccountSnapshot,
+    closing_snapshot: AccountSnapshot,
     fills: Iterable[ActualFill],
     cash_events: Iterable[CashEvent],
     position_events: Iterable[PositionEvent],
-    snapshot: AccountSnapshot,
     cent_tolerance: float = 0.005,
 ) -> AccountReconciliation:
-    if not math.isfinite(start_cash):
-        raise ValueError("start_cash must be finite")
-    cash = float(start_cash)
-    positions: dict[str, int] = defaultdict(int)
+    if opening_snapshot.value_date > closing_snapshot.value_date:
+        raise ValueError("opening snapshot must precede closing snapshot")
+    if cent_tolerance < 0 or not math.isfinite(cent_tolerance):
+        raise ValueError("cent_tolerance must be finite and non-negative")
+
+    cash = float(opening_snapshot.cash_balance)
+    positions: dict[str, int] = defaultdict(int, opening_snapshot.positions)
     fill_list = list(fills)
     cash_list = list(cash_events)
     position_list = list(position_events)
 
-    timeline: list[tuple[str, int, object]] = []
-    timeline.extend((item.settlement_date, 0, item) for item in fill_list)
-    timeline.extend((item.value_date, 1, item) for item in cash_list)
-    timeline.extend((item.value_date, 2, item) for item in position_list)
-    timeline.sort(key=lambda item: (item[0], item[1]))
+    # A fill has two different account effects: ownership changes on trade date,
+    # while cash settles on settlement date. Normalized broker fees/taxes remain
+    # explicit CashEvent rows so no cost is inferred from public market data.
+    timeline: list[tuple[str, int, int, str, object]] = []
+    for item in fill_list:
+        timeline.append((item.trade_date, item.sequence, 0, item.execution_id, item))
+        timeline.append((item.settlement_date, item.sequence, 1, item.execution_id, item))
+    timeline.extend(
+        (item.value_date, item.sequence, 2, item.event_id, item) for item in cash_list
+    )
+    timeline.extend(
+        (item.value_date, item.sequence, 3, item.event_id, item) for item in position_list
+    )
+    timeline.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
 
     blockers: list[str] = []
-    for value_date, _, item in timeline:
-        if value_date and snapshot.value_date and value_date > snapshot.value_date:
-            blockers.append("ledger_contains_event_after_snapshot")
+    for value_date, _, effect_kind, _, item in timeline:
+        if value_date < opening_snapshot.value_date:
+            blockers.append("ledger_contains_event_before_opening_snapshot")
             continue
+        if value_date > closing_snapshot.value_date:
+            blockers.append("ledger_contains_event_after_closing_snapshot")
+            continue
+
         if isinstance(item, ActualFill):
-            ticker = item.ticker
-            if item.side == "BUY":
-                cash -= item.notional
-                positions[ticker] += item.shares
+            if effect_kind == 0:
+                if item.side == "BUY":
+                    positions[item.ticker] += item.shares
+                else:
+                    if positions[item.ticker] < item.shares:
+                        blockers.append(
+                            f"sell_exceeds_reconstructed_position:{item.execution_id}"
+                        )
+                    positions[item.ticker] -= item.shares
             else:
-                if positions[ticker] < item.shares:
-                    blockers.append(f"sell_exceeds_reconstructed_position:{item.execution_id}")
-                positions[ticker] -= item.shares
-                cash += item.notional
+                cash += item.notional if item.side == "SELL" else -item.notional
         elif isinstance(item, CashEvent):
             cash += item.amount
         elif isinstance(item, PositionEvent):
             positions[item.ticker] += item.share_delta
             if positions[item.ticker] < 0:
-                blockers.append(f"position_event_makes_quantity_negative:{item.event_id}")
+                blockers.append(
+                    f"position_event_makes_quantity_negative:{item.event_id}"
+                )
 
     reconstructed_positions = {
         ticker: shares for ticker, shares in sorted(positions.items()) if shares != 0
     }
     snapshot_positions = {
-        ticker: shares for ticker, shares in sorted(snapshot.positions.items()) if shares != 0
+        ticker: shares
+        for ticker, shares in sorted(closing_snapshot.positions.items())
+        if shares != 0
     }
     all_tickers = sorted(set(reconstructed_positions) | set(snapshot_positions))
     position_differences = {
@@ -298,16 +388,18 @@ def reconcile_actual_account(
         for ticker in all_tickers
         if reconstructed_positions.get(ticker, 0) != snapshot_positions.get(ticker, 0)
     }
-    cash_difference = cash - snapshot.cash_balance
+    cash_difference = cash - closing_snapshot.cash_balance
     if abs(cash_difference) > cent_tolerance:
         blockers.append("cash_does_not_reconcile_to_cent")
     if position_differences:
         blockers.append("positions_do_not_reconcile_exactly")
 
     return AccountReconciliation(
-        start_cash=start_cash,
+        opening_date=opening_snapshot.value_date,
+        closing_date=closing_snapshot.value_date,
+        opening_cash=opening_snapshot.cash_balance,
         reconstructed_cash=cash,
-        snapshot_cash=snapshot.cash_balance,
+        snapshot_cash=closing_snapshot.cash_balance,
         cash_difference=cash_difference,
         reconstructed_positions=reconstructed_positions,
         snapshot_positions=snapshot_positions,
