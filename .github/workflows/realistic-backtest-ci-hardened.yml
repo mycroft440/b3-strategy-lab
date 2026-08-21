@@ -56,7 +56,9 @@ jobs:
             b3_strategy_lab/cash_distributions.py \
             b3_strategy_lab/extended_strategies.py \
             b3_strategy_lab/research_indicators.py \
+            b3_strategy_lab/reconstruction_quality.py \
             scripts/build_point_in_time_universe.py \
+            scripts/build_survivorship_safe_realistic_universe.py \
             scripts/build_ticker_transitions.py \
             scripts/sync_point_in_time_universe.py \
             scripts/sync_point_in_time_universe_realistic.py \
@@ -66,6 +68,7 @@ jobs:
             scripts/audit_backtest_integrity.py \
             scripts/backtest_research_catalog_priority.py \
             scripts/run_realistic_pipeline.py \
+            scripts/run_exact_realistic_reconstruction.py \
             scripts/research_portfolio_allocation.py \
             scripts/backtest_strategy_management_combinations.py
 
