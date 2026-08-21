@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "value_date": "2018-12-28",
+  "cash_balance": 0.0,
+  "positions": {
+    "PETR4": 1
+  },
+  "source_document": "PRIVATE/extrato_fechamento.pdf",
+  "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}
