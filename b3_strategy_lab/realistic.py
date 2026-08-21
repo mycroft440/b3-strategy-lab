@@ -143,7 +143,11 @@ class RealCashAccount(_core.RealCashAccount):
         self._distribution_receivables: dict[
             object, tuple[float, float, str, str, str]
         ] = {}
-        self._pending_dividend_gross: dict[tuple[str, str], float] = defaultdict(float)
+        # Cumulative known gross dividend rights by payment month/payer. This is
+        # intentionally never decremented when an installment is paid: the 2026+
+        # source-withholding threshold is monthly, so paid and unpaid installments
+        # from the same payer must be considered together.
+        self._known_dividend_gross: dict[tuple[str, str], float] = defaultdict(float)
 
     def sell_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
         super().sell_leg(value_date, ticker, quantity, quote)
@@ -184,19 +188,18 @@ class RealCashAccount(_core.RealCashAccount):
             net = gross * (1.0 - rate)
         else:
             key = (payment_month, payer)
-            previous = self._pending_dividend_gross[key]
-            updated = previous + gross
-            # For 2026+, dividends above R$50k/month from the same payer can require
-            # source withholding subject to transitional exceptions. The isolated B3
-            # event ledger cannot prove those exceptions, so fail before overstating
-            # the receivable as gross when its net amount is uncertain.
+            updated = self._known_dividend_gross[key] + gross
+            # For 2026+, aggregate every known installment in the same payment
+            # month from the same payer. If the aggregate crosses R$50k, net cash
+            # may depend on Lei 15.270/2025 transitional exceptions that this public
+            # event ledger cannot prove; fail before overstating the receivable.
             if int(payment_month[:4]) >= 2026 and updated > 50_000.0 + 1e-9:
                 raise ValueError(
-                    f"{payment_month}/{payer}: pending dividends exceed R$50,000 but "
+                    f"{payment_month}/{payer}: known dividends exceed R$50,000 but "
                     "the event ledger does not certify the Lei 15.270/2025 transitional "
                     "withholding treatment."
                 )
-            self._pending_dividend_gross[key] = updated
+            self._known_dividend_gross[key] = updated
             net = gross
 
         self._distribution_receivables[event_key] = (
@@ -214,12 +217,7 @@ class RealCashAccount(_core.RealCashAccount):
         item = self._distribution_receivables.pop(event_key, None)
         if item is None:
             return 0.0
-        net, gross, payment_month, payer, label = item
-        if label not in {"JCP", "JSCP"}:
-            key = (payment_month, payer)
-            self._pending_dividend_gross[key] = max(
-                0.0, self._pending_dividend_gross[key] - gross
-            )
+        net, _gross, _payment_month, _payer, _label = item
         return net
 
     def distribution_receivable_value(self) -> float:
