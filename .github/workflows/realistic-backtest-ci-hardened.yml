@@ -5,6 +5,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
       - "scripts/backtest_research_catalog_priority.py"
       - "scripts/build_point_in_time_universe.py"
@@ -20,6 +21,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
       - "scripts/backtest_research_catalog_priority.py"
       - "scripts/build_point_in_time_universe.py"
@@ -58,6 +60,8 @@ jobs:
             b3_strategy_lab/research_indicators.py \
             b3_strategy_lab/reconstruction_quality.py \
             b3_strategy_lab/replay_scope.py \
+            b3_strategy_lab/personal_account.py \
+            b3_strategy_lab/source_evidence.py \
             scripts/build_point_in_time_universe.py \
             scripts/build_survivorship_safe_realistic_universe.py \
             scripts/build_ticker_transitions.py \
@@ -70,6 +74,7 @@ jobs:
             scripts/backtest_research_catalog_priority.py \
             scripts/run_realistic_pipeline.py \
             scripts/run_exact_realistic_reconstruction.py \
+            scripts/reconcile_actual_personal_account.py \
             scripts/research_portfolio_allocation.py \
             scripts/backtest_strategy_management_combinations.py
 
@@ -108,13 +113,22 @@ jobs:
           audit = status["input_audit"]
           if not audit.get("ready_for_realistic_estimate"):
               raise SystemExit(f"realistic input audit not ready: {audit.get('blockers')}")
+          if status.get("conditional_account_reconstruction_exact") is not False:
+              raise SystemExit("public-data counterfactual must never be labeled exact")
+          if status.get("source_years") != "2017:2018":
+              raise SystemExit(f"2018 smoke downloaded unexpected years: {status.get('source_years')}")
           runs = status["continuous_replay"]
           for label in ("raw_gap", "economic_gap"):
               summary = runs[label]
-              if summary.get("survivorship_safe") is not False:
-                  raise SystemExit(f"{label}: survivorship flag must reflect retrospective universe")
-              if "RETROSPECTIVE_UNIVERSE" not in summary.get("validity", ""):
-                  raise SystemExit(f"{label}: retrospective-universe validity tag missing")
+              if summary.get("survivorship_safe") is not True:
+                  raise SystemExit(f"{label}: realistic pipeline must use survivorship-safe universe")
+              validity = summary.get("validity", "")
+              if "RETROSPECTIVE_UNIVERSE" in validity:
+                  raise SystemExit(f"{label}: survivorship-safe run cannot carry retrospective-universe tag")
+              if "RETROSPECTIVE_SELECTION" not in validity:
+                  raise SystemExit(f"{label}: frozen hindsight-selected strategy must retain retrospective-selection tag")
+              if summary.get("counterfactual_execution_exact") is not False:
+                  raise SystemExit(f"{label}: hypothetical official-open execution cannot be exact")
               if float(summary["final_equity"]) <= 0:
                   raise SystemExit(f"{label}: invalid final equity")
           print("realistic 2018 end-to-end smoke passed")
