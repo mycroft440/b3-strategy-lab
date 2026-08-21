@@ -148,9 +148,12 @@ def main(argv: list[str] | None = None) -> int:
         checks["snapshot_union_within_allowed_universe"] = True
 
     start = str(universe_payload.get("selected_as_of", universe.snapshots[0].effective_date))[:10]
-    end = max(snapshot.effective_date for snapshot in universe.snapshots)
+    latest_snapshot = max(snapshot.effective_date for snapshot in universe.snapshots)
+    end = str(universe_payload.get("selection_end", latest_snapshot))[:10]
+    checks["declared_replay_end_not_before_last_snapshot"] = end >= latest_snapshot
     details["audit_start"] = start
     details["audit_end"] = end
+    details["last_snapshot_date"] = latest_snapshot
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
     details["market_data_ticker_count"] = len(market_data)
@@ -251,6 +254,10 @@ def main(argv: list[str] | None = None) -> int:
         checks["execution_book_within_allowed_universe"] = bool(market_data) and execution_bases <= market_data
 
     all_execution_dates = sorted(value for value in execution_dates if value)
+    last_execution_date = max(all_execution_dates) if all_execution_dates else ""
+    checks["execution_book_covers_declared_replay_end"] = bool(last_execution_date) and last_execution_date >= end
+    details["last_execution_date"] = last_execution_date
+
     missing_next_open: list[str] = []
     for snapshot in universe.snapshots:
         next_date = _next_execution_date(all_execution_dates, snapshot.effective_date)
@@ -274,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         "snapshot_union_matches_manifest",
         "market_data_contains_selectable_universe",
         "universe_policy_consistent",
+        "declared_replay_end_not_before_last_snapshot",
         "snapshot_union_within_allowed_universe",
         "excluded_tickers_absent",
         "split_markers_fully_covered",
@@ -285,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         "execution_book_has_positive_prices_and_volume",
         "execution_book_excludes_forbidden_tickers",
         "execution_book_within_allowed_universe",
+        "execution_book_covers_declared_replay_end",
     ]
     ready_for_estimate = all(checks[name] for name in structural_account)
 
@@ -325,7 +334,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 7,
+        "schema_version": 8,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -345,10 +354,10 @@ def main(argv: list[str] | None = None) -> int:
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
             "shares. Cash-distribution certification covers the full market_data_tickers "
-            "set, including continuity-only historical symbols. Daily COTAHIST does not "
-            "prove the fill of a hypothetical order. The exact brokerage-account label is "
-            "reserved for reconciliation of actual broker fills, complete cash events and "
-            "source-hashed opening/closing broker snapshots."
+            "set, including continuity-only historical symbols, through the declared replay "
+            "end. Daily COTAHIST does not prove the fill of a hypothetical order. The exact "
+            "brokerage-account label is reserved for reconciliation of actual broker fills, "
+            "complete cash events and source-hashed opening/closing broker snapshots."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
