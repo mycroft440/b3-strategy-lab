@@ -57,7 +57,7 @@ class ReplayScopeTests(unittest.TestCase):
                 result["blockers"],
             )
 
-    def test_daily_sales_above_limit_blocks_exact_scope(self) -> None:
+    def test_single_day_sales_above_limit_blocks_exact_scope(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             curve = root / "curve.csv"
@@ -76,10 +76,33 @@ class ReplayScopeTests(unittest.TestCase):
                 ],
             )
             result = audit_small_account_replay(curve, trades)
-            self.assertIn(
-                "daily_sales_exceed_small_account_irrf_safe_scope",
-                result["blockers"],
+            self.assertIn("single_day_sales_exceed_irrf_safe_scope", result["blockers"])
+            self.assertIn("monthly_sales_exceed_stock_gain_exemption_scope", result["blockers"])
+
+    def test_monthly_sales_are_aggregated_across_rebalances(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            curve = root / "curve.csv"
+            trades = root / "trades.csv"
+            self._write_csv(
+                curve,
+                ["date", "equity"],
+                [{"date": "2026-02-28", "equity": 15000}],
             )
+            self._write_csv(
+                trades,
+                ["date", "side", "notional"],
+                [
+                    {"date": "2026-02-06", "side": "SELL", "notional": 6000},
+                    {"date": "2026-02-13", "side": "SELL", "notional": 6000},
+                    {"date": "2026-02-20", "side": "SELL", "notional": 6000},
+                    {"date": "2026-02-27", "side": "SELL", "notional": 6000},
+                ],
+            )
+            result = audit_small_account_replay(curve, trades)
+            self.assertNotIn("single_day_sales_exceed_irrf_safe_scope", result["blockers"])
+            self.assertIn("monthly_sales_exceed_stock_gain_exemption_scope", result["blockers"])
+            self.assertEqual(result["max_monthly_sales"], 24000.0)
 
 
 if __name__ == "__main__":
