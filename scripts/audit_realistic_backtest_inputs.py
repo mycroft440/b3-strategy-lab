@@ -68,8 +68,9 @@ def _next_execution_date(all_dates: list[str], decision: str) -> str | None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit realistic B3 inputs. Market-input certification, strategy-selection "
-            "validity and personal-account exactness are intentionally separate claims."
+            "Audit realistic B3 inputs. Market-input certification, counterfactual "
+            "execution, strategy-selection validity and personal-account exactness are "
+            "intentionally separate claims."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -292,12 +293,13 @@ def main(argv: list[str] | None = None) -> int:
         name for name in certified_market_requirements if not checks[name]
     ]
 
-    personal_account_blockers = [
-        "broker_fee_profile_not_audited_here",
-        "actual_broker_fill_statements_not_provided",
-        "external_cpf_tax_context_not_provided",
+    personal_account_requirements = [
+        "documentary_opening_snapshot_not_audited_here",
+        "documentary_closing_snapshot_not_audited_here",
+        "actual_broker_fills_not_audited_here",
+        "complete_broker_cash_ledger_not_audited_here",
+        "source_hashes_for_personal_account_evidence_not_audited_here",
     ]
-    exact_claim_blockers = sorted(set(certified_market_blockers + personal_account_blockers))
 
     selection_limitations = []
     if not survivorship_safe:
@@ -306,24 +308,27 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 4,
+        "schema_version": 5,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
         "ready_for_certified_market_inputs": ready_for_certified_market_inputs,
+        # Deprecated compatibility field. A public-data counterfactual can never
+        # establish the exact fill of an order that did not actually exist.
         "ready_for_exact_historical_account_claim": False,
+        "counterfactual_execution_exact": False,
         "selection_validity": selection_validity,
         "ex_ante_selection_claim_allowed": survivorship_safe,
         "estimate_blockers": estimate_blockers,
         "certified_market_input_blockers": certified_market_blockers,
-        "exact_claim_blockers": exact_claim_blockers,
+        "exact_personal_account_requirements": personal_account_requirements,
         "selection_limitations": selection_limitations,
         "blockers": estimate_blockers,
         "interpretation": (
-            "Certified market inputs are necessary but not sufficient for an exact personal-account claim. "
-            "A strict conditional strategy replay can become exact under a declared official-open execution "
-            "policy after broker fees and tax isolation are independently certified. Actual personal-account "
-            "reconstruction additionally requires the broker's real order/fill and cash statements."
+            "Certified public market inputs make a counterfactual replay reproducible, not "
+            "execution-exact. Daily COTAHIST does not prove the fill of a hypothetical order. "
+            "The exact personal-account label is reserved for reconciliation of actual broker "
+            "fills, complete cash events and source-hashed opening/closing broker snapshots."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
