@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "broker_name": "PREENCHA_A_CORRETORA",
+  "account_label": "conta hipotetica dedicada ao backtest",
+  "settlement_currency": "BRL",
+  "tax_scope": {
+    "mode": "isolated_strategy_account",
+    "other_equity_trades": false,
+    "initial_loss_carry": 0.0,
+    "note": "Para reconstrução condicional estrita, a conta não pode compartilhar vendas, ganhos, perdas ou IRRF com outras operações em ações."
+  },
+  "monthly_custody_fee": 0.0,
+  "other_recurring_monthly_fee": 0.0,
+  "reviewed_by": "PREENCHA_COM_A_FONTE_DA_TARIFA",
+  "reviewed_at_utc": "2026-08-21T00:00:00+00:00",
+  "rules": [
+    {
+      "start": "2018-01-01",
+      "end": "2099-12-31",
+      "brokerage_bps": 0.0,
+      "brokerage_fixed_per_order": 0.0,
+      "quality": "unverified",
+      "evidence": [
+        "Substitua por nota de corretagem, tabela oficial da corretora ou contrato que prove a tarifa vigente em cada período."
+      ]
+    }
+  ],
+  "instructions": [
+    "Não troque quality para broker_certified sem evidência documental.",
+    "Se havia corretagem fixa, informe brokerage_fixed_per_order.",
+    "Se havia corretagem percentual, informe brokerage_bps.",
+    "Se havia custódia ou outra mensalidade, o modo estrito continuará bloqueado até o motor passar a debitá-la explicitamente."
+  ],
+  "recurring_fee_evidence": [
+    "Inclua extrato/contrato/tabela da corretora que prove se custódia, manutenção e mensalidades eram zero ou seus valores."
+  ]
+}
