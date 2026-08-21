@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "value_date": "2018-12-28",
+  "boundary": "END_OF_DAY",
   "cash_balance": 0.0,
   "positions": {
     "PETR4": 1
