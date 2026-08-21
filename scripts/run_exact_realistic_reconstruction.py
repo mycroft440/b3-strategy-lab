@@ -17,6 +17,7 @@ from b3_strategy_lab.reconstruction_quality import (  # noqa: E402
     strict_exact_blockers,
     write_composite_fee_schedule,
 )
+from b3_strategy_lab.replay_scope import audit_small_account_replay  # noqa: E402
 
 
 DEFAULT_B3_FEES = Path("data/fees/b3_equity_fee_schedule.json")
@@ -24,6 +25,10 @@ DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_AUDIT = Path("reports/exact_reconstruction_input_audit.json")
 DEFAULT_STATUS = Path("reports/exact_reconstruction_status.json")
 DEFAULT_SUMMARY = Path("reports/exact_reconstruction_summary.json")
+DEFAULT_CURVE = Path("reports/exact_reconstruction_curve.csv")
+DEFAULT_TRADES = Path("reports/exact_reconstruction_trades.csv")
+DEFAULT_DISTRIBUTIONS = Path("reports/exact_reconstruction_distributions.csv")
+DEFAULT_TAX = Path("reports/exact_reconstruction_tax.csv")
 
 
 def _run(arguments: list[str]) -> None:
@@ -45,6 +50,13 @@ def _execution_end(path: Path, requested_end: str | None) -> str:
     if not dates:
         raise ValueError("Execution book has no date in the requested period.")
     return max(dates)
+
+
+def _normalized_certified_validity(summary: dict[str, object]) -> str:
+    engine_validity = str(summary.get("validity", ""))
+    if str(summary.get("fee_quality", "")) == "certified":
+        return engine_validity.replace("__MODELED_FEES", "__CERTIFIED_COMPOSITE_FEES")
+    return engine_validity
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -116,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
 
     end = _execution_end(args.execution_prices, args.end)
     profile = BrokerProfile.from_json(args.broker_profile)
-    blockers = strict_exact_blockers(
+    preflight_blockers = strict_exact_blockers(
         audit,
         profile,
         start=args.start,
@@ -128,20 +140,22 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     status: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "start": args.start,
         "end": end,
         "initial_cash": args.initial_cash,
         "execution_policy": EXACT_EXECUTION_POLICY,
         "market_input_audit": str(args.audit_output),
         "broker_profile": str(args.broker_profile),
-        "strict_blockers": blockers,
-        "conditional_rule_based_reconstruction_exact": not blockers,
+        "preflight_passed": not preflight_blockers,
+        "strict_blockers": preflight_blockers,
+        "conditional_rule_based_reconstruction_exact": False,
+        "strategy_selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
         "actual_personal_account_reconstruction_exact": False,
         "actual_personal_account_note": (
             "A personal-account exact claim additionally requires actual broker order/fill "
-            "statements and complete external tax context. This runner reconstructs the "
-            "counterfactual strategy exactly only under its declared official-open order policy."
+            "statements and complete external tax context. This runner can certify only the "
+            "counterfactual strategy replay under its declared official-open order policy."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -149,9 +163,9 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(status, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    if blockers:
+    if preflight_blockers:
         print(json.dumps(status, indent=2, ensure_ascii=False))
-        print("Strict reconstruction refused; resolve every blocker above.", flush=True)
+        print("Strict reconstruction refused; resolve every preflight blocker above.", flush=True)
         return 3
 
     composite_fees = Path("reports/exact_composite_fee_schedule.json")
@@ -189,38 +203,82 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         str(args.output),
         "--curve-output",
-        "reports/exact_reconstruction_curve.csv",
+        str(DEFAULT_CURVE),
         "--trades-output",
-        "reports/exact_reconstruction_trades.csv",
+        str(DEFAULT_TRADES),
         "--cash-ledger-output",
-        "reports/exact_reconstruction_distributions.csv",
+        str(DEFAULT_DISTRIBUTIONS),
         "--tax-output",
-        "reports/exact_reconstruction_tax.csv",
+        str(DEFAULT_TAX),
     ]
     if args.strategy.strip().lower() == "gap_momentum":
         command.append("--economic-gap-adjustment")
     _run(command)
 
     summary = _read_json(args.output)
+    replay_scope = audit_small_account_replay(DEFAULT_CURVE, DEFAULT_TRADES)
+    postflight_blockers = list(replay_scope["blockers"])
+    if summary.get("survivorship_safe") is not True:
+        postflight_blockers.append("backtest_summary_is_not_survivorship_safe")
+    if summary.get("point_in_time_universe") is not True:
+        postflight_blockers.append("backtest_summary_is_not_point_in_time")
+    if summary.get("cash_events_complete") is not True:
+        postflight_blockers.append("backtest_summary_cash_events_are_not_certified")
+    if str(summary.get("fee_quality", "")) != "certified":
+        postflight_blockers.append("backtest_summary_fee_schedule_is_not_certified")
+    if args.strategy.strip().lower() == "gap_momentum" and summary.get("economic_gap_adjustment") is not True:
+        postflight_blockers.append("gap_momentum_requires_economic_gap_adjustment")
+    postflight_blockers = sorted(set(postflight_blockers))
+
+    engine_validity = str(summary.get("validity", ""))
+    summary["engine_validity"] = engine_validity
+    summary["validity"] = _normalized_certified_validity(summary)
+    summary["small_account_scope"] = replay_scope
+    summary["modeled_slippage"] = False
+    summary["certified_broker_fees"] = True
+    summary["execution_policy"] = EXACT_EXECUTION_POLICY
+    summary["strategy_selection_status"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
+    summary["actual_personal_account_exact"] = False
+    summary["actual_personal_account_requires"] = [
+        "broker order/fill statements for every execution",
+        "broker cash statements and non-trade fees",
+        "complete CPF-level equity tax context if other trades existed",
+    ]
+
+    if postflight_blockers:
+        all_blockers = sorted(set(preflight_blockers + postflight_blockers))
+        summary["reconstruction_classification"] = "STRICT_REPLAY_REJECTED"
+        summary["strict_blockers"] = all_blockers
+        args.output.write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        status["postflight_passed"] = False
+        status["strict_blockers"] = all_blockers
+        status["small_account_scope"] = replay_scope
+        status["summary"] = str(args.output)
+        args.status_output.write_text(
+            json.dumps(status, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        print(json.dumps(status, indent=2, ensure_ascii=False))
+        print("Strict reconstruction rejected after replay; no exact claim was emitted.", flush=True)
+        return 4
+
     summary.update(
         {
             "reconstruction_classification": "EXACT_CONDITIONAL_OFFICIAL_OPEN_REPLAY",
-            "execution_policy": EXACT_EXECUTION_POLICY,
-            "modeled_slippage": False,
-            "certified_broker_fees": True,
+            "strict_blockers": [],
             "survivorship_safe_universe_required": True,
-            "actual_personal_account_exact": False,
-            "actual_personal_account_requires": [
-                "broker order/fill statements for every execution",
-                "broker cash statements and non-trade fees",
-                "complete CPF-level equity tax context if other trades existed",
-            ],
         }
     )
     args.output.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    status["postflight_passed"] = True
+    status["strict_blockers"] = []
+    status["small_account_scope"] = replay_scope
     status["summary"] = str(args.output)
     status["final_equity"] = summary.get("final_equity")
     status["conditional_rule_based_reconstruction_exact"] = True
