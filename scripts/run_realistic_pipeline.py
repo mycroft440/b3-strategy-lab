@@ -23,9 +23,9 @@ def _read(path: Path) -> dict[str, object]:
 
 def _account_classification(audit: dict[str, object]) -> str:
     return (
-        "EXACT_CONDITIONAL_ACCOUNT_RECONSTRUCTION"
-        if audit.get("ready_for_exact_historical_account_claim")
-        else "REALISTIC_ACCOUNT_ESTIMATE_NOT_EXACT"
+        "CERTIFIED_MARKET_INPUTS_COUNTERFACTUAL_REPLAY"
+        if audit.get("ready_for_certified_market_inputs")
+        else "REALISTIC_ACCOUNT_ESTIMATE_WITH_UNCERTIFIED_INPUTS"
     )
 
 
@@ -34,8 +34,8 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "End-to-end realistic B3 validation pipeline. It preserves historical "
             "research artifacts and writes separate point-in-time/real-money-oriented "
-            "reports. Account reconstruction quality and strategy-selection evidence "
-            "are reported separately."
+            "reports. Public-market counterfactual execution is never labeled exact; "
+            "exact personal-account reconciliation requires actual broker fills."
         )
     )
     parser.add_argument("--start", default="2018-01-02")
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_data_build:
         build = [
             python,
-            "scripts/build_point_in_time_universe.py",
+            "scripts/build_survivorship_safe_realistic_universe.py",
             "--start",
             args.start,
             *common_end,
@@ -136,6 +136,9 @@ def main(argv: list[str] | None = None) -> int:
         summary["account_reconstruction_classification"] = _account_classification(audit)
         summary["strategy_selection_classification"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
         summary["ex_ante_selection_claim_allowed"] = False
+        summary["counterfactual_execution_exact"] = False
+        summary["actual_personal_account_exact"] = False
+        summary["actual_personal_account_runner"] = "scripts/reconcile_actual_personal_account.py"
         summary["input_audit"] = str(audit_path)
         summary_path.write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
@@ -175,14 +178,14 @@ def main(argv: list[str] | None = None) -> int:
 
     raw = next(item for item in runs if item["label"] == "raw_gap")
     economic = next(item for item in runs if item["label"] == "economic_gap")
-    exact_conditional = bool(audit.get("ready_for_exact_historical_account_claim"))
+    certified_market_inputs = bool(audit.get("ready_for_certified_market_inputs"))
     walk_scope = (
         "full_strategy_and_management_catalog"
         if args.walk_forward_all_strategies
         else "frozen_gap_momentum_managements_only"
     )
     status = {
-        "schema_version": 3,
+        "schema_version": 4,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
@@ -191,10 +194,11 @@ def main(argv: list[str] | None = None) -> int:
         "continuous_replay": {
             "selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
             "ex_ante_selection_claim_allowed": False,
+            "counterfactual_execution_exact": False,
             "interpretation": (
-                "This answers the conditional question 'what if this exact frozen rule "
-                "had been followed from the start?' It does not prove the rule could "
-                "have been selected in 2018 without hindsight."
+                "This answers the conditional question 'what if this frozen rule had "
+                "been followed from the start?' It does not prove an exact hypothetical "
+                "fill and does not prove the rule could have been selected in 2018 without hindsight."
             ),
             "raw_gap": raw,
             "economic_gap": economic,
@@ -208,15 +212,18 @@ def main(argv: list[str] | None = None) -> int:
             "final_equity_difference": float(raw["final_equity"]) - float(economic["final_equity"]),
             "total_return_difference": float(raw["total_return"]) - float(economic["total_return"]),
         },
-        "conditional_account_reconstruction_exact": exact_conditional,
+        "certified_market_inputs_ready": certified_market_inputs,
+        # Deprecated compatibility field. Counterfactual public-data execution is
+        # never exact even when every available market input is certified.
+        "conditional_account_reconstruction_exact": False,
+        "actual_personal_account_reconstruction_exact": False,
+        "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
         "prospective_selection_validation_begins": FREEZE_DATE,
         "interpretation": (
-            "Account reconstruction quality and strategy selection are separate claims. "
-            "The economic-gap run removes known split-normalized cash-distribution "
-            "mechanics from Gap Momentum signal construction. Gap-only walk-forward "
-            "tests management selection within the frozen hypothesis; full across-"
-            "strategy selection is tested only when --walk-forward-all-strategies is used. "
-            "Data after the freeze can provide prospective evidence if no rules change."
+            "Market-input certification, counterfactual execution and strategy selection "
+            "are separate claims. Certified COTAHIST inputs improve reproducibility but do "
+            "not prove a hypothetical fill. Exact personal-account reconciliation requires "
+            "actual broker fills, cash events and documentary opening/closing snapshots."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -225,17 +232,17 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"Pipeline status: {args.status_output}")
-    if exact_conditional:
-        print("Conditional account reconstruction: exact-input audit PASSED.")
+    if certified_market_inputs:
+        print("Market inputs: certification gate PASSED; execution remains counterfactual.")
     else:
-        print(
-            "Conditional account reconstruction: ESTIMATE ONLY; remaining input "
-            "certifications still block an exact-account statement."
-        )
+        print("Market inputs: realistic estimate only; some certifications remain incomplete.")
     print(
-        "2018 strategy-selection claim: RETROSPECTIVE only. For the original full "
-        "multiple-testing scope, run with --walk-forward-all-strategies; prospective "
-        "evidence starts after 2026-08-19 if the freeze is unchanged."
+        "Exact personal-account status: NOT APPLICABLE to public-data backtests; use "
+        "scripts/reconcile_actual_personal_account.py with broker-source evidence."
+    )
+    print(
+        "Strategy-selection claim: RETROSPECTIVE for the continuous replay. Use full "
+        "walk-forward or unchanged prospective evidence for selection validation."
     )
     return 0
 
