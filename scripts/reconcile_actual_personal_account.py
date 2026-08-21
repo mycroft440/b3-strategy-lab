@@ -25,8 +25,9 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Reconcile an actually executed personal account from broker-source fills, "
             "non-trade cash events, position adjustments and documentary opening/closing "
-            "broker snapshots. Source bytes and complete-period evidence coverage are "
-            "verified before an exact personal-account label is allowed."
+            "broker snapshots. Exact classification requires ledger reconciliation, source "
+            "byte verification, continuous statement coverage, and a reviewed normalization "
+            "attestation bound to the exact normalized input files."
         )
     )
     parser.add_argument("--fills", type=Path, required=True)
@@ -61,12 +62,23 @@ def main(argv: list[str] | None = None) -> int:
     evidence_records.extend(cash_events)
     evidence_records.extend(position_events)
     source_evidence = verify_source_documents(args.evidence_root, evidence_records)
+
+    normalized_inputs: dict[str, Path] = {
+        "fills": args.fills,
+        "cash_events": args.cash_events,
+        "opening_snapshot": args.opening_snapshot,
+        "closing_snapshot": args.closing_snapshot,
+    }
+    if args.position_events:
+        normalized_inputs["position_events"] = args.position_events
+
     coverage = load_and_audit_coverage(
         args.coverage_manifest,
         evidence_root=args.evidence_root,
         required_start=opening_snapshot.value_date,
         required_end=closing_snapshot.value_date,
         normalized_records=evidence_records,
+        normalized_inputs=normalized_inputs,
     )
 
     result = reconcile_actual_account(
@@ -87,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     exact = (
-        result.exact
+        result.ledger_reconciles
         and source_evidence.get("verified") is True
         and coverage.get("verified") is True
         and not all_blockers
@@ -116,9 +128,10 @@ def main(argv: list[str] | None = None) -> int:
         "exactness_contract": (
             "The exact label is emitted only when the normalized broker ledger reconciles "
             "cash to the cent and positions exactly, every referenced source document "
-            "matches its SHA-256, and a reviewed coverage manifest asserts and spans the "
-            "entire reconciliation period. No market price, fee, tax or corporate-action "
-            "quantity is inferred in this path."
+            "matches its SHA-256, account-statement evidence covers the entire period "
+            "without date gaps, and a reviewed normalization attestation is bound by "
+            "SHA-256 to every normalized input consumed by this run. No market price, fee, "
+            "tax or corporate-action quantity is inferred in this path."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
