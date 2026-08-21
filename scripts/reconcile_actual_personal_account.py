@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.evidence_coverage import load_and_audit_coverage  # noqa: E402
 from b3_strategy_lab.personal_account import (  # noqa: E402
+    CashEvent,
     load_actual_fills,
     load_cash_events,
     load_position_events,
@@ -20,14 +21,33 @@ from b3_strategy_lab.personal_account import (  # noqa: E402
 from b3_strategy_lab.source_evidence import verify_source_documents  # noqa: E402
 
 
+def _merge_requirement(
+    requirements: dict[str, set[str]],
+    source_document: str,
+    allowed: set[str],
+) -> None:
+    previous = requirements.get(source_document)
+    requirements[source_document] = set(allowed) if previous is None else previous & allowed
+
+
+def _cash_source_kinds(event: CashEvent) -> set[str]:
+    if event.kind in {"B3_FEE", "BROKER_FEE"}:
+        return {"trade_note", "account_statement"}
+    if event.kind == "TAX":
+        return {"tax_document", "account_statement"}
+    if event.kind == "OTHER_CERTIFIED":
+        return {"other_source", "account_statement"}
+    return {"account_statement"}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Reconcile an actually executed personal account from broker-source fills, "
-            "non-trade cash events, position adjustments and documentary opening/closing "
-            "broker snapshots. Exact classification requires ledger reconciliation, source "
-            "byte verification, continuous statement coverage, and a reviewed normalization "
-            "attestation bound to the exact normalized input files."
+            "Reconcile an actually executed brokerage account from source-backed fills, "
+            "cash movements, position adjustments and START_OF_DAY/END_OF_DAY snapshots. "
+            "Exact classification requires ledger reconciliation, compatible source types, "
+            "source-byte verification, continuous statement coverage, and a reviewed "
+            "normalization attestation bound to the exact normalized input files."
         )
     )
     parser.add_argument("--fills", type=Path, required=True)
@@ -72,6 +92,36 @@ def main(argv: list[str] | None = None) -> int:
     if args.position_events:
         normalized_inputs["position_events"] = args.position_events
 
+    source_kind_requirements: dict[str, set[str]] = {}
+    _merge_requirement(
+        source_kind_requirements,
+        opening_snapshot.source_document,
+        {"account_statement"},
+    )
+    _merge_requirement(
+        source_kind_requirements,
+        closing_snapshot.source_document,
+        {"account_statement"},
+    )
+    for fill in fills:
+        _merge_requirement(
+            source_kind_requirements,
+            fill.source_document,
+            {"trade_note", "account_statement"},
+        )
+    for event in cash_events:
+        _merge_requirement(
+            source_kind_requirements,
+            event.source_document,
+            _cash_source_kinds(event),
+        )
+    for event in position_events:
+        _merge_requirement(
+            source_kind_requirements,
+            event.source_document,
+            {"corporate_action_notice", "account_statement"},
+        )
+
     coverage = load_and_audit_coverage(
         args.coverage_manifest,
         evidence_root=args.evidence_root,
@@ -79,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         required_end=closing_snapshot.value_date,
         normalized_records=evidence_records,
         normalized_inputs=normalized_inputs,
+        source_kind_requirements=source_kind_requirements,
     )
 
     result = reconcile_actual_account(
@@ -108,9 +159,9 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         **ledger,
         "classification": (
-            "ACTUAL_PERSONAL_ACCOUNT_EXACT_RECONCILIATION"
+            "ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION"
             if exact
-            else "ACTUAL_PERSONAL_ACCOUNT_RECONCILIATION_REJECTED"
+            else "ACTUAL_BROKERAGE_ACCOUNT_RECONCILIATION_REJECTED"
         ),
         "exact": exact,
         "blockers": all_blockers,
@@ -126,12 +177,13 @@ def main(argv: list[str] | None = None) -> int:
             "evidence_root": str(args.evidence_root),
         },
         "exactness_contract": (
-            "The exact label is emitted only when the normalized broker ledger reconciles "
-            "cash to the cent and positions exactly, every referenced source document "
-            "matches its SHA-256, account-statement evidence covers the entire period "
-            "without date gaps, and a reviewed normalization attestation is bound by "
-            "SHA-256 to every normalized input consumed by this run. No market price, fee, "
-            "tax or corporate-action quantity is inferred in this path."
+            "The exact label applies to the reconstructed brokerage-account ledger only. "
+            "It is emitted only when cash reconciles to the cent, positions reconcile "
+            "exactly, each record is backed by a compatible document type, every source "
+            "matches its SHA-256, account statements cover the entire period without gaps, "
+            "and a reviewed normalization attestation is SHA-256-bound to every normalized "
+            "input consumed by this run. It is not a claim about hypothetical fills, "
+            "CPF-wide taxes paid outside the brokerage account, or total personal wealth."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
