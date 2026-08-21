@@ -202,10 +202,20 @@ def main(argv: list[str] | None = None) -> int:
     transition_payload: dict[str, object] = {}
     if args.transition_manifest.exists():
         transition_payload = json.loads(args.transition_manifest.read_text(encoding="utf-8"))
+    transition_excluded = _ticker_set(transition_payload, "excluded_tickers")
+    expected_transition_scope = market_data - transition_excluded
+    transition_tickers = _ticker_set(transition_payload, "market_data_tickers")
+    transition_coverage_end = str(transition_payload.get("coverage_end", ""))[:10]
     checks["ticker_transitions_have_no_unresolved_disappearances"] = transition_payload.get("complete") is True
+    checks["ticker_transition_scope_matches_market_data"] = transition_tickers == expected_transition_scope
+    checks["ticker_transition_coverage_reaches_replay_end"] = (
+        bool(transition_coverage_end) and transition_coverage_end >= end
+    )
     details["unresolved_historical_disappearances"] = (
         int(transition_payload.get("unresolved_disappearances", -1)) if transition_payload else -1
     )
+    details["transition_ticker_count"] = len(transition_tickers)
+    details["transition_coverage_end"] = transition_coverage_end
 
     fees = FeeSchedule.from_json(args.fee_schedule)
     fee_qualities = sorted({rule.quality for rule in fees.rules})
@@ -306,6 +316,8 @@ def main(argv: list[str] | None = None) -> int:
         "snapshot_next_open_execution_coverage_complete",
         "cash_history_coverage_certified",
         "ticker_transitions_have_no_unresolved_disappearances",
+        "ticker_transition_scope_matches_market_data",
+        "ticker_transition_coverage_reaches_replay_end",
         "all_b3_fee_periods_are_official",
         "b3_fee_schedule_covers_period",
     ]
@@ -336,7 +348,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 9,
+        "schema_version": 10,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -355,10 +367,9 @@ def main(argv: list[str] | None = None) -> int:
         "interpretation": (
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
-            "shares. Split evidence, cash manifests and cash-distribution certification are "
-            "bound to the exact market_data_tickers set, including continuity-only historical "
-            "symbols, through the declared replay end. Daily COTAHIST does not prove the fill "
-            "of a hypothetical order. Exact brokerage-account reconciliation requires actual "
+            "shares. Split, cash and ticker-transition evidence are bound to the exact "
+            "market-data symbol set and replay horizon. Daily COTAHIST does not prove a "
+            "hypothetical fill. Exact brokerage-account reconciliation requires actual "
             "broker fills and source-backed account evidence."
         ),
     }
