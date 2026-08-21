@@ -6,9 +6,11 @@ import unittest
 from pathlib import Path
 
 from b3_strategy_lab.reconstruction_quality import (
+    CERTIFIED_EXECUTION_POLICY,
     EXACT_EXECUTION_POLICY,
     BrokerProfile,
     broker_profile_issues,
+    certified_replay_blockers,
     strict_exact_blockers,
     write_composite_fee_schedule,
 )
@@ -57,35 +59,56 @@ class ReconstructionQualityTests(unittest.TestCase):
             "ex_ante_selection_claim_allowed": True,
         }
 
-    def test_certified_profile_and_zero_slippage_can_pass_strict_gate(self) -> None:
+    def test_certified_profile_and_zero_slippage_can_pass_certified_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             profile = self._profile(Path(tmp))
-            blockers = strict_exact_blockers(
+            blockers = certified_replay_blockers(
                 self._audit(),
                 profile,
                 start="2018-01-02",
                 end="2026-08-20",
-                execution_policy=EXACT_EXECUTION_POLICY,
+                execution_policy=CERTIFIED_EXECUTION_POLICY,
                 base_slippage_bps=0.0,
                 participation_bps_at_1pct=0.0,
                 max_slippage_bps=0.0,
             )
             self.assertEqual(blockers, [])
 
-    def test_modeled_slippage_is_a_strict_blocker(self) -> None:
+    def test_modeled_slippage_is_a_certified_replay_blocker(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             profile = self._profile(Path(tmp))
-            blockers = strict_exact_blockers(
+            blockers = certified_replay_blockers(
                 self._audit(),
                 profile,
                 start="2018-01-02",
                 end="2026-08-20",
-                execution_policy=EXACT_EXECUTION_POLICY,
+                execution_policy=CERTIFIED_EXECUTION_POLICY,
                 base_slippage_bps=1.0,
                 participation_bps_at_1pct=0.0,
                 max_slippage_bps=0.0,
             )
-            self.assertIn("modeled_slippage_must_be_disabled_for_exact_conditional_replay", blockers)
+            self.assertIn(
+                "modeled_slippage_must_be_disabled_for_certified_official_open_replay",
+                blockers,
+            )
+
+    def test_legacy_exact_names_are_compatibility_aliases_only(self) -> None:
+        self.assertEqual(EXACT_EXECUTION_POLICY, CERTIFIED_EXECUTION_POLICY)
+        with tempfile.TemporaryDirectory() as tmp:
+            profile = self._profile(Path(tmp))
+            self.assertEqual(
+                strict_exact_blockers(
+                    self._audit(),
+                    profile,
+                    start="2018-01-02",
+                    end="2026-08-20",
+                    execution_policy=EXACT_EXECUTION_POLICY,
+                    base_slippage_bps=0.0,
+                    participation_bps_at_1pct=0.0,
+                    max_slippage_bps=0.0,
+                ),
+                [],
+            )
 
     def test_unverified_broker_rule_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,12 +121,12 @@ class ReconstructionQualityTests(unittest.TestCase):
             profile = self._profile(Path(tmp))
             audit = self._audit()
             audit["ex_ante_selection_claim_allowed"] = False
-            blockers = strict_exact_blockers(
+            blockers = certified_replay_blockers(
                 audit,
                 profile,
                 start="2018-01-02",
                 end="2026-08-20",
-                execution_policy=EXACT_EXECUTION_POLICY,
+                execution_policy=CERTIFIED_EXECUTION_POLICY,
                 base_slippage_bps=0.0,
                 participation_bps_at_1pct=0.0,
                 max_slippage_bps=0.0,
