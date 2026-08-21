@@ -37,11 +37,12 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Detect deterministic ticker renames relevant to the point-in-time "
             "backtest. Same-ISIN continuity is auto-approved; other disappearances "
-            "of relevant symbols remain fail-closed."
+            "of relevant symbols remain fail-closed. No quote after --end is used."
         )
     )
     parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
+    parser.add_argument("--end")
     parser.add_argument("--archives-dir", type=Path, default=Path(".cache/cotahist"))
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -51,15 +52,17 @@ def main(argv: list[str] | None = None) -> int:
 
     universe = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
     relevant_tickers = {
-        str(ticker).upper()
+        str(ticker).strip().upper()
         for ticker in universe.get("market_data_tickers", universe.get("tickers", []))
+        if str(ticker).strip()
     }
     relevant_tickers.difference_update(EXCLUDED_TICKERS)
     if not relevant_tickers:
         parser.error("Point-in-time universe contains no relevant market-data tickers.")
 
-    quotes = []
-    for year in _parse_years(args.years):
+    years = _parse_years(args.years)
+    all_quotes = []
+    for year in years:
         archive = args.archives_dir / f"COTAHIST_A{year}.ZIP"
         if args.download:
             archive = download_cotahist(
@@ -69,11 +72,22 @@ def main(argv: list[str] | None = None) -> int:
             )
         if not archive.exists():
             raise FileNotFoundError(f"{archive} missing; use --download.")
-        quotes.extend(
+        all_quotes.extend(
             quote
             for quote in read_standard_company_equity_cotahist(archive)
             if quote.ticker.strip().upper() not in EXCLUDED_TICKERS
         )
+    if not all_quotes:
+        raise ValueError("No eligible COTAHIST rows found in requested archive window.")
+
+    requested_end = args.end or str(universe.get("selection_end", "")).strip() or max(
+        quote.date for quote in all_quotes
+    )
+    eligible_dates = [quote.date for quote in all_quotes if quote.date <= requested_end]
+    if not eligible_dates:
+        parser.error("No B3 market session exists at or before --end.")
+    coverage_end = max(eligible_dates)
+    quotes = [quote for quote in all_quotes if quote.date <= coverage_end]
 
     by_isin: dict[str, list] = defaultdict(list)
     by_ticker: dict[str, list] = defaultdict(list)
@@ -147,8 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     relevant_quotes = [quote for quote in quotes if quote.ticker.upper() in relevant_tickers]
     if not relevant_quotes:
         raise ValueError("No COTAHIST rows found for relevant market-data tickers.")
-    last_market_date = max(quote.date for quote in quotes)
-    cutoff = date.fromisoformat(last_market_date) - timedelta(days=45)
+    cutoff = date.fromisoformat(coverage_end) - timedelta(days=45)
     transitioned_old = {str(row["old_ticker"]) for row in transitions}
     unresolved: list[dict[str, object]] = []
     for ticker in sorted(relevant_tickers):
@@ -160,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
                     "last_quote_date": "",
                     "isin": "",
                     "issuer_name": "",
-                    "reason": "relevant ticker has no COTAHIST rows in requested archive window",
+                    "reason": "relevant ticker has no COTAHIST rows in requested replay window",
                 }
             )
             continue
@@ -175,10 +188,10 @@ def main(argv: list[str] | None = None) -> int:
                 "isin": last.isin,
                 "issuer_name": last.issuer_name,
                 "reason": (
-                    "relevant symbol disappeared before the end of the archive without "
-                    "an auto-approved same-ISIN successor; merger, cancellation, cash-out "
-                    "or other primary-source event must be supplied before a held "
-                    "position can be valued through this date"
+                    "relevant symbol disappeared before the replay horizon without an "
+                    "auto-approved same-ISIN successor known by that horizon; merger, "
+                    "cancellation, cash-out or other primary-source event must be supplied "
+                    "before a held position can be valued through this date"
                 ),
             }
         )
@@ -189,18 +202,23 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "method": "same_isin_continuity_only",
         "scope": "point_in_time_market_data_tickers",
         "universe_manifest": str(args.universe_manifest),
+        "source_years": years,
+        "requested_end": args.end,
+        "coverage_end": coverage_end,
         "excluded_tickers": sorted(EXCLUDED_TICKERS),
         "scoped_ticker_count": len(relevant_tickers),
+        "market_data_tickers": sorted(relevant_tickers),
         "auto_approved_transitions": len(transitions),
         "unresolved_disappearances": len(unresolved),
         "complete": len(unresolved) == 0,
         "policy": (
-            "Same-ISIN ticker changes are treated as 1:1 renames. Only symbols needed "
-            "by the point-in-time account are used to determine completeness. Explicitly "
+            "Same-ISIN ticker changes are treated as 1:1 renames. Completeness is assessed "
+            "only with information dated at or before coverage_end. Only symbols needed by "
+            "the point-in-time account are used to determine completeness. Explicitly "
             "excluded tickers are never eligible for transition or valuation. A relevant "
             "symbol disappearance without same-ISIN continuity remains unresolved."
         ),
@@ -211,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    print(f"Transition coverage end: {coverage_end}")
     print(f"Scoped market-data tickers: {len(relevant_tickers)}")
     print(f"Explicitly excluded tickers: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(f"Auto-approved ticker transitions: {len(transitions)}")
