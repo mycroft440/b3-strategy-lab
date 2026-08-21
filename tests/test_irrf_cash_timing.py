@@ -36,8 +36,9 @@ class OrdinaryIrrfCashTimingTests(unittest.TestCase):
         tax, _ = account.finalize_month("2026-01")
         self.assertAlmostEqual(tax.tax_due, 0.0)
         self.assertAlmostEqual(account.tax.irrf_credit, 0.0)
+        self.assertAlmostEqual(account.outstanding_tax_liability(), 0.0)
 
-    def test_crossing_one_real_withholds_full_monthly_cumulative_amount(self) -> None:
+    def test_crossing_one_real_withholds_then_darf_waits_until_due_session(self) -> None:
         account = self._account()
         self._seed(account, 2100, 5.0)
         account.sell_leg("2026-01-05", "AAA3", 1500, self._quote("2026-01-05"))
@@ -52,28 +53,56 @@ class OrdinaryIrrfCashTimingTests(unittest.TestCase):
         self.assertAlmostEqual(tax.irrf_withheld_month, 1.05, places=8)
         self.assertAlmostEqual(tax.irrf_credit_used, 1.05, places=8)
         self.assertAlmostEqual(tax.tax_due, gross_tax - 1.05, places=8)
-        # Cash tax = withholding + DARF, never double-counted.
+        # Only source withholding has left the account so far.
+        self.assertAlmostEqual(account.tax_paid, 1.05, places=8)
+        self.assertAlmostEqual(account.outstanding_tax_liability(), gross_tax - 1.05, places=8)
+
+        sessions = ["2026-02-25", "2026-02-26", "2026-02-27"]
+        self.assertAlmostEqual(account.process_due_taxes("2026-02-26", sessions), 0.0)
+        paid = account.process_due_taxes("2026-02-27", sessions)
+        self.assertAlmostEqual(paid, gross_tax - 1.05, places=8)
+        # IRRF + DARF equals the gross monthly tax, without double charging.
         self.assertAlmostEqual(account.tax_paid, gross_tax, places=8)
+        self.assertAlmostEqual(account.outstanding_tax_liability(), 0.0)
 
     def test_unused_irrf_credit_carries_into_later_taxable_month(self) -> None:
         account = self._account(50_000.0)
-        self._seed(account, 2500, 20.0)
-        # January: R$25k sales at a loss. IRRF is withheld, but there is no tax due.
+        self._seed(account, 2500, 10.04)
+        # January: R$25k sales with a R$100 loss. IRRF is withheld, but no tax is due.
         account.sell_leg("2026-01-05", "AAA3", 2500, self._quote("2026-01-05", 10.0))
         january, _ = account.finalize_month("2026-01")
         self.assertAlmostEqual(january.irrf_withheld_month, 1.25, places=8)
         self.assertAlmostEqual(january.tax_due, 0.0)
         self.assertAlmostEqual(account.tax.irrf_credit, 1.25, places=8)
 
-        # February: new profitable position with >R$20k in sales. Both January's
-        # credit and February's withholding reduce the DARF.
+        # February: profitable >R$20k sales. The small prior loss is offset first;
+        # then January's credit and February's withholding reduce the DARF.
         self._seed(account, 2500, 5.0)
         account.sell_leg("2026-02-05", "AAA3", 2500, self._quote("2026-02-05", 10.0))
         february, _ = account.finalize_month("2026-02")
+        self.assertAlmostEqual(february.loss_carry_in, 100.0, places=6)
         self.assertAlmostEqual(february.irrf_credit_in, 1.25, places=8)
         self.assertAlmostEqual(february.irrf_withheld_month, 1.25, places=8)
         self.assertAlmostEqual(february.irrf_credit_used, 2.50, places=8)
         self.assertAlmostEqual(account.tax.irrf_credit, 0.0, places=8)
+
+    def test_darf_below_ten_reais_accumulates_until_later_month(self) -> None:
+        account = self._account(50_000.0)
+        for month in ("2026-01", "2026-02"):
+            self._seed(account, 2100, 9.98)
+            day = month + "-05"
+            account.sell_leg(day, "AAA3", 2100, self._quote(day, 10.0))
+            tax, _ = account.finalize_month(month)
+            self.assertAlmostEqual(tax.gross_tax_before_irrf, 6.30, places=6)
+            self.assertAlmostEqual(tax.irrf_withheld_month, 1.05, places=6)
+            self.assertAlmostEqual(tax.tax_due, 5.25, places=6)
+
+        self.assertAlmostEqual(account.outstanding_tax_liability(), 10.50, places=6)
+        march_sessions = ["2026-03-27", "2026-03-30", "2026-03-31"]
+        self.assertAlmostEqual(account.process_due_taxes("2026-03-30", march_sessions), 0.0)
+        self.assertAlmostEqual(account.process_due_taxes("2026-03-31", march_sessions), 10.50, places=6)
+        self.assertAlmostEqual(account.outstanding_tax_liability(), 0.0)
+        self.assertAlmostEqual(account.tax_paid, 12.60, places=6)
 
 
 if __name__ == "__main__":
