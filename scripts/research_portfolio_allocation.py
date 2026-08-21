@@ -7,8 +7,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts import research_portfolio_allocation_core as _core
+from b3_strategy_lab.candles import cache_path, load_candles
+from b3_strategy_lab.cotahist import load_verified_candles
 from b3_strategy_lab.portfolio_risk import covariance_target_weights
+from scripts import research_portfolio_allocation_core as _core
 
 # Keep this symbol local so unittest.mock.patch and external instrumentation on
 # the public module still intercept candidate-profile computation.
@@ -48,6 +50,89 @@ _core._candidate_profile = _candidate_profile
 _core._target_weights = covariance_target_weights
 
 _target_weights = covariance_target_weights
+
+
+class MarketData(_core.MarketData):
+    """MarketData with optional isolated manifest/evidence roots.
+
+    The default path delegates to the historical research implementation unchanged.
+    Realistic point-in-time callers may instead supply their own manifest directory
+    and split-evidence file so rebuilding that replay does not mutate or invalidate
+    hashes belonging to the broad research catalog.
+    """
+
+    def __init__(
+        self,
+        tickers: list[str],
+        interval: str,
+        signal_mode: str,
+        *,
+        allow_unverified_data: bool = False,
+        require_verified_splits_from: str | None = None,
+        history_start: str | None = None,
+        manifests_dir: Path | str | None = None,
+        split_evidence_path: Path | str | None = None,
+    ) -> None:
+        if manifests_dir is None and split_evidence_path is None:
+            super().__init__(
+                tickers,
+                interval,
+                signal_mode,
+                allow_unverified_data=allow_unverified_data,
+                require_verified_splits_from=require_verified_splits_from,
+                history_start=history_start,
+            )
+            return
+
+        self.tickers = tickers
+        self.interval = interval
+        self.signal_mode = signal_mode
+        self.candles = {}
+        self.by_date = {}
+        self.index_by_date = {}
+        self.signal_prices = {}
+        self.raw_returns = {}
+        self.manifests = {}
+        self.candidate_profile_cache = {}
+        dates: set[str] = set()
+
+        for ticker in tickers:
+            if allow_unverified_data:
+                candles = load_candles(cache_path(ticker, interval))
+                if history_start is not None:
+                    candles = [candle for candle in candles if candle.date >= history_start]
+            else:
+                kwargs = {}
+                if manifests_dir is not None:
+                    kwargs["manifests_dir"] = manifests_dir
+                if split_evidence_path is not None:
+                    kwargs["split_evidence_path"] = split_evidence_path
+                candles, manifest = load_verified_candles(
+                    ticker,
+                    interval,
+                    start=history_start,
+                    require_verified_splits_from=require_verified_splits_from,
+                    **kwargs,
+                )
+                self.manifests[ticker] = manifest
+            if not candles:
+                raise ValueError(
+                    f"{ticker}: nenhum candle disponivel desde "
+                    f"{history_start or 'o inicio da serie'}."
+                )
+            self.candles[ticker] = candles
+            self.by_date[ticker] = {candle.date: candle for candle in candles}
+            self.index_by_date[ticker] = {
+                candle.date: index for index, candle in enumerate(candles)
+            }
+            self.signal_prices[ticker] = [
+                candle.close if signal_mode == "adjusted" else candle.raw_close
+                for candle in candles
+            ]
+            self.raw_returns[ticker] = _core._returns(self.signal_prices[ticker])
+            dates.update(candle.date for candle in candles)
+
+        self.dates = sorted(dates, key=_core._point_datetime)
 
 
 def __getattr__(name: str):
