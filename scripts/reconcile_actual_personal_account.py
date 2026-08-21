@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from b3_strategy_lab.evidence_coverage import load_and_audit_coverage  # noqa: E402
 from b3_strategy_lab.personal_account import (  # noqa: E402
     load_actual_fills,
     load_cash_events,
@@ -24,8 +25,8 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Reconcile an actually executed personal account from broker-source fills, "
             "non-trade cash events, position adjustments and documentary opening/closing "
-            "broker snapshots. Every referenced source file is SHA-256 verified. This is "
-            "the only path allowed to emit an exact personal-account reconciliation label."
+            "broker snapshots. Source bytes and complete-period evidence coverage are "
+            "verified before an exact personal-account label is allowed."
         )
     )
     parser.add_argument("--fills", type=Path, required=True)
@@ -33,11 +34,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--position-events", type=Path)
     parser.add_argument("--opening-snapshot", type=Path, required=True)
     parser.add_argument("--closing-snapshot", type=Path, required=True)
+    parser.add_argument("--coverage-manifest", type=Path, required=True)
     parser.add_argument(
         "--evidence-root",
         type=Path,
         required=True,
-        help="Private directory containing the original broker files referenced by source_document.",
+        help="Private directory containing original files referenced by source_document.",
     )
     parser.add_argument(
         "--output",
@@ -58,7 +60,14 @@ def main(argv: list[str] | None = None) -> int:
     evidence_records.extend(fills)
     evidence_records.extend(cash_events)
     evidence_records.extend(position_events)
-    evidence = verify_source_documents(args.evidence_root, evidence_records)
+    source_evidence = verify_source_documents(args.evidence_root, evidence_records)
+    coverage = load_and_audit_coverage(
+        args.coverage_manifest,
+        evidence_root=args.evidence_root,
+        required_start=opening_snapshot.value_date,
+        required_end=closing_snapshot.value_date,
+        normalized_records=evidence_records,
+    )
 
     result = reconcile_actual_account(
         opening_snapshot=opening_snapshot,
@@ -68,9 +77,21 @@ def main(argv: list[str] | None = None) -> int:
         position_events=position_events,
     )
     ledger = result.as_dict()
-    evidence_blockers = [str(item) for item in evidence.get("blockers", [])]
-    all_blockers = sorted(set([*result.blockers, *evidence_blockers]))
-    exact = result.exact and evidence.get("verified") is True and not all_blockers
+    all_blockers = sorted(
+        set(
+            [
+                *result.blockers,
+                *[str(item) for item in source_evidence.get("blockers", [])],
+                *[str(item) for item in coverage.get("blockers", [])],
+            ]
+        )
+    )
+    exact = (
+        result.exact
+        and source_evidence.get("verified") is True
+        and coverage.get("verified") is True
+        and not all_blockers
+    )
 
     payload = {
         **ledger,
@@ -81,20 +102,23 @@ def main(argv: list[str] | None = None) -> int:
         ),
         "exact": exact,
         "blockers": all_blockers,
-        "source_evidence": evidence,
+        "source_evidence": source_evidence,
+        "coverage_audit": coverage,
         "inputs": {
             "fills": str(args.fills),
             "cash_events": str(args.cash_events),
             "position_events": str(args.position_events) if args.position_events else None,
             "opening_snapshot": str(args.opening_snapshot),
             "closing_snapshot": str(args.closing_snapshot),
+            "coverage_manifest": str(args.coverage_manifest),
             "evidence_root": str(args.evidence_root),
         },
         "exactness_contract": (
             "The exact label is emitted only when the normalized broker ledger reconciles "
-            "cash to the cent and positions exactly AND every referenced source document "
-            "exists under evidence_root with the declared SHA-256. No market price, fee, "
-            "tax or corporate-action quantity is inferred in this path."
+            "cash to the cent and positions exactly, every referenced source document "
+            "matches its SHA-256, and a reviewed coverage manifest asserts and spans the "
+            "entire reconciliation period. No market price, fee, tax or corporate-action "
+            "quantity is inferred in this path."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
