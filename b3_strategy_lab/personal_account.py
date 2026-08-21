@@ -12,17 +12,10 @@ from typing import Iterable
 
 
 ALLOWED_CASH_KINDS = {
-    "DEPOSIT",
-    "WITHDRAWAL",
-    "DIVIDEND",
-    "JCP",
-    "TAX",
-    "B3_FEE",
-    "BROKER_FEE",
-    "CUSTODY_FEE",
-    "INTEREST",
-    "OTHER_CERTIFIED",
+    "DEPOSIT", "WITHDRAWAL", "DIVIDEND", "JCP", "TAX", "B3_FEE",
+    "BROKER_FEE", "CUSTODY_FEE", "INTEREST", "OTHER_CERTIFIED",
 }
+ALLOWED_SNAPSHOT_BOUNDARIES = {"START_OF_DAY", "END_OF_DAY"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -71,6 +64,7 @@ class PositionEvent:
 @dataclass(frozen=True)
 class AccountSnapshot:
     value_date: str
+    boundary: str
     cash_balance: float
     positions: dict[str, int]
     source_document: str
@@ -96,13 +90,7 @@ class AccountReconciliation:
 
     @property
     def exact(self) -> bool:
-        """Compatibility property: only means the normalized ledger reconciles.
-
-        Final personal-account exactness is decided by
-        scripts/reconcile_actual_personal_account.py after source-byte and coverage
-        verification. This property must never be used alone to emit an exact label.
-        """
-
+        """Compatibility alias for ledger arithmetic only; never a final exact label."""
         return self.ledger_reconciles
 
     def as_dict(self) -> dict[str, object]:
@@ -113,7 +101,9 @@ class AccountReconciliation:
                 else "PERSONAL_ACCOUNT_LEDGER_RECONCILIATION_REJECTED"
             ),
             "opening_date": self.opening_date,
+            "opening_boundary": "START_OF_DAY",
             "closing_date": self.closing_date,
+            "closing_boundary": "END_OF_DAY",
             "opening_cash": self.opening_cash,
             "reconstructed_cash": self.reconstructed_cash,
             "snapshot_cash": self.snapshot_cash,
@@ -127,9 +117,9 @@ class AccountReconciliation:
             "ledger_reconciles": self.ledger_reconciles,
             "blockers": list(self.blockers),
             "interpretation": (
-                "This result verifies only the normalized ledger arithmetic between the "
-                "opening and closing snapshots. Final exact-account classification also "
-                "requires source-byte verification and complete-period evidence coverage."
+                "This verifies normalized ledger arithmetic from a START_OF_DAY opening "
+                "snapshot through an END_OF_DAY closing snapshot. Final exact-account "
+                "classification also requires source-byte and coverage verification."
             ),
         }
 
@@ -174,14 +164,10 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
             if execution_id in seen:
                 raise ValueError(f"duplicate execution_id: {execution_id}")
             seen.add(execution_id)
-
             trade_date = _date(row.get("trade_date"), execution_id)
             settlement_date = _date(row.get("settlement_date"), execution_id)
             if settlement_date < trade_date:
-                raise ValueError(
-                    f"settlement_date precedes trade_date: {execution_id}"
-                )
-
+                raise ValueError(f"settlement_date precedes trade_date: {execution_id}")
             side = str(row.get("side", "")).strip().upper()
             if side not in {"BUY", "SELL"}:
                 raise ValueError(f"invalid side for {execution_id}: {side}")
@@ -192,7 +178,6 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
             price = float(row.get("price", 0) or 0)
             if shares <= 0 or price <= 0 or not math.isfinite(price):
                 raise ValueError(f"invalid fill quantity/price: {execution_id}")
-
             result.append(
                 ActualFill(
                     trade_date=trade_date,
@@ -204,12 +189,8 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
                     ticker=ticker,
                     shares=shares,
                     price=price,
-                    source_document=_require_source(
-                        str(row.get("source_document", "")), execution_id
-                    ),
-                    source_sha256=_require_sha256(
-                        str(row.get("source_sha256", "")), execution_id
-                    ),
+                    source_document=_require_source(str(row.get("source_document", "")), execution_id),
+                    source_sha256=_require_sha256(str(row.get("source_sha256", "")), execution_id),
                 )
             )
     return sorted(result, key=lambda item: (item.trade_date, item.sequence, item.execution_id))
@@ -289,6 +270,9 @@ def load_snapshot(path: Path | str) -> AccountSnapshot:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if payload.get("schema_version") != 1:
         raise ValueError("account snapshot requires schema_version=1")
+    boundary = str(payload.get("boundary", "")).strip().upper()
+    if boundary not in ALLOWED_SNAPSHOT_BOUNDARIES:
+        raise ValueError("account snapshot boundary must be START_OF_DAY or END_OF_DAY")
     cash = float(payload.get("cash_balance", 0) or 0)
     if not math.isfinite(cash):
         raise ValueError("snapshot cash_balance must be finite")
@@ -302,6 +286,7 @@ def load_snapshot(path: Path | str) -> AccountSnapshot:
         raise ValueError("snapshot cannot contain negative long-only share quantities")
     return AccountSnapshot(
         value_date=_date(payload.get("value_date"), "snapshot"),
+        boundary=boundary,
         cash_balance=cash,
         positions=positions,
         source_document=_require_source(str(payload.get("source_document", "")), "snapshot"),
@@ -318,6 +303,10 @@ def reconcile_actual_account(
     position_events: Iterable[PositionEvent],
     cent_tolerance: float = 0.005,
 ) -> AccountReconciliation:
+    if opening_snapshot.boundary != "START_OF_DAY":
+        raise ValueError("opening snapshot must use boundary=START_OF_DAY")
+    if closing_snapshot.boundary != "END_OF_DAY":
+        raise ValueError("closing snapshot must use boundary=END_OF_DAY")
     if opening_snapshot.value_date > closing_snapshot.value_date:
         raise ValueError("opening snapshot must precede closing snapshot")
     if cent_tolerance < 0 or not math.isfinite(cent_tolerance):
@@ -329,8 +318,6 @@ def reconcile_actual_account(
     cash_list = list(cash_events)
     position_list = list(position_events)
 
-    # Ownership changes on trade date. Principal cash changes on settlement date.
-    # Fees, taxes and every non-principal movement remain explicit CashEvent rows.
     timeline: list[tuple[str, int, int, str, object]] = []
     for item in fill_list:
         timeline.append((item.trade_date, item.sequence, 0, item.execution_id, item))
@@ -347,7 +334,6 @@ def reconcile_actual_account(
         if value_date > closing_snapshot.value_date:
             blockers.append("ledger_contains_event_after_closing_snapshot")
             continue
-
         if isinstance(item, ActualFill):
             if effect_kind == 0:
                 if item.side == "BUY":
