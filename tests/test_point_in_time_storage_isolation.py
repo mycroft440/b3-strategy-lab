@@ -4,11 +4,38 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from scripts import audit_realistic_backtest_inputs as audit
+from scripts import backtest_strategy_management_realistic as backtest
 from scripts import research_portfolio_allocation as research
+from scripts import sync_point_in_time_universe as sync_base
 from scripts import sync_point_in_time_universe_realistic as sync_realistic
+from scripts import walk_forward_realistic as walk_forward
 
 
 class PointInTimeStorageIsolationTests(unittest.TestCase):
+    def test_isolated_defaults_align_across_realistic_modules(self) -> None:
+        expected_data = "data/candles_point_in_time"
+        expected_actions = "data/actions_point_in_time"
+        expected_manifests = "data/manifests_point_in_time"
+        expected_splits = "data/corporate_actions/point_in_time_split_evidence.json"
+
+        self.assertEqual(str(sync_base.DEFAULT_DATA), expected_data)
+        self.assertEqual(str(sync_base.DEFAULT_ACTIONS), expected_actions)
+        self.assertEqual(str(sync_base.DEFAULT_MANIFESTS), expected_manifests)
+        self.assertEqual(str(sync_base.DEFAULT_SPLIT_EVIDENCE), expected_splits)
+        self.assertEqual(str(backtest.DEFAULT_DATA), expected_data)
+        self.assertEqual(str(backtest.DEFAULT_ACTIONS), expected_actions)
+        self.assertEqual(str(backtest.DEFAULT_MANIFESTS), expected_manifests)
+        self.assertEqual(str(backtest.DEFAULT_SPLIT_EVIDENCE), expected_splits)
+        self.assertEqual(str(audit.DEFAULT_DATA), expected_data)
+        self.assertEqual(str(audit.DEFAULT_ACTIONS), expected_actions)
+        self.assertEqual(str(audit.DEFAULT_MANIFESTS), expected_manifests)
+        self.assertEqual(str(audit.DEFAULT_SPLITS), expected_splits)
+        self.assertEqual(str(walk_forward.DEFAULT_DATA), expected_data)
+        self.assertEqual(str(walk_forward.DEFAULT_ACTIONS), expected_actions)
+        self.assertEqual(str(walk_forward.DEFAULT_MANIFESTS), expected_manifests)
+        self.assertEqual(str(walk_forward.DEFAULT_SPLIT_EVIDENCE), expected_splits)
+
     def test_realistic_sync_injects_all_isolated_roots(self) -> None:
         with patch.object(sync_realistic.base, "main", return_value=0) as delegated:
             self.assertEqual(sync_realistic.main(["--years", "2017:2018"]), 0)
