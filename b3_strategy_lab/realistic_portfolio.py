@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import math
 
 from b3_strategy_lab import realistic_portfolio_core as _core
@@ -22,7 +23,132 @@ def _apply_ticker_transitions(account, transitions) -> None:
     _original_apply_ticker_transitions(account, transitions)
 
 
+def _raw_execution_value(pricebook, value_date: str, ticker: str, quantity: int) -> float:
+    if quantity <= 0:
+        return 0.0
+    value = 0.0
+    for qty, quote in pricebook.legs(value_date, ticker, quantity):
+        raw = float(quote.open)
+        if raw <= 0 or not math.isfinite(raw):
+            raise ValueError(f"{value_date}/{ticker}: invalid executable opening price.")
+        value += qty * raw
+    return value
+
+
+def _target_quantity_from_execution_book(
+    pricebook,
+    value_date: str,
+    ticker: str,
+    target_value: float,
+) -> int:
+    """Largest integer quantity whose raw executable opening value fits target_value."""
+
+    if target_value <= 0:
+        return 0
+    low = 0
+    high = 1
+    while _raw_execution_value(pricebook, value_date, ticker, high) <= target_value + 1e-12:
+        low = high
+        high *= 2
+        if high > 1_000_000_000:
+            raise ValueError(f"{value_date}/{ticker}: unreasonable target quantity.")
+    while low + 1 < high:
+        middle = (low + high) // 2
+        if _raw_execution_value(pricebook, value_date, ticker, middle) <= target_value + 1e-12:
+            low = middle
+        else:
+            high = middle
+    return low
+
+
+def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, float]):
+    """Atomic rebalance sized from the actual 010/020 opening books.
+
+    The old implementation used the standard-market candle open as a sizing proxy
+    even when an odd-lot account would execute entirely in market 020. This
+    implementation values current holdings and target quantities from the exact
+    standard/fractional raw opening legs, then applies the existing fee/slippage
+    affordability checks. No future data are used.
+    """
+
+    trial = copy.deepcopy(account)
+    held = {ticker for ticker, pos in trial.positions.items() if pos.shares > 0}
+    required = held | {ticker for ticker, weight in targets.items() if weight > 0}
+
+    equity_open = trial.cash + sum(
+        _raw_execution_value(pricebook, current, ticker, trial.shares(ticker))
+        for ticker in held
+    )
+    if equity_open <= 0 or not math.isfinite(equity_open):
+        raise ValueError(f"{current}: invalid executable opening equity.")
+
+    desired_shares: dict[str, int] = {}
+    for ticker in required:
+        weight = max(0.0, float(targets.get(ticker, 0.0)))
+        if not math.isfinite(weight):
+            raise ValueError(f"{current}/{ticker}: non-finite target weight.")
+        desired_shares[ticker] = _target_quantity_from_execution_book(
+            pricebook,
+            current,
+            ticker,
+            equity_open * weight,
+        )
+
+    for ticker in sorted(held):
+        excess = trial.shares(ticker) - desired_shares.get(ticker, 0)
+        if excess <= 0:
+            continue
+        for qty, quote in pricebook.legs(current, ticker, excess):
+            trial.sell_leg(current, ticker, qty, quote)
+
+    wanted_by_ticker = {
+        ticker: max(0, desired_shares.get(ticker, 0) - trial.shares(ticker))
+        for ticker in targets
+    }
+    wanted_by_ticker = {
+        ticker: quantity for ticker, quantity in wanted_by_ticker.items() if quantity > 0
+    }
+    reserved_tax = _core._provisional_ordinary_tax(trial, current)
+    available_cash = max(0.0, trial.cash - reserved_tax)
+
+    def total_buy_cost(plan: dict[str, int]) -> float:
+        return sum(
+            _core._estimate_buy_cost(trial, pricebook, current, ticker, quantity)
+            for ticker, quantity in plan.items()
+            if quantity > 0
+        )
+
+    buy_plan = dict(wanted_by_ticker)
+    if wanted_by_ticker and total_buy_cost(buy_plan) > available_cash + 1e-9:
+        low, high = 0.0, 1.0
+        best = {ticker: 0 for ticker in wanted_by_ticker}
+        for _ in range(48):
+            scale = (low + high) / 2
+            candidate = {
+                ticker: int(math.floor(quantity * scale))
+                for ticker, quantity in wanted_by_ticker.items()
+            }
+            if total_buy_cost(candidate) <= available_cash + 1e-9:
+                best = candidate
+                low = scale
+            else:
+                high = scale
+        buy_plan = best
+
+    for ticker in sorted(buy_plan):
+        quantity = buy_plan[ticker]
+        if quantity <= 0:
+            continue
+        for qty, quote in pricebook.legs(current, ticker, quantity):
+            trial.buy_leg(current, ticker, qty, quote)
+
+    if trial.cash < _core._provisional_ordinary_tax(trial, current) - 1e-7:
+        raise ValueError(f"{current}: atomic rebalance consumed the reserved tax cash.")
+    return trial
+
+
 _core._apply_ticker_transitions = _apply_ticker_transitions
+_core.rebalance_atomic = rebalance_atomic
 
 
 def __getattr__(name: str):
