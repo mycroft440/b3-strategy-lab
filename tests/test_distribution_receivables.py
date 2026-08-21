@@ -97,6 +97,33 @@ class DistributionReceivableTests(unittest.TestCase):
                 payment_date="2026-02-10",
             )
 
+    def test_2026_threshold_keeps_paid_and_unpaid_installments_in_monthly_total(self) -> None:
+        account = self._account(100_000.0)
+        first = ("AAA3", "2026-01-05", "2026-02-05", "DIVIDENDO", 300.0)
+        account.register_distribution_receivable(
+            first,
+            ticker="AAA3",
+            label="DIVIDENDO",
+            shares_entitled=100,
+            gross_per_share=300.0,
+            payment_date="2026-02-05",
+        )
+        account.settle_distribution_receivable(first)
+        account.credit_distribution("2026-02-05", "AAA3", "DIVIDENDO", 100, 300.0)
+
+        # The R$30k already paid remains part of February's known payer total.
+        # A second R$30k installment in the same month must therefore cross R$50k
+        # even though the first receivable is no longer outstanding.
+        with self.assertRaisesRegex(ValueError, "R\\$50,000"):
+            account.register_distribution_receivable(
+                ("AAA3", "2026-01-20", "2026-02-20", "DIVIDENDO", 300.0),
+                ticker="AAA3",
+                label="DIVIDENDO",
+                shares_entitled=100,
+                gross_per_share=300.0,
+                payment_date="2026-02-20",
+            )
+
     def test_end_before_payment_keeps_earned_dividend_in_economic_equity(self) -> None:
         dates = [
             "2025-12-29",
