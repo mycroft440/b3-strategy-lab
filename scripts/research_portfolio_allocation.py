@@ -53,12 +53,12 @@ _target_weights = covariance_target_weights
 
 
 class MarketData(_core.MarketData):
-    """MarketData with optional isolated manifest/evidence roots.
+    """MarketData with optional isolated storage and verification roots.
 
-    The default path delegates to the historical research implementation unchanged.
-    Realistic point-in-time callers may instead supply their own manifest directory
-    and split-evidence file so rebuilding that replay does not mutate or invalidate
-    hashes belonging to the broad research catalog.
+    With no custom roots this delegates to the historical research implementation
+    unchanged. Realistic point-in-time callers may use separate candle, action,
+    manifest and split-evidence paths so rebuilding a causal replay cannot mutate or
+    invalidate artifacts belonging to the broad research catalog.
     """
 
     def __init__(
@@ -70,10 +70,16 @@ class MarketData(_core.MarketData):
         allow_unverified_data: bool = False,
         require_verified_splits_from: str | None = None,
         history_start: str | None = None,
+        data_dir: Path | str | None = None,
+        actions_dir: Path | str | None = None,
         manifests_dir: Path | str | None = None,
         split_evidence_path: Path | str | None = None,
     ) -> None:
-        if manifests_dir is None and split_evidence_path is None:
+        custom_roots = any(
+            value is not None
+            for value in (data_dir, actions_dir, manifests_dir, split_evidence_path)
+        )
+        if not custom_roots:
             super().__init__(
                 tickers,
                 interval,
@@ -98,11 +104,20 @@ class MarketData(_core.MarketData):
 
         for ticker in tickers:
             if allow_unverified_data:
-                candles = load_candles(cache_path(ticker, interval))
+                candle_path = (
+                    cache_path(ticker, interval, data_dir)
+                    if data_dir is not None
+                    else cache_path(ticker, interval)
+                )
+                candles = load_candles(candle_path)
                 if history_start is not None:
                     candles = [candle for candle in candles if candle.date >= history_start]
             else:
                 kwargs = {}
+                if data_dir is not None:
+                    kwargs["data_dir"] = data_dir
+                if actions_dir is not None:
+                    kwargs["actions_dir"] = actions_dir
                 if manifests_dir is not None:
                     kwargs["manifests_dir"] = manifests_dir
                 if split_evidence_path is not None:
