@@ -21,9 +21,9 @@ from b3_strategy_lab.reconstruction_quality import (  # noqa: E402
 from b3_strategy_lab.replay_scope import audit_small_account_replay  # noqa: E402
 
 
-# File name retained for backward compatibility. This runner no longer emits an
-# "exact" label: public daily COTAHIST cannot prove the fill of a hypothetical
-# order in the opening auction. Exact labels are reserved for broker-source fills.
+# File name retained for backward compatibility. This runner never emits an
+# "exact fill" label: public daily COTAHIST cannot prove the fill of a hypothetical
+# order in the opening auction. Exact account labels are reserved for broker-source evidence.
 DEFAULT_B3_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_AUDIT = Path("reports/certified_replay_input_audit.json")
@@ -166,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     status: dict[str, object] = {
-        "schema_version": 4,
+        "schema_version": 5,
         "start": args.start,
         "end": end,
         "source_years": source_years,
@@ -179,12 +179,15 @@ def main(argv: list[str] | None = None) -> int:
         "certified_deterministic_replay_passed": False,
         "counterfactual_execution_exact": False,
         "strategy_selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
-        "actual_personal_account_reconstruction_exact": False,
-        "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
+        "actual_brokerage_account_reconciliation_exact": False,
+        "actual_brokerage_account_runner": "scripts/reconcile_actual_personal_account.py",
+        "cpf_wide_annual_minimum_tax_scope": "OUT_OF_SCOPE",
         "interpretation": (
             "The public-data runner can certify its inputs and deterministic official-open "
-            "assumption. It cannot prove the exact fill of a hypothetical order. Only the "
-            "broker-source reconciliation runner may emit an exact personal-account label."
+            "assumption. It cannot prove the exact fill of a hypothetical order. Only "
+            "documentary broker-source reconciliation may emit the limited "
+            "ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION label; CPF-wide annual tax "
+            "and total personal wealth are separate scopes."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -257,6 +260,12 @@ def main(argv: list[str] | None = None) -> int:
         postflight_blockers.append("backtest_summary_fee_schedule_is_not_certified")
     if args.strategy.strip().lower() == "gap_momentum" and summary.get("economic_gap_adjustment") is not True:
         postflight_blockers.append("gap_momentum_requires_economic_gap_adjustment")
+    if float(summary.get("outstanding_accrued_tax_liability", 0.0) or 0.0) > 1e-9:
+        # This should be impossible inside the R$20k monthly-sales certified envelope.
+        # Refuse certification rather than silently relying on a modeled DARF calendar.
+        postflight_blockers.append("certified_small_account_replay_has_accrued_ordinary_tax")
+    if summary.get("cpf_wide_annual_minimum_tax_scope") != "OUT_OF_SCOPE":
+        postflight_blockers.append("cpf_wide_tax_scope_not_explicit")
     postflight_blockers = sorted(set(postflight_blockers))
 
     engine_validity = str(summary.get("validity", ""))
@@ -268,13 +277,14 @@ def main(argv: list[str] | None = None) -> int:
     summary["execution_policy"] = CERTIFIED_EXECUTION_POLICY
     summary["strategy_selection_status"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
     summary["counterfactual_execution_exact"] = False
-    summary["actual_personal_account_exact"] = False
-    summary["actual_personal_account_requires"] = [
+    summary["actual_brokerage_account_exact"] = False
+    summary["actual_brokerage_account_requires"] = [
         "documentary opening and closing broker snapshots",
         "actual broker order/fill records with source hashes",
         "complete broker cash ledger including fees, taxes and distributions",
         "source-backed corporate-action position adjustments when applicable",
     ]
+    summary["cpf_wide_annual_minimum_tax_scope"] = "OUT_OF_SCOPE"
 
     if postflight_blockers:
         all_blockers = sorted(set(preflight_blockers + postflight_blockers))
@@ -311,7 +321,13 @@ def main(argv: list[str] | None = None) -> int:
     status["strict_blockers"] = []
     status["small_account_scope"] = replay_scope
     status["summary"] = str(args.output)
-    status["final_equity"] = summary.get("final_equity")
+    status["brokerage_final_equity"] = summary.get("brokerage_final_equity", summary.get("final_equity"))
+    status["net_equity_after_accrued_tax"] = summary.get(
+        "net_equity_after_accrued_tax", summary.get("final_equity")
+    )
+    status["outstanding_accrued_tax_liability"] = summary.get(
+        "outstanding_accrued_tax_liability", 0.0
+    )
     status["certified_deterministic_replay_passed"] = True
     args.status_output.write_text(
         json.dumps(status, indent=2, ensure_ascii=False) + "\n",
