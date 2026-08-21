@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from b3_strategy_lab.strategies import portfolio_strategies, strategy_info, strategy_parameters
+from b3_strategy_lab.strategies import STRATEGIES, portfolio_strategies, strategy_info, strategy_parameters
 from scripts.audit_volume_indicators import (
     EXPECTED_SOURCE_CONSUMERS,
     source_raw_volume_consumers,
@@ -27,11 +27,23 @@ class VolumeAuditTests(unittest.TestCase):
             for name in registered
             if {"volume_window", "volume_mult"} & set(strategy_parameters(name))
         }
+        user_extensions = {
+            name
+            for name in registered
+            if STRATEGIES[name].__module__ == "b3_strategy_lab.user_extensions"
+        }
 
+        # O auditor inclui conservadoramente todas as extensoes do usuario para
+        # testar causalidade e impedir que uma extensao futura contorne a base de
+        # volume. Extensoes price-only nao devem, por isso, ser classificadas
+        # artificialmente como familia "volume".
         self.assertEqual(
-            audited - {"chandelier_breakout", "range_expansion_breakout"},
+            audited
+            - {"chandelier_breakout", "range_expansion_breakout"}
+            - user_extensions,
             family_volume,
         )
+        self.assertLessEqual(user_extensions, audited)
         self.assertEqual(
             parameter_volume,
             {"chandelier_breakout", "range_expansion_breakout"},
