@@ -107,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
     universe_payload = json.loads(args.universe.read_text(encoding="utf-8"))
     universe = PointInTimeUniverse.from_csv(args.snapshots)
     expected_union = {str(item).upper() for item in universe_payload.get("tickers", [])}
+    market_data = {
+        str(item).strip().upper()
+        for item in universe_payload.get("market_data_tickers", universe_payload.get("tickers", []))
+        if str(item).strip()
+    }
     excluded = {
         str(item).strip().upper()
         for item in universe_payload.get("excluded_tickers", [])
@@ -119,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     checks["universe_is_point_in_time"] = universe_payload.get("point_in_time") is True
     checks["universe_declares_survivorship_safe"] = survivorship_safe
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
+    checks["market_data_contains_selectable_universe"] = bool(market_data) and expected_union <= market_data
     checks["excluded_tickers_absent"] = not bool(universe.union & excluded)
     checks["universe_policy_consistent"] = survivorship_safe or no_replacements
     checks["certified_tax_instrument_scope_is_on_pn_shares"] = (
@@ -147,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     details["audit_end"] = end
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
+    details["market_data_ticker_count"] = len(market_data)
+    details["continuity_only_ticker_count"] = len(market_data - expected_union)
     details["minimum_snapshot_size"] = min(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["maximum_snapshot_size"] = max(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["selection_mode"] = universe_payload.get("selection_mode", "")
@@ -161,8 +169,14 @@ def main(argv: list[str] | None = None) -> int:
 
     cash_payload = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     checks["cash_response_has_no_parse_issues"] = not bool(cash_payload.get("issues"))
+    checks["cash_manifest_matches_market_data_scope"] = (
+        int(cash_payload.get("market_data_ticker_count", -1)) == len(market_data)
+    )
     details["cash_event_count"] = int(cash_payload.get("event_count", 0))
     details["cash_source"] = cash_payload.get("source", "")
+    details["cash_manifest_market_data_ticker_count"] = int(
+        cash_payload.get("market_data_ticker_count", -1)
+    )
 
     cash_certified = False
     certification_issues = ["cash coverage certification file is missing"]
@@ -173,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
             certification,
             cash_events_path=args.cash_events,
             cash_manifest_path=args.cash_manifest,
-            tickers=universe.union,
+            tickers=market_data,
             start=start,
             end=end,
         )
@@ -234,11 +248,6 @@ def main(argv: list[str] | None = None) -> int:
     if no_replacements:
         checks["execution_book_within_allowed_universe"] = bool(allowed_tickers) and execution_bases <= allowed_tickers
     else:
-        market_data = {
-            str(item).strip().upper()
-            for item in universe_payload.get("market_data_tickers", universe_payload.get("tickers", []))
-            if str(item).strip()
-        }
         checks["execution_book_within_allowed_universe"] = bool(market_data) and execution_bases <= market_data
 
     all_execution_dates = sorted(value for value in execution_dates if value)
@@ -263,11 +272,13 @@ def main(argv: list[str] | None = None) -> int:
     structural_account = [
         "universe_is_point_in_time",
         "snapshot_union_matches_manifest",
+        "market_data_contains_selectable_universe",
         "universe_policy_consistent",
         "snapshot_union_within_allowed_universe",
         "excluded_tickers_absent",
         "split_markers_fully_covered",
         "cash_response_has_no_parse_issues",
+        "cash_manifest_matches_market_data_scope",
         "execution_book_has_standard_quotes",
         "execution_book_has_fractional_quotes",
         "execution_book_has_no_duplicate_keys",
@@ -314,7 +325,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 6,
+        "schema_version": 7,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -333,9 +344,11 @@ def main(argv: list[str] | None = None) -> int:
         "interpretation": (
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
-            "shares. Daily COTAHIST does not prove the fill of a hypothetical order. The "
-            "exact brokerage-account label is reserved for reconciliation of actual broker "
-            "fills, complete cash events and source-hashed opening/closing broker snapshots."
+            "shares. Cash-distribution certification covers the full market_data_tickers "
+            "set, including continuity-only historical symbols. Daily COTAHIST does not "
+            "prove the fill of a hypothetical order. The exact brokerage-account label is "
+            "reserved for reconciliation of actual broker fills, complete cash events and "
+            "source-hashed opening/closing broker snapshots."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
