@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import unittest
 from dataclasses import replace
-
-import pytest
 
 from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.extensions import available_indicators, build_indicator
@@ -36,60 +35,64 @@ def _candles(closes: list[float]) -> list[Candle]:
     return result
 
 
-def test_research_extensions_are_auto_registered() -> None:
-    assert "momentum_12_1" in available_indicators()
-    assert "tsmom_ensemble_score" in available_indicators()
-    assert "realized_volatility_63" in available_indicators()
-    assert "absolute_momentum_12_1" in available_strategies()
-    assert "time_series_momentum_3_6_12" in available_strategies()
+class ResearchExtensionTests(unittest.TestCase):
+    def test_research_extensions_are_auto_registered(self) -> None:
+        self.assertIn("momentum_12_1", available_indicators())
+        self.assertIn("tsmom_ensemble_score", available_indicators())
+        self.assertIn("realized_volatility_63", available_indicators())
+        self.assertIn("absolute_momentum_12_1", available_strategies())
+        self.assertIn("time_series_momentum_3_6_12", available_strategies())
+
+    def test_absolute_momentum_12_1_uses_only_lagged_information(self) -> None:
+        candles = _candles([100.0 + index for index in range(320)])
+        original = build_signals("absolute_momentum_12_1", candles)
+
+        changed = list(candles)
+        changed[-1] = replace(changed[-1], close=1_000_000.0)
+        mutated = build_signals("absolute_momentum_12_1", changed)
+
+        # skip=21: o candle atual nao pode alterar o sinal 12-1 atual.
+        self.assertEqual(original[-1], 1)
+        self.assertEqual(mutated[-1], 1)
+        self.assertEqual(original[:-1], mutated[:-1])
+
+    def test_time_series_momentum_ensemble_requires_majority_positive(self) -> None:
+        rising = _candles([100.0 + index for index in range(320)])
+        falling = _candles([500.0 - index for index in range(320)])
+
+        self.assertEqual(build_signals("time_series_momentum_3_6_12", rising)[-1], 1)
+        self.assertEqual(build_signals("time_series_momentum_3_6_12", falling)[-1], 0)
+
+    def test_indicator_lengths_and_warmups(self) -> None:
+        candles = _candles([100.0 + index * 0.1 for index in range(320)])
+
+        mom = build_indicator("momentum_12_1", candles)
+        tsmom = build_indicator("tsmom_ensemble_score", candles)
+        vol = build_indicator("realized_volatility_63", candles)
+
+        self.assertEqual(len(mom), len(candles))
+        self.assertEqual(len(tsmom), len(candles))
+        self.assertEqual(len(vol), len(candles))
+        self.assertIsNone(mom[272])
+        self.assertIsNotNone(mom[273])
+        self.assertIsNone(tsmom[251])
+        self.assertIsNotNone(tsmom[252])
+        self.assertIsNone(vol[62])
+        self.assertIsNotNone(vol[63])
+
+    def test_invalid_time_series_parameters_fail_fast(self) -> None:
+        candles = _candles([100.0 + index for index in range(320)])
+        with self.assertRaises(ValueError):
+            build_signals(
+                "time_series_momentum_3_6_12",
+                candles,
+                short_window=126,
+                medium_window=63,
+                long_window=252,
+            )
+        with self.assertRaises(ValueError):
+            build_signals("absolute_momentum_12_1", candles, skip=-1)
 
 
-def test_absolute_momentum_12_1_uses_only_lagged_information() -> None:
-    candles = _candles([100.0 + index for index in range(320)])
-    original = build_signals("absolute_momentum_12_1", candles)
-
-    changed = list(candles)
-    changed[-1] = replace(changed[-1], close=1_000_000.0)
-    mutated = build_signals("absolute_momentum_12_1", changed)
-
-    # skip=21: the current candle cannot affect the current 12-1 signal.
-    assert original[-1] == mutated[-1] == 1
-    assert original[:-1] == mutated[:-1]
-
-
-def test_time_series_momentum_ensemble_requires_majority_positive() -> None:
-    rising = _candles([100.0 + index for index in range(320)])
-    falling = _candles([500.0 - index for index in range(320)])
-
-    assert build_signals("time_series_momentum_3_6_12", rising)[-1] == 1
-    assert build_signals("time_series_momentum_3_6_12", falling)[-1] == 0
-
-
-def test_indicator_lengths_and_warmups() -> None:
-    candles = _candles([100.0 + index * 0.1 for index in range(320)])
-
-    mom = build_indicator("momentum_12_1", candles)
-    tsmom = build_indicator("tsmom_ensemble_score", candles)
-    vol = build_indicator("realized_volatility_63", candles)
-
-    assert len(mom) == len(tsmom) == len(vol) == len(candles)
-    assert mom[272] is None
-    assert mom[273] is not None
-    assert tsmom[251] is None
-    assert tsmom[252] is not None
-    assert vol[62] is None
-    assert vol[63] is not None
-
-
-def test_invalid_time_series_parameters_fail_fast() -> None:
-    candles = _candles([100.0 + index for index in range(320)])
-    with pytest.raises(ValueError):
-        build_signals(
-            "time_series_momentum_3_6_12",
-            candles,
-            short_window=126,
-            medium_window=63,
-            long_window=252,
-        )
-    with pytest.raises(ValueError):
-        build_signals("absolute_momentum_12_1", candles, skip=-1)
+if __name__ == "__main__":
+    unittest.main()
