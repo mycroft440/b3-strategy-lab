@@ -167,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         "id": "full_b3_on_pn_survivorship_safe_weekly_top_liquidity",
         "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",
         "selected_as_of": args.start,
+        "selection_end": end,
         "warmup_start": f"{min(years):04d}-01-01",
         "source_years": years,
         "survivorship_safe": True,
