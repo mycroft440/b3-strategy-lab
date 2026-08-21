@@ -4,7 +4,6 @@ import argparse
 import csv
 import json
 import sys
-from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -13,6 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from b3_strategy_lab.candles import actions_path, cache_path  # noqa: E402
+from b3_strategy_lab.cotahist import (  # noqa: E402
+    DataVerificationError,
+    manifest_path,
+    verify_dataset,
+)
 from b3_strategy_lab.realistic import (  # noqa: E402
     FeeSchedule,
     PointInTimeUniverse,
@@ -27,6 +32,7 @@ DEFAULT_CASH_EVENTS = Path("data/corporate_actions/point_in_time_cash_distributi
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
 DEFAULT_CASH_CERTIFICATION = Path("data/corporate_actions/cash_distribution_coverage_certification.json")
 DEFAULT_SPLITS = Path("data/corporate_actions/point_in_time_split_evidence.json")
+DEFAULT_MANIFESTS = Path("data/manifests_point_in_time")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_OUTPUT = Path("reports/realistic_input_audit.json")
@@ -87,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--cash-certification", type=Path, default=DEFAULT_CASH_CERTIFICATION)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLITS)
+    parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
     parser.add_argument("--transition-manifest", type=Path, default=DEFAULT_TRANSITIONS)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -101,7 +108,9 @@ def main(argv: list[str] | None = None) -> int:
         "split_evidence": args.split_evidence,
         "fee_schedule": args.fee_schedule,
     }
-    missing_inputs = [f"{name}={path}" for name, path in required_inputs.items() if not path.exists()]
+    missing_inputs = [
+        f"{name}={path}" for name, path in required_inputs.items() if not path.exists()
+    ]
     if missing_inputs:
         parser.error(
             "Entradas realistas ausentes. Execute o pipeline de dados antes da auditoria: "
@@ -138,15 +147,19 @@ def main(argv: list[str] | None = None) -> int:
             allowed_payload = json.loads(allowed_file.read_text(encoding="utf-8"))
             allowed_tickers = _ticker_set(allowed_payload, "tickers")
     if no_replacements:
-        checks["snapshot_union_within_allowed_universe"] = bool(allowed_tickers) and universe.union <= allowed_tickers
+        checks["snapshot_union_within_allowed_universe"] = (
+            bool(allowed_tickers) and universe.union <= allowed_tickers
+        )
     else:
         checks["snapshot_union_within_allowed_universe"] = True
 
     start = str(universe_payload.get("selected_as_of", universe.snapshots[0].effective_date))[:10]
+    warmup_start = str(universe_payload.get("warmup_start", start))[:10]
     latest_snapshot = max(snapshot.effective_date for snapshot in universe.snapshots)
     end = str(universe_payload.get("selection_end", latest_snapshot))[:10]
     checks["declared_replay_end_not_before_last_snapshot"] = end >= latest_snapshot
     details["audit_start"] = start
+    details["warmup_start"] = warmup_start
     details["audit_end"] = end
     details["last_snapshot_date"] = latest_snapshot
     details["snapshot_count"] = len(universe.snapshots)
@@ -164,22 +177,84 @@ def main(argv: list[str] | None = None) -> int:
 
     split_payload = json.loads(args.split_evidence.read_text(encoding="utf-8"))
     split_tickers = _ticker_set(split_payload, "market_data_tickers")
+    split_coverage_start = str(split_payload.get("coverage_start", ""))[:10]
+    split_coverage_end = str(split_payload.get("coverage_end", ""))[:10]
     checks["split_markers_fully_covered"] = int(split_payload.get("uncovered_count", -1)) == 0
     checks["split_evidence_matches_market_data_scope"] = split_tickers == market_data
+    checks["split_evidence_ticker_count_consistent"] = (
+        int(split_payload.get("market_data_ticker_count", -1)) == len(split_tickers)
+    )
+    checks["split_evidence_starts_by_warmup"] = (
+        bool(split_coverage_start) and split_coverage_start <= warmup_start
+    )
+    checks["split_evidence_coverage_reaches_replay_end"] = (
+        bool(split_coverage_end) and split_coverage_end >= end
+    )
     details["split_evidence_ticker_count"] = len(split_tickers)
+    details["split_evidence_coverage_start"] = split_coverage_start
+    details["split_evidence_coverage_end"] = split_coverage_end
+
+    manifest_issues: list[str] = []
+    manifest_ends: dict[str, str] = {}
+    if not args.manifests_dir.exists():
+        manifest_issues.append(f"manifest_directory_missing:{args.manifests_dir}")
+    else:
+        for ticker in sorted(market_data):
+            manifest_file = manifest_path(ticker, "1d", args.manifests_dir)
+            if not manifest_file.exists():
+                manifest_issues.append(f"manifest_missing:{ticker}:{manifest_file}")
+                continue
+            try:
+                verified = verify_dataset(
+                    cache_path(ticker, "1d"),
+                    actions_path(ticker),
+                    manifest_file,
+                    ticker=ticker,
+                    interval="1d",
+                    require_verified_splits_from=warmup_start,
+                    split_evidence_path=args.split_evidence,
+                )
+            except (DataVerificationError, OSError, ValueError) as error:
+                manifest_issues.append(f"manifest_verification_failed:{ticker}:{error}")
+                continue
+            manifest_ends[ticker] = str(verified.end)
+            if verified.end > end:
+                manifest_issues.append(
+                    f"manifest_extends_past_replay_end:{ticker}:{verified.end}>{end}"
+                )
+    checks["point_in_time_manifests_verify_against_split_evidence"] = not manifest_issues
+    checks["point_in_time_manifest_count_matches_market_data"] = (
+        len(manifest_ends) == len(market_data)
+    )
+    checks["point_in_time_manifests_do_not_extend_past_replay_end"] = not any(
+        value > end for value in manifest_ends.values()
+    )
+    details["manifest_directory"] = str(args.manifests_dir)
+    details["verified_point_in_time_manifest_count"] = len(manifest_ends)
+    details["point_in_time_manifest_issues"] = manifest_issues[:100]
 
     cash_payload = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
     cash_manifest_tickers = _ticker_set(cash_payload, "market_data_tickers")
+    cash_coverage_start = str(cash_payload.get("coverage_start", ""))[:10]
+    cash_coverage_end = str(cash_payload.get("coverage_end", ""))[:10]
     checks["cash_response_has_no_parse_issues"] = not bool(cash_payload.get("issues"))
     checks["cash_manifest_matches_market_data_scope"] = cash_manifest_tickers == market_data
     checks["cash_manifest_ticker_count_consistent"] = (
         int(cash_payload.get("market_data_ticker_count", -1)) == len(cash_manifest_tickers)
+    )
+    checks["cash_manifest_starts_by_warmup"] = (
+        bool(cash_coverage_start) and cash_coverage_start <= warmup_start
+    )
+    checks["cash_manifest_coverage_reaches_replay_end"] = (
+        bool(cash_coverage_end) and cash_coverage_end >= end
     )
     details["cash_event_count"] = int(cash_payload.get("event_count", 0))
     details["cash_source"] = cash_payload.get("source", "")
     details["cash_manifest_market_data_ticker_count"] = int(
         cash_payload.get("market_data_ticker_count", -1)
     )
+    details["cash_manifest_coverage_start"] = cash_coverage_start
+    details["cash_manifest_coverage_end"] = cash_coverage_end
 
     cash_certified = False
     certification_issues = ["cash coverage certification file is missing"]
@@ -206,13 +281,24 @@ def main(argv: list[str] | None = None) -> int:
     expected_transition_scope = market_data - transition_excluded
     transition_tickers = _ticker_set(transition_payload, "market_data_tickers")
     transition_coverage_end = str(transition_payload.get("coverage_end", ""))[:10]
-    checks["ticker_transitions_have_no_unresolved_disappearances"] = transition_payload.get("complete") is True
-    checks["ticker_transition_scope_matches_market_data"] = transition_tickers == expected_transition_scope
+    checks["ticker_transitions_have_no_unresolved_disappearances"] = (
+        transition_payload.get("complete") is True
+    )
+    checks["ticker_transition_scope_matches_market_data"] = (
+        transition_tickers == expected_transition_scope
+    )
     checks["ticker_transition_coverage_reaches_replay_end"] = (
         bool(transition_coverage_end) and transition_coverage_end >= end
     )
     details["unresolved_historical_disappearances"] = (
-        int(transition_payload.get("unresolved_disappearances", -1)) if transition_payload else -1
+        int(transition_payload.get("unresolved_disappearances", -1))
+        if transition_payload
+        else -1
+    )
+    details["recent_stale_symbols"] = (
+        int(transition_payload.get("recent_stale_symbols", -1))
+        if transition_payload
+        else -1
     )
     details["transition_ticker_count"] = len(transition_tickers)
     details["transition_coverage_end"] = transition_coverage_end
@@ -259,19 +345,28 @@ def main(argv: list[str] | None = None) -> int:
     checks["execution_book_has_positive_prices_and_volume"] = not invalid_execution_rows
     checks["execution_book_excludes_forbidden_tickers"] = not bool(execution_bases & excluded)
     if no_replacements:
-        checks["execution_book_within_allowed_universe"] = bool(allowed_tickers) and execution_bases <= allowed_tickers
+        checks["execution_book_within_allowed_universe"] = (
+            bool(allowed_tickers) and execution_bases <= allowed_tickers
+        )
     else:
-        checks["execution_book_within_allowed_universe"] = bool(market_data) and execution_bases <= market_data
+        checks["execution_book_within_allowed_universe"] = (
+            bool(market_data) and execution_bases <= market_data
+        )
 
     all_execution_dates = sorted(value for value in execution_dates if value)
     last_execution_date = max(all_execution_dates) if all_execution_dates else ""
-    checks["execution_book_covers_declared_replay_end"] = bool(last_execution_date) and last_execution_date >= end
+    checks["execution_book_covers_declared_replay_end"] = (
+        bool(last_execution_date) and last_execution_date >= end
+    )
+    checks["execution_book_does_not_extend_past_replay_end"] = (
+        bool(last_execution_date) and last_execution_date <= end
+    )
     details["last_execution_date"] = last_execution_date
 
     missing_next_open: list[str] = []
     for snapshot in universe.snapshots:
         next_date = _next_execution_date(all_execution_dates, snapshot.effective_date)
-        if next_date is None:
+        if next_date is None or next_date > end:
             continue
         for ticker in snapshot.tickers:
             if (next_date, ticker) not in standard:
@@ -296,9 +391,17 @@ def main(argv: list[str] | None = None) -> int:
         "excluded_tickers_absent",
         "split_markers_fully_covered",
         "split_evidence_matches_market_data_scope",
+        "split_evidence_ticker_count_consistent",
+        "split_evidence_starts_by_warmup",
+        "split_evidence_coverage_reaches_replay_end",
+        "point_in_time_manifests_verify_against_split_evidence",
+        "point_in_time_manifest_count_matches_market_data",
+        "point_in_time_manifests_do_not_extend_past_replay_end",
         "cash_response_has_no_parse_issues",
         "cash_manifest_matches_market_data_scope",
         "cash_manifest_ticker_count_consistent",
+        "cash_manifest_starts_by_warmup",
+        "cash_manifest_coverage_reaches_replay_end",
         "execution_book_has_standard_quotes",
         "execution_book_has_fractional_quotes",
         "execution_book_has_no_duplicate_keys",
@@ -306,6 +409,7 @@ def main(argv: list[str] | None = None) -> int:
         "execution_book_excludes_forbidden_tickers",
         "execution_book_within_allowed_universe",
         "execution_book_covers_declared_replay_end",
+        "execution_book_does_not_extend_past_replay_end",
     ]
     ready_for_estimate = all(checks[name] for name in structural_account)
 
@@ -321,7 +425,9 @@ def main(argv: list[str] | None = None) -> int:
         "all_b3_fee_periods_are_official",
         "b3_fee_schedule_covers_period",
     ]
-    ready_for_certified_market_inputs = all(checks[name] for name in certified_market_requirements)
+    ready_for_certified_market_inputs = all(
+        checks[name] for name in certified_market_requirements
+    )
 
     selection_validity = (
         "SURVIVORSHIP_SAFE_POINT_IN_TIME"
@@ -348,7 +454,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 10,
+        "schema_version": 11,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -368,9 +474,11 @@ def main(argv: list[str] | None = None) -> int:
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
             "shares. Split, cash and ticker-transition evidence are bound to the exact "
-            "market-data symbol set and replay horizon. Daily COTAHIST does not prove a "
-            "hypothetical fill. Exact brokerage-account reconciliation requires actual "
-            "broker fills and source-backed account evidence."
+            "market-data symbol set and replay horizon. Point-in-time candle manifests are "
+            "also cryptographically bound to the same split ledger and cannot extend past "
+            "the replay horizon. Daily COTAHIST does not prove a hypothetical fill. Exact "
+            "brokerage-account reconciliation requires actual broker fills and source-backed "
+            "account evidence."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
