@@ -139,15 +139,22 @@ os sinais de elegibilidade com 478 gerenciamentos de carteira.
 Ele usa sinal no fechamento, execucao na abertura seguinte, OHLC normalizado
 somente por splits e exclui dividendos/JCP. O historico de indicadores das
 estrategias e dos gerenciamentos comeca no aquecimento certificado em
-2017-01-01. O catalogo possui 189 estrategias
+2017-01-01. O catalogo possui 191 estrategias
 parametrizadas e `buy_and_hold`, que nao entra em varreduras de parametros, mas
-entra normalmente na matriz. Uma execucao integral atual cruza 190 x 478 =
-90.820 combinacoes.
+entra normalmente na matriz. Uma execucao integral atual cruza 192 x 478 =
+91.776 combinacoes.
 
 ```powershell
 python scripts\backtest_strategy_management_combinations.py --initial-cash 1000 --cost-bps 3.2 --slippage-bps 10
 python scripts\audit_matrix_results.py
+python scripts\validate_matrix_top_realistically.py --top 10
 ```
+
+Os dois primeiros comandos fazem a triagem completa e a auditoria estrutural. O
+terceiro pega os melhores pares estrategia/gerenciamento e os reexecuta no motor
+economico, com universo point-in-time, proventos, tarifas, tributacao e slippage
+sensivel a participacao no volume. O CAGR da matriz rapida nao deve ser tratado
+como retorno economico final sem esse gate.
 
 O executor usa ate 8 processos por padrao e compartilha calculos de
 momentum/tendencia/volatilidade entre configuracoes semanticamente equivalentes.
@@ -244,8 +251,10 @@ O catalogo completo, incluindo os presets, pode ser consultado com
 regras exatas estao em [docs/researched_strategies.md](docs/researched_strategies.md).
 O segundo lote preserva essas 168 estrategias e adiciona 21 motores distintos,
 documentados em [docs/extended_strategies.md](docs/extended_strategies.md), para
-um total de 189 estrategias com sweep de parametros. Somado ao sinal permanente
-`buy_and_hold`, o executor da matriz combina 190 estrategias com os
+um total de 189 estrategias com sweep de parametros. Este ciclo adiciona mais
+duas familias causais via extensoes (`absolute_momentum_12_1` e
+`time_series_momentum_3_6_12`), levando o total sweepable a 191. Somado ao sinal
+permanente `buy_and_hold`, o executor da matriz combina 192 estrategias com os
 gerenciamentos de carteira.
 
 Novas estrategias e indicadores podem ser adicionados apenas com decorators em
@@ -262,6 +271,8 @@ Novas estrategias e indicadores podem ser adicionados apenas com decorators em
 - `macd`: comprado quando a linha MACD fica acima da linha de sinal.
 - `sma_cross`: comprado quando a media curta fica acima da media longa.
 - `momentum`: comprado quando o fechamento atual supera o fechamento de N candles atras.
+- `absolute_momentum_12_1`: momentum absoluto de 252 sessoes, excluindo as 21 sessoes mais recentes.
+- `time_series_momentum_3_6_12`: exige maioria positiva entre retornos de 63, 126 e 252 sessoes.
 - `price_sma`: comprado quando o preco fecha acima da media.
 - `range_expansion_breakout`: compra expansao de range no fechamento com stop por ATR.
 - `roc_trend`: momentum positivo com filtro de media movel.
@@ -316,4 +327,4 @@ fechamento de hoje e comprar no proprio fechamento de hoje.
 - A matriz retrospectiva usa por padrao 3,2 bps de custos e 10 bps de slippage,
   mas ainda exclui impostos e proventos; valores pessoais precisam do caminho
   realista e de uma tabela de corretagem adequada.
-- Impostos, aluguel, emolumentos e restricoes de liquidez nao sao modelados por padrao.
+- Impostos, aluguel, emolumentos e restricoes de liquidez nao sao modelados por padrao na matriz rapida; o gate realista acrescenta a camada economica suportada pelos dados disponiveis.
