@@ -8,6 +8,7 @@ from pathlib import Path
 
 CERTIFIED_BROKER_QUALITIES = {"broker_statement", "broker_certified"}
 CERTIFIED_EXECUTION_POLICY = "official_open_market_order"
+FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG = "per_market_order_leg"
 # Backward-compatible alias. Public COTAHIST data can support a deterministic,
 # certified counterfactual replay but cannot prove the exact fill of a hypothetical
 # order. Exact personal-account labels are reserved for broker-source fills.
@@ -20,6 +21,7 @@ class BrokerFeeRule:
     end: str
     brokerage_bps: float
     brokerage_fixed_per_order: float
+    fixed_fee_application: str
     quality: str
     evidence: tuple[str, ...]
 
@@ -45,8 +47,8 @@ class BrokerProfile:
     @classmethod
     def from_json(cls, path: Path | str) -> "BrokerProfile":
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        if payload.get("schema_version") != 1:
-            raise ValueError("Broker profile requires schema_version=1.")
+        if payload.get("schema_version") not in {1, 2}:
+            raise ValueError("Broker profile requires schema_version 1 or 2.")
         tax = payload.get("tax_scope") or {}
         raw_rules = payload.get("rules")
         if not isinstance(raw_rules, list) or not raw_rules:
@@ -57,6 +59,7 @@ class BrokerProfile:
                 end=str(item["end"]),
                 brokerage_bps=float(item.get("brokerage_bps", 0.0)),
                 brokerage_fixed_per_order=float(item.get("brokerage_fixed_per_order", 0.0)),
+                fixed_fee_application=str(item.get("fixed_fee_application", "unspecified")).strip(),
                 quality=str(item.get("quality", "unverified")),
                 evidence=tuple(str(value) for value in item.get("evidence", []) if str(value).strip()),
             )
@@ -132,6 +135,13 @@ def broker_profile_issues(profile: BrokerProfile, *, start: str, end: str) -> li
     for rule in profile.rules:
         if rule.brokerage_bps < 0 or rule.brokerage_fixed_per_order < 0:
             issues.append("broker_fee_rule_has_negative_fee")
+        if (
+            rule.brokerage_fixed_per_order > 0
+            and rule.fixed_fee_application != FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG
+        ):
+            issues.append(
+                f"fixed_brokerage_application_must_be_per_market_order_leg:{rule.start}:{rule.end}"
+            )
         if rule.quality not in CERTIFIED_BROKER_QUALITIES:
             issues.append(f"broker_fee_rule_not_certified:{rule.start}:{rule.end}")
         if not rule.evidence:
@@ -211,7 +221,14 @@ def write_composite_fee_schedule(
     end: str,
     output: Path | str,
 ) -> Path:
-    """Combine official B3 percentage fees with certified broker order fees."""
+    """Combine official B3 percentage fees with certified broker order fees.
+
+    ``brokerage_fixed`` is consumed by the execution engine once for every
+    executable market leg. An integer position can therefore generate one standard
+    order (010), one fractional order (020), or both. Nonzero certified fixed fees
+    are accepted only when the broker evidence explicitly uses that same charging
+    unit via ``fixed_fee_application=per_market_order_leg``.
+    """
 
     b3_rules = _load_b3_rules(b3_fee_schedule)
     combined: list[dict[str, object]] = []
@@ -231,12 +248,21 @@ def write_composite_fee_schedule(
                 raise ValueError("Cannot build certified composite schedule from non-official B3 fees.")
             if broker.quality not in CERTIFIED_BROKER_QUALITIES:
                 raise ValueError("Cannot build certified composite schedule from unverified broker fees.")
+            if (
+                broker.brokerage_fixed_per_order > 0
+                and broker.fixed_fee_application != FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG
+            ):
+                raise ValueError(
+                    "Nonzero fixed brokerage requires fixed_fee_application="
+                    f"{FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG}."
+                )
             combined.append(
                 {
                     "start": overlap_start.isoformat(),
                     "end": overlap_end.isoformat(),
                     "b3_bps": float(b3["b3_bps"]) + broker.brokerage_bps,
                     "brokerage_fixed": broker.brokerage_fixed_per_order,
+                    "fixed_fee_application": broker.fixed_fee_application,
                     "quality": "certified",
                     "source": (
                         f"B3={b3.get('source', '')}; broker={broker_profile.broker_name}; "
@@ -254,6 +280,7 @@ def write_composite_fee_schedule(
             end=str(item["end"]),
             brokerage_bps=0.0,
             brokerage_fixed_per_order=0.0,
+            fixed_fee_application=FIXED_FEE_APPLICATION_PER_MARKET_ORDER_LEG,
             quality="broker_certified",
             evidence=("composite",),
         )
@@ -267,7 +294,7 @@ def write_composite_fee_schedule(
     destination.write_text(
         json.dumps(
             {
-                "schema_version": 2,
+                "schema_version": 3,
                 "purpose": "Certified B3 plus broker fee schedule for deterministic official-open replay.",
                 "broker_name": broker_profile.broker_name,
                 "rules": combined,
