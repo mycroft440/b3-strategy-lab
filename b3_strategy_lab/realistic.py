@@ -28,14 +28,7 @@ class MonthTax(_core.MonthTax):
 
 
 class BrazilEquityTaxLedger(_core.BrazilEquityTaxLedger):
-    """Ordinary-stock tax ledger including common-operation IRRF credits.
-
-    The 0.005% withholding is accumulated by calendar month. Retention is
-    dispensed while the month's theoretical amount is <= R$1. Once the monthly
-    total exceeds that threshold, the full cumulative amount becomes withheld;
-    later sales withhold only the incremental amount. Withheld IRRF is credited
-    against monthly ordinary tax and then carried to later months when unused.
-    """
+    """Ordinary-stock tax ledger including common-operation IRRF credits."""
 
     def __init__(
         self,
@@ -119,13 +112,15 @@ class BrazilEquityTaxLedger(_core.BrazilEquityTaxLedger):
 
 
 class RealCashAccount(_core.RealCashAccount):
-    """Cash account with source withholding and date-aware DARF liabilities.
+    """Cash account with IRRF and economically accrued DARF liabilities.
 
-    Monthly tax is *accrued* when a month closes so loss carry and IRRF credits
-    remain causal. Cash leaves the brokerage account only on the modeled legal
-    due session: the final B3 session of the following calendar month. Known
-    liabilities remain reserved from new purchases, keeping the replay
-    self-financing without inventing later cash contributions.
+    Once an ordinary-stock tax month is finalized, its net DARF liability is
+    removed from *investable* cash and placed in ``tax_escrow``. This makes the
+    equity curve economic/net of a known tax obligation immediately while still
+    distinguishing legal payment timing: ``tax_paid`` and ``darf_paid`` increase
+    only when the obligation reaches its modeled due session. The escrow amount
+    can be added back to economic equity to reconstruct the gross mark-to-market
+    brokerage balance before the unpaid tax leaves the account.
     """
 
     def __init__(
@@ -143,14 +138,13 @@ class RealCashAccount(_core.RealCashAccount):
         )
         self.ordinary_irrf_withheld = 0.0
         self.darf_paid = 0.0
+        self.tax_escrow = 0.0
         self._darf_carry = 0.0
         self._scheduled_darfs: dict[str, float] = defaultdict(float)
         self._scheduled_tax_months: set[str] = set()
         self._due_session_cache: dict[str, str] = {}
 
     def sell_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
-        # Core sale computes gain and records the sale. Our ledger then exposes the
-        # incremental source withholding caused by this leg.
         super().sell_leg(value_date, ticker, quantity, quote)
         delta = self.tax.take_last_withholding_delta()  # type: ignore[attr-defined]
         if delta <= 0:
@@ -162,7 +156,6 @@ class RealCashAccount(_core.RealCashAccount):
             )
         self.cash -= delta
         self.ordinary_irrf_withheld += delta
-        # tax_paid is cumulative tax cash that actually left the brokerage account.
         self.tax_paid += delta
 
     def finalize_month(self, month: str):
@@ -175,22 +168,35 @@ class RealCashAccount(_core.RealCashAccount):
             )
         if month not in self._scheduled_tax_months:
             self._scheduled_tax_months.add(month)
-            self._darf_carry += max(0.0, float(tax.tax_due))
+            accrued = max(0.0, float(tax.tax_due))
+            if accrued > self.cash + 1e-9:
+                raise ValueError(
+                    f"Accrued ordinary tax for {month} exceeds investable brokerage cash: "
+                    f"{accrued:.2f} > {self.cash:.2f}."
+                )
+            # Economic recognition: remove the known liability from investable cash
+            # immediately, but do not call it paid until the legal payment event.
+            self.cash -= accrued
+            self.tax_escrow += accrued
+            self._darf_carry += accrued
             if self._darf_carry + 1e-12 >= DARF_MINIMUM_PAYMENT:
                 self._scheduled_darfs[_next_month(month)] += self._darf_carry
                 self._darf_carry = 0.0
         return tax, dividend_tax
 
     def known_darf_reserve(self) -> float:
-        """Tax cash already accrued and therefore unavailable to new purchases."""
+        """Economic tax liability already removed from investable cash."""
 
-        return self._darf_carry + sum(self._scheduled_darfs.values())
+        return float(self.tax_escrow)
 
     def outstanding_tax_liability(self) -> float:
-        return self.known_darf_reserve()
+        return float(self.tax_escrow)
+
+    def gross_brokerage_cash_before_unpaid_tax(self) -> float:
+        return float(self.cash + self.tax_escrow)
 
     def process_due_taxes(self, value_date: str, market_dates) -> float:
-        """Pay scheduled DARFs on the final B3 session of their legal due month."""
+        """Settle scheduled escrow on the final B3 session of its due month."""
 
         month = value_date[:7]
         overdue = sorted(due_month for due_month in self._scheduled_darfs if due_month < month)
@@ -210,12 +216,14 @@ class RealCashAccount(_core.RealCashAccount):
             self._due_session_cache[month] = due_session
         if value_date != due_session:
             return 0.0
-        if amount > self.cash + 1e-9:
+        if amount > self.tax_escrow + 1e-9:
             raise ValueError(
-                f"DARF due on {value_date} exceeds reserved brokerage cash: "
-                f"{amount:.2f} > {self.cash:.2f}."
+                f"DARF due on {value_date} exceeds accrued tax escrow: "
+                f"{amount:.2f} > {self.tax_escrow:.2f}."
             )
-        self.cash -= amount
+        self.tax_escrow -= amount
+        if abs(self.tax_escrow) < 1e-10:
+            self.tax_escrow = 0.0
         self.tax_paid += amount
         self.darf_paid += amount
         del self._scheduled_darfs[month]
