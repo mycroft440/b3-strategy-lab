@@ -12,23 +12,26 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from b3_strategy_lab.reconstruction_quality import (  # noqa: E402
-    EXACT_EXECUTION_POLICY,
+    CERTIFIED_EXECUTION_POLICY,
     BrokerProfile,
-    strict_exact_blockers,
+    certified_replay_blockers,
     write_composite_fee_schedule,
 )
 from b3_strategy_lab.replay_scope import audit_small_account_replay  # noqa: E402
 
 
+# File name retained for backward compatibility. This runner no longer emits an
+# "exact" label: public daily COTAHIST cannot prove the fill of a hypothetical
+# order in the opening auction. Exact labels are reserved for broker-source fills.
 DEFAULT_B3_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
-DEFAULT_AUDIT = Path("reports/exact_reconstruction_input_audit.json")
-DEFAULT_STATUS = Path("reports/exact_reconstruction_status.json")
-DEFAULT_SUMMARY = Path("reports/exact_reconstruction_summary.json")
-DEFAULT_CURVE = Path("reports/exact_reconstruction_curve.csv")
-DEFAULT_TRADES = Path("reports/exact_reconstruction_trades.csv")
-DEFAULT_DISTRIBUTIONS = Path("reports/exact_reconstruction_distributions.csv")
-DEFAULT_TAX = Path("reports/exact_reconstruction_tax.csv")
+DEFAULT_AUDIT = Path("reports/certified_replay_input_audit.json")
+DEFAULT_STATUS = Path("reports/certified_replay_status.json")
+DEFAULT_SUMMARY = Path("reports/certified_replay_summary.json")
+DEFAULT_CURVE = Path("reports/certified_replay_curve.csv")
+DEFAULT_TRADES = Path("reports/certified_replay_trades.csv")
+DEFAULT_DISTRIBUTIONS = Path("reports/certified_replay_distributions.csv")
+DEFAULT_TAX = Path("reports/certified_replay_tax.csv")
 
 
 def _run(arguments: list[str]) -> None:
@@ -62,9 +65,10 @@ def _normalized_certified_validity(summary: dict[str, object]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Fail-closed B3 conditional reconstruction. It uses a survivorship-safe "
-            "historical universe, official B3 opening prices, certified cash/split/"
-            "transition inputs, zero modeled slippage and a certified broker fee profile."
+            "Fail-closed certified deterministic B3 counterfactual replay. It uses a "
+            "survivorship-safe historical universe, official B3 opening prices, certified "
+            "cash/split/transition inputs, zero modeled slippage and a certified broker "
+            "fee profile. It does NOT claim an exact hypothetical fill."
         )
     )
     parser.add_argument("--broker-profile", type=Path, required=True)
@@ -128,34 +132,36 @@ def main(argv: list[str] | None = None) -> int:
 
     end = _execution_end(args.execution_prices, args.end)
     profile = BrokerProfile.from_json(args.broker_profile)
-    preflight_blockers = strict_exact_blockers(
+    preflight_blockers = certified_replay_blockers(
         audit,
         profile,
         start=args.start,
         end=end,
-        execution_policy=EXACT_EXECUTION_POLICY,
+        execution_policy=CERTIFIED_EXECUTION_POLICY,
         base_slippage_bps=0.0,
         participation_bps_at_1pct=0.0,
         max_slippage_bps=0.0,
     )
 
     status: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "start": args.start,
         "end": end,
         "initial_cash": args.initial_cash,
-        "execution_policy": EXACT_EXECUTION_POLICY,
+        "execution_policy": CERTIFIED_EXECUTION_POLICY,
         "market_input_audit": str(args.audit_output),
         "broker_profile": str(args.broker_profile),
         "preflight_passed": not preflight_blockers,
         "strict_blockers": preflight_blockers,
-        "conditional_rule_based_reconstruction_exact": False,
+        "certified_deterministic_replay_passed": False,
+        "counterfactual_execution_exact": False,
         "strategy_selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
         "actual_personal_account_reconstruction_exact": False,
-        "actual_personal_account_note": (
-            "A personal-account exact claim additionally requires actual broker order/fill "
-            "statements and complete external tax context. This runner can certify only the "
-            "counterfactual strategy replay under its declared official-open order policy."
+        "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
+        "interpretation": (
+            "The public-data runner can certify its inputs and deterministic official-open "
+            "assumption. It cannot prove the exact fill of a hypothetical order. Only the "
+            "broker-source reconciliation runner may emit an exact personal-account label."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -165,10 +171,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     if preflight_blockers:
         print(json.dumps(status, indent=2, ensure_ascii=False))
-        print("Strict reconstruction refused; resolve every preflight blocker above.", flush=True)
+        print("Certified replay refused; resolve every preflight blocker above.", flush=True)
         return 3
 
-    composite_fees = Path("reports/exact_composite_fee_schedule.json")
+    composite_fees = Path("reports/certified_composite_fee_schedule.json")
     write_composite_fee_schedule(
         b3_fee_schedule=args.b3_fee_schedule,
         broker_profile=profile,
@@ -236,18 +242,20 @@ def main(argv: list[str] | None = None) -> int:
     summary["small_account_scope"] = replay_scope
     summary["modeled_slippage"] = False
     summary["certified_broker_fees"] = True
-    summary["execution_policy"] = EXACT_EXECUTION_POLICY
+    summary["execution_policy"] = CERTIFIED_EXECUTION_POLICY
     summary["strategy_selection_status"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
+    summary["counterfactual_execution_exact"] = False
     summary["actual_personal_account_exact"] = False
     summary["actual_personal_account_requires"] = [
-        "broker order/fill statements for every execution",
-        "broker cash statements and non-trade fees",
-        "complete CPF-level equity tax context if other trades existed",
+        "documentary opening and closing broker snapshots",
+        "actual broker order/fill records with source hashes",
+        "complete broker cash ledger including fees, taxes and distributions",
+        "source-backed corporate-action position adjustments when applicable",
     ]
 
     if postflight_blockers:
         all_blockers = sorted(set(preflight_blockers + postflight_blockers))
-        summary["reconstruction_classification"] = "STRICT_REPLAY_REJECTED"
+        summary["reconstruction_classification"] = "CERTIFIED_REPLAY_REJECTED"
         summary["strict_blockers"] = all_blockers
         args.output.write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
@@ -262,12 +270,12 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
         print(json.dumps(status, indent=2, ensure_ascii=False))
-        print("Strict reconstruction rejected after replay; no exact claim was emitted.", flush=True)
+        print("Certified deterministic replay rejected after postflight audit.", flush=True)
         return 4
 
     summary.update(
         {
-            "reconstruction_classification": "EXACT_CONDITIONAL_OFFICIAL_OPEN_REPLAY",
+            "reconstruction_classification": "CERTIFIED_DETERMINISTIC_OFFICIAL_OPEN_REPLAY",
             "strict_blockers": [],
             "survivorship_safe_universe_required": True,
         }
@@ -281,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
     status["small_account_scope"] = replay_scope
     status["summary"] = str(args.output)
     status["final_equity"] = summary.get("final_equity")
-    status["conditional_rule_based_reconstruction_exact"] = True
+    status["certified_deterministic_replay_passed"] = True
     args.status_output.write_text(
         json.dumps(status, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
