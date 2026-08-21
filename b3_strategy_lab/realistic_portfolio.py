@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import copy
 import math
+from dataclasses import replace
 
 from b3_strategy_lab import realistic_portfolio_core as _core
 
 _original_apply_ticker_transitions = _core._apply_ticker_transitions
+_original_apply_split_from_adjustment_factors = _core._apply_split_from_adjustment_factors
+_original_run_realistic = _core.run_realistic
 
 
 def _apply_ticker_transitions(account, transitions) -> None:
@@ -21,6 +24,16 @@ def _apply_ticker_transitions(account, transitions) -> None:
                 "transitions are supported without an explicit, source-tested tax-basis rule."
             )
     _original_apply_ticker_transitions(account, transitions)
+
+
+def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
+    # This hook is called on every simulated market session before trading. It is
+    # therefore the deterministic place to settle a DARF exactly on its modeled
+    # due session, without requiring a trade to happen that day.
+    processor = getattr(account, "process_due_taxes", None)
+    if processor is not None:
+        processor(current, data.dates)
+    _original_apply_split_from_adjustment_factors(account, data, current)
 
 
 def _raw_execution_value(pricebook, value_date: str, ticker: str, quantity: int) -> float:
@@ -61,15 +74,16 @@ def _target_quantity_from_execution_book(
     return low
 
 
-def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, float]):
-    """Atomic rebalance sized from the actual 010/020 opening books.
+def _known_tax_reserve(account, value_date: str) -> float:
+    reserve = max(0.0, float(_core._provisional_ordinary_tax(account, value_date)))
+    known = getattr(account, "known_darf_reserve", None)
+    if known is not None:
+        reserve += max(0.0, float(known()))
+    return reserve
 
-    The old implementation used the standard-market candle open as a sizing proxy
-    even when an odd-lot account would execute entirely in market 020. This
-    implementation values current holdings and target quantities from the exact
-    standard/fractional raw opening legs, then applies the existing fee/slippage
-    affordability checks. No future data are used.
-    """
+
+def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, float]):
+    """Atomic rebalance sized from actual 010/020 opens and known tax reserves."""
 
     trial = copy.deepcopy(account)
     held = {ticker for ticker, pos in trial.positions.items() if pos.shares > 0}
@@ -108,7 +122,7 @@ def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, 
     wanted_by_ticker = {
         ticker: quantity for ticker, quantity in wanted_by_ticker.items() if quantity > 0
     }
-    reserved_tax = _core._provisional_ordinary_tax(trial, current)
+    reserved_tax = _known_tax_reserve(trial, current)
     available_cash = max(0.0, trial.cash - reserved_tax)
 
     def total_buy_cost(plan: dict[str, int]) -> float:
@@ -142,13 +156,26 @@ def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, 
         for qty, quote in pricebook.legs(current, ticker, quantity):
             trial.buy_leg(current, ticker, qty, quote)
 
-    if trial.cash < _core._provisional_ordinary_tax(trial, current) - 1e-7:
-        raise ValueError(f"{current}: atomic rebalance consumed the reserved tax cash.")
+    if trial.cash < _known_tax_reserve(trial, current) - 1e-7:
+        raise ValueError(f"{current}: atomic rebalance consumed reserved tax cash.")
     return trial
 
 
+def run_realistic(*args, **kwargs):
+    summary, curve, account = _original_run_realistic(*args, **kwargs)
+    outstanding = getattr(account, "outstanding_tax_liability", lambda: 0.0)()
+    if outstanding > 1e-9 and "__ACCRUED_TAX_LIABILITY" not in summary.validity:
+        summary = replace(
+            summary,
+            validity=summary.validity + "__ACCRUED_TAX_LIABILITY",
+        )
+    return summary, curve, account
+
+
 _core._apply_ticker_transitions = _apply_ticker_transitions
+_core._apply_split_from_adjustment_factors = _apply_split_from_adjustment_factors
 _core.rebalance_atomic = rebalance_atomic
+_core.run_realistic = run_realistic
 
 
 def __getattr__(name: str):
