@@ -6,6 +6,7 @@ import math
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Iterable
 
@@ -90,15 +91,26 @@ class AccountReconciliation:
     fills: int
     cash_events: int
     position_events: int
-    exact: bool
+    ledger_reconciles: bool
     blockers: tuple[str, ...]
+
+    @property
+    def exact(self) -> bool:
+        """Compatibility property: only means the normalized ledger reconciles.
+
+        Final personal-account exactness is decided by
+        scripts/reconcile_actual_personal_account.py after source-byte and coverage
+        verification. This property must never be used alone to emit an exact label.
+        """
+
+        return self.ledger_reconciles
 
     def as_dict(self) -> dict[str, object]:
         return {
             "classification": (
-                "ACTUAL_PERSONAL_ACCOUNT_EXACT_RECONCILIATION"
-                if self.exact
-                else "ACTUAL_PERSONAL_ACCOUNT_RECONCILIATION_REJECTED"
+                "PERSONAL_ACCOUNT_LEDGER_RECONCILED"
+                if self.ledger_reconciles
+                else "PERSONAL_ACCOUNT_LEDGER_RECONCILIATION_REJECTED"
             ),
             "opening_date": self.opening_date,
             "closing_date": self.closing_date,
@@ -112,13 +124,12 @@ class AccountReconciliation:
             "fills": self.fills,
             "cash_events": self.cash_events,
             "position_events": self.position_events,
-            "exact": self.exact,
+            "ledger_reconciles": self.ledger_reconciles,
             "blockers": list(self.blockers),
             "interpretation": (
-                "Exact means the supplied broker-source ledger, bounded by documentary "
-                "opening and closing snapshots, reconciles cash to the cent and every final "
-                "share quantity exactly. Missing trades, fees, taxes, dividends or corporate "
-                "actions are never inferred."
+                "This result verifies only the normalized ledger arithmetic between the "
+                "opening and closing snapshots. Final exact-account classification also "
+                "requires source-byte verification and complete-period evidence coverage."
             ),
         }
 
@@ -126,7 +137,7 @@ class AccountReconciliation:
 def _require_source(value: str, label: str) -> str:
     source = value.strip()
     if not source:
-        raise ValueError(f"{label}: source_document is required for exact reconciliation")
+        raise ValueError(f"{label}: source_document is required for ledger reconciliation")
     return source
 
 
@@ -141,9 +152,6 @@ def _date(value: object, label: str) -> str:
     text = str(value or "").strip()[:10]
     if len(text) != 10:
         raise ValueError(f"{label}: ISO date is required")
-    # stdlib validates calendar semantics without adding a dependency.
-    from datetime import date
-
     date.fromisoformat(text)
     return text
 
@@ -156,10 +164,9 @@ def _sequence(value: object) -> int:
 
 
 def load_actual_fills(path: Path | str) -> list[ActualFill]:
-    source = Path(path)
     seen: set[str] = set()
     result: list[ActualFill] = []
-    with source.open(newline="", encoding="utf-8") as file:
+    with Path(path).open(newline="", encoding="utf-8") as file:
         for row in csv.DictReader(file):
             execution_id = str(row.get("execution_id", "")).strip()
             if not execution_id:
@@ -167,6 +174,14 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
             if execution_id in seen:
                 raise ValueError(f"duplicate execution_id: {execution_id}")
             seen.add(execution_id)
+
+            trade_date = _date(row.get("trade_date"), execution_id)
+            settlement_date = _date(row.get("settlement_date"), execution_id)
+            if settlement_date < trade_date:
+                raise ValueError(
+                    f"settlement_date precedes trade_date: {execution_id}"
+                )
+
             side = str(row.get("side", "")).strip().upper()
             if side not in {"BUY", "SELL"}:
                 raise ValueError(f"invalid side for {execution_id}: {side}")
@@ -177,10 +192,11 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
             price = float(row.get("price", 0) or 0)
             if shares <= 0 or price <= 0 or not math.isfinite(price):
                 raise ValueError(f"invalid fill quantity/price: {execution_id}")
+
             result.append(
                 ActualFill(
-                    trade_date=_date(row.get("trade_date"), execution_id),
-                    settlement_date=_date(row.get("settlement_date"), execution_id),
+                    trade_date=trade_date,
+                    settlement_date=settlement_date,
                     sequence=_sequence(row.get("sequence")),
                     execution_id=execution_id,
                     order_id=str(row.get("order_id", "")).strip(),
@@ -196,17 +212,13 @@ def load_actual_fills(path: Path | str) -> list[ActualFill]:
                     ),
                 )
             )
-    return sorted(
-        result,
-        key=lambda item: (item.trade_date, item.sequence, item.execution_id),
-    )
+    return sorted(result, key=lambda item: (item.trade_date, item.sequence, item.execution_id))
 
 
 def load_cash_events(path: Path | str) -> list[CashEvent]:
-    source = Path(path)
     seen: set[str] = set()
     result: list[CashEvent] = []
-    with source.open(newline="", encoding="utf-8") as file:
+    with Path(path).open(newline="", encoding="utf-8") as file:
         for row in csv.DictReader(file):
             event_id = str(row.get("event_id", "")).strip()
             if not event_id:
@@ -231,12 +243,8 @@ def load_cash_events(path: Path | str) -> list[CashEvent]:
                     event_id=event_id,
                     kind=kind,
                     amount=amount,
-                    source_document=_require_source(
-                        str(row.get("source_document", "")), event_id
-                    ),
-                    source_sha256=_require_sha256(
-                        str(row.get("source_sha256", "")), event_id
-                    ),
+                    source_document=_require_source(str(row.get("source_document", "")), event_id),
+                    source_sha256=_require_sha256(str(row.get("source_sha256", "")), event_id),
                     ticker=str(row.get("ticker", "")).strip().upper(),
                 )
             )
@@ -270,12 +278,8 @@ def load_position_events(path: Path | str) -> list[PositionEvent]:
                     event_id=event_id,
                     ticker=ticker,
                     share_delta=delta,
-                    source_document=_require_source(
-                        str(row.get("source_document", "")), event_id
-                    ),
-                    source_sha256=_require_sha256(
-                        str(row.get("source_sha256", "")), event_id
-                    ),
+                    source_document=_require_source(str(row.get("source_document", "")), event_id),
+                    source_sha256=_require_sha256(str(row.get("source_sha256", "")), event_id),
                 )
             )
     return sorted(result, key=lambda item: (item.value_date, item.sequence, item.event_id))
@@ -300,12 +304,8 @@ def load_snapshot(path: Path | str) -> AccountSnapshot:
         value_date=_date(payload.get("value_date"), "snapshot"),
         cash_balance=cash,
         positions=positions,
-        source_document=_require_source(
-            str(payload.get("source_document", "")), "snapshot"
-        ),
-        source_sha256=_require_sha256(
-            str(payload.get("source_sha256", "")), "snapshot"
-        ),
+        source_document=_require_source(str(payload.get("source_document", "")), "snapshot"),
+        source_sha256=_require_sha256(str(payload.get("source_sha256", "")), "snapshot"),
     )
 
 
@@ -329,19 +329,14 @@ def reconcile_actual_account(
     cash_list = list(cash_events)
     position_list = list(position_events)
 
-    # A fill has two different account effects: ownership changes on trade date,
-    # while cash settles on settlement date. Normalized broker fees/taxes remain
-    # explicit CashEvent rows so no cost is inferred from public market data.
+    # Ownership changes on trade date. Principal cash changes on settlement date.
+    # Fees, taxes and every non-principal movement remain explicit CashEvent rows.
     timeline: list[tuple[str, int, int, str, object]] = []
     for item in fill_list:
         timeline.append((item.trade_date, item.sequence, 0, item.execution_id, item))
         timeline.append((item.settlement_date, item.sequence, 1, item.execution_id, item))
-    timeline.extend(
-        (item.value_date, item.sequence, 2, item.event_id, item) for item in cash_list
-    )
-    timeline.extend(
-        (item.value_date, item.sequence, 3, item.event_id, item) for item in position_list
-    )
+    timeline.extend((item.value_date, item.sequence, 2, item.event_id, item) for item in cash_list)
+    timeline.extend((item.value_date, item.sequence, 3, item.event_id, item) for item in position_list)
     timeline.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
 
     blockers: list[str] = []
@@ -359,9 +354,7 @@ def reconcile_actual_account(
                     positions[item.ticker] += item.shares
                 else:
                     if positions[item.ticker] < item.shares:
-                        blockers.append(
-                            f"sell_exceeds_reconstructed_position:{item.execution_id}"
-                        )
+                        blockers.append(f"sell_exceeds_reconstructed_position:{item.execution_id}")
                     positions[item.ticker] -= item.shares
             else:
                 cash += item.notional if item.side == "SELL" else -item.notional
@@ -370,17 +363,13 @@ def reconcile_actual_account(
         elif isinstance(item, PositionEvent):
             positions[item.ticker] += item.share_delta
             if positions[item.ticker] < 0:
-                blockers.append(
-                    f"position_event_makes_quantity_negative:{item.event_id}"
-                )
+                blockers.append(f"position_event_makes_quantity_negative:{item.event_id}")
 
     reconstructed_positions = {
         ticker: shares for ticker, shares in sorted(positions.items()) if shares != 0
     }
     snapshot_positions = {
-        ticker: shares
-        for ticker, shares in sorted(closing_snapshot.positions.items())
-        if shares != 0
+        ticker: shares for ticker, shares in sorted(closing_snapshot.positions.items()) if shares != 0
     }
     all_tickers = sorted(set(reconstructed_positions) | set(snapshot_positions))
     position_differences = {
@@ -407,6 +396,6 @@ def reconcile_actual_account(
         fills=len(fill_list),
         cash_events=len(cash_list),
         position_events=len(position_list),
-        exact=not blockers,
+        ledger_reconciles=not blockers,
         blockers=tuple(sorted(set(blockers))),
     )
