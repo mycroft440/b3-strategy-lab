@@ -117,12 +117,18 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    manifest_market_data_count = int(manifest.get("market_data_ticker_count", -1))
-    if manifest_market_data_count != len(required_cash_tickers):
+    manifest_market_data = {
+        str(item).strip().upper()
+        for item in manifest.get("market_data_tickers", [])
+        if str(item).strip()
+    }
+    if manifest_market_data != required_cash_tickers:
         parser.error(
-            "Cash ledger manifest market_data_ticker_count differs from the current "
-            "universe; rebuild/synchronize the cash ledger before certification."
+            "Cash ledger manifest ticker identity differs from the current market_data_tickers; "
+            "rebuild/synchronize the cash ledger before certification."
         )
+    if int(manifest.get("market_data_ticker_count", -1)) != len(required_cash_tickers):
+        parser.error("Cash ledger manifest market_data_ticker_count is inconsistent with its ticker list.")
 
     start = args.start or str(
         universe_payload.get("selected_as_of", universe.snapshots[0].effective_date)
