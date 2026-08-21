@@ -16,6 +16,11 @@ STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
 STANDARD_BDI = "02"
 FRACTIONAL_BDI = "96"
+# The R$20k small-account tax guard is documented by Receita for shares (ações).
+# B3 classifies UNITS separately as certificates of deposit of securities. Until a
+# primary Receita source explicitly proves identical treatment for that exemption,
+# certified/realistic point-in-time universes fail closed to ON/PN share classes.
+CERTIFIED_SHARE_SPECIFICATIONS = ("ON", "PN")
 
 # Audited against the official B3 COTAHIST_A2020 archive. These four positive-price
 # company-equity records, all on 2020-06-08, have PREULT below PREMIN in the raw
@@ -48,7 +53,7 @@ def is_company_equity(quote) -> bool:
     if not TICKER_RE.fullmatch(ticker):
         return False
     specification = quote.specification.strip().upper()
-    return specification.startswith(("ON", "PN", "UNT"))
+    return specification.startswith(CERTIFIED_SHARE_SPECIFICATIONS)
 
 
 def base_fractional_ticker(ticker: str) -> str:
@@ -106,19 +111,17 @@ def _mask_non_company_equity_records(
     bdi_code: str,
     market_type: str,
 ):
-    """Keep the COTAHIST envelope/count intact while sanitizing stock inputs.
+    """Keep the COTAHIST envelope/count intact while sanitizing share inputs.
 
-    Detail rows remain counted for trailer integrity. Records outside company
-    equities are masked before stock-specific validation. Company-equity rows whose
-    four official OHLC fields are all zero are also masked: they carry no usable
-    official opening price, so they must be absent from the execution book rather
-    than converted into a synthetic quote. If such a quote is later required by a
-    real-money rebalance, the simulator fails closed because the execution price is
-    missing.
+    Detail rows remain counted for trailer integrity. Records outside ON/PN company
+    shares are masked before stock-specific validation. UNITS are deliberately
+    excluded from this certified tax scope even though they trade in the cash
+    market, because B3 classifies them as deposit certificates rather than shares.
 
-    Four hash-pinned positive-price envelope anomalies from 2020-06-08 are minimally
-    repaired in high/low only. Every other company-equity record remains subject to
-    the generic strict COTAHIST validation.
+    Company-share rows whose four official OHLC fields are all zero are also masked:
+    they carry no usable official opening price, so they must be absent from the
+    execution book rather than converted into a synthetic quote. If such a quote is
+    later required by a real-money rebalance, the simulator fails closed.
     """
     for raw_line in lines:
         line = raw_line.decode("latin-1") if isinstance(raw_line, bytes) else raw_line
@@ -134,11 +137,9 @@ def _mask_non_company_equity_records(
         specification = line[39:49].strip().upper()
         company_equity = bool(
             TICKER_RE.fullmatch(base_ticker)
-            and specification.startswith(("ON", "PN", "UNT"))
+            and specification.startswith(CERTIFIED_SHARE_SPECIFICATIONS)
         )
         if not company_equity or _all_ohlc_fields_zero(line):
-            # Preserve line length and trailer accounting; force the parser's
-            # normal BDI filter to skip this non-investable/unpriced detail row.
             yield line[:10] + "ZZ" + line[12:]
             continue
         yield _repair_known_ohlc_envelope(line)
@@ -179,7 +180,7 @@ def _read_company_equity_cotahist(
 
 
 def read_standard_company_equity_cotahist(path: Path | str) -> list:
-    """Read only standard-lot company equities used by the point-in-time universe."""
+    """Read only standard-lot ON/PN company shares used by the certified universe."""
     return _read_company_equity_cotahist(
         path,
         bdi_code=STANDARD_BDI,
@@ -188,7 +189,7 @@ def read_standard_company_equity_cotahist(path: Path | str) -> list:
 
 
 def read_fractional_cotahist(path: Path | str) -> list:
-    """Read B3 fractional-market company-equity records.
+    """Read B3 fractional-market ON/PN company-share records.
 
     COTAHIST identifies the fractional segment with market type 020 and BDI 96.
     Both filters must be changed together; keeping the standard-lot BDI 02 while
@@ -298,7 +299,7 @@ def snapshot_rows(
                 break
         if len(selected) < top_n:
             raise ValueError(
-                f"{decision}: only {len(selected)} point-in-time company equities satisfy the rules."
+                f"{decision}: only {len(selected)} point-in-time ON/PN shares satisfy the rules."
             )
         for rank, item in enumerate(selected, start=1):
             rows.append(
