@@ -18,9 +18,9 @@ def audit_small_account_replay(
 
     The existing tax engine intentionally models the economic tax burden rather
     than every IRRF/DARF cash-timing detail. For a strict deterministic replay we
-    therefore require a conservative envelope: close equity and aggregate daily
-    stock sales must remain at or below R$20,000. This also keeps a retail replay
-    far below the B3 high-ADTV transaction-fee tiers.
+    therefore require a conservative envelope: close equity and aggregate monthly
+    stock sales must remain at or below R$20,000. The same guard also keeps the
+    replay far below the B3 high-ADTV transaction-fee tiers.
     """
 
     if limit <= 0:
@@ -47,21 +47,31 @@ def audit_small_account_replay(
             max_equity_date = str(row.get("date", ""))
 
     sales_by_day: dict[str, float] = defaultdict(float)
+    sales_by_month: dict[str, float] = defaultdict(float)
     with trades_source.open(newline="", encoding="utf-8") as file:
         trade_rows = list(csv.DictReader(file))
     for row in trade_rows:
         if str(row.get("side", "")).upper() != "SELL":
             continue
         value_date = str(row.get("date", ""))[:10]
-        sales_by_day[value_date] += float(row.get("notional", 0.0) or 0.0)
+        notional = float(row.get("notional", 0.0) or 0.0)
+        if notional < 0:
+            raise ValueError("replay trade ledger contains negative sell notional")
+        sales_by_day[value_date] += notional
+        sales_by_month[value_date[:7]] += notional
+
     max_daily_sales_date = max(sales_by_day, key=sales_by_day.get) if sales_by_day else ""
     max_daily_sales = sales_by_day.get(max_daily_sales_date, 0.0)
+    max_monthly_sales_month = max(sales_by_month, key=sales_by_month.get) if sales_by_month else ""
+    max_monthly_sales = sales_by_month.get(max_monthly_sales_month, 0.0)
 
     blockers: list[str] = []
     if max_equity > limit + 1e-9:
         blockers.append("portfolio_exceeds_small_account_exact_tax_custody_scope")
     if max_daily_sales > limit + 1e-9:
-        blockers.append("daily_sales_exceed_small_account_irrf_safe_scope")
+        blockers.append("single_day_sales_exceed_irrf_safe_scope")
+    if max_monthly_sales > limit + 1e-9:
+        blockers.append("monthly_sales_exceed_stock_gain_exemption_scope")
 
     return {
         "scope_limit": limit,
@@ -69,12 +79,15 @@ def audit_small_account_replay(
         "max_equity_date": max_equity_date,
         "max_daily_sales": max_daily_sales,
         "max_daily_sales_date": max_daily_sales_date,
+        "max_monthly_sales": max_monthly_sales,
+        "max_monthly_sales_month": max_monthly_sales_month,
         "small_account_scope_passed": not blockers,
         "blockers": blockers,
         "interpretation": (
             "Passing this guard means the deterministic replay stayed inside the "
-            "conservative R$20,000 small-account envelope used by the strict runner. "
-            "It does not turn a counterfactual strategy replay into proof of actual "
-            "broker fills or of the user's complete personal tax history."
+            "conservative R$20,000 small-account envelope: close equity, any single "
+            "day's sales and aggregate stock sales in each month all remain at or below "
+            "the limit. It does not turn a counterfactual strategy replay into proof of "
+            "actual broker fills or of the user's complete personal tax history."
         ),
     }
