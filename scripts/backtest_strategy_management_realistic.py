@@ -146,8 +146,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("No market session exists at or before --end.")
     end = max(eligible_end_dates)
 
+    cash_manifest_tickers = {
+        str(item).strip().upper()
+        for item in cash_manifest.get("market_data_tickers", [])
+        if str(item).strip()
+    }
+    market_data_set = set(market_data_tickers)
     cash_manifest_scope_matches = (
-        int(cash_manifest.get("market_data_ticker_count", -1)) == len(market_data_tickers)
+        cash_manifest_tickers == market_data_set
+        and int(cash_manifest.get("market_data_ticker_count", -1)) == len(cash_manifest_tickers)
     )
     cash_events_complete = (
         cash_manifest_scope_matches
