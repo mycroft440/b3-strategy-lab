@@ -20,6 +20,7 @@ class PortfolioCovarianceTests(unittest.TestCase):
         candles_a = [SimpleNamespace(date=day) for day in dates]
         candles_b = [SimpleNamespace(date=day) for day in dates]
         return SimpleNamespace(
+            dates=dates,
             candles={"AAA3": candles_a, "BBB3": candles_b},
             signal_prices={"AAA3": prices(returns_a), "BBB3": prices(returns_b)},
         ), dates
@@ -40,7 +41,7 @@ class PortfolioCovarianceTests(unittest.TestCase):
     def test_only_history_at_or_before_decision_date_is_used(self) -> None:
         prefix = [0.01, -0.005, 0.012, -0.008, 0.006, 0.004]
         data_one, dates_one = self._data(prefix + [0.25], prefix + [-0.25])
-        data_two, dates_two = self._data(prefix + [-0.40], prefix + [0.40])
+        data_two, _dates_two = self._data(prefix + [-0.40], prefix + [0.40])
         decision = dates_one[len(prefix)]
         one = historical_portfolio_volatility(
             data_one,
@@ -64,6 +65,21 @@ class PortfolioCovarianceTests(unittest.TestCase):
                 dates[-1],
                 {"AAA3": 0.5, "BBB3": 0.5},
                 10,
+            )
+        )
+
+    def test_missing_one_market_session_fails_closed_instead_of_mixing_horizons(self) -> None:
+        returns = [0.01, -0.005, 0.012, -0.008, 0.006, 0.004]
+        data, dates = self._data(returns, returns)
+        missing_index = 3
+        data.candles["BBB3"].pop(missing_index)
+        data.signal_prices["BBB3"].pop(missing_index)
+        self.assertIsNone(
+            historical_portfolio_volatility(
+                data,
+                dates[-1],
+                {"AAA3": 0.5, "BBB3": 0.5},
+                len(returns),
             )
         )
 
