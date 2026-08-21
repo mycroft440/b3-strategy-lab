@@ -1,24 +1,25 @@
 {
-  "schema_version": 1,
-  "purpose": "Date-effective B3 cash-equity fee assumptions for realistic backtests. Values remain explicitly modeled until every historical opening-auction component is reconciled against primary B3 circulars.",
+  "schema_version": 2,
+  "purpose": "Date-effective B3 trading/clearing fees for ordinary non-day-trade cash-equity orders executed at the opening. Broker fees and Central Depository account/custody pass-through are intentionally separate.",
   "rules": [
     {
       "start": "2018-01-01",
       "end": "2021-02-01",
       "b3_bps": 3.25,
       "brokerage_fixed": 0.0,
-      "quality": "modeled",
-      "source": "B3 historical tariff notice: non-day-trade total was 0.0325% before the tariff change effective 2021-02-02"
+      "quality": "official",
+      "source": "B3 historical tariff policy, confirmed by B3 10-Dec-2020 tariff notice: ordinary non-day-trade cash equities were charged 0.0325% before the 02-Feb-2021 change; https://www.b3.com.br/pt_br/noticias/tarifacao.htm"
     },
     {
       "start": "2021-02-02",
       "end": "2099-12-31",
       "b3_bps": 3.20,
       "brokerage_fixed": 0.0,
-      "quality": "modeled",
-      "source": "B3: 0.0300% regular non-day-trade base from 2021-02-02; current opening/closing auction negotiation component is higher, producing an approximately 0.0320% modeled opening-auction total for the lowest ADTV tier"
+      "quality": "official",
+      "source": "B3 Circular 177/2020: 0.0050% negotiation + 0.0250% settlement for regular trades, with negotiation raised to 0.0070% during opening/closing auctions, totaling 0.0320%; current low-ADTV opening-auction tariff remains consistent with this treatment."
     }
   ],
-  "brokerage_note": "Zero fixed brokerage is an assumption, not a universal historical fact. Supply a broker-specific schedule before claiming an exact personal-account reconstruction.",
-  "validity_note": "Because opening-auction and broker fees are not fully certified for every date from 2018 onward, realistic summaries must retain the MODELED_FEES validity suffix."
+  "scope_note": "These rules represent B3 transaction fees only. They do not assert that a broker charged zero brokerage, zero custody, zero account maintenance, or zero recurring service fees.",
+  "historical_custody_note": "B3 Central Depository account/custody charges existed historically and their pass-through depended on the custodian/broker. The strict reconstruction runner therefore requires documentary evidence for recurring fees and refuses exact classification when a nonzero recurring fee is not explicitly modeled.",
+  "volume_tier_note": "The post-2025 3.20 bps opening-auction figure corresponds to the lowest cash-equity ADTV tier. Very high-volume accounts require tier-aware fee reconstruction rather than this retail schedule."
 }
