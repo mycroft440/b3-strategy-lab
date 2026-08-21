@@ -183,15 +183,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     if outstanding_tax < -1e-9:
         raise RuntimeError("Outstanding tax liability cannot be negative.")
-    brokerage_equity = float(payload["final_equity"])
-    net_after_accrued_tax = brokerage_equity - max(0.0, outstanding_tax)
-    if net_after_accrued_tax <= 0:
-        raise RuntimeError("Known accrued tax liability makes net equity non-positive.")
 
-    # Keep final_equity backward compatible: it is the mark-to-market balance
-    # visible in the brokerage account on the final simulated date. The separate
-    # net field prevents that balance from being mistaken for wealth net of a
-    # tax liability that has been accrued but is not legally payable yet.
+    # ``final_equity`` remains the economic result used by the backtest metrics.
+    # Accrued ordinary tax has already been removed from investable cash into an
+    # escrow-like liability. Add that liability back only to show the gross
+    # mark-to-market brokerage balance before the unpaid DARF actually leaves.
+    net_after_accrued_tax = float(payload["final_equity"])
+    if net_after_accrued_tax <= 0:
+        raise RuntimeError("Net final equity must be positive.")
+    brokerage_equity = net_after_accrued_tax + max(0.0, outstanding_tax)
+
     payload["brokerage_final_equity"] = brokerage_equity
     payload["outstanding_accrued_tax_liability"] = outstanding_tax
     payload["net_equity_after_accrued_tax"] = net_after_accrued_tax
@@ -200,8 +201,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     payload["darf_paid"] = float(getattr(account, "darf_paid", 0.0))
     payload["tax_cash_timing_policy"] = (
-        "ordinary stock tax is accrued monthly; known tax cash is reserved from new "
-        "purchases and DARF is modeled on the final B3 session of the following month; "
+        "ordinary stock tax is accrued monthly into non-investable economic escrow; "
+        "DARF is recorded as paid on the final B3 session of the following month; "
         "amounts below R$10 accumulate until the payment threshold is reached"
     )
     payload["cpf_wide_annual_minimum_tax_scope"] = "OUT_OF_SCOPE"
