@@ -125,8 +125,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Snapshot union differs from selectable universe manifest.")
     market_data_tickers = sorted(
         {
-            str(item).upper()
+            str(item).strip().upper()
             for item in manifest.get("market_data_tickers", manifest["tickers"])
+            if str(item).strip()
         }
     )
     if not selectable.issubset(market_data_tickers):
@@ -144,12 +145,18 @@ def main(argv: list[str] | None = None) -> int:
     if not eligible_end_dates:
         parser.error("No market session exists at or before --end.")
     end = max(eligible_end_dates)
-    cash_events_complete = bool(cash_certification) and not (
-        cash_coverage_certification_issues(
+
+    cash_manifest_scope_matches = (
+        int(cash_manifest.get("market_data_ticker_count", -1)) == len(market_data_tickers)
+    )
+    cash_events_complete = (
+        cash_manifest_scope_matches
+        and bool(cash_certification)
+        and not cash_coverage_certification_issues(
             cash_certification,
             cash_events_path=args.cash_events,
             cash_manifest_path=args.cash_manifest,
-            tickers=universe.union,
+            tickers=market_data_tickers,
             start=args.start,
             end=end,
         )
@@ -202,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     payload["outstanding_accrued_tax_liability"] = outstanding_tax
     payload["net_equity_after_accrued_tax"] = net_after_accrued_tax
     payload["unpaid_distribution_receivable"] = receivable
+    payload["cash_certification_ticker_scope"] = "market_data_tickers_including_continuity_history"
+    payload["cash_manifest_scope_matches_market_data"] = cash_manifest_scope_matches
     payload["distribution_cash_availability_policy"] = (
         "the right is recognized as economic receivable only after the cum-right close; "
         "it is never spendable before payment; on payment the receivable is replaced by "
