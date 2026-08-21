@@ -64,6 +64,16 @@ def _load_evidence(path: Path) -> list[dict[str, object]]:
     return normalized
 
 
+def _required_cash_tickers(universe_payload: dict[str, object], selectable: set[str]) -> set[str]:
+    values = universe_payload.get("market_data_tickers", sorted(selectable))
+    if not isinstance(values, list):
+        raise ValueError("market_data_tickers must be a list when present.")
+    required = {str(item).strip().upper() for item in values if str(item).strip()}
+    if not selectable.issubset(required):
+        raise ValueError("market_data_tickers must contain every selectable ticker.")
+    return required
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -99,8 +109,20 @@ def main(argv: list[str] | None = None) -> int:
 
     universe_payload = json.loads(args.universe.read_text(encoding="utf-8"))
     universe = PointInTimeUniverse.from_csv(args.snapshots)
-    if universe.union != {str(item).upper() for item in universe_payload.get("tickers", [])}:
+    selectable = {str(item).upper() for item in universe_payload.get("tickers", [])}
+    if universe.union != selectable:
         parser.error("Snapshot union differs from the universe manifest.")
+    try:
+        required_cash_tickers = _required_cash_tickers(universe_payload, selectable)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    manifest_market_data_count = int(manifest.get("market_data_ticker_count", -1))
+    if manifest_market_data_count != len(required_cash_tickers):
+        parser.error(
+            "Cash ledger manifest market_data_ticker_count differs from the current "
+            "universe; rebuild/synchronize the cash ledger before certification."
+        )
 
     start = args.start or str(universe_payload.get("selected_as_of", universe.snapshots[0].effective_date))[:10]
     end = args.end or max(snapshot.effective_date for snapshot in universe.snapshots)
@@ -116,7 +138,11 @@ def main(argv: list[str] | None = None) -> int:
         "coverage_certified": True,
         "start": start,
         "end": end,
-        "tickers": sorted(universe.union),
+        "tickers": sorted(required_cash_tickers),
+        "ticker_scope": "market_data_tickers_including_continuity_history",
+        "selectable_ticker_count": len(selectable),
+        "market_data_ticker_count": len(required_cash_tickers),
+        "continuity_only_ticker_count": len(required_cash_tickers - selectable),
         "source_authority": source_authority,
         "reviewed_by": args.reviewed_by.strip(),
         "reviewed_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -126,7 +152,8 @@ def main(argv: list[str] | None = None) -> int:
         "cash_event_count": int(manifest.get("event_count", 0)),
         "attestation": (
             "The reviewer attests that primary-source coverage was checked for the "
-            "listed historical ticker set and period, not merely that the API response parsed."
+            "full market-data ticker set used by the replay, including continuity-only "
+            "historical symbols, and for the stated period; this is not merely a parsing check."
         ),
     }
 
@@ -134,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         payload,
         cash_events_path=args.events,
         cash_manifest_path=args.cash_manifest,
-        tickers=universe.union,
+        tickers=required_cash_tickers,
         start=start,
         end=end,
     )
@@ -149,6 +176,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Certified cash-distribution coverage: {args.output}")
     print(f"Bound ledger SHA256: {payload['cash_events_sha256']}")
     print(f"Bound manifest SHA256: {payload['cash_manifest_sha256']}")
+    print(
+        f"Certified ticker scope: {len(required_cash_tickers)} market-data symbols "
+        f"({len(required_cash_tickers - selectable)} continuity-only)"
+    )
     return 0
 
 
