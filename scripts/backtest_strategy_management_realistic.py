@@ -33,6 +33,8 @@ DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distribu
 DEFAULT_CASH_CERTIFICATION = Path(
     "data/corporate_actions/cash_distribution_coverage_certification.json"
 )
+DEFAULT_MANIFESTS = Path("data/manifests_point_in_time")
+DEFAULT_SPLIT_EVIDENCE = Path("data/corporate_actions/point_in_time_split_evidence.json")
 DEFAULT_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_OUTPUT = Path("reports/realistic_account_summary.json")
 DEFAULT_CURVE = Path("reports/realistic_account_curve.csv")
@@ -73,6 +75,8 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=DEFAULT_CASH_CERTIFICATION,
     )
+    parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
+    parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
     parser.add_argument("--strategy", default="gap_momentum")
@@ -139,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
         "adjusted",
         require_verified_splits_from=str(manifest["warmup_start"]),
         history_start=str(manifest["warmup_start"]),
+        manifests_dir=args.manifests_dir,
+        split_evidence_path=args.split_evidence,
     )
     requested_end = args.end or max(data.dates)
     eligible_end_dates = [value for value in data.dates if value <= requested_end]
@@ -218,6 +224,8 @@ def main(argv: list[str] | None = None) -> int:
     payload["unpaid_distribution_receivable"] = receivable
     payload["cash_certification_ticker_scope"] = "market_data_tickers_including_continuity_history"
     payload["cash_manifest_scope_matches_market_data"] = cash_manifest_scope_matches
+    payload["market_data_manifest_directory"] = str(args.manifests_dir)
+    payload["split_evidence_file"] = str(args.split_evidence)
     payload["distribution_cash_availability_policy"] = (
         "the right is recognized as economic receivable only after the cum-right close; "
         "it is never spendable before payment; on payment the receivable is replaced by "
