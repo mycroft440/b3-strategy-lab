@@ -10,9 +10,41 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts import research_portfolio_allocation_core as _core
 from b3_strategy_lab.portfolio_risk import covariance_target_weights
 
-# Patch the preserved core once at import time. All core functions resolve the
-# module-global _target_weights at runtime, so matrix, research and imported
-# run_portfolio users share the same covariance-aware target-vol implementation.
+# Keep this symbol local so unittest.mock.patch and external instrumentation on
+# the public module still intercept candidate-profile computation.
+_candidate_profile_uncached = _core._candidate_profile_uncached
+
+
+def _candidate_profile(data, ticker: str, index: int, config):
+    cache = getattr(data, "candidate_profile_cache", None)
+    cache_key = (
+        ticker,
+        index,
+        config.lookback,
+        config.skip,
+        config.trend_window,
+        config.vol_window,
+        config.score,
+        config.absolute_momentum,
+        config.roc_windows,
+        config.roc_weights,
+        config.positive_rule,
+        config.short_window,
+        config.short_weight,
+    )
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
+    profile = _candidate_profile_uncached(data, ticker, index, config)
+    if cache is not None:
+        cache[cache_key] = profile
+    return profile
+
+
+# Patch the preserved core once at import time. Its run_portfolio resolves these
+# module globals at execution time, so matrix, research, strict and realistic
+# users all share the same cache-compatible candidate function and the corrected
+# covariance-aware target-vol implementation.
+_core._candidate_profile = _candidate_profile
 _core._target_weights = covariance_target_weights
 
 _target_weights = covariance_target_weights
