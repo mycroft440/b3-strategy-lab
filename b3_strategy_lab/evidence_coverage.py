@@ -63,13 +63,13 @@ def load_and_audit_coverage(
     required_end: str,
     normalized_records: list[object],
     normalized_inputs: dict[str, Path | str],
+    source_kind_requirements: dict[str, set[str]] | None = None,
 ) -> dict[str, object]:
-    """Audit documentary completeness and the reviewed normalized-account inputs.
+    """Audit documentary completeness and reviewed normalized-account inputs.
 
-    Exact-account classification requires more than referenced source hashes. The
-    manifest must also demonstrate continuous account-statement coverage for the
-    whole reconciliation window and bind a human-reviewed normalization attestation
-    to the exact bytes of every normalized input consumed by the runner.
+    Exact-account classification requires continuous account-statement coverage,
+    byte-verified sources, source types compatible with the records they support,
+    and a human-reviewed normalization attestation bound to every normalized input.
     """
 
     payload = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
@@ -87,8 +87,6 @@ def load_and_audit_coverage(
     except ValueError:
         raise ValueError("required_start/required_end must be a valid ordered ISO date range")
 
-    manifest_start: date | None = None
-    manifest_end: date | None = None
     try:
         manifest_start = date.fromisoformat(str(payload.get("coverage_start", ""))[:10])
         manifest_end = date.fromisoformat(str(payload.get("coverage_end", ""))[:10])
@@ -173,6 +171,13 @@ def load_and_audit_coverage(
     ):
         blockers.append("continuous_account_statement_coverage_missing")
 
+    for name, allowed in (source_kind_requirements or {}).items():
+        actual = document_kinds.get(name)
+        if actual is None:
+            blockers.append(f"source_kind_requirement_document_missing:{name}")
+        elif actual not in allowed:
+            blockers.append(f"source_document_kind_not_allowed:{name}:{actual}")
+
     root = Path(evidence_root).expanduser().resolve()
     verified_documents = 0
     if not root.is_dir():
@@ -248,24 +253,27 @@ def load_and_audit_coverage(
             continue
         verified_normalized += 1
 
+    continuous_statements = _continuous_statement_coverage(
+        statement_intervals,
+        required_start_date,
+        required_end_date,
+    )
     return {
         "coverage_start": payload.get("coverage_start"),
         "coverage_end": payload.get("coverage_end"),
         "coverage_complete": payload.get("coverage_complete") is True,
-        "continuous_account_statement_coverage": _continuous_statement_coverage(
-            statement_intervals,
-            required_start_date,
-            required_end_date,
-        ),
+        "continuous_account_statement_coverage": continuous_statements,
         "declared_documents": len(documents),
         "verified_documents": verified_documents,
         "declared_normalized_inputs": len(declared_normalized),
         "verified_normalized_inputs": verified_normalized,
         "normalization_verified": payload.get("normalization_verified") is True,
+        "source_kind_requirements_checked": len(source_kind_requirements or {}),
         "blockers": sorted(set(blockers)),
         "verified": (
             not blockers
             and bool(documents)
+            and continuous_statements
             and verified_documents == len(documents)
             and supplied_roles == declared_roles
             and verified_normalized == len(supplied_roles)
