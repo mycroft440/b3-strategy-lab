@@ -57,6 +57,7 @@ jobs:
             b3_strategy_lab/extended_strategies.py \
             b3_strategy_lab/research_indicators.py \
             b3_strategy_lab/reconstruction_quality.py \
+            b3_strategy_lab/replay_scope.py \
             scripts/build_point_in_time_universe.py \
             scripts/build_survivorship_safe_realistic_universe.py \
             scripts/build_ticker_transitions.py \
