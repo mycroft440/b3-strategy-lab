@@ -11,7 +11,7 @@ on:
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
       - "scripts/sync_point_in_time_universe*.py"
-      - "scripts/research_portfolio_allocation.py"
+      - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
       - "data/personal_account_examples/**"
@@ -28,7 +28,7 @@ on:
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
       - "scripts/sync_point_in_time_universe*.py"
-      - "scripts/research_portfolio_allocation.py"
+      - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
       - "data/personal_account_examples/**"
@@ -56,6 +56,8 @@ jobs:
           python -m py_compile \
             b3_strategy_lab/realistic.py \
             b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/realistic_portfolio_core.py \
+            b3_strategy_lab/portfolio_risk.py \
             b3_strategy_lab/point_in_time.py \
             b3_strategy_lab/cash_distributions.py \
             b3_strategy_lab/extended_strategies.py \
@@ -80,6 +82,7 @@ jobs:
             scripts/run_certified_realistic_replay.py \
             scripts/reconcile_actual_personal_account.py \
             scripts/research_portfolio_allocation.py \
+            scripts/research_portfolio_allocation_core.py \
             scripts/backtest_strategy_management_combinations.py
 
       - name: Full unit suite
