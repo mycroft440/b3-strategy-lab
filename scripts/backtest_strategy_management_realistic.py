@@ -227,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_dataclass_csv(args.curve_output, curve)
     write_dataclass_csv(args.trades_output, account.trade_ledger)
-    write_dataclass_csv(args.cash-ledger-output if False else args.cash_ledger_output, account.cash_ledger)
+    write_dataclass_csv(args.cash_ledger_output, account.cash_ledger)
     write_dataclass_csv(args.tax_output, account.tax.finalized())
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))
