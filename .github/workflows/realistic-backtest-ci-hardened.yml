@@ -10,6 +10,7 @@ on:
       - "scripts/backtest_research_catalog_priority.py"
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
+      - "scripts/build_cash_distribution_coverage_certification.py"
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
@@ -27,6 +28,7 @@ on:
       - "scripts/backtest_research_catalog_priority.py"
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
+      - "scripts/build_cash_distribution_coverage_certification.py"
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
@@ -55,6 +57,7 @@ jobs:
         run: |
           python -m py_compile \
             b3_strategy_lab/realistic.py \
+            b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
             b3_strategy_lab/realistic_portfolio_core.py \
             b3_strategy_lab/portfolio_risk.py \
@@ -70,6 +73,7 @@ jobs:
             scripts/build_point_in_time_universe.py \
             scripts/build_survivorship_safe_realistic_universe.py \
             scripts/build_ticker_transitions.py \
+            scripts/build_cash_distribution_coverage_certification.py \
             scripts/sync_point_in_time_universe.py \
             scripts/sync_point_in_time_universe_realistic.py \
             scripts/backtest_strategy_management_realistic.py \
