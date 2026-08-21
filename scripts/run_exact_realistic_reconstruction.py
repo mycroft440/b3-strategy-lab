@@ -5,6 +5,7 @@ import csv
 import json
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,14 @@ def _run(arguments: list[str]) -> None:
 
 def _read_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _source_year_range(start: str, end: str | None) -> str:
+    start_year = int(start[:4])
+    end_year = int(end[:4]) if end else date.today().year
+    if end_year < start_year:
+        raise ValueError("--end cannot precede --start")
+    return f"{start_year - 1}:{end_year}"
 
 
 def _execution_end(path: Path, requested_end: str | None) -> str:
@@ -93,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.initial_cash <= 0:
         parser.error("--initial-cash must be positive.")
     python = sys.executable
+    source_years = _source_year_range(args.start, args.end)
 
     if not args.skip_data_build:
         builder = [
@@ -100,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
             "scripts/build_survivorship_safe_realistic_universe.py",
             "--start",
             args.start,
+            "--years",
+            source_years,
         ]
         if args.end:
             builder.extend(["--end", args.end])
@@ -107,12 +119,22 @@ def main(argv: list[str] | None = None) -> int:
             builder.append("--download")
         _run(builder)
 
-        transitions = [python, "scripts/build_ticker_transitions.py"]
+        transitions = [
+            python,
+            "scripts/build_ticker_transitions.py",
+            "--years",
+            source_years,
+        ]
         if not args.no_download:
             transitions.append("--download")
         _run(transitions)
 
-        sync = [python, "scripts/sync_point_in_time_universe_realistic.py"]
+        sync = [
+            python,
+            "scripts/sync_point_in_time_universe_realistic.py",
+            "--years",
+            source_years,
+        ]
         if not args.no_download:
             sync.append("--download")
         if args.refresh_actions:
@@ -144,9 +166,10 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     status: dict[str, object] = {
-        "schema_version": 3,
+        "schema_version": 4,
         "start": args.start,
         "end": end,
+        "source_years": source_years,
         "initial_cash": args.initial_cash,
         "execution_policy": CERTIFIED_EXECUTION_POLICY,
         "market_input_audit": str(args.audit_output),
