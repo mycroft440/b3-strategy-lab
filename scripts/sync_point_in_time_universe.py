@@ -23,8 +23,6 @@ from b3_strategy_lab.b3_official import (  # noqa: E402
 from b3_strategy_lab.cash_distributions import build_cash_events  # noqa: E402
 from b3_strategy_lab.candles import actions_path, cache_path, load_actions, save_actions  # noqa: E402
 from b3_strategy_lab.cotahist import (  # noqa: E402
-    DEFAULT_MANIFESTS_DIR,
-    DEFAULT_SPLIT_EVIDENCE_PATH,
     build_verified_daily_candles,
     create_manifest,
     manifest_path,
@@ -49,6 +47,9 @@ from scripts.sync_official_universe import (  # noqa: E402
 
 
 DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
+DEFAULT_DATA = Path("data/candles_point_in_time")
+DEFAULT_ACTIONS = Path("data/actions_point_in_time")
+DEFAULT_MANIFESTS = Path("data/manifests_point_in_time")
 DEFAULT_SPLIT_EVIDENCE = Path("data/corporate_actions/point_in_time_split_evidence.json")
 DEFAULT_CASH = Path("data/corporate_actions/point_in_time_cash_distributions.csv")
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
@@ -79,23 +80,25 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Sync all symbols required by the realistic account, including same-ISIN "
-            "continuity-only tickers. Splits are fail-closed: uncovered COTAHIST "
+            "continuity-only tickers. Generated candles/actions/manifests are isolated "
+            "from broad research artifacts. Splits are fail-closed: uncovered COTAHIST "
             "share-count markers stop the build."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
     parser.add_argument("--archives-dir", type=Path, default=Path(".cache/cotahist"))
     parser.add_argument("--supplements-dir", type=Path, default=Path(".cache/b3_supplements"))
-    parser.add_argument("--data-dir", type=Path, default=Path("data/candles"))
-    parser.add_argument("--actions-dir", type=Path, default=Path("data/corporate_actions"))
-    parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS_DIR)
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--actions-dir", type=Path, default=DEFAULT_ACTIONS)
+    parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument(
         "--dataset-split-evidence",
         type=Path,
-        default=DEFAULT_SPLIT_EVIDENCE_PATH,
+        default=DEFAULT_SPLIT_EVIDENCE,
         help=(
-            "Ledger de evidencia usado para assinar e verificar os manifests de candles."
+            "Ledger de evidencia usado para assinar e verificar os manifests de candles. "
+            "Por padrão é o mesmo ledger point-in-time auditado pelo replay."
         ),
     )
     parser.add_argument("--cash-output", type=Path, default=DEFAULT_CASH)
