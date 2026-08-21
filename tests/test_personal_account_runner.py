@@ -46,8 +46,14 @@ class PersonalAccountRunnerTests(unittest.TestCase):
                 ["value_date", "sequence", "event_id", "kind", "amount", "ticker", "source_document", "source_sha256"],
                 [{"value_date": "2026-01-06", "sequence": 20, "event_id": "fee", "kind": "B3_FEE", "amount": -0.10, "ticker": "ABCD3", "source_document": "doc_a.bin", "source_sha256": hash_a}],
             )
-            opening.write_text(json.dumps({"schema_version": 1, "value_date": "2026-01-01", "cash_balance": 1000.0, "positions": {}, "source_document": "doc_b.bin", "source_sha256": hash_b}), encoding="utf-8")
-            closing.write_text(json.dumps({"schema_version": 1, "value_date": "2026-01-06", "cash_balance": 899.90, "positions": {"ABCD3": 10}, "source_document": "doc_b.bin", "source_sha256": hash_b}), encoding="utf-8")
+            opening.write_text(
+                json.dumps({"schema_version": 1, "value_date": "2026-01-01", "boundary": "START_OF_DAY", "cash_balance": 1000.0, "positions": {}, "source_document": "doc_b.bin", "source_sha256": hash_b}),
+                encoding="utf-8",
+            )
+            closing.write_text(
+                json.dumps({"schema_version": 1, "value_date": "2026-01-06", "boundary": "END_OF_DAY", "cash_balance": 899.90, "positions": {"ABCD3": 10}, "source_document": "doc_b.bin", "source_sha256": hash_b}),
+                encoding="utf-8",
+            )
             coverage.write_text(
                 json.dumps({
                     "schema_version": 1,
@@ -77,6 +83,8 @@ class PersonalAccountRunnerTests(unittest.TestCase):
             payload = json.loads(output.read_text(encoding="utf-8"))
             self.assertTrue(payload["exact"])
             self.assertTrue(payload["coverage_audit"]["verified"])
+            self.assertEqual(payload["opening_boundary"], "START_OF_DAY")
+            self.assertEqual(payload["closing_boundary"], "END_OF_DAY")
 
             doc_a.write_bytes(b"changed")
             self.assertEqual(main(args), 5)
