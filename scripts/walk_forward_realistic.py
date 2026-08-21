@@ -23,7 +23,9 @@ from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_CASH_MANIFEST,
     DEFAULT_EXECUTION,
     DEFAULT_FEES,
+    DEFAULT_MANIFESTS,
     DEFAULT_SNAPSHOTS,
+    DEFAULT_SPLIT_EVIDENCE,
     DEFAULT_TRANSITIONS,
     DEFAULT_UNIVERSE,
 )
@@ -77,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execution-prices", type=Path, default=DEFAULT_EXECUTION)
     parser.add_argument("--cash-events", type=Path, default=DEFAULT_CASH_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
+    parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
+    parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
     strategy_group = parser.add_mutually_exclusive_group()
@@ -136,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         "adjusted",
         require_verified_splits_from=str(manifest["warmup_start"]),
         history_start=str(manifest["warmup_start"]),
+        manifests_dir=args.manifests_dir,
+        split_evidence_path=args.split_evidence,
     )
     evaluation_dates = [
         value
@@ -280,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
     _write_csv(args.output, rows)
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
     summary = {
-        "schema_version": 2,
+        "schema_version": 3,
         "method": "expanding_window_walk_forward",
         "selection_scope": selection_scope,
         "strategy_count": len(strategies),
@@ -289,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         "selection_uses_test_data": False,
         "survivorship_safe_universe": survivorship_safe,
         "ex_ante_selection_claim_allowed": survivorship_safe,
+        "market_data_manifest_directory": str(args.manifests_dir),
+        "split_evidence_file": str(args.split_evidence),
         "test_accounts_are_independent": True,
         "continuous_tax_account_claim": False,
         "folds": len(rows),
