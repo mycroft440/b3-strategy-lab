@@ -32,6 +32,8 @@ DEFAULT_CASH_EVENTS = Path("data/corporate_actions/point_in_time_cash_distributi
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
 DEFAULT_CASH_CERTIFICATION = Path("data/corporate_actions/cash_distribution_coverage_certification.json")
 DEFAULT_SPLITS = Path("data/corporate_actions/point_in_time_split_evidence.json")
+DEFAULT_DATA = Path("data/candles_point_in_time")
+DEFAULT_ACTIONS = Path("data/actions_point_in_time")
 DEFAULT_MANIFESTS = Path("data/manifests_point_in_time")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_FEES = Path("data/fees/b3_equity_fee_schedule.json")
@@ -93,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--cash-certification", type=Path, default=DEFAULT_CASH_CERTIFICATION)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLITS)
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--actions-dir", type=Path, default=DEFAULT_ACTIONS)
     parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
     parser.add_argument("--transition-manifest", type=Path, default=DEFAULT_TRANSITIONS)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
@@ -106,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
         "cash_events": args.cash_events,
         "cash_manifest": args.cash_manifest,
         "split_evidence": args.split_evidence,
+        "data_dir": args.data_dir,
+        "actions_dir": args.actions_dir,
+        "manifests_dir": args.manifests_dir,
         "fee_schedule": args.fee_schedule,
     }
     missing_inputs = [
@@ -174,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     details["selection_bias_disclosure"] = universe_payload.get("bias_disclosure", "")
     details["allowed_universe_file"] = allowed_file_value
     details["allowed_universe_size"] = len(allowed_tickers)
+    details["market_data_directory"] = str(args.data_dir)
+    details["action_directory"] = str(args.actions_dir)
 
     split_payload = json.loads(args.split_evidence.read_text(encoding="utf-8"))
     split_tickers = _ticker_set(split_payload, "market_data_tickers")
@@ -196,32 +205,29 @@ def main(argv: list[str] | None = None) -> int:
 
     manifest_issues: list[str] = []
     manifest_ends: dict[str, str] = {}
-    if not args.manifests_dir.exists():
-        manifest_issues.append(f"manifest_directory_missing:{args.manifests_dir}")
-    else:
-        for ticker in sorted(market_data):
-            manifest_file = manifest_path(ticker, "1d", args.manifests_dir)
-            if not manifest_file.exists():
-                manifest_issues.append(f"manifest_missing:{ticker}:{manifest_file}")
-                continue
-            try:
-                verified = verify_dataset(
-                    cache_path(ticker, "1d"),
-                    actions_path(ticker),
-                    manifest_file,
-                    ticker=ticker,
-                    interval="1d",
-                    require_verified_splits_from=warmup_start,
-                    split_evidence_path=args.split_evidence,
-                )
-            except (DataVerificationError, OSError, ValueError) as error:
-                manifest_issues.append(f"manifest_verification_failed:{ticker}:{error}")
-                continue
-            manifest_ends[ticker] = str(verified.end)
-            if verified.end > end:
-                manifest_issues.append(
-                    f"manifest_extends_past_replay_end:{ticker}:{verified.end}>{end}"
-                )
+    for ticker in sorted(market_data):
+        manifest_file = manifest_path(ticker, "1d", args.manifests_dir)
+        if not manifest_file.exists():
+            manifest_issues.append(f"manifest_missing:{ticker}:{manifest_file}")
+            continue
+        try:
+            verified = verify_dataset(
+                cache_path(ticker, "1d", args.data_dir),
+                actions_path(ticker, args.actions_dir),
+                manifest_file,
+                ticker=ticker,
+                interval="1d",
+                require_verified_splits_from=warmup_start,
+                split_evidence_path=args.split_evidence,
+            )
+        except (DataVerificationError, OSError, ValueError) as error:
+            manifest_issues.append(f"manifest_verification_failed:{ticker}:{error}")
+            continue
+        manifest_ends[ticker] = str(verified.end)
+        if verified.end > end:
+            manifest_issues.append(
+                f"manifest_extends_past_replay_end:{ticker}:{verified.end}>{end}"
+            )
     checks["point_in_time_manifests_verify_against_split_evidence"] = not manifest_issues
     checks["point_in_time_manifest_count_matches_market_data"] = (
         len(manifest_ends) == len(market_data)
@@ -454,7 +460,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 11,
+        "schema_version": 12,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -474,11 +480,11 @@ def main(argv: list[str] | None = None) -> int:
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
             "shares. Split, cash and ticker-transition evidence are bound to the exact "
-            "market-data symbol set and replay horizon. Point-in-time candle manifests are "
-            "also cryptographically bound to the same split ledger and cannot extend past "
-            "the replay horizon. Daily COTAHIST does not prove a hypothetical fill. Exact "
-            "brokerage-account reconciliation requires actual broker fills and source-backed "
-            "account evidence."
+            "market-data symbol set and replay horizon. Point-in-time candles, action "
+            "ledgers and manifests live in isolated roots and are cryptographically bound "
+            "to the same split ledger; they cannot extend past the replay horizon. Daily "
+            "COTAHIST does not prove a hypothetical fill. Exact brokerage-account "
+            "reconciliation requires actual broker fills and source-backed account evidence."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
