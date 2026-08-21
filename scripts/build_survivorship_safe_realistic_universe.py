@@ -97,7 +97,11 @@ def main(argv: list[str] | None = None) -> int:
     standard_quotes = [quote for quote in standard_quotes if is_company_equity(quote)]
     if not standard_quotes:
         raise ValueError("No B3 ON/PN company-share quotes were found.")
-    end = args.end or max(quote.date for quote in standard_quotes)
+    requested_end = args.end or max(quote.date for quote in standard_quotes)
+    eligible_end_dates = [quote.date for quote in standard_quotes if quote.date <= requested_end]
+    if not eligible_end_dates:
+        parser.error("No B3 ON/PN market session exists at or before --end.")
+    end = max(eligible_end_dates)
 
     snapshots = snapshot_rows(
         standard_quotes,
@@ -168,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",
         "selected_as_of": args.start,
         "selection_end": end,
+        "requested_end": args.end,
         "warmup_start": f"{min(years):04d}-01-01",
         "source_years": years,
         "survivorship_safe": True,
@@ -251,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Both standard and fractional execution books are required.")
 
     print(f"COTAHIST years: {years[0]}..{years[-1]}")
+    if args.end and end != args.end:
+        print(f"Requested end {args.end} normalized to last B3 session {end}")
     print(f"Survivorship-safe weekly ON/PN snapshots: {len(snapshot_sizes)}")
     print(f"Selectable historical ON/PN union: {len(selected_union)} tickers")
     print(f"Continuity-only symbols: {len(market_data_set - selected_set)}")
