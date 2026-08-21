@@ -51,12 +51,14 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertAlmostEqual(values[2], 100 - 100 / (1 + 2_200 / 3_000))
         self.assertAlmostEqual(values[3], 70.0)
 
-    def test_complete_catalog_preserves_168_and_adds_21_buy_strategies(self) -> None:
+    def test_complete_catalog_preserves_base_and_adds_user_research_strategies(self) -> None:
         self.assertEqual(len(ADDITIONAL_STRATEGIES), 130)
         self.assertEqual(len(RESEARCHED_STRATEGIES), 12)
         self.assertEqual(len(EXTENDED_STRATEGIES), 21)
-        self.assertEqual(len(sweep_strategies()), 189)
-        self.assertEqual(len(portfolio_strategies()), 190)
+        self.assertEqual(len(sweep_strategies()), 191)
+        self.assertEqual(len(portfolio_strategies()), 192)
+        self.assertIn("absolute_momentum_12_1", sweep_strategies())
+        self.assertIn("time_series_momentum_3_6_12", sweep_strategies())
 
         groups = [
             {strategy.name for strategy in ADDITIONAL_STRATEGIES},
