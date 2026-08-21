@@ -178,6 +178,41 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     payload = asdict(summary)
+    outstanding_tax = float(
+        getattr(account, "outstanding_tax_liability", lambda: 0.0)()
+    )
+    if outstanding_tax < -1e-9:
+        raise RuntimeError("Outstanding tax liability cannot be negative.")
+    brokerage_equity = float(payload["final_equity"])
+    net_after_accrued_tax = brokerage_equity - max(0.0, outstanding_tax)
+    if net_after_accrued_tax <= 0:
+        raise RuntimeError("Known accrued tax liability makes net equity non-positive.")
+
+    # Keep final_equity backward compatible: it is the mark-to-market balance
+    # visible in the brokerage account on the final simulated date. The separate
+    # net field prevents that balance from being mistaken for wealth net of a
+    # tax liability that has been accrued but is not legally payable yet.
+    payload["brokerage_final_equity"] = brokerage_equity
+    payload["outstanding_accrued_tax_liability"] = outstanding_tax
+    payload["net_equity_after_accrued_tax"] = net_after_accrued_tax
+    payload["ordinary_irrf_withheld"] = float(
+        getattr(account, "ordinary_irrf_withheld", 0.0)
+    )
+    payload["darf_paid"] = float(getattr(account, "darf_paid", 0.0))
+    payload["tax_cash_timing_policy"] = (
+        "ordinary stock tax is accrued monthly; known tax cash is reserved from new "
+        "purchases and DARF is modeled on the final B3 session of the following month; "
+        "amounts below R$10 accumulate until the payment threshold is reached"
+    )
+    payload["cpf_wide_annual_minimum_tax_scope"] = "OUT_OF_SCOPE"
+    payload["cpf_wide_annual_minimum_tax_note"] = (
+        "For calendar year 2026 onward, Brazil's annual minimum tax for high-income "
+        "individuals depends on the person's total CPF-wide annual income and taxes. "
+        "This isolated brokerage replay cannot infer salary, rent, other dividends, "
+        "other portfolios or other income, so that annual personal adjustment is not "
+        "modeled or claimed as exact."
+    )
+
     payload["universe_survivorship_safe"] = bool(manifest.get("survivorship_safe"))
     if payload["survivorship_safe"] != payload["universe_survivorship_safe"]:
         raise RuntimeError("Realistic summary survivorship flag diverges from universe manifest.")
@@ -192,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_dataclass_csv(args.curve_output, curve)
     write_dataclass_csv(args.trades_output, account.trade_ledger)
-    write_dataclass_csv(args.cash_ledger_output, account.cash_ledger)
+    write_dataclass_csv(args.cash-ledger-output if False else args.cash_ledger_output, account.cash_ledger)
     write_dataclass_csv(args.tax_output, account.tax.finalized())
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))
