@@ -130,6 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if not set(selected_tickers).issubset(tickers):
         parser.error("market_data_tickers must contain every selectable ticker.")
+    if len(tickers) != len(set(tickers)):
+        parser.error("market_data_tickers contains duplicate symbols.")
     coverage_start = str(universe["warmup_start"])
     issuer_by_ticker = {
         str(ticker).upper(): str(issuer).upper()
@@ -250,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     evidence_payload = {
-        "schema_version": 3,
+        "schema_version": 4,
         "coverage_start": coverage_start,
         "survivorship_safe_universe": survivorship_safe,
         "selection_validity": (
@@ -262,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         "point_in_time_universe": str(args.universe),
         "selectable_ticker_count": len(selected_tickers),
         "market_data_ticker_count": len(tickers),
+        "market_data_tickers": sorted(tickers),
         "marker_count": len(marker_rows),
         "uncovered_count": 0,
         "ticker_reviews": sorted(evidence_reviews, key=lambda row: row["ticker"]),
@@ -324,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     _write_cash(args.cash_output, cash_rows)
     cash_manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "source": "B3 GetListedSupplementCompany.cashDividends",
         "source_authority": "B3",
         "universe": str(args.universe),
@@ -336,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
         "no_replacements": universe.get("no_replacements") is True,
         "selectable_ticker_count": len(selected_tickers),
         "market_data_ticker_count": len(tickers),
+        "market_data_tickers": sorted(tickers),
         "event_identity": "ticker+isin+last_date_prior+payment_date+label+rate",
         "event_count": len(cash_rows),
         "issues": cash_issues,
