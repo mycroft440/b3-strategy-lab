@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import math
 import statistics
+from bisect import bisect_left, bisect_right
 
 from b3_strategy_lab import realistic_portfolio_core as _core
 
@@ -151,12 +152,41 @@ def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, 
     return trial
 
 
+def _cash_event_maps(events, dates: list[str]):
+    """Map entitlements and the earliest legally usable payment session.
+
+    A distribution right exists only after the close of ``last_date_prior``. Even if
+    a source reports a payment date on or before that date, the replay never makes
+    the cash spendable before the next simulated B3 session after entitlement.
+    """
+
+    by_entitlement = {}
+    by_payment_session = {}
+    for event in events:
+        by_entitlement.setdefault(event.last_date_prior, []).append(event)
+        payment_index = bisect_left(dates, event.payment_date)
+        post_entitlement_index = bisect_right(dates, event.last_date_prior)
+        index = max(payment_index, post_entitlement_index)
+        if index >= len(dates):
+            continue
+        by_payment_session.setdefault(dates[index], []).append(event)
+    return by_entitlement, by_payment_session
+
+
 def _credit_event(account, event, entitlements) -> float:
     key = _core._event_key(event)
     settler = getattr(account, "settle_distribution_receivable", None)
     if settler is not None:
         settler(key)
-    return _core._credit_event(account, event, entitlements)
+    entitled = entitlements.pop(key, 0)
+    row = account.credit_distribution(
+        event.payment_date,
+        event.ticker,
+        event.label,
+        entitled,
+        event.gross_per_share,
+    )
+    return row.net
 
 
 def _register_entitlement_receivable(account, event, entitlements) -> None:
@@ -239,7 +269,7 @@ def run_realistic(
             signal_start=signal_start,
         )[strategy]
     )
-    entitlement_map, payment_map = _core._cash_event_maps(cash_events, dates)
+    entitlement_map, payment_map = _cash_event_maps(cash_events, dates)
     entitlements: dict[tuple[str, str, str, str, float], int] = {}
     pending_targets: dict[str, float] | None = None
     curve: list[_core.CurveRow] = []
@@ -269,9 +299,9 @@ def run_realistic(
             distributions_net += _credit_event(account, event, entitlements)
 
         # Once the final B3 session of a month has traded, every ordinary sale for
-        # that month is known. Accrue the liability before recording the month-end
-        # close so the economic equity curve is not temporarily overstated. The
-        # escrow is already non-investable; the later DARF payment only settles it.
+        # that month is known. At a terminal mid-month replay date this is a terminal
+        # no-more-sales assumption for the remainder of that month. Accrue before
+        # recording the close so economic equity is not temporarily overstated.
         month_ends_here = next_date is None or next_date[:7] != current[:7]
         if month_ends_here:
             account.finalize_month(current[:7])
