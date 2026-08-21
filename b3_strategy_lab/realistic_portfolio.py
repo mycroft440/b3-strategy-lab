@@ -27,9 +27,6 @@ def _apply_ticker_transitions(account, transitions) -> None:
 
 
 def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
-    # This hook is called on every simulated market session before trading. It is
-    # therefore the deterministic place to settle a DARF exactly on its modeled
-    # due session, without requiring a trade to happen that day.
     processor = getattr(account, "process_due_taxes", None)
     if processor is not None:
         processor(current, data.dates)
@@ -74,16 +71,18 @@ def _target_quantity_from_execution_book(
     return low
 
 
-def _known_tax_reserve(account, value_date: str) -> float:
-    reserve = max(0.0, float(_core._provisional_ordinary_tax(account, value_date)))
-    known = getattr(account, "known_darf_reserve", None)
-    if known is not None:
-        reserve += max(0.0, float(known()))
-    return reserve
+def _provisional_tax_reserve(account, value_date: str) -> float:
+    """Current, not-yet-finalized month tax reserve.
+
+    Finalized tax has already been removed from ``account.cash`` into the account's
+    economic tax escrow, so including known_darf_reserve here would reserve it twice.
+    """
+
+    return max(0.0, float(_core._provisional_ordinary_tax(account, value_date)))
 
 
 def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, float]):
-    """Atomic rebalance sized from actual 010/020 opens and known tax reserves."""
+    """Atomic rebalance sized from actual 010/020 opens and current tax reserve."""
 
     trial = copy.deepcopy(account)
     held = {ticker for ticker, pos in trial.positions.items() if pos.shares > 0}
@@ -122,7 +121,7 @@ def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, 
     wanted_by_ticker = {
         ticker: quantity for ticker, quantity in wanted_by_ticker.items() if quantity > 0
     }
-    reserved_tax = _known_tax_reserve(trial, current)
+    reserved_tax = _provisional_tax_reserve(trial, current)
     available_cash = max(0.0, trial.cash - reserved_tax)
 
     def total_buy_cost(plan: dict[str, int]) -> float:
@@ -156,8 +155,8 @@ def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, 
         for qty, quote in pricebook.legs(current, ticker, quantity):
             trial.buy_leg(current, ticker, qty, quote)
 
-    if trial.cash < _known_tax_reserve(trial, current) - 1e-7:
-        raise ValueError(f"{current}: atomic rebalance consumed reserved tax cash.")
+    if trial.cash < _provisional_tax_reserve(trial, current) - 1e-7:
+        raise ValueError(f"{current}: atomic rebalance consumed provisional tax reserve.")
     return trial
 
 
