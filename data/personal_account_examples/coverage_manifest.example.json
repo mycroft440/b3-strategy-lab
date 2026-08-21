@@ -1,15 +1,28 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "coverage_start": "2018-01-01",
   "coverage_end": "2018-12-28",
   "coverage_complete": false,
   "reviewed_by": "",
   "reviewed_at_utc": "",
+  "normalization_verified": false,
+  "normalization_reviewed_by": "",
+  "normalization_reviewed_at_utc": "",
+  "normalization_attestation": "",
   "documents": [
     {
       "path": "PRIVATE/extrato_abertura.pdf",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "kind": "account_statement"
+      "kind": "account_statement",
+      "coverage_start": "2018-01-01",
+      "coverage_end": "2018-01-01"
+    },
+    {
+      "path": "PRIVATE/extratos_conta_2018_completos.pdf",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "kind": "account_statement",
+      "coverage_start": "2018-01-01",
+      "coverage_end": "2018-12-28"
     },
     {
       "path": "PRIVATE/nota_corretagem_2018-01-02.pdf",
@@ -19,7 +32,31 @@
     {
       "path": "PRIVATE/extrato_fechamento.pdf",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "kind": "account_statement"
+      "kind": "account_statement",
+      "coverage_start": "2018-12-28",
+      "coverage_end": "2018-12-28"
+    }
+  ],
+  "normalized_inputs": [
+    {
+      "role": "fills",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "role": "cash_events",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "role": "position_events",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "role": "opening_snapshot",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "role": "closing_snapshot",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ]
 }
