@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "value_date": "2018-01-01",
+  "boundary": "START_OF_DAY",
   "cash_balance": 1000.0,
   "positions": {},
   "source_document": "PRIVATE/extrato_abertura.pdf",
