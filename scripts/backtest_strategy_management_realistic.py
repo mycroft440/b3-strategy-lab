@@ -183,11 +183,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     if outstanding_tax < -1e-9:
         raise RuntimeError("Outstanding tax liability cannot be negative.")
+    receivable = float(
+        getattr(account, "distribution_receivable_value", lambda: 0.0)()
+    )
+    if receivable < -1e-9:
+        raise RuntimeError("Distribution receivable cannot be negative.")
 
-    # ``final_equity`` remains the economic result used by the backtest metrics.
-    # Accrued ordinary tax has already been removed from investable cash into an
-    # escrow-like liability. Add that liability back only to show the gross
-    # mark-to-market brokerage balance before the unpaid DARF actually leaves.
+    # ``final_equity`` is economic equity: accrued ordinary tax is already removed
+    # from investable cash and an earned unpaid distribution is already included as
+    # a non-spendable receivable. Add tax escrow back only to expose the gross broker
+    # balance before the unpaid DARF legally leaves the account.
     net_after_accrued_tax = float(payload["final_equity"])
     if net_after_accrued_tax <= 0:
         raise RuntimeError("Net final equity must be positive.")
@@ -196,6 +201,12 @@ def main(argv: list[str] | None = None) -> int:
     payload["brokerage_final_equity"] = brokerage_equity
     payload["outstanding_accrued_tax_liability"] = outstanding_tax
     payload["net_equity_after_accrued_tax"] = net_after_accrued_tax
+    payload["unpaid_distribution_receivable"] = receivable
+    payload["distribution_cash_availability_policy"] = (
+        "the right is recognized as economic receivable only after the cum-right close; "
+        "it is never spendable before payment; on payment the receivable is replaced by "
+        "cash, and a non-trading payment date becomes cash at the next simulated B3 session"
+    )
     payload["ordinary_irrf_withheld"] = float(
         getattr(account, "ordinary_irrf_withheld", 0.0)
     )
@@ -218,8 +229,10 @@ def main(argv: list[str] | None = None) -> int:
     if payload["survivorship_safe"] != payload["universe_survivorship_safe"]:
         raise RuntimeError("Realistic summary survivorship flag diverges from universe manifest.")
     payload["universe_selection_mode"] = manifest.get("selection_mode")
+    payload["tax_instrument_scope"] = manifest.get("tax_instrument_scope", "")
     payload["no_replacements"] = bool(manifest.get("no_replacements"))
     payload["excluded_tickers"] = manifest.get("excluded_tickers", [])
+    payload["excluded_instrument_classes"] = manifest.get("excluded_instrument_classes", [])
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
