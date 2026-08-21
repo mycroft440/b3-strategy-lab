@@ -32,8 +32,9 @@ DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Build a survivorship-safe weekly B3 universe from the full historical "
-            "company-equity market using only information available by each decision date."
+            "Build a survivorship-safe weekly B3 ON/PN share universe from the full "
+            "historical eligible-share market using only information available by each "
+            "decision date."
         )
     )
     parser.add_argument(
@@ -95,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
 
     standard_quotes = [quote for quote in standard_quotes if is_company_equity(quote)]
     if not standard_quotes:
-        raise ValueError("No B3 company-equity quotes were found.")
+        raise ValueError("No B3 ON/PN company-share quotes were found.")
     end = args.end or max(quote.date for quote in standard_quotes)
 
     snapshots = snapshot_rows(
@@ -162,9 +163,9 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Survivorship-safe universe unexpectedly contains incomplete snapshots.")
 
     manifest = {
-        "schema_version": 6,
-        "id": "full_b3_survivorship_safe_weekly_top_liquidity",
-        "selection_mode": "full_b3_trailing_liquidity_point_in_time",
+        "schema_version": 7,
+        "id": "full_b3_on_pn_survivorship_safe_weekly_top_liquidity",
+        "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",
         "selected_as_of": args.start,
         "warmup_start": f"{min(years):04d}-01-01",
         "source_years": years,
@@ -173,10 +174,17 @@ def main(argv: list[str] | None = None) -> int:
         "snapshot_file": str(args.snapshots_output),
         "allowed_universe_file": "",
         "excluded_tickers": [],
+        "excluded_instrument_classes": ["UNT", "BDR", "ETF", "funds", "rights", "receipts"],
+        "tax_instrument_scope": "ON_PN_SHARES_ONLY",
         "no_replacements": False,
         "selection_rules": {
-            "source": "B3_COTAHIST_full_historical_market",
-            "instrument_filter": "company equities only; BDI02 market010 ON/PN/UNT; no BDRs/funds/ETFs",
+            "source": "B3_COTAHIST_full_historical_ON_PN_share_market",
+            "instrument_filter": (
+                "company shares only; BDI02 market010 ON/PN classes. UNITS are excluded "
+                "from the certified R$20k tax scope because B3 classifies them as "
+                "deposit certificates and no Receita source is assumed to extend the "
+                "share-only exemption automatically"
+            ),
             "lookback_sessions": args.lookback_sessions,
             "minimum_presence": args.minimum_presence,
             "weekly_candidates": args.top_n,
@@ -185,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
             "ranking_metric": "trailing_average_financial_volume",
             "future_continuity_filter": False,
             "future_return_filter": False,
-            "replacement_policy": "full historical market re-ranked from trailing data only",
+            "replacement_policy": "full historical eligible-share market re-ranked from trailing data only",
         },
         "execution_sources": {
             "standard": {"market_type": "010", "bdi_code": "02"},
@@ -194,16 +202,18 @@ def main(argv: list[str] | None = None) -> int:
         "tickers": selected_union,
         "market_data_tickers": market_data_tickers,
         "continuity_only_tickers": sorted(market_data_set - selected_set),
-        "continuity_rule": "same_isin_history_only; never grants selection eligibility",
+        "continuity_rule": "same_isin_ON_PN_history_only; never grants selection eligibility",
         "issuing_company_by_ticker": issuer_by_ticker,
         "issuer_name_by_ticker": issuer_names,
         "isins_by_ticker": {ticker: sorted(values) for ticker, values in isin_by_ticker.items()},
         "bias_disclosure": (
-            "Each weekly candidate set is reconstructed from the full B3 company-equity "
-            "COTAHIST history using only trailing observations available by that decision "
-            "date. No requirement uses future survival, future returns, current index "
-            "membership, or the project's later fixed-40 list. Strategy/model selection "
-            "can still be retrospective and is reported separately from universe validity."
+            "Each weekly candidate set is reconstructed from the full historical B3 "
+            "ON/PN company-share COTAHIST scope using only trailing observations available "
+            "by that decision date. No requirement uses future survival, future returns, "
+            "current index membership, or the project's later fixed-40 list. Strategy/model "
+            "selection can still be retrospective and is reported separately from universe "
+            "validity. UNITS and other instrument classes are intentionally out of this "
+            "certified share-tax scope."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -240,8 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Both standard and fractional execution books are required.")
 
     print(f"COTAHIST years: {years[0]}..{years[-1]}")
-    print(f"Survivorship-safe weekly snapshots: {len(snapshot_sizes)}")
-    print(f"Selectable historical union: {len(selected_union)} tickers")
+    print(f"Survivorship-safe weekly ON/PN snapshots: {len(snapshot_sizes)}")
+    print(f"Selectable historical ON/PN union: {len(selected_union)} tickers")
     print(f"Continuity-only symbols: {len(market_data_set - selected_set)}")
     print(f"Execution rows: standard={standard_count}, fractional={fractional_count}")
     return 0
