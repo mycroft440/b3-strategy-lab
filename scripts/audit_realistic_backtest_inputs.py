@@ -4,6 +4,8 @@ import argparse
 import csv
 import json
 import sys
+from collections import defaultdict
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -37,11 +39,37 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(file))
 
 
+def _fee_schedule_contiguous(fees: FeeSchedule, start: str, end: str) -> bool:
+    rules = sorted(fees.rules, key=lambda item: item.start)
+    if not rules or rules[0].start > start or rules[-1].end < end:
+        return False
+    cursor = date.fromisoformat(start)
+    target = date.fromisoformat(end)
+    for rule in rules:
+        rule_start = date.fromisoformat(rule.start)
+        rule_end = date.fromisoformat(rule.end)
+        if rule_end < cursor:
+            continue
+        if rule_start > cursor:
+            return False
+        cursor = max(cursor, rule_end + timedelta(days=1))
+        if cursor > target:
+            return True
+    return cursor > target
+
+
+def _next_execution_date(all_dates: list[str], decision: str) -> str | None:
+    for value in all_dates:
+        if value > decision:
+            return value
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit whether realistic-account inputs support a retrospective estimate "
-            "and whether they are strong enough for an exact conditional account claim."
+            "Audit realistic B3 inputs. Market-input certification, strategy-selection "
+            "validity and personal-account exactness are intentionally separate claims."
         )
     )
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -68,8 +96,8 @@ def main(argv: list[str] | None = None) -> int:
     missing_inputs = [f"{name}={path}" for name, path in required_inputs.items() if not path.exists()]
     if missing_inputs:
         parser.error(
-            "Entradas realistas ausentes. Execute scripts/run_realistic_pipeline.py "
-            "sem --skip-data-build antes da auditoria: " + ", ".join(missing_inputs)
+            "Entradas realistas ausentes. Execute o pipeline de dados antes da auditoria: "
+            + ", ".join(missing_inputs)
         )
 
     checks: dict[str, bool] = {}
@@ -83,12 +111,14 @@ def main(argv: list[str] | None = None) -> int:
         for item in universe_payload.get("excluded_tickers", [])
         if str(item).strip()
     }
+    survivorship_safe = universe_payload.get("survivorship_safe") is True
+    no_replacements = universe_payload.get("no_replacements") is True
 
     checks["universe_is_point_in_time"] = universe_payload.get("point_in_time") is True
-    checks["universe_declares_survivorship_safe"] = universe_payload.get("survivorship_safe") is True
+    checks["universe_declares_survivorship_safe"] = survivorship_safe
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
-    checks["no_replacement_policy_declared"] = universe_payload.get("no_replacements") is True
     checks["excluded_tickers_absent"] = not bool(universe.union & excluded)
+    checks["universe_policy_consistent"] = survivorship_safe or no_replacements
 
     allowed_file_value = str(universe_payload.get("allowed_universe_file", "")).strip()
     allowed_tickers: set[str] = set()
@@ -101,11 +131,15 @@ def main(argv: list[str] | None = None) -> int:
                 for item in allowed_payload.get("tickers", [])
                 if str(item).strip()
             }
-    if universe_payload.get("no_replacements") is True:
+    if no_replacements:
         checks["snapshot_union_within_allowed_universe"] = bool(allowed_tickers) and universe.union <= allowed_tickers
     else:
         checks["snapshot_union_within_allowed_universe"] = True
 
+    start = str(universe_payload.get("selected_as_of", universe.snapshots[0].effective_date))[:10]
+    end = max(snapshot.effective_date for snapshot in universe.snapshots)
+    details["audit_start"] = start
+    details["audit_end"] = end
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
     details["minimum_snapshot_size"] = min(len(snapshot.tickers) for snapshot in universe.snapshots)
@@ -134,8 +168,8 @@ def main(argv: list[str] | None = None) -> int:
             cash_events_path=args.cash_events,
             cash_manifest_path=args.cash_manifest,
             tickers=universe.union,
-            start=str(universe_payload.get("selected_as_of", "")),
-            end=max(snapshot.effective_date for snapshot in universe.snapshots),
+            start=start,
+            end=end,
         )
         cash_certified = not certification_issues
     checks["cash_history_coverage_certified"] = cash_certified
@@ -145,109 +179,151 @@ def main(argv: list[str] | None = None) -> int:
     transition_payload: dict[str, object] = {}
     if args.transition_manifest.exists():
         transition_payload = json.loads(args.transition_manifest.read_text(encoding="utf-8"))
-    checks["ticker_transitions_have_no_unresolved_disappearances"] = (
-        transition_payload.get("complete") is True
+    checks["ticker_transitions_have_no_unresolved_disappearances"] = transition_payload.get("complete") is True
+    details["unresolved_historical_disappearances"] = (
+        int(transition_payload.get("unresolved_disappearances", -1)) if transition_payload else -1
     )
-    details["unresolved_historical_disappearances"] = int(
-        transition_payload.get("unresolved_disappearances", -1)
-    ) if transition_payload else -1
 
     fees = FeeSchedule.from_json(args.fee_schedule)
     fee_qualities = sorted({rule.quality for rule in fees.rules})
-    checks["all_fee_periods_are_official"] = fee_qualities == ["official"]
+    checks["all_b3_fee_periods_are_official"] = fee_qualities == ["official"]
+    checks["b3_fee_schedule_covers_period"] = _fee_schedule_contiguous(fees, start, end)
     details["fee_qualities"] = fee_qualities
 
     execution_rows = _rows(args.execution)
-    standard = {
-        (row.get("date", ""), row.get("ticker", ""))
-        for row in execution_rows
-        if row.get("market_type") == "010"
-    }
-    fractional_base = {
-        (
-            row.get("date", ""),
-            (row.get("ticker", "")[:-1] if row.get("ticker", "").endswith("F") else row.get("ticker", "")),
-        )
-        for row in execution_rows
-        if row.get("market_type") == "020"
-    }
+    keys: list[tuple[str, str, str]] = []
+    standard: set[tuple[str, str]] = set()
+    fractional_base: set[tuple[str, str]] = set()
+    invalid_execution_rows: list[dict[str, str]] = []
+    execution_dates: set[str] = set()
+    execution_bases: set[str] = set()
+    for row in execution_rows:
+        value_date = row.get("date", "")
+        ticker = row.get("ticker", "").upper()
+        market = row.get("market_type", "")
+        keys.append((value_date, ticker, market))
+        execution_dates.add(value_date)
+        base = ticker[:-1] if ticker.endswith("F") else ticker
+        execution_bases.add(base)
+        try:
+            values_ok = (
+                float(row.get("open", 0) or 0) > 0
+                and float(row.get("close", 0) or 0) > 0
+                and float(row.get("financial_volume", 0) or 0) > 0
+            )
+        except ValueError:
+            values_ok = False
+        if not values_ok:
+            invalid_execution_rows.append(row)
+        if market == "010":
+            standard.add((value_date, ticker))
+        elif market == "020":
+            fractional_base.add((value_date, base))
+
     checks["execution_book_has_standard_quotes"] = bool(standard)
     checks["execution_book_has_fractional_quotes"] = bool(fractional_base)
-    execution_bases = {
-        (row.get("ticker", "")[:-1] if row.get("ticker", "").endswith("F") else row.get("ticker", "")).upper()
-        for row in execution_rows
-        if row.get("ticker")
-    }
+    checks["execution_book_has_no_duplicate_keys"] = len(keys) == len(set(keys))
+    checks["execution_book_has_positive_prices_and_volume"] = not invalid_execution_rows
     checks["execution_book_excludes_forbidden_tickers"] = not bool(execution_bases & excluded)
-    if universe_payload.get("no_replacements") is True:
+    if no_replacements:
         checks["execution_book_within_allowed_universe"] = bool(allowed_tickers) and execution_bases <= allowed_tickers
     else:
-        checks["execution_book_within_allowed_universe"] = True
+        market_data = {
+            str(item).strip().upper()
+            for item in universe_payload.get("market_data_tickers", universe_payload.get("tickers", []))
+            if str(item).strip()
+        }
+        checks["execution_book_within_allowed_universe"] = bool(market_data) and execution_bases <= market_data
+
+    all_execution_dates = sorted(value for value in execution_dates if value)
+    missing_next_open: list[str] = []
+    for snapshot in universe.snapshots:
+        next_date = _next_execution_date(all_execution_dates, snapshot.effective_date)
+        if next_date is None:
+            continue
+        for ticker in snapshot.tickers:
+            if (next_date, ticker) not in standard:
+                missing_next_open.append(f"{snapshot.effective_date}->{next_date}:{ticker}:010")
+            if (next_date, ticker) not in fractional_base:
+                missing_next_open.append(f"{snapshot.effective_date}->{next_date}:{ticker}:020")
+    checks["snapshot_next_open_execution_coverage_complete"] = not missing_next_open
+    details["execution_rows"] = len(execution_rows)
     details["standard_execution_rows"] = len(standard)
     details["fractional_execution_rows"] = len(fractional_base)
+    details["invalid_execution_row_count"] = len(invalid_execution_rows)
+    details["missing_snapshot_next_open_count"] = len(missing_next_open)
+    details["missing_snapshot_next_open_examples"] = missing_next_open[:50]
 
-    # Selection validity and account reconstruction are separate claims. A fixed,
-    # hindsight-selected universe can still support a realistic conditional replay
-    # of what the account mechanics would have done if that frozen rule had been
-    # followed. It cannot support an ex-ante strategy-selection claim.
     structural_account = [
         "universe_is_point_in_time",
         "snapshot_union_matches_manifest",
-        "no_replacement_policy_declared",
+        "universe_policy_consistent",
         "snapshot_union_within_allowed_universe",
         "excluded_tickers_absent",
         "split_markers_fully_covered",
         "cash_response_has_no_parse_issues",
         "execution_book_has_standard_quotes",
         "execution_book_has_fractional_quotes",
+        "execution_book_has_no_duplicate_keys",
+        "execution_book_has_positive_prices_and_volume",
         "execution_book_excludes_forbidden_tickers",
         "execution_book_within_allowed_universe",
     ]
     ready_for_estimate = all(checks[name] for name in structural_account)
 
-    exact_requirements = [
+    certified_market_requirements = [
+        *structural_account,
+        "universe_declares_survivorship_safe",
+        "snapshot_next_open_execution_coverage_complete",
         "cash_history_coverage_certified",
         "ticker_transitions_have_no_unresolved_disappearances",
-        "all_fee_periods_are_official",
+        "all_b3_fee_periods_are_official",
+        "b3_fee_schedule_covers_period",
     ]
-    ready_for_exact_claim = ready_for_estimate and all(checks[name] for name in exact_requirements)
+    ready_for_certified_market_inputs = all(checks[name] for name in certified_market_requirements)
 
     selection_validity = (
         "SURVIVORSHIP_SAFE_POINT_IN_TIME"
-        if checks["universe_declares_survivorship_safe"]
+        if survivorship_safe
         else "RETROSPECTIVE_FIXED_UNIVERSE_ONLY"
     )
     estimate_blockers = [name for name in structural_account if not checks[name]]
-    exact_claim_blockers = estimate_blockers + [
-        name for name in exact_requirements if not checks[name]
+    certified_market_blockers = [
+        name for name in certified_market_requirements if not checks[name]
     ]
+
+    personal_account_blockers = [
+        "broker_fee_profile_not_audited_here",
+        "actual_broker_fill_statements_not_provided",
+        "external_cpf_tax_context_not_provided",
+    ]
+    exact_claim_blockers = sorted(set(certified_market_blockers + personal_account_blockers))
+
     selection_limitations = []
-    if not checks["universe_declares_survivorship_safe"]:
+    if not survivorship_safe:
         selection_limitations.append("universe_is_fixed_and_not_survivorship_safe")
-    if universe_payload.get("no_replacements") is True:
+    if no_replacements:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 3,
+        "schema_version": 4,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
-        "ready_for_exact_historical_account_claim": ready_for_exact_claim,
+        "ready_for_certified_market_inputs": ready_for_certified_market_inputs,
+        "ready_for_exact_historical_account_claim": False,
         "selection_validity": selection_validity,
-        "ex_ante_selection_claim_allowed": checks["universe_declares_survivorship_safe"],
+        "ex_ante_selection_claim_allowed": survivorship_safe,
         "estimate_blockers": estimate_blockers,
+        "certified_market_input_blockers": certified_market_blockers,
         "exact_claim_blockers": exact_claim_blockers,
         "selection_limitations": selection_limitations,
-        # Backward-compatible field: blockers now means blockers to running the
-        # realistic estimate, not intentional methodological limitations.
         "blockers": estimate_blockers,
         "interpretation": (
-            "Account reconstruction and strategy-selection validity are separate. "
-            "A realistic conditional account replay may run when structural market-data "
-            "checks pass even if the candidate list is a fixed hindsight-selected universe. "
-            "The fixed/no-replacement constraint and explicit exclusions are audited as "
-            "data-integrity rules. Such a run remains retrospective and cannot be presented "
-            "as proof that the same securities would have been selected ex ante."
+            "Certified market inputs are necessary but not sufficient for an exact personal-account claim. "
+            "A strict conditional strategy replay can become exact under a declared official-open execution "
+            "policy after broker fees and tax isolation are independently certified. Actual personal-account "
+            "reconstruction additionally requires the broker's real order/fill and cash statements."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
