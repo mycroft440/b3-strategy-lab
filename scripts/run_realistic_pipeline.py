@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
             "End-to-end realistic B3 validation pipeline. It preserves historical "
             "research artifacts and writes separate point-in-time/real-money-oriented "
             "reports. Public-market counterfactual execution is never labeled exact; "
-            "exact personal-account reconciliation requires actual broker fills."
+            "exact brokerage-account reconciliation requires actual broker fills."
         )
     )
     parser.add_argument("--start", default="2018-01-02")
@@ -159,8 +159,11 @@ def main(argv: list[str] | None = None) -> int:
         summary["strategy_selection_classification"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
         summary["ex_ante_selection_claim_allowed"] = False
         summary["counterfactual_execution_exact"] = False
+        summary["actual_brokerage_account_exact"] = False
+        summary["actual_brokerage_account_runner"] = "scripts/reconcile_actual_personal_account.py"
+        # Deprecated compatibility aliases for older report readers.
         summary["actual_personal_account_exact"] = False
-        summary["actual_personal_account_runner"] = "scripts/reconcile_actual_personal_account.py"
+        summary["actual_personal_account_runner"] = summary["actual_brokerage_account_runner"]
         summary["input_audit"] = str(audit_path)
         summary_path.write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
@@ -207,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         else "frozen_gap_momentum_managements_only"
     )
     status = {
-        "schema_version": 5,
+        "schema_version": 6,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
@@ -237,14 +240,17 @@ def main(argv: list[str] | None = None) -> int:
         },
         "certified_market_inputs_ready": certified_market_inputs,
         "conditional_account_reconstruction_exact": False,
+        "actual_brokerage_account_reconstruction_exact": False,
+        "actual_brokerage_account_runner": "scripts/reconcile_actual_personal_account.py",
+        # Deprecated compatibility aliases.
         "actual_personal_account_reconstruction_exact": False,
         "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
         "prospective_selection_validation_begins": FREEZE_DATE,
         "interpretation": (
             "Market-input certification, counterfactual execution and strategy selection "
             "are separate claims. Certified COTAHIST inputs improve reproducibility but do "
-            "not prove a hypothetical fill. Exact personal-account reconciliation requires "
-            "actual broker fills, cash events and documentary opening/closing snapshots."
+            "not prove a hypothetical fill. Exact brokerage-account reconciliation requires "
+            "actual broker fills, cash events and documentary START_OF_DAY/END_OF_DAY snapshots."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -258,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("Market inputs: realistic estimate only; some certifications remain incomplete.")
     print(
-        "Exact personal-account status: NOT APPLICABLE to public-data backtests; use "
+        "Exact brokerage-account status: NOT APPLICABLE to public-data backtests; use "
         "scripts/reconcile_actual_personal_account.py with broker-source evidence."
     )
     print(
