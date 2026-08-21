@@ -25,12 +25,21 @@ class PersonalAccountReconciliationTests(unittest.TestCase):
             writer.writeheader()
             writer.writerows(rows)
 
-    def _snapshot(self, path: Path, *, value_date: str, cash: float, positions: dict[str, int]) -> None:
+    def _snapshot(
+        self,
+        path: Path,
+        *,
+        value_date: str,
+        boundary: str,
+        cash: float,
+        positions: dict[str, int],
+    ) -> None:
         path.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
                     "value_date": value_date,
+                    "boundary": boundary,
                     "cash_balance": cash,
                     "positions": positions,
                     "source_document": f"snapshot-{value_date}",
@@ -70,8 +79,8 @@ class PersonalAccountReconciliationTests(unittest.TestCase):
                 ["value_date", "sequence", "event_id", "ticker", "share_delta", "source_document", "source_sha256"],
                 [],
             )
-            self._snapshot(opening, value_date="2026-01-01", cash=1000, positions={})
-            self._snapshot(closing, value_date="2026-03-01", cash=953.85, positions={"ABCD3": 6})
+            self._snapshot(opening, value_date="2026-01-01", boundary="START_OF_DAY", cash=1000, positions={})
+            self._snapshot(closing, value_date="2026-03-01", boundary="END_OF_DAY", cash=953.85, positions={"ABCD3": 6})
             result = reconcile_actual_account(
                 opening_snapshot=load_snapshot(opening),
                 closing_snapshot=load_snapshot(closing),
@@ -98,8 +107,8 @@ class PersonalAccountReconciliationTests(unittest.TestCase):
                 [{"trade_date": "2026-01-02", "settlement_date": "2026-01-06", "sequence": 0, "execution_id": "e1", "order_id": "o1", "side": "BUY", "ticker": "ABCD3", "shares": 10, "price": 10, "source_document": "doc-1", "source_sha256": DIGEST}],
             )
             self._csv(cash, ["value_date", "sequence", "event_id", "kind", "amount", "ticker", "source_document", "source_sha256"], [])
-            self._snapshot(opening, value_date="2026-01-01", cash=1000, positions={})
-            self._snapshot(closing, value_date="2026-01-06", cash=899.99, positions={"ABCD3": 10})
+            self._snapshot(opening, value_date="2026-01-01", boundary="START_OF_DAY", cash=1000, positions={})
+            self._snapshot(closing, value_date="2026-01-06", boundary="END_OF_DAY", cash=899.99, positions={"ABCD3": 10})
             result = reconcile_actual_account(
                 opening_snapshot=load_snapshot(opening),
                 closing_snapshot=load_snapshot(closing),
@@ -137,14 +146,40 @@ class PersonalAccountReconciliationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source_sha256"):
                 load_actual_fills(path)
 
+    def test_snapshot_boundary_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "snapshot.json"
+            path.write_text(
+                json.dumps({"schema_version": 1, "value_date": "2026-01-01", "cash_balance": 100, "positions": {}, "source_document": "doc", "source_sha256": DIGEST}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "boundary"):
+                load_snapshot(path)
+
+    def test_opening_and_closing_boundary_roles_are_enforced(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            opening = root / "opening.json"
+            closing = root / "closing.json"
+            self._snapshot(opening, value_date="2026-01-01", boundary="END_OF_DAY", cash=100, positions={})
+            self._snapshot(closing, value_date="2026-01-02", boundary="START_OF_DAY", cash=100, positions={})
+            with self.assertRaisesRegex(ValueError, "opening snapshot must use boundary=START_OF_DAY"):
+                reconcile_actual_account(
+                    opening_snapshot=load_snapshot(opening),
+                    closing_snapshot=load_snapshot(closing),
+                    fills=[],
+                    cash_events=[],
+                    position_events=[],
+                )
+
     def test_ticker_change_can_reconcile_with_position_events(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             opening = root / "opening.json"
             closing = root / "closing.json"
             positions = root / "positions.csv"
-            self._snapshot(opening, value_date="2026-01-01", cash=100, positions={"OLD3": 5})
-            self._snapshot(closing, value_date="2026-01-02", cash=100, positions={"NEW3": 5})
+            self._snapshot(opening, value_date="2026-01-01", boundary="START_OF_DAY", cash=100, positions={"OLD3": 5})
+            self._snapshot(closing, value_date="2026-01-02", boundary="END_OF_DAY", cash=100, positions={"NEW3": 5})
             self._csv(
                 positions,
                 ["value_date", "sequence", "event_id", "ticker", "share_delta", "source_document", "source_sha256"],
