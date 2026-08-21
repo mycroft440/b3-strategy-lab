@@ -124,8 +124,16 @@ def main(argv: list[str] | None = None) -> int:
             "universe; rebuild/synchronize the cash ledger before certification."
         )
 
-    start = args.start or str(universe_payload.get("selected_as_of", universe.snapshots[0].effective_date))[:10]
-    end = args.end or max(snapshot.effective_date for snapshot in universe.snapshots)
+    start = args.start or str(
+        universe_payload.get("selected_as_of", universe.snapshots[0].effective_date)
+    )[:10]
+    declared_end = str(
+        universe_payload.get(
+            "selection_end",
+            max(snapshot.effective_date for snapshot in universe.snapshots),
+        )
+    )[:10]
+    end = args.end or declared_end
     if end < start:
         parser.error("--end must not precede --start.")
 
@@ -153,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         "attestation": (
             "The reviewer attests that primary-source coverage was checked for the "
             "full market-data ticker set used by the replay, including continuity-only "
-            "historical symbols, and for the stated period; this is not merely a parsing check."
+            "historical symbols, and for the stated replay period; this is not merely a parsing check."
         ),
     }
 
@@ -178,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Bound manifest SHA256: {payload['cash_manifest_sha256']}")
     print(
         f"Certified ticker scope: {len(required_cash_tickers)} market-data symbols "
-        f"({len(required_cash_tickers - selectable)} continuity-only)"
+        f"({len(required_cash_tickers - selectable)} continuity-only) through {end}"
     )
     return 0
 
