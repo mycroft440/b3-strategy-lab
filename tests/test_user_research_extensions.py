@@ -63,6 +63,14 @@ class ResearchExtensionTests(unittest.TestCase):
         self.assertEqual(build_signals("time_series_momentum_3_6_12", rising)[-1], 1)
         self.assertEqual(build_signals("time_series_momentum_3_6_12", falling)[-1], 0)
 
+    def test_time_series_momentum_does_not_rewrite_past_signals(self) -> None:
+        candles = _candles([100.0 + index for index in range(320)])
+        original = build_signals("time_series_momentum_3_6_12", candles)
+        changed = list(candles)
+        changed[-1] = replace(changed[-1], close=1.0)
+        mutated = build_signals("time_series_momentum_3_6_12", changed)
+        self.assertEqual(original[:-1], mutated[:-1])
+
     def test_indicator_lengths_and_warmups(self) -> None:
         candles = _candles([100.0 + index * 0.1 for index in range(320)])
 
