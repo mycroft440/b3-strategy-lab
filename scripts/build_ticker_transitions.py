@@ -5,7 +5,7 @@ import csv
 import json
 import sys
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +22,7 @@ DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
 EXCLUDED_TICKERS = {"BOAC34"}
+RECENT_STALE_DAYS = 45
 
 
 def _write(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None:
@@ -32,12 +33,27 @@ def _write(path: Path, rows: list[dict[str, object]], fields: list[str]) -> None
         writer.writerows(rows)
 
 
+def _stale_category(last_quote_date: str, coverage_end: str, *, transitioned: bool) -> str:
+    """Classify an unexplained end-of-history gap without silently approving it.
+
+    A recent gap can be a temporary suspension or merely low liquidity, while an old
+    gap is more suggestive of a delisting/corporate event. Neither is evidence of a
+    resolved state. Certified replay therefore blocks on both categories until a
+    same-ISIN transition or another explicit source-backed event explains the gap.
+    """
+
+    if transitioned or last_quote_date >= coverage_end:
+        return ""
+    age = (date.fromisoformat(coverage_end) - date.fromisoformat(last_quote_date)).days
+    return "recent_stale_symbol" if age <= RECENT_STALE_DAYS else "unresolved_disappearance"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Detect deterministic ticker renames relevant to the point-in-time "
-            "backtest. Same-ISIN continuity is auto-approved; other disappearances "
-            "of relevant symbols remain fail-closed. No quote after --end is used."
+            "backtest. Same-ISIN continuity is auto-approved; every other relevant "
+            "end-of-history gap remains fail-closed. No quote after --end is used."
         )
     )
     parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
@@ -161,48 +177,68 @@ def main(argv: list[str] | None = None) -> int:
     relevant_quotes = [quote for quote in quotes if quote.ticker.upper() in relevant_tickers]
     if not relevant_quotes:
         raise ValueError("No COTAHIST rows found for relevant market-data tickers.")
-    cutoff = date.fromisoformat(coverage_end) - timedelta(days=45)
     transitioned_old = {str(row["old_ticker"]) for row in transitions}
-    unresolved: list[dict[str, object]] = []
+    blocking_gaps: list[dict[str, object]] = []
+    recent_stale = 0
+    old_unresolved = 0
     for ticker in sorted(relevant_tickers):
         items = by_ticker.get(ticker, [])
         if not items:
-            unresolved.append(
+            old_unresolved += 1
+            blocking_gaps.append(
                 {
                     "ticker": ticker,
                     "last_quote_date": "",
                     "isin": "",
                     "issuer_name": "",
+                    "category": "unresolved_disappearance",
                     "reason": "relevant ticker has no COTAHIST rows in requested replay window",
                 }
             )
             continue
         ordered = sorted(items, key=lambda item: item.date)
         last = ordered[-1]
-        if date.fromisoformat(last.date) >= cutoff or ticker in transitioned_old:
+        category = _stale_category(
+            last.date,
+            coverage_end,
+            transitioned=ticker in transitioned_old,
+        )
+        if not category:
             continue
-        unresolved.append(
+        if category == "recent_stale_symbol":
+            recent_stale += 1
+            reason = (
+                "relevant symbol has no quote through the replay horizon and the gap is "
+                "recent; temporary suspension/illiquidity is possible, but no source-backed "
+                "status or same-ISIN successor proves that the position remains correctly "
+                "valued/executable"
+            )
+        else:
+            old_unresolved += 1
+            reason = (
+                "relevant symbol disappeared before the replay horizon without an "
+                "auto-approved same-ISIN successor known by that horizon; merger, "
+                "cancellation, cash-out or other primary-source event must be supplied "
+                "before a held position can be valued through this date"
+            )
+        blocking_gaps.append(
             {
                 "ticker": ticker,
                 "last_quote_date": last.date,
                 "isin": last.isin,
                 "issuer_name": last.issuer_name,
-                "reason": (
-                    "relevant symbol disappeared before the replay horizon without an "
-                    "auto-approved same-ISIN successor known by that horizon; merger, "
-                    "cancellation, cash-out or other primary-source event must be supplied "
-                    "before a held position can be valued through this date"
-                ),
+                "category": category,
+                "reason": reason,
             }
         )
     _write(
         args.unresolved_output,
-        unresolved,
-        ["ticker", "last_quote_date", "isin", "issuer_name", "reason"],
+        blocking_gaps,
+        ["ticker", "last_quote_date", "isin", "issuer_name", "category", "reason"],
     )
 
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "method": "same_isin_continuity_only",
         "scope": "point_in_time_market_data_tickers",
         "universe_manifest": str(args.universe_manifest),
@@ -213,14 +249,18 @@ def main(argv: list[str] | None = None) -> int:
         "scoped_ticker_count": len(relevant_tickers),
         "market_data_tickers": sorted(relevant_tickers),
         "auto_approved_transitions": len(transitions),
-        "unresolved_disappearances": len(unresolved),
-        "complete": len(unresolved) == 0,
+        "recent_stale_symbols": recent_stale,
+        "older_unresolved_disappearances": old_unresolved,
+        "unresolved_disappearances": len(blocking_gaps),
+        "complete": len(blocking_gaps) == 0,
         "policy": (
             "Same-ISIN ticker changes are treated as 1:1 renames. Completeness is assessed "
             "only with information dated at or before coverage_end. Only symbols needed by "
             "the point-in-time account are used to determine completeness. Explicitly "
-            "excluded tickers are never eligible for transition or valuation. A relevant "
-            "symbol disappearance without same-ISIN continuity remains unresolved."
+            "excluded tickers are never eligible for transition or valuation. Any relevant "
+            "symbol whose quote history ends before coverage_end without a same-ISIN successor "
+            "is a blocker; a <=45-day gap is labeled recent_stale_symbol rather than silently "
+            "treated as resolved."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -233,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Scoped market-data tickers: {len(relevant_tickers)}")
     print(f"Explicitly excluded tickers: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(f"Auto-approved ticker transitions: {len(transitions)}")
-    print(f"Unresolved relevant disappearances: {len(unresolved)}")
+    print(f"Recent unexplained stale symbols: {recent_stale}")
+    print(f"Older unresolved disappearances: {old_unresolved}")
     return 0
 
 
