@@ -157,6 +157,10 @@ def main(argv: list[str] | None = None) -> int:
     audit_command = [
         python,
         "scripts/audit_realistic_backtest_inputs.py",
+        "--ticker-transitions",
+        str(args.ticker_transitions),
+        "--transition-manifest",
+        str(args.ticker_transition_manifest),
         "--output",
         str(args.audit_output),
     ]
@@ -185,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
     preflight_blockers = sorted(set([*preflight_blockers, *transition_issues]))
 
     status: dict[str, object] = {
-        "schema_version": 6,
+        "schema_version": 7,
         "start": args.start,
         "end": end,
         "source_years": source_years,
@@ -206,11 +210,13 @@ def main(argv: list[str] | None = None) -> int:
         "interpretation": (
             "The public-data runner can certify its inputs and deterministic official-open "
             "assumption. It cannot prove the exact fill of a hypothetical order. Ticker "
-            "transitions must be SHA-256-bound to the exact CSV consumed by the engine, and "
-            "realized gains that may depend on a stock-bonus tax basis are fail-closed unless "
-            "that basis is source-backed. Only documentary broker-source reconciliation may "
-            "emit the limited ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION label; CPF-wide "
-            "annual tax and total personal wealth are separate scopes."
+            "transitions must be SHA-256-bound to the exact CSV consumed by the engine. "
+            "Any realized sale potentially affected by a stock bonus remains fail-closed "
+            "until the engine both receives source-backed bonus acquisition cost and "
+            "actually applies that cost to the weighted-average tax basis. Only documentary "
+            "broker-source reconciliation may emit the limited "
+            "ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION label; CPF-wide annual tax and "
+            "total personal wealth are separate scopes."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -255,6 +261,8 @@ def main(argv: list[str] | None = None) -> int:
         str(composite_fees),
         "--ticker-transitions",
         str(args.ticker_transitions),
+        "--ticker-transition-manifest",
+        str(args.ticker_transition_manifest),
         "--selection-status",
         "retrospective_hypothesis_replay",
         "--output",
@@ -283,10 +291,12 @@ def main(argv: list[str] | None = None) -> int:
         postflight_blockers.append("backtest_summary_cash_events_are_not_certified")
     if str(summary.get("fee_quality", "")) != "certified":
         postflight_blockers.append("backtest_summary_fee_schedule_is_not_certified")
+    if summary.get("ticker_transition_binding_verified") is not True:
+        postflight_blockers.append("backtest_summary_transition_binding_not_verified")
     if args.strategy.strip().lower() == "gap_momentum" and summary.get("economic_gap_adjustment") is not True:
         postflight_blockers.append("gap_momentum_requires_economic_gap_adjustment")
     if summary.get("bonus_tax_basis_affects_realized_gain") is True:
-        postflight_blockers.append("realized_gain_depends_on_uncertified_stock_bonus_tax_basis")
+        postflight_blockers.append("realized_gain_depends_on_unapplied_stock_bonus_tax_basis")
     if not str(summary.get("terminal_month_assumption", "")).strip():
         postflight_blockers.append("terminal_month_tax_assumption_missing")
     if float(summary.get("outstanding_accrued_tax_liability", 0.0) or 0.0) > 1e-9:
@@ -351,7 +361,9 @@ def main(argv: list[str] | None = None) -> int:
     status["strict_blockers"] = []
     status["small_account_scope"] = replay_scope
     status["summary"] = str(args.output)
-    status["brokerage_final_equity"] = summary.get("brokerage_final_equity", summary.get("final_equity"))
+    status["brokerage_final_equity"] = summary.get(
+        "brokerage_final_equity", summary.get("final_equity")
+    )
     status["net_equity_after_accrued_tax"] = summary.get(
         "net_equity_after_accrued_tax", summary.get("final_equity")
     )
