@@ -63,7 +63,7 @@ class RealisticCertificationGateTests(unittest.TestCase):
             self.assertIn("ticker_transition_csv_sha256_mismatch", issues)
             self.assertIn("ticker_transition_row_count_mismatch", issues)
 
-    def test_sale_after_unpriced_stock_bonus_blocks_certified_tax_basis(self) -> None:
+    def test_sale_after_stock_bonus_blocks_certified_tax_basis(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             evidence = Path(directory) / "splits.json"
             evidence.write_text(
@@ -80,26 +80,19 @@ class RealisticCertificationGateTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            trades = [
-                {
-                    "date": "2021-04-06",
-                    "side": "SELL",
-                    "ticker": "AAA3",
-                }
-            ]
             dependencies = bonus_tax_basis_dependencies(
                 evidence,
-                trades,
+                [{"date": "2021-04-06", "side": "SELL", "ticker": "AAA3"}],
                 start="2021-01-01",
                 end="2021-12-30",
             )
             self.assertEqual(len(dependencies), 1)
             self.assertEqual(
                 dependencies[0]["reason"],
-                "source_backed_bonus_tax_basis_missing",
+                "stock_bonus_tax_basis_not_applied_by_engine",
             )
 
-    def test_source_backed_bonus_basis_removes_dependency(self) -> None:
+    def test_candidate_bonus_basis_field_does_not_bypass_unimplemented_engine_rule(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             evidence = Path(directory) / "splits.json"
             evidence.write_text(
@@ -117,15 +110,61 @@ class RealisticCertificationGateTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            self.assertEqual(
-                bonus_tax_basis_dependencies(
-                    evidence,
-                    [{"date": "2021-04-06", "side": "SELL", "ticker": "AAA3"}],
-                    start="2021-01-01",
-                    end="2021-12-30",
-                ),
-                [],
+            dependencies = bonus_tax_basis_dependencies(
+                evidence,
+                [{"date": "2021-04-06", "side": "SELL", "ticker": "AAA3"}],
+                start="2021-01-01",
+                end="2021-12-30",
             )
+            self.assertEqual(len(dependencies), 1)
+            self.assertEqual(
+                dependencies[0]["reason"],
+                "stock_bonus_tax_basis_not_applied_by_engine",
+            )
+
+    def test_bonus_basis_risk_follows_source_backed_ticker_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "splits.json"
+            transitions = root / "transitions.csv"
+            evidence.write_text(
+                json.dumps(
+                    {
+                        "events": [
+                            {
+                                "ticker": "AAA3",
+                                "ex_date": "2021-04-05",
+                                "event": "BONIFICACAO",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with transitions.open("w", newline="", encoding="utf-8") as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=["effective_date", "old_ticker", "new_ticker"],
+                    lineterminator="\n",
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "effective_date": "2021-06-01",
+                        "old_ticker": "AAA3",
+                        "new_ticker": "BBB3",
+                    }
+                )
+            dependencies = bonus_tax_basis_dependencies(
+                evidence,
+                [{"date": "2021-07-01", "side": "SELL", "ticker": "BBB3"}],
+                start="2021-01-01",
+                end="2021-12-30",
+                transition_csv_path=transitions,
+            )
+            self.assertEqual(len(dependencies), 1)
+            self.assertEqual(dependencies[0]["original_bonus_ticker"], "AAA3")
+            self.assertEqual(dependencies[0]["ticker"], "BBB3")
 
     def test_terminal_month_policy_discloses_no_later_trade_assumption(self) -> None:
         policy = terminal_month_tax_policy("2026-08-21")
