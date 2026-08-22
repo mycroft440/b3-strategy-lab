@@ -1,0 +1,42 @@
+name: Parabolic SAR immediate-exit variant once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/parabolic-sar-immediate-exit-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: parabolic-sar-immediate-exit-variant
+  cancel-in-progress: true
+
+jobs:
+  test-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and verify data
+        run: |
+          python -m py_compile scripts/test_parabolic_sar_immediate_exit_variant.py
+          python -m b3_strategy_lab verify-data --interval 1d
+      - name: Run baseline versus immediate-exit variant
+        run: python scripts/test_parabolic_sar_immediate_exit_variant.py
+      - name: Publish report and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/parabolic-sar-immediate-exit-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/parabolic_sar_immediate_exit_variant/AUDIT.json reports/parabolic_sar_immediate_exit_variant/AUDIT.md .github/workflows/parabolic-sar-immediate-exit-once.yml
+          git commit -m "Test Parabolic SAR immediate-exit variant"
+          git pull --rebase origin main
+          git push origin HEAD:main
