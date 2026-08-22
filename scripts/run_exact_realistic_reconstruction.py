@@ -18,6 +18,7 @@ from b3_strategy_lab.reconstruction_quality import (  # noqa: E402
     certified_replay_blockers,
     write_composite_fee_schedule,
 )
+from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
 from b3_strategy_lab.replay_scope import audit_small_account_replay  # noqa: E402
 
 
@@ -26,6 +27,8 @@ from b3_strategy_lab.replay_scope import audit_small_account_replay  # noqa: E40
 # order in the opening auction. Exact account labels are reserved for broker-source evidence.
 DEFAULT_B3_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
+DEFAULT_TRANSITION_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_AUDIT = Path("reports/certified_replay_input_audit.json")
 DEFAULT_STATUS = Path("reports/certified_replay_status.json")
 DEFAULT_SUMMARY = Path("reports/certified_replay_summary.json")
@@ -94,6 +97,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--refresh-actions", action="store_true")
     parser.add_argument("--b3-fee-schedule", type=Path, default=DEFAULT_B3_FEES)
     parser.add_argument("--execution-prices", type=Path, default=DEFAULT_EXECUTION)
+    parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
+    parser.add_argument(
+        "--ticker-transition-manifest",
+        type=Path,
+        default=DEFAULT_TRANSITION_MANIFEST,
+    )
     parser.add_argument("--audit-output", type=Path, default=DEFAULT_AUDIT)
     parser.add_argument("--status-output", type=Path, default=DEFAULT_STATUS)
     parser.add_argument("--output", type=Path, default=DEFAULT_SUMMARY)
@@ -124,6 +133,10 @@ def main(argv: list[str] | None = None) -> int:
             "scripts/build_ticker_transitions.py",
             "--years",
             source_years,
+            "--output",
+            str(args.ticker_transitions),
+            "--manifest",
+            str(args.ticker_transition_manifest),
         ]
         if not args.no_download:
             transitions.append("--download")
@@ -154,6 +167,11 @@ def main(argv: list[str] | None = None) -> int:
 
     end = _execution_end(args.execution_prices, args.end)
     profile = BrokerProfile.from_json(args.broker_profile)
+    transition_issues = transition_binding_issues(
+        args.ticker_transitions,
+        args.ticker_transition_manifest,
+        expected_end=end,
+    )
     preflight_blockers = certified_replay_blockers(
         audit,
         profile,
@@ -164,9 +182,10 @@ def main(argv: list[str] | None = None) -> int:
         participation_bps_at_1pct=0.0,
         max_slippage_bps=0.0,
     )
+    preflight_blockers = sorted(set([*preflight_blockers, *transition_issues]))
 
     status: dict[str, object] = {
-        "schema_version": 5,
+        "schema_version": 6,
         "start": args.start,
         "end": end,
         "source_years": source_years,
@@ -174,6 +193,8 @@ def main(argv: list[str] | None = None) -> int:
         "execution_policy": CERTIFIED_EXECUTION_POLICY,
         "market_input_audit": str(args.audit_output),
         "broker_profile": str(args.broker_profile),
+        "ticker_transition_manifest": str(args.ticker_transition_manifest),
+        "ticker_transition_binding_issues": transition_issues,
         "preflight_passed": not preflight_blockers,
         "strict_blockers": preflight_blockers,
         "certified_deterministic_replay_passed": False,
@@ -184,10 +205,12 @@ def main(argv: list[str] | None = None) -> int:
         "cpf_wide_annual_minimum_tax_scope": "OUT_OF_SCOPE",
         "interpretation": (
             "The public-data runner can certify its inputs and deterministic official-open "
-            "assumption. It cannot prove the exact fill of a hypothetical order. Only "
-            "documentary broker-source reconciliation may emit the limited "
-            "ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION label; CPF-wide annual tax "
-            "and total personal wealth are separate scopes."
+            "assumption. It cannot prove the exact fill of a hypothetical order. Ticker "
+            "transitions must be SHA-256-bound to the exact CSV consumed by the engine, and "
+            "realized gains that may depend on a stock-bonus tax basis are fail-closed unless "
+            "that basis is source-backed. Only documentary broker-source reconciliation may "
+            "emit the limited ACTUAL_BROKERAGE_ACCOUNT_EXACT_RECONCILIATION label; CPF-wide "
+            "annual tax and total personal wealth are separate scopes."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
@@ -230,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
         "0",
         "--fee-schedule",
         str(composite_fees),
+        "--ticker-transitions",
+        str(args.ticker_transitions),
         "--selection-status",
         "retrospective_hypothesis_replay",
         "--output",
@@ -260,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         postflight_blockers.append("backtest_summary_fee_schedule_is_not_certified")
     if args.strategy.strip().lower() == "gap_momentum" and summary.get("economic_gap_adjustment") is not True:
         postflight_blockers.append("gap_momentum_requires_economic_gap_adjustment")
+    if summary.get("bonus_tax_basis_affects_realized_gain") is True:
+        postflight_blockers.append("realized_gain_depends_on_uncertified_stock_bonus_tax_basis")
+    if not str(summary.get("terminal_month_assumption", "")).strip():
+        postflight_blockers.append("terminal_month_tax_assumption_missing")
     if float(summary.get("outstanding_accrued_tax_liability", 0.0) or 0.0) > 1e-9:
         # This should be impossible inside the R$20k monthly-sales certified envelope.
         # Refuse certification rather than silently relying on a modeled DARF calendar.
@@ -275,6 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     summary["modeled_slippage"] = False
     summary["certified_broker_fees"] = True
     summary["execution_policy"] = CERTIFIED_EXECUTION_POLICY
+    summary["ticker_transition_binding_verified"] = not transition_issues
     summary["strategy_selection_status"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
     summary["counterfactual_execution_exact"] = False
     summary["actual_brokerage_account_exact"] = False
