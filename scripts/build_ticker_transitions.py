@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
 from b3_strategy_lab.point_in_time import read_standard_company_equity_cotahist  # noqa: E402
+from b3_strategy_lab.realistic_certification import sha256_file  # noqa: E402
 from scripts.sync_official_universe import _parse_years  # noqa: E402
 
 
@@ -238,13 +239,16 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     manifest = {
-        "schema_version": 4,
+        "schema_version": 5,
         "method": "same_isin_continuity_only",
         "scope": "point_in_time_market_data_tickers",
         "universe_manifest": str(args.universe_manifest),
         "source_years": years,
         "requested_end": args.end,
         "coverage_end": coverage_end,
+        "transition_file": str(args.output),
+        "transition_csv_sha256": sha256_file(args.output),
+        "transition_row_count": len(transitions),
         "excluded_tickers": sorted(EXCLUDED_TICKERS),
         "scoped_ticker_count": len(relevant_tickers),
         "market_data_tickers": sorted(relevant_tickers),
@@ -260,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             "excluded tickers are never eligible for transition or valuation. Any relevant "
             "symbol whose quote history ends before coverage_end without a same-ISIN successor "
             "is a blocker; a <=45-day gap is labeled recent_stale_symbol rather than silently "
-            "treated as resolved."
+            "treated as resolved. The CSV bytes and row count are bound into this manifest."
         ),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -273,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Scoped market-data tickers: {len(relevant_tickers)}")
     print(f"Explicitly excluded tickers: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(f"Auto-approved ticker transitions: {len(transitions)}")
+    print(f"Transition CSV SHA256: {manifest['transition_csv_sha256']}")
     print(f"Recent unexplained stale symbols: {recent_stale}")
     print(f"Older unresolved disappearances: {old_unresolved}")
     return 0
