@@ -30,7 +30,7 @@ MANAGEMENT_FIELDS = (
     "max_weight",
     "signal_mode",
 )
-REQUIRED_EXECUTION_FIELDS = (
+RETROSPECTIVE_EXECUTION_FIELDS = (
     "signal",
     "execution",
     "cost_bps_per_side",
@@ -39,13 +39,41 @@ REQUIRED_EXECUTION_FIELDS = (
     "dividends_jcp",
     "income_tax",
 )
+REALISTIC_EXECUTION_FIELDS = (
+    "decision",
+    "fill",
+    "standard_market",
+    "fractional_market",
+    "standard_lot",
+    "base_slippage_bps",
+    "participation_bps_at_1pct",
+    "max_slippage_bps",
+)
+REALISTIC_ACCOUNTING_FIELDS = (
+    "initial_cash_brl",
+    "integer_shares",
+    "cash_distributions",
+    "monthly_tax_ledger",
+    "fresh_close_required",
+    "stale_price_fallback",
+)
+
+
+def _nonnegative_finite(mapping: dict[str, object], fields: tuple[str, ...]) -> bool:
+    for field in fields:
+        try:
+            value = float(mapping[field])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if not math.isfinite(value) or value < 0:
+            return False
+    return True
 
 
 def audit_freeze(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     strategy = payload.get("strategy") or {}
     management = payload.get("management") or {}
-    execution = payload.get("execution_assumptions") or {}
     name = str(strategy.get("name") or "")
     params = strategy.get("parameters") or {}
     signal_mode = str(management.get("signal_mode") or "adjusted")
@@ -57,47 +85,84 @@ def audit_freeze(path: Path) -> dict[str, object]:
     runtime_management = configs.get(management_name)
 
     checks: dict[str, bool] = {
+        "schema_version_supported": payload.get("schema_version") == 1,
         "strategy_exists": name in registered,
         "strategy_parameters_match_runtime_defaults": runtime_params == params,
         "management_exists": runtime_management is not None,
         "no_reoptimization_after_freeze": payload.get("no_reoptimization_after_freeze") is True,
-        "execution_fields_complete": all(field in execution for field in REQUIRED_EXECUTION_FIELDS),
-        "execution_is_next_session_open": (
-            execution.get("signal") == "fechamento confirmado da sessao de decisao"
-            and execution.get("execution") == "abertura da sessao seguinte de rebalanceamento"
-        ),
     }
 
     management_mismatches: dict[str, dict[str, object]] = {}
     if runtime_management is not None:
         for field in MANAGEMENT_FIELDS:
-            expected = management.get(field)
+            if field not in management:
+                continue
+            expected = management[field]
             actual = getattr(runtime_management, field)
             if actual != expected:
                 management_mismatches[field] = {"expected": expected, "actual": actual}
-    checks["management_fields_match_runtime"] = not management_mismatches
+    checks["declared_management_fields_match_runtime"] = not management_mismatches
 
-    numeric_execution_valid = True
-    for field in ("cost_bps_per_side", "slippage_bps_per_side"):
-        try:
-            value = float(execution[field])
-            numeric_execution_valid &= math.isfinite(value) and value >= 0
-        except (KeyError, TypeError, ValueError):
-            numeric_execution_valid = False
-    try:
-        numeric_execution_valid &= int(execution["lot_size"]) >= 0
-    except (KeyError, TypeError, ValueError):
-        numeric_execution_valid = False
-    checks["execution_numeric_assumptions_are_valid"] = numeric_execution_valid
+    contract_type = "unknown"
+    execution_details: dict[str, object] = {}
+    if "execution_assumptions" in payload:
+        contract_type = "retrospective_price_only"
+        execution = payload.get("execution_assumptions") or {}
+        execution_details = execution
+        checks["execution_fields_complete"] = all(
+            field in execution for field in RETROSPECTIVE_EXECUTION_FIELDS
+        )
+        checks["execution_is_next_session_open"] = (
+            execution.get("signal") == "fechamento confirmado da sessao de decisao"
+            and execution.get("execution") == "abertura da sessao seguinte de rebalanceamento"
+        )
+        checks["execution_numeric_assumptions_are_valid"] = (
+            _nonnegative_finite(execution, ("cost_bps_per_side", "slippage_bps_per_side"))
+            and isinstance(execution.get("lot_size"), int)
+            and int(execution["lot_size"]) >= 0
+        )
+    elif "execution" in payload and "accounting" in payload:
+        contract_type = "realistic_point_in_time"
+        execution = payload.get("execution") or {}
+        accounting = payload.get("accounting") or {}
+        point_in_time = payload.get("point_in_time_universe") or {}
+        execution_details = execution
+        checks["execution_fields_complete"] = all(
+            field in execution for field in REALISTIC_EXECUTION_FIELDS
+        )
+        checks["accounting_fields_complete"] = all(
+            field in accounting for field in REALISTIC_ACCOUNTING_FIELDS
+        )
+        checks["execution_is_next_session_open"] = (
+            execution.get("decision") == "confirmed close at rebalance decision session"
+            and execution.get("fill") == "next rebalance session opening"
+        )
+        checks["execution_market_contract_is_explicit"] = (
+            execution.get("standard_market") == "010"
+            and execution.get("fractional_market") == "020"
+            and int(execution.get("standard_lot", 0)) == 100
+        )
+        checks["execution_numeric_assumptions_are_valid"] = _nonnegative_finite(
+            execution,
+            ("base_slippage_bps", "participation_bps_at_1pct", "max_slippage_bps"),
+        )
+        checks["point_in_time_universe_contract_is_present"] = bool(point_in_time)
+        checks["accounting_fails_closed_on_stale_prices"] = (
+            accounting.get("fresh_close_required") is True
+            and accounting.get("stale_price_fallback") is False
+        )
+    else:
+        checks["recognized_execution_contract"] = False
 
     return {
         "path": str(path),
+        "contract_type": contract_type,
         "strategy": name,
         "strategy_parameters": params,
         "runtime_strategy_parameters": runtime_params,
         "management": management_name,
         "management_mismatches": management_mismatches,
-        "execution_assumptions": execution,
+        "execution_contract": execution_details,
         "checks": checks,
         "ready": all(checks.values()),
     }
