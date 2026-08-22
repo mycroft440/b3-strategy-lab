@@ -97,8 +97,9 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=DEFAULT_SPLIT_EVIDENCE,
         help=(
-            "Ledger de evidencia usado para assinar e verificar os manifests de candles. "
-            "Por padrão é o mesmo ledger point-in-time auditado pelo replay."
+            "Compatibility alias for --split-evidence. The realistic sync intentionally "
+            "requires both paths to resolve to the same ledger so manifests cannot be "
+            "signed by evidence different from the ledger audited by the replay."
         ),
     )
     parser.add_argument("--cash-output", type=Path, default=DEFAULT_CASH)
@@ -113,6 +114,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--action-workers", type=int, default=2)
     parser.add_argument("--allow-incomplete-cash-ledger", action="store_true")
     args = parser.parse_args(argv)
+
+    if args.dataset_split_evidence != args.split_evidence:
+        parser.error(
+            "--dataset-split-evidence must be identical to --split-evidence in realistic "
+            "mode; using two ledgers would invalidate the manifest/evidence binding."
+        )
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     if universe.get("point_in_time") is not True:
