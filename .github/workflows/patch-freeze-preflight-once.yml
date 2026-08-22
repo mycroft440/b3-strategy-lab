@@ -1,0 +1,57 @@
+name: Patch frozen-contract preflight once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-freeze-preflight-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make frozen contracts a mandatory matrix gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/full-matrix-backtest-hardened.yml')
+          text = path.read_text(encoding='utf-8')
+          marker = '      - "scripts/audit_volume_indicators.py"\n'
+          additions = marker + '      - "scripts/audit_research_freezes.py"\n'
+          if '      - "scripts/audit_research_freezes.py"\n' not in text:
+              if marker not in text:
+                  raise SystemExit('audit path marker not found')
+              text = text.replace(marker, additions, 1)
+          marker = '      - "data/corporate_actions/**"\n'
+          additions = marker + '      - "data/research_freezes/**"\n'
+          if '      - "data/research_freezes/**"\n' not in text:
+              if marker not in text:
+                  raise SystemExit('freeze path marker not found')
+              text = text.replace(marker, additions, 1)
+          marker = '            scripts/audit_matrix_results.py \\\n'
+          additions = marker + '            scripts/audit_research_freezes.py \\\n'
+          if '            scripts/audit_research_freezes.py \\\n' not in text:
+              if marker not in text:
+                  raise SystemExit('compile marker not found')
+              text = text.replace(marker, additions, 1)
+          marker = '          python scripts/audit_volume_indicators.py\n'
+          additions = marker + '          python scripts/audit_research_freezes.py\n'
+          if '          python scripts/audit_research_freezes.py\n' not in text:
+              if marker not in text:
+                  raise SystemExit('preflight marker not found')
+              text = text.replace(marker, additions, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/patch-freeze-preflight-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/full-matrix-backtest-hardened.yml .github/workflows/patch-freeze-preflight-once.yml
+          git commit -m "Gate full matrix on frozen research contracts"
+          git pull --rebase origin main
+          git push origin HEAD:main
