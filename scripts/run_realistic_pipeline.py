@@ -7,10 +7,14 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from b3_strategy_lab.realistic_certification import transition_binding_issues
-
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
+
+
 DEFAULT_STATUS = Path("reports/realistic_pipeline_status.json")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_TRANSITION_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
