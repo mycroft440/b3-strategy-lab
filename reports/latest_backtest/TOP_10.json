@@ -1,0 +1,153 @@
+{
+  "generated_at_utc": "2026-08-22T15:04:55.686761+00:00",
+  "period": {
+    "start": "2018-01-02",
+    "end": "2026-08-19"
+  },
+  "initial_cash": 1000.0,
+  "combinations": 111852,
+  "cost_bps": 3.2,
+  "slippage_bps": 10.0,
+  "result_classification": "RETROSPECTIVE_PRICE_ONLY_RESEARCH",
+  "real_money_claim_allowed": false,
+  "limitations": [
+    "strategy_and_management_selected_on_the_same_full_period",
+    "fixed_universe_is_not_survivorship_safe",
+    "dividends_and_jcp_excluded",
+    "taxes_excluded",
+    "standard_market_open_used_for_integer_share_research_execution",
+    "final_positions_marked_to_close_and_not_liquidated"
+  ],
+  "top_10": [
+    {
+      "rank": 1,
+      "trading_strategy": "parabolic_sar_trend",
+      "management_strategy": "top1_risk_adjusted_lb252_skip0_trend0_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 24062.516399670356,
+      "total_return": 23.062516399670354,
+      "cagr": 0.4458357247751794,
+      "average_annual_return": 0.5125567922296494,
+      "max_drawdown": -0.45717219245966245,
+      "trades": 134,
+      "sharpe": 1.2253010139456646
+    },
+    {
+      "rank": 2,
+      "trading_strategy": "frama_trend",
+      "management_strategy": "top1_roc_short_blend_risk_adjusted_roc12_6_3_w2_1_1_short21x2_trend0_vol63_equal_monthly_posall_windows_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 22221.30752315145,
+      "total_return": 21.22130752315145,
+      "cagr": 0.4325559196434754,
+      "average_annual_return": 0.5047901515424761,
+      "max_drawdown": -0.36433929612995786,
+      "trades": 130,
+      "sharpe": 1.198544712499162
+    },
+    {
+      "rank": 3,
+      "trading_strategy": "frama_trend",
+      "management_strategy": "top1_roc_short_blend_risk_adjusted_roc12_6_3_w2_1_1_short21x2_trend200_vol63_equal_monthly_posall_windows_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 22221.30752315145,
+      "total_return": 21.22130752315145,
+      "cagr": 0.4325559196434754,
+      "average_annual_return": 0.5047901515424761,
+      "max_drawdown": -0.36433929612995786,
+      "trades": 130,
+      "sharpe": 1.198544712499162
+    },
+    {
+      "rank": 4,
+      "trading_strategy": "parabolic_sar_trend",
+      "management_strategy": "top1_risk_adjusted_lb252_skip0_trend200_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 21854.05397834049,
+      "total_return": 20.854053978340488,
+      "cagr": 0.4297912441840075,
+      "average_annual_return": 0.5037239569905511,
+      "max_drawdown": -0.45717219245966245,
+      "trades": 126,
+      "sharpe": 1.214346979309575
+    },
+    {
+      "rank": 5,
+      "trading_strategy": "parabolic_sar_trend",
+      "management_strategy": "top1_momentum_lb252_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 19148.687051523797,
+      "total_return": 18.148687051523797,
+      "cagr": 0.40805587511163677,
+      "average_annual_return": 0.4768694542544768,
+      "max_drawdown": -0.6417975188082223,
+      "trades": 133,
+      "sharpe": 1.136853817996336
+    },
+    {
+      "rank": 6,
+      "trading_strategy": "parabolic_sar_trend",
+      "management_strategy": "top1_momentum_lb252_skip21_trend200_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 19148.687051523797,
+      "total_return": 18.148687051523797,
+      "cagr": 0.40805587511163677,
+      "average_annual_return": 0.4768694542544768,
+      "max_drawdown": -0.6417975188082223,
+      "trades": 133,
+      "sharpe": 1.136853817996336
+    },
+    {
+      "rank": 7,
+      "trading_strategy": "rsi_reversion_atr",
+      "management_strategy": "top1_risk_adjusted_lb126_skip0_trend200_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 18272.853065368483,
+      "total_return": 17.272853065368484,
+      "cagr": 0.4004352033230272,
+      "average_annual_return": 0.5110544815335294,
+      "max_drawdown": -0.554431098759524,
+      "trades": 134,
+      "sharpe": 1.0441825973620331
+    },
+    {
+      "rank": 8,
+      "trading_strategy": "rsi_reversion_trend_entry",
+      "management_strategy": "top1_risk_adjusted_lb126_skip0_trend0_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 18272.853065368483,
+      "total_return": 17.272853065368484,
+      "cagr": 0.4004352033230272,
+      "average_annual_return": 0.5110544815335294,
+      "max_drawdown": -0.554431098759524,
+      "trades": 134,
+      "sharpe": 1.0441825973620331
+    },
+    {
+      "rank": 9,
+      "trading_strategy": "rsi_reversion_trend_entry",
+      "management_strategy": "top1_risk_adjusted_lb126_skip0_trend200_vol63_equal_monthly_abs_cap1_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 18272.853065368483,
+      "total_return": 17.272853065368484,
+      "cagr": 0.4004352033230272,
+      "average_annual_return": 0.5110544815335294,
+      "max_drawdown": -0.554431098759524,
+      "trades": 134,
+      "sharpe": 1.0441825973620331
+    },
+    {
+      "rank": 10,
+      "trading_strategy": "frama_trend",
+      "management_strategy": "top1_roc_short_blend_risk_adjusted_roc12_6_3_w2_1_1_short21x2_trend0_vol63_equal_monthly_posscore_adjusted",
+      "initial_equity": 1000.0,
+      "final_equity": 18023.774792579847,
+      "total_return": 17.023774792579847,
+      "cagr": 0.39820899499834983,
+      "average_annual_return": 0.5006339713982252,
+      "max_drawdown": -0.5377374390706979,
+      "trades": 139,
+      "sharpe": 1.0970278674532568
+    }
+  ]
+}

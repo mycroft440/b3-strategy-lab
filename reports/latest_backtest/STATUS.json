@@ -1,0 +1,20 @@
+{
+  "status": "SUCCESS",
+  "generated_at_utc": "2026-08-22T15:05:08.439550+00:00",
+  "run_id": 32580051737,
+  "run_number": 99,
+  "workflow_sha": "4fb19f8f399ad67cde2e213a0db87538dc51393b",
+  "calculation_sha": "4fb19f8f399ad67cde2e213a0db87538dc51393b",
+  "source_sha_matches": true,
+  "jobs": {
+    "prepare": "success",
+    "announce": "success",
+    "backtest": "success",
+    "merge": "success"
+  },
+  "strategy_count": 234,
+  "management_count": 478,
+  "combination_count": 111852,
+  "top_n": 10,
+  "audit_ready": true
+}
