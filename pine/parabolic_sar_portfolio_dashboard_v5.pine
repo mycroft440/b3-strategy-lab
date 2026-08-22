@@ -1,0 +1,371 @@
+//@version=5
+indicator("B3 Parabolic SAR + Top 5 Carteira", shorttitle="PSAR Top5 B3", overlay=true, dynamic_requests=true)
+
+// ============================================================================
+// Recriacao em Pine v5 da combinacao vencedora do B3 Strategy Lab:
+//   parabolic_sar_trend
+//   + top1_risk_adjusted_lb252_skip0_trend0_vol63_equal_monthly_abs_cap1_adjusted
+//
+// Contrato:
+// - Dados diarios.
+// - Parabolic SAR 0.02 / 0.20 filtra elegibilidade.
+// - Momentum = close / close[252] - 1.
+// - Volatilidade = desvio-padrao amostral dos retornos diarios em 63 sessoes * sqrt(252).
+// - Score = Momentum / Volatilidade.
+// - Momentum absoluto precisa ser > 0.
+// - Ranking mensal no ultimo fechamento confirmado do mes.
+// - Top 1 e a acao escolhida; Top 2-5 sao exibidas como ranking informativo.
+// - O dashboard tambem mostra a tendencia SAR atual de todo o universo.
+//
+// Observacao: o backtest Python usa dados B3 COTAHIST verificados. O TradingView usa
+// seu proprio feed; portanto pequenos desvios de OHLC/historico podem mudar sinais.
+// ============================================================================
+
+// ----- Parametros canonicos -----
+string GP_SAR = "Parabolic SAR"
+float afStep = input.float(0.02, "AF step", minval=0.001, maxval=1.0, step=0.01, group=GP_SAR)
+float afMax  = input.float(0.20, "AF max",  minval=0.01,  maxval=1.0, step=0.01, group=GP_SAR)
+
+string GP_MGMT = "Gerenciamento de carteira"
+int momLen = input.int(252, "Momentum (pregoes)", minval=2, group=GP_MGMT)
+int volLen = input.int(63, "Volatilidade (pregoes)", minval=2, group=GP_MGMT)
+
+string GP_VIEW = "Visual"
+bool onlyBull = input.bool(true, "Mostrar somente acoes em tendencia de alta", group=GP_VIEW)
+bool showNumbers = input.bool(true, "Mostrar momentum / volatilidade / score", group=GP_VIEW)
+string txtSizeInput = input.string("small", "Tamanho do texto", options=["tiny", "small", "normal"], group=GP_VIEW)
+string txtSize = txtSizeInput == "tiny" ? size.tiny : txtSizeInput == "normal" ? size.normal : size.small
+
+// ----- Objeto usado para ultrapassar o limite global de 127 elementos em tuplas -----
+type StockMetrics
+    bool bull
+    float momentum
+    float volatility
+    float score
+    bool bullPrev
+    float momentumPrev
+    float volatilityPrev
+    float scorePrev
+    int barTime
+    int barTimePrev
+
+// ----- Parabolic SAR reproduzido a partir da implementacao Python do repositorio -----
+f_psar_state() =>
+    var bool rising = false
+    var float sar = na
+    var float extreme = na
+    var float acceleration = na
+    bool signal = false
+
+    if bar_index == 0
+        rising := false
+        sar := na
+        extreme := na
+        acceleration := na
+        signal := false
+    else
+        if bar_index == 1
+            rising := close >= close[1]
+            sar := rising ? low[1] : high[1]
+            extreme := rising ? high[1] : low[1]
+            acceleration := afStep
+
+        float candidate = sar + acceleration * (extreme - sar)
+
+        if rising
+            candidate := math.min(candidate, low[1])
+            if bar_index >= 2
+                candidate := math.min(candidate, low[2])
+
+            if low < candidate
+                rising := false
+                sar := extreme
+                extreme := low
+                acceleration := afStep
+            else
+                sar := candidate
+                if high > extreme
+                    extreme := high
+                    acceleration := math.min(afMax, acceleration + afStep)
+        else
+            candidate := math.max(candidate, high[1])
+            if bar_index >= 2
+                candidate := math.max(candidate, high[2])
+
+            if high > candidate
+                rising := true
+                sar := extreme
+                extreme := high
+                acceleration := afStep
+            else
+                sar := candidate
+                if low < extreme
+                    extreme := low
+                    acceleration := math.min(afMax, acceleration + afStep)
+
+        signal := rising and close > sar
+
+    [signal, sar]
+
+// ----- Calcula toda a informacao necessaria dentro do contexto diario da acao -----
+f_metrics() =>
+    [bull, _sar] = f_psar_state()
+    float dailyReturn = na(close[1]) or close[1] <= 0 ? na : close / close[1] - 1.0
+    float momentum = na(close[momLen]) or close[momLen] <= 0 ? na : close / close[momLen] - 1.0
+    // biased=false => estimativa amostral, equivalente ao statistics.stdev() do Python.
+    float volatility = ta.stdev(dailyReturn, volLen, false) * math.sqrt(252.0)
+    float score = bull and not na(momentum) and momentum > 0 and not na(volatility) and volatility > 0 ? momentum / volatility : na
+    StockMetrics.new(
+         bull,
+         momentum,
+         volatility,
+         score,
+         bull[1],
+         momentum[1],
+         volatility[1],
+         score[1],
+         time,
+         time[1])
+
+// ----- Universo fixo de 40 acoes usado pelo backtest -----
+// Usamos adjustment.splits para aproximar o modo price-only do laboratorio:
+// normaliza splits, sem adicionar ajuste por dividendos.
+string s01 = ticker.new("BMFBOVESPA", "ABEV3",  session.regular, adjustment.splits)
+string s02 = ticker.new("BMFBOVESPA", "BBAS3",  session.regular, adjustment.splits)
+string s03 = ticker.new("BMFBOVESPA", "BBDC3",  session.regular, adjustment.splits)
+string s04 = ticker.new("BMFBOVESPA", "BBSE3",  session.regular, adjustment.splits)
+string s05 = ticker.new("BMFBOVESPA", "BRAP4",  session.regular, adjustment.splits)
+string s06 = ticker.new("BMFBOVESPA", "BRKM5",  session.regular, adjustment.splits)
+string s07 = ticker.new("BMFBOVESPA", "CMIG4",  session.regular, adjustment.splits)
+string s08 = ticker.new("BMFBOVESPA", "CSAN3",  session.regular, adjustment.splits)
+string s09 = ticker.new("BMFBOVESPA", "CSMG3",  session.regular, adjustment.splits)
+string s10 = ticker.new("BMFBOVESPA", "CSNA3",  session.regular, adjustment.splits)
+string s11 = ticker.new("BMFBOVESPA", "CVCB3",  session.regular, adjustment.splits)
+string s12 = ticker.new("BMFBOVESPA", "EGIE3",  session.regular, adjustment.splits)
+string s13 = ticker.new("BMFBOVESPA", "EQTL3",  session.regular, adjustment.splits)
+string s14 = ticker.new("BMFBOVESPA", "FLRY3",  session.regular, adjustment.splits)
+string s15 = ticker.new("BMFBOVESPA", "GGBR3",  session.regular, adjustment.splits)
+string s16 = ticker.new("BMFBOVESPA", "GOAU4",  session.regular, adjustment.splits)
+string s17 = ticker.new("BMFBOVESPA", "HYPE3",  session.regular, adjustment.splits)
+string s18 = ticker.new("BMFBOVESPA", "IRBR3",  session.regular, adjustment.splits)
+string s19 = ticker.new("BMFBOVESPA", "ITSA4",  session.regular, adjustment.splits)
+string s20 = ticker.new("BMFBOVESPA", "ITUB4",  session.regular, adjustment.splits)
+string s21 = ticker.new("BMFBOVESPA", "JHSF3",  session.regular, adjustment.splits)
+string s22 = ticker.new("BMFBOVESPA", "KLBN11", session.regular, adjustment.splits)
+string s23 = ticker.new("BMFBOVESPA", "LREN3",  session.regular, adjustment.splits)
+string s24 = ticker.new("BMFBOVESPA", "MGLU3",  session.regular, adjustment.splits)
+string s25 = ticker.new("BMFBOVESPA", "MRVE3",  session.regular, adjustment.splits)
+string s26 = ticker.new("BMFBOVESPA", "MULT3",  session.regular, adjustment.splits)
+string s27 = ticker.new("BMFBOVESPA", "PETR4",  session.regular, adjustment.splits)
+string s28 = ticker.new("BMFBOVESPA", "QUAL3",  session.regular, adjustment.splits)
+string s29 = ticker.new("BMFBOVESPA", "RADL3",  session.regular, adjustment.splits)
+string s30 = ticker.new("BMFBOVESPA", "RAIL3",  session.regular, adjustment.splits)
+string s31 = ticker.new("BMFBOVESPA", "RENT3",  session.regular, adjustment.splits)
+string s32 = ticker.new("BMFBOVESPA", "SANB11", session.regular, adjustment.splits)
+string s33 = ticker.new("BMFBOVESPA", "SBSP3",  session.regular, adjustment.splits)
+string s34 = ticker.new("BMFBOVESPA", "SUZB3",  session.regular, adjustment.splits)
+string s35 = ticker.new("BMFBOVESPA", "TAEE11", session.regular, adjustment.splits)
+string s36 = ticker.new("BMFBOVESPA", "TUPY3",  session.regular, adjustment.splits)
+string s37 = ticker.new("BMFBOVESPA", "UGPA3",  session.regular, adjustment.splits)
+string s38 = ticker.new("BMFBOVESPA", "USIM5",  session.regular, adjustment.splits)
+string s39 = ticker.new("BMFBOVESPA", "VALE3",  session.regular, adjustment.splits)
+string s40 = ticker.new("BMFBOVESPA", "WEGE3",  session.regular, adjustment.splits)
+
+var array<string> names = array.from(
+     "ABEV3", "BBAS3", "BBDC3", "BBSE3", "BRAP4", "BRKM5", "CMIG4", "CSAN3", "CSMG3", "CSNA3",
+     "CVCB3", "EGIE3", "EQTL3", "FLRY3", "GGBR3", "GOAU4", "HYPE3", "IRBR3", "ITSA4", "ITUB4",
+     "JHSF3", "KLBN11", "LREN3", "MGLU3", "MRVE3", "MULT3", "PETR4", "QUAL3", "RADL3", "RAIL3",
+     "RENT3", "SANB11", "SBSP3", "SUZB3", "TAEE11", "TUPY3", "UGPA3", "USIM5", "VALE3", "WEGE3")
+
+var array<string> symbols = array.from(
+     s01, s02, s03, s04, s05, s06, s07, s08, s09, s10,
+     s11, s12, s13, s14, s15, s16, s17, s18, s19, s20,
+     s21, s22, s23, s24, s25, s26, s27, s28, s29, s30,
+     s31, s32, s33, s34, s35, s36, s37, s38, s39, s40)
+
+// ----- Estado atual das 40 acoes (recriado a cada barra) -----
+array<string> currentNames = array.new_string()
+array<bool> currentBull = array.new_bool()
+array<float> currentMom = array.new_float()
+array<float> currentVol = array.new_float()
+array<float> currentScore = array.new_float()
+array<float> currentSortKey = array.new_float()
+
+// ----- Candidatos do ultimo fechamento do mes anterior -----
+array<string> monthCandidateNames = array.new_string()
+array<float> monthCandidateMom = array.new_float()
+array<float> monthCandidateVol = array.new_float()
+array<float> monthCandidateScore = array.new_float()
+
+// ----- Top 5 mensal persistente -----
+var array<string> portfolioNames = array.new_string(5, "")
+var array<float> portfolioMom = array.new_float(5, na)
+var array<float> portfolioVol = array.new_float(5, na)
+var array<float> portfolioScore = array.new_float(5, na)
+var int portfolioSourceTime = na
+
+bool newMonth = timeframe.change("M")
+
+// Uma chamada request.security() por acao: exatamente 40 contextos unicos.
+for i = 0 to array.size(symbols) - 1
+    string symbolId = array.get(symbols, i)
+    string name = array.get(names, i)
+    StockMetrics m = request.security(
+         symbolId,
+         "D",
+         f_metrics(),
+         gaps=barmerge.gaps_off,
+         lookahead=barmerge.lookahead_off)
+
+    array.push(currentNames, name)
+    array.push(currentBull, m.bull)
+    array.push(currentMom, m.momentum)
+    array.push(currentVol, m.volatility)
+    array.push(currentScore, m.score)
+    // Bull elegivel primeiro; Bull com momentum <= 0 depois; Bear por ultimo.
+    float sortKey = m.bull ? (na(m.score) ? -1.0e9 : m.score) : -1.0e12
+    array.push(currentSortKey, sortKey)
+
+    if newMonth
+        if i == 0
+            portfolioSourceTime := m.barTimePrev
+        if m.bullPrev and not na(m.scorePrev)
+            array.push(monthCandidateNames, name)
+            array.push(monthCandidateMom, m.momentumPrev)
+            array.push(monthCandidateVol, m.volatilityPrev)
+            array.push(monthCandidateScore, m.scorePrev)
+
+// No primeiro pregao de cada novo mes, congela o ranking calculado no fechamento
+// confirmado do ultimo pregao do mes anterior.
+if newMonth
+    for r = 0 to 4
+        array.set(portfolioNames, r, "")
+        array.set(portfolioMom, r, na)
+        array.set(portfolioVol, r, na)
+        array.set(portfolioScore, r, na)
+
+    if array.size(monthCandidateScore) > 0
+        array<int> orderIdx = array.sort_indices(monthCandidateScore, order.descending)
+        int take = array.size(orderIdx) < 5 ? array.size(orderIdx) : 5
+        if take > 0
+            for r = 0 to take - 1
+                int sourceIndex = array.get(orderIdx, r)
+                array.set(portfolioNames, r, array.get(monthCandidateNames, sourceIndex))
+                array.set(portfolioMom, r, array.get(monthCandidateMom, sourceIndex))
+                array.set(portfolioVol, r, array.get(monthCandidateVol, sourceIndex))
+                array.set(portfolioScore, r, array.get(monthCandidateScore, sourceIndex))
+
+// ----- Helpers visuais -----
+f_pct(float x) =>
+    na(x) ? "—" : str.tostring(x * 100.0, "#.##") + "%"
+
+f_num(float x) =>
+    na(x) ? "—" : str.tostring(x, "#.###")
+
+color C_BG = color.rgb(17, 20, 26)
+color C_HEADER = color.rgb(39, 45, 55)
+color C_BULL = color.rgb(25, 105, 65)
+color C_BEAR = color.rgb(130, 45, 45)
+color C_TOP1 = color.rgb(20, 135, 75)
+color C_TOP = color.rgb(63, 78, 110)
+color C_TEXT = color.white
+color C_MUTED = color.rgb(185, 190, 200)
+
+// 52 linhas: titulo/info + Top5 + lista das 40 acoes + rodape.
+var table dash = table.new(position.top_right, 6, 52, bgcolor=C_BG, frame_color=color.gray, frame_width=1, border_color=color.new(color.gray, 55), border_width=1)
+
+if barstate.isfirst
+    table.merge_cells(dash, 0, 0, 5, 0)
+    table.merge_cells(dash, 0, 1, 5, 1)
+    table.merge_cells(dash, 0, 8, 5, 8)
+    table.merge_cells(dash, 0, 50, 5, 50)
+    table.merge_cells(dash, 0, 51, 5, 51)
+
+if barstate.islast
+    // Limpa todas as celulas que podem conter dados variaveis.
+    table.cell(dash, 0, 0, "PARABOLIC SAR + CARTEIRA TOP 5", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    string top1 = array.get(portfolioNames, 0)
+    bool top1BullNow = false
+    if top1 != ""
+        for i = 0 to array.size(currentNames) - 1
+            if array.get(currentNames, i) == top1
+                top1BullNow := array.get(currentBull, i)
+
+    string refDate = na(portfolioSourceTime) ? "aguardando fechamento mensal" : str.format_time(portfolioSourceTime, "dd/MM/yyyy")
+    string top1NowTxt = top1 == "" ? "—" : top1 + " | SAR agora: " + (top1BullNow ? "BULL" : "BEAR")
+    table.cell(dash, 0, 1, "Ranking mensal de " + refDate + " | TOP1: " + top1NowTxt, text_color=C_TEXT, bgcolor=top1BullNow ? color.new(C_BULL, 20) : color.new(C_BEAR, 20), text_size=txtSize)
+
+    // Top 5 mensal
+    table.cell(dash, 0, 2, "Rank", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 1, 2, "Acao", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 2, 2, "Mom252", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 3, 2, "Vol63", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 4, 2, "Score", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 5, 2, "Carteira", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    for r = 0 to 4
+        int row = 3 + r
+        string n = array.get(portfolioNames, r)
+        float mo = array.get(portfolioMom, r)
+        float vo = array.get(portfolioVol, r)
+        float sc = array.get(portfolioScore, r)
+        color rowBg = r == 0 and n != "" ? C_TOP1 : C_TOP
+        string actionTxt = n == "" ? "—" : r == 0 ? "INVESTIR" : "TOP " + str.tostring(r + 1)
+        table.cell(dash, 0, row, n == "" ? "—" : "#" + str.tostring(r + 1), text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+        table.cell(dash, 1, row, n == "" ? "—" : n, text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+        table.cell(dash, 2, row, showNumbers ? f_pct(mo) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+        table.cell(dash, 3, row, showNumbers ? f_pct(vo) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+        table.cell(dash, 4, row, showNumbers ? f_num(sc) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+        table.cell(dash, 5, row, actionTxt, text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+
+    table.cell(dash, 0, 8, "TENDENCIA ATUAL — PARABOLIC SAR DIARIO", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 0, 9, "Acao", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 1, 9, "SAR", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 2, 9, "Mom252", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 3, 9, "Vol63", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 4, 9, "Score", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 5, 9, "Ranking", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    // Ordena: bulls elegiveis por score, depois bulls sem momentum positivo, depois bears.
+    array<int> currentOrder = array.sort_indices(currentSortKey, order.descending)
+    int outRow = 10
+    int bullCount = 0
+
+    for p = 0 to array.size(currentOrder) - 1
+        int idx = array.get(currentOrder, p)
+        string n = array.get(currentNames, idx)
+        bool bull = array.get(currentBull, idx)
+        float mo = array.get(currentMom, idx)
+        float vo = array.get(currentVol, idx)
+        float sc = array.get(currentScore, idx)
+
+        if bull
+            bullCount += 1
+
+        bool display = not onlyBull or bull
+        if display and outRow <= 49
+            int monthlyRank = 0
+            for r = 0 to 4
+                if array.get(portfolioNames, r) == n
+                    monthlyRank := r + 1
+
+            string rankTxt = monthlyRank == 1 ? "TOP1" : monthlyRank > 1 ? "TOP" + str.tostring(monthlyRank) : na(sc) ? "Nao eleg." : "Elegivel"
+            color rowBg = monthlyRank == 1 ? C_TOP1 : bull ? color.new(C_BULL, 25) : color.new(C_BEAR, 25)
+            table.cell(dash, 0, outRow, n, text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            table.cell(dash, 1, outRow, bull ? "BULL" : "BEAR", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            table.cell(dash, 2, outRow, showNumbers ? f_pct(mo) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            table.cell(dash, 3, outRow, showNumbers ? f_pct(vo) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            table.cell(dash, 4, outRow, showNumbers ? f_num(sc) : "", text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            table.cell(dash, 5, outRow, rankTxt, text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
+            outRow += 1
+
+    // Apaga sobra de linhas da tabela para nao manter valores de barras anteriores.
+    if outRow <= 49
+        for row = outRow to 49
+            for col = 0 to 5
+                table.cell(dash, col, row, "", bgcolor=C_BG, text_size=txtSize)
+
+    table.cell(dash, 0, 50, "Acoes em BULL agora: " + str.tostring(bullCount) + "/40 | Top 5 = ranking do ultimo fechamento mensal", text_color=C_MUTED, bgcolor=C_BG, text_size=txtSize)
+    string warning = timeframe.period == "D" ? "Modo equivalente: diario | decisao mensal no fechamento confirmado" : "ATENCAO: para equivalencia com o backtest, use o grafico 1D"
+    table.cell(dash, 0, 51, warning, text_color=timeframe.period == "D" ? C_MUTED : color.yellow, bgcolor=C_BG, text_size=txtSize)
