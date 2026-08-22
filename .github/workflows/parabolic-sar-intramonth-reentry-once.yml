@@ -40,3 +40,5 @@ jobs:
           git commit -m "Test Parabolic SAR intramonth exit and reentry"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# trigger
