@@ -62,6 +62,7 @@ jobs:
             b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
             b3_strategy_lab/realistic_portfolio_core.py \
+            b3_strategy_lab/realistic_certification.py \
             b3_strategy_lab/portfolio_risk.py \
             b3_strategy_lab/point_in_time.py \
             b3_strategy_lab/cash_distributions.py \
@@ -131,6 +132,10 @@ jobs:
               raise SystemExit("public-data counterfactual must never be labeled exact")
           if status.get("source_years") != "2017:2018":
               raise SystemExit(f"2018 smoke downloaded unexpected years: {status.get('source_years')}")
+          if status.get("ticker_transition_binding_issues"):
+              raise SystemExit(
+                  f"transition CSV/manifest binding failed: {status['ticker_transition_binding_issues']}"
+              )
           runs = status["continuous_replay"]
           for label in ("raw_gap", "economic_gap"):
               summary = runs[label]
@@ -143,6 +148,10 @@ jobs:
                   raise SystemExit(f"{label}: frozen hindsight-selected strategy must retain retrospective-selection tag")
               if summary.get("counterfactual_execution_exact") is not False:
                   raise SystemExit(f"{label}: hypothetical official-open execution cannot be exact")
+              if summary.get("ticker_transition_binding_verified") is not True:
+                  raise SystemExit(f"{label}: transition binding must be verified")
+              if not str(summary.get("terminal_month_assumption", "")).strip():
+                  raise SystemExit(f"{label}: terminal-month tax assumption missing")
               if float(summary["final_equity"]) <= 0:
                   raise SystemExit(f"{label}: invalid final equity")
           print("realistic 2018 end-to-end smoke passed")
