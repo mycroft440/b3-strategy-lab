@@ -42,10 +42,6 @@ def _candidate_profile(data, ticker: str, index: int, config):
     return profile
 
 
-# Patch the preserved core once at import time. Its run_portfolio resolves these
-# module globals at execution time, so matrix, research, strict and realistic
-# users all share the same cache-compatible candidate function and the corrected
-# covariance-aware target-vol implementation.
 _core._candidate_profile = _candidate_profile
 _core._target_weights = covariance_target_weights
 
@@ -53,13 +49,7 @@ _target_weights = covariance_target_weights
 
 
 class MarketData(_core.MarketData):
-    """MarketData with optional isolated storage and verification roots.
-
-    With no custom roots this delegates to the historical research implementation
-    unchanged. Realistic point-in-time callers may use separate candle, action,
-    manifest and split-evidence paths so rebuilding a causal replay cannot mutate or
-    invalidate artifacts belonging to the broad research catalog.
-    """
+    """MarketData with optional isolated storage and verification roots."""
 
     def __init__(
         self,
@@ -80,6 +70,11 @@ class MarketData(_core.MarketData):
             for value in (data_dir, actions_dir, manifests_dir, split_evidence_path)
         )
         if not custom_roots:
+            # The public wrapper is an instrumentation boundary. Synchronize the
+            # core loader symbols immediately before delegation so unittest.mock
+            # patches and external diagnostics on this module intercept the same call.
+            _core.load_verified_candles = load_verified_candles
+            _core.load_candles = load_candles
             super().__init__(
                 tickers,
                 interval,
