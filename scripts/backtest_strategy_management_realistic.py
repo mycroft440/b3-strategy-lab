@@ -18,6 +18,10 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     load_cash_distributions,
     write_dataclass_csv,
 )
+from b3_strategy_lab.realistic_certification import (  # noqa: E402
+    bonus_tax_basis_dependencies,
+    terminal_month_tax_policy,
+)
 from b3_strategy_lab.realistic_portfolio import (  # noqa: E402
     load_transitions,
     run_realistic,
@@ -204,6 +208,25 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     payload = asdict(summary)
+    bonus_dependencies = bonus_tax_basis_dependencies(
+        args.split_evidence,
+        account.trade_ledger,
+        start=args.start,
+        end=end,
+    )
+    payload["bonus_tax_basis_affects_realized_gain"] = bool(bonus_dependencies)
+    payload["bonus_tax_basis_dependencies"] = bonus_dependencies[:100]
+    payload["bonus_tax_basis_policy"] = (
+        "Receita Federal distinguishes stock bonuses from ordinary splits for acquisition "
+        "cost. Until an event supplies source-backed tax_basis_per_new_share, any sale on/"
+        "after that ticker's bonus date is treated as tax-basis-uncertain and cannot support "
+        "a certified deterministic replay."
+    )
+    if bonus_dependencies and "__BONUS_TAX_BASIS_UNCERTIFIED" not in str(payload["validity"]):
+        payload["validity"] = str(payload["validity"]) + "__BONUS_TAX_BASIS_UNCERTIFIED"
+
+    payload.update(terminal_month_tax_policy(end))
+
     outstanding_tax = float(
         getattr(account, "outstanding_tax_liability", lambda: 0.0)()
     )
