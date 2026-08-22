@@ -40,3 +40,5 @@ jobs:
           git commit -m "Test Parabolic SAR immediate-exit variant"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# trigger
