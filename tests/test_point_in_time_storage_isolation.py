@@ -71,6 +71,17 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         index = forwarded.index("--dataset-split-evidence")
         self.assertEqual(forwarded[index + 1], "tmp/splits.json")
 
+    def test_base_sync_rejects_two_different_split_ledgers(self) -> None:
+        with self.assertRaises(SystemExit):
+            sync_base.main(
+                [
+                    "--split-evidence",
+                    "tmp/a.json",
+                    "--dataset-split-evidence",
+                    "tmp/b.json",
+                ]
+            )
+
     def test_market_data_passes_isolated_roots_to_verifier(self) -> None:
         candle = SimpleNamespace(date="2018-01-02", close=10.0, raw_close=10.0)
         manifest = SimpleNamespace(ticker="AAA3")
