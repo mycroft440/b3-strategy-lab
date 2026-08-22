@@ -1,0 +1,87 @@
+name: Gap Momentum exact-window regression once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gap-momentum-window-regression-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gap-momentum-window-regression
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate frozen contracts and signal semantics
+        run: |
+          python -m unittest tests.test_gap_momentum_frozen_semantics tests.test_research_freeze_audit -v
+          python scripts/audit_research_freezes.py
+      - name: Reproduce old window with current audited engine
+        run: |
+          mkdir -p reports/gap_momentum_regression
+          python scripts/backtest_strategy_management_combinations.py \
+            --strategies gap_momentum --start 2018-01-02 --end 2026-08-10 \
+            --initial-cash 1000 --cost-bps 0 --slippage-bps 0 --lot-size 1 --top 10 --workers 2 \
+            --output reports/gap_momentum_regression/current_engine_old_window_zero_zero.csv.gz
+      - name: Write exact-window result
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import csv, gzip, json, os
+          from pathlib import Path
+          root = Path('reports/gap_momentum_regression')
+          path = root / 'current_engine_old_window_zero_zero.csv.gz'
+          target = 'top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted'
+          with gzip.open(path, 'rt', encoding='utf-8', newline='') as handle:
+              rows = list(csv.DictReader(handle))
+          matches = [r for r in rows if r['trading_strategy'] == 'gap_momentum' and r['management_strategy'] == target]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one row, got {len(matches)}')
+          r = matches[0]
+          old = 31.1689
+          current = float(r['total_return'])
+          payload = {
+              'source_sha': os.environ['SOURCE_SHA'],
+              'strategy': 'gap_momentum',
+              'parameters': {'period': 40, 'signal_period': 20},
+              'management': target,
+              'start': r['start'],
+              'end': r['end'],
+              'cost_bps': 0.0,
+              'slippage_bps': 0.0,
+              'trades': int(r['trades']),
+              'turnover': float(r['turnover']),
+              'final_equity': float(r['final_equity']),
+              'total_return': current,
+              'cagr': float(r['cagr']),
+              'average_annual_return': float(r['average_annual_return']),
+              'max_drawdown': float(r['max_drawdown']),
+              'historical_reported_total_return': old,
+              'absolute_total_return_difference': current - old,
+              'relative_return_difference': (current - old) / old,
+              'reproduces_old_within_1pct_relative': abs(current - old) / old <= 0.01,
+          }
+          (root / 'OLD_WINDOW_AUDIT.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          PY
+      - name: Publish and self-remove
+        run: |
+          rm .github/workflows/gap-momentum-window-regression-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/gap_momentum_regression/OLD_WINDOW_AUDIT.json .github/workflows/gap-momentum-window-regression-once.yml
+          git commit -m "Compare Gap Momentum on historical exact window"
+          git pull --rebase origin main
+          git push origin HEAD:main
