@@ -18,6 +18,8 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         expected_actions = "data/actions_point_in_time"
         expected_manifests = "data/manifests_point_in_time"
         expected_splits = "data/corporate_actions/point_in_time_split_evidence.json"
+        expected_transitions = "data/corporate_actions/ticker_transitions.csv"
+        expected_transition_manifest = "data/corporate_actions/ticker_transitions.manifest.json"
 
         self.assertEqual(str(sync_base.DEFAULT_DATA), expected_data)
         self.assertEqual(str(sync_base.DEFAULT_ACTIONS), expected_actions)
@@ -27,14 +29,24 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         self.assertEqual(str(backtest.DEFAULT_ACTIONS), expected_actions)
         self.assertEqual(str(backtest.DEFAULT_MANIFESTS), expected_manifests)
         self.assertEqual(str(backtest.DEFAULT_SPLIT_EVIDENCE), expected_splits)
+        self.assertEqual(str(backtest.DEFAULT_TRANSITIONS), expected_transitions)
+        self.assertEqual(
+            str(backtest.DEFAULT_TRANSITION_MANIFEST), expected_transition_manifest
+        )
         self.assertEqual(str(audit.DEFAULT_DATA), expected_data)
         self.assertEqual(str(audit.DEFAULT_ACTIONS), expected_actions)
         self.assertEqual(str(audit.DEFAULT_MANIFESTS), expected_manifests)
         self.assertEqual(str(audit.DEFAULT_SPLITS), expected_splits)
+        self.assertEqual(str(audit.DEFAULT_TICKER_TRANSITIONS), expected_transitions)
+        self.assertEqual(str(audit.DEFAULT_TRANSITIONS), expected_transition_manifest)
         self.assertEqual(str(walk_forward.DEFAULT_DATA), expected_data)
         self.assertEqual(str(walk_forward.DEFAULT_ACTIONS), expected_actions)
         self.assertEqual(str(walk_forward.DEFAULT_MANIFESTS), expected_manifests)
         self.assertEqual(str(walk_forward.DEFAULT_SPLIT_EVIDENCE), expected_splits)
+        self.assertEqual(str(walk_forward.DEFAULT_TRANSITIONS), expected_transitions)
+        self.assertEqual(
+            str(walk_forward.DEFAULT_TRANSITION_MANIFEST), expected_transition_manifest
+        )
 
     def test_realistic_sync_injects_all_isolated_roots(self) -> None:
         with patch.object(sync_realistic.base, "main", return_value=0) as delegated:
