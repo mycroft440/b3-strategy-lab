@@ -56,8 +56,9 @@ def main(argv: list[str] | None = None) -> int:
         arguments.extend(["--split-evidence", split_evidence])
 
     # The evidence hashed into the point-in-time manifests must be the exact same
-    # file that is later audited for the replay. A caller may override both paths,
-    # but a single --split-evidence override remains sufficient and deterministic.
+    # file that is later audited for the replay. One --split-evidence override is
+    # sufficient; if a caller explicitly supplies --dataset-split-evidence too, the
+    # base synchronizer rejects the invocation unless both paths are identical.
     if _option_value(arguments, "--dataset-split-evidence") is None:
         arguments.extend(["--dataset-split-evidence", split_evidence])
 
