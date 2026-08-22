@@ -8,6 +8,7 @@ from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
 from b3_strategy_lab.indicator_strategies import INDICATOR_STRATEGIES
 from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
+from b3_strategy_lab.trend_strategies import TREND_STRATEGIES
 from b3_strategy_lab.strategies import (
     STRATEGIES,
     STRATEGY_INFO,
@@ -52,19 +53,21 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertAlmostEqual(values[2], 100 - 100 / (1 + 2_200 / 3_000))
         self.assertAlmostEqual(values[3], 70.0)
 
-    def test_complete_catalog_includes_24_indicator_strategies(self) -> None:
+    def test_complete_catalog_includes_indicator_and_trend_strategies(self) -> None:
         self.assertEqual(len(ADDITIONAL_STRATEGIES), 130)
         self.assertEqual(len(RESEARCHED_STRATEGIES), 12)
         self.assertEqual(len(EXTENDED_STRATEGIES), 21)
         self.assertEqual(len(INDICATOR_STRATEGIES), 24)
-        self.assertEqual(len(sweep_strategies()), 213)
-        self.assertEqual(len(portfolio_strategies()), 214)
+        self.assertEqual(len(TREND_STRATEGIES), 20)
+        self.assertEqual(len(sweep_strategies()), 233)
+        self.assertEqual(len(portfolio_strategies()), 234)
 
         groups = [
             {strategy.name for strategy in ADDITIONAL_STRATEGIES},
             {strategy.name for strategy in RESEARCHED_STRATEGIES},
             {strategy.name for strategy in EXTENDED_STRATEGIES},
             {strategy.name for strategy in INDICATOR_STRATEGIES},
+            {strategy.name for strategy in TREND_STRATEGIES},
         ]
         self.assertTrue(all(group <= set(STRATEGIES) for group in groups))
         for index, group in enumerate(groups):
@@ -119,8 +122,7 @@ class StrategyInterfaceTests(unittest.TestCase):
             ),
             (
                 "down_streak_reversion",
-                {"streak_length": 2, "ibs_lower": 0.4, "ibs_upper": 0.8, "trend_window": 0, "max_hold": 3},
-            ),
+                {"streak_length": 2, "ibs_lower": 0.4, "ibs_upper": 0.8, "trend_window": 0, "max_hold": 3}),
             (
                 "range_expansion_breakout",
                 {
@@ -135,13 +137,11 @@ class StrategyInterfaceTests(unittest.TestCase):
             ),
             (
                 "chandelier_breakout",
-                {"lookback": 3, "atr_period": 3, "atr_mult": 2, "volume_window": 0, "volume_mult": 0},
-            ),
+                {"lookback": 3, "atr_period": 3, "atr_mult": 2, "volume_window": 0, "volume_mult": 0}),
             ("supertrend_follow", {"atr_period": 3, "atr_mult": 2}),
             (
                 "keltner_breakout",
-                {"window": 3, "atr_period": 3, "atr_mult": 1.5, "exit_z": 0, "trend_window": 0},
-            ),
+                {"window": 3, "atr_period": 3, "atr_mult": 1.5, "exit_z": 0, "trend_window": 0}),
         ]
 
         for strategy, params in strategies:
