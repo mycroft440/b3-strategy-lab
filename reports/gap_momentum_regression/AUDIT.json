@@ -1,0 +1,65 @@
+{
+  "source_sha": "e76b8a2b618c488e2180b2fc313fc53b600aa5df",
+  "strategy": "gap_momentum",
+  "parameters": {
+    "period": 40,
+    "signal_period": 20
+  },
+  "management": "top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted",
+  "historical_reported_zero_friction_total_return": 31.1689,
+  "cases": [
+    {
+      "case": "zero_zero",
+      "cost_bps": 0.0,
+      "slippage_bps": 0.0,
+      "rank_within_gap_momentum": 1,
+      "strategy_params": "period=40;signal_period=20",
+      "start": "2018-01-02",
+      "end": "2026-08-19",
+      "trades": 444,
+      "final_equity": 28906.427979893248,
+      "total_return": 27.906427979893248,
+      "cagr": 0.47690316092735663,
+      "average_annual_return": 0.5136862547711533,
+      "max_drawdown": -0.5633293847571004,
+      "sharpe": 1.150686685917468,
+      "turnover": 427.42813757724383
+    },
+    {
+      "case": "freeze_3_10",
+      "cost_bps": 3.0,
+      "slippage_bps": 10.0,
+      "rank_within_gap_momentum": 1,
+      "strategy_params": "period=40;signal_period=20",
+      "start": "2018-01-02",
+      "end": "2026-08-19",
+      "trades": 443,
+      "final_equity": 16677.299229117532,
+      "total_return": 15.677299229117533,
+      "cagr": 0.3856814867783356,
+      "average_annual_return": 0.42744069836842646,
+      "max_drawdown": -0.6245727708797482,
+      "sharpe": 0.9972914682364314,
+      "turnover": 425.8437553574201
+    },
+    {
+      "case": "current_3_2_10",
+      "cost_bps": 3.2,
+      "slippage_bps": 10.0,
+      "rank_within_gap_momentum": 1,
+      "strategy_params": "period=40;signal_period=20",
+      "start": "2018-01-02",
+      "end": "2026-08-19",
+      "trades": 446,
+      "final_equity": 16483.07478723074,
+      "total_return": 15.483074787230741,
+      "cagr": 0.3838011751426862,
+      "average_annual_return": 0.4254990616741085,
+      "max_drawdown": -0.625826556982142,
+      "sharpe": 0.9938768949924266,
+      "turnover": 425.9031643006722
+    }
+  ],
+  "zero_friction_reproduces_historical_within_1pct_relative": false,
+  "friction_effect_only_total_return_delta": -12.423353192662507
+}
