@@ -21,6 +21,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
 from b3_strategy_lab.realistic_certification import (  # noqa: E402
     bonus_tax_basis_dependencies,
     terminal_month_tax_policy,
+    transition_binding_issues,
 )
 from b3_strategy_lab.realistic_portfolio import (  # noqa: E402
     load_transitions,
@@ -48,6 +49,7 @@ DEFAULT_TRADES = Path("reports/realistic_account_trades.csv")
 DEFAULT_CASH_LEDGER = Path("reports/realistic_account_distributions.csv")
 DEFAULT_TAX = Path("reports/realistic_account_tax.csv")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
+DEFAULT_TRANSITION_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 
 _load_transitions = load_transitions
 
@@ -87,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
+    parser.add_argument(
+        "--ticker-transition-manifest",
+        type=Path,
+        default=DEFAULT_TRANSITION_MANIFEST,
+    )
     parser.add_argument("--strategy", default="gap_momentum")
     parser.add_argument(
         "--management",
@@ -162,6 +169,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("No market session exists at or before --end.")
     end = max(eligible_end_dates)
 
+    transition_issues = transition_binding_issues(
+        args.ticker_transitions,
+        args.ticker_transition_manifest,
+        expected_end=end,
+    )
+
     cash_manifest_tickers = {
         str(item).strip().upper()
         for item in cash_manifest.get("market_data_tickers", [])
@@ -208,19 +221,26 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     payload = asdict(summary)
+    payload["ticker_transition_binding_verified"] = not transition_issues
+    payload["ticker_transition_binding_issues"] = transition_issues
+    if transition_issues and "__UNBOUND_TICKER_TRANSITIONS" not in str(payload["validity"]):
+        payload["validity"] = str(payload["validity"]) + "__UNBOUND_TICKER_TRANSITIONS"
+
     bonus_dependencies = bonus_tax_basis_dependencies(
         args.split_evidence,
         account.trade_ledger,
         start=args.start,
         end=end,
+        transition_csv_path=args.ticker_transitions,
     )
     payload["bonus_tax_basis_affects_realized_gain"] = bool(bonus_dependencies)
     payload["bonus_tax_basis_dependencies"] = bonus_dependencies[:100]
     payload["bonus_tax_basis_policy"] = (
         "Receita Federal distinguishes stock bonuses from ordinary splits for acquisition "
-        "cost. Until an event supplies source-backed tax_basis_per_new_share, any sale on/"
-        "after that ticker's bonus date is treated as tax-basis-uncertain and cannot support "
-        "a certified deterministic replay."
+        "cost. The current engine does not yet apply issuer-specific bonus cost to weighted "
+        "average tax basis. Therefore any sale on/after a bonus date, including after a "
+        "source-backed ticker rename, is tax-basis-uncertain and cannot support a certified "
+        "deterministic replay."
     )
     if bonus_dependencies and "__BONUS_TAX_BASIS_UNCERTIFIED" not in str(payload["validity"]):
         payload["validity"] = str(payload["validity"]) + "__BONUS_TAX_BASIS_UNCERTIFIED"
