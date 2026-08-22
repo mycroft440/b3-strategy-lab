@@ -85,3 +85,5 @@ jobs:
           git commit -m "Compare Gap Momentum on historical exact window"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# trigger
