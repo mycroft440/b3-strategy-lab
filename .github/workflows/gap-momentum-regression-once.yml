@@ -1,0 +1,109 @@
+name: Gap Momentum regression audit once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gap-momentum-regression-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate current strategy implementation
+        run: |
+          python -m py_compile b3_strategy_lab/researched_strategies.py scripts/backtest_strategy_management_combinations.py
+          python -m unittest discover -s tests -v
+      - name: Run Gap Momentum friction regression
+        run: |
+          set -euo pipefail
+          mkdir -p reports/gap_momentum_regression
+          python scripts/backtest_strategy_management_combinations.py \
+            --strategies gap_momentum --start 2018-01-02 --initial-cash 1000 \
+            --cost-bps 0 --slippage-bps 0 --lot-size 1 --top 10 --workers 2 \
+            --output reports/gap_momentum_regression/zero_zero.csv.gz
+          python scripts/backtest_strategy_management_combinations.py \
+            --strategies gap_momentum --start 2018-01-02 --initial-cash 1000 \
+            --cost-bps 3 --slippage-bps 10 --lot-size 1 --top 10 --workers 2 \
+            --output reports/gap_momentum_regression/freeze_3_10.csv.gz
+          python scripts/backtest_strategy_management_combinations.py \
+            --strategies gap_momentum --start 2018-01-02 --initial-cash 1000 \
+            --cost-bps 3.2 --slippage-bps 10 --lot-size 1 --top 10 --workers 2 \
+            --output reports/gap_momentum_regression/current_3_2_10.csv.gz
+      - name: Build exact comparison report
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import csv, gzip, json, os
+          from pathlib import Path
+
+          root = Path('reports/gap_momentum_regression')
+          target = 'top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted'
+          cases = [
+              ('zero_zero', 0.0, 0.0),
+              ('freeze_3_10', 3.0, 10.0),
+              ('current_3_2_10', 3.2, 10.0),
+          ]
+          rows = []
+          for name, cost, slip in cases:
+              with gzip.open(root / f'{name}.csv.gz', 'rt', encoding='utf-8', newline='') as handle:
+                  all_rows = list(csv.DictReader(handle))
+              matches = [row for row in all_rows if row['trading_strategy'] == 'gap_momentum' and row['management_strategy'] == target]
+              if len(matches) != 1:
+                  raise SystemExit(f'{name}: expected exactly one target row, got {len(matches)}')
+              row = matches[0]
+              rows.append({
+                  'case': name,
+                  'cost_bps': cost,
+                  'slippage_bps': slip,
+                  'rank_within_gap_momentum': int(row['rank']),
+                  'strategy_params': row['strategy_params'],
+                  'start': row['start'],
+                  'end': row['end'],
+                  'trades': int(row['trades']),
+                  'final_equity': float(row['final_equity']),
+                  'total_return': float(row['total_return']),
+                  'cagr': float(row['cagr']),
+                  'average_annual_return': float(row['average_annual_return']),
+                  'max_drawdown': float(row['max_drawdown']),
+                  'sharpe': float(row['sharpe']),
+                  'turnover': float(row['turnover']),
+              })
+          payload = {
+              'source_sha': os.environ['SOURCE_SHA'],
+              'strategy': 'gap_momentum',
+              'parameters': {'period': 40, 'signal_period': 20},
+              'management': target,
+              'historical_reported_zero_friction_total_return': 31.1689,
+              'cases': rows,
+          }
+          zero = rows[0]['total_return']
+          payload['zero_friction_reproduces_historical_within_1pct_relative'] = abs(zero - 31.1689) / 31.1689 <= 0.01
+          payload['friction_effect_only_total_return_delta'] = rows[2]['total_return'] - rows[0]['total_return']
+          (root / 'AUDIT.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          md = ['# Gap Momentum 40/20 — regressao de premissas', '', f"Source SHA: `{payload['source_sha']}`", '', '| Caso | Custo bps | Slippage bps | Equity final | Retorno total | CAGR | Trades | DD max |', '|---|---:|---:|---:|---:|---:|---:|---:|']
+          for row in rows:
+              md.append(f"| {row['case']} | {row['cost_bps']:.1f} | {row['slippage_bps']:.1f} | R$ {row['final_equity']:.2f} | {row['total_return']*100:.2f}% | {row['cagr']*100:.2f}% | {row['trades']} | {row['max_drawdown']*100:.2f}% |")
+          md += ['', f"Reproduz o retorno historico zero-friction de 3116,89% dentro de 1% relativo: **{payload['zero_friction_reproduces_historical_within_1pct_relative']}**"]
+          (root / 'AUDIT.md').write_text('\n'.join(md) + '\n', encoding='utf-8')
+          PY
+      - name: Publish audit and remove one-shot workflow
+        run: |
+          set -euo pipefail
+          rm .github/workflows/gap-momentum-regression-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/gap_momentum_regression/AUDIT.json reports/gap_momentum_regression/AUDIT.md .github/workflows/gap-momentum-regression-once.yml
+          git commit -m "Audit Gap Momentum regression assumptions"
+          git push origin HEAD:main
