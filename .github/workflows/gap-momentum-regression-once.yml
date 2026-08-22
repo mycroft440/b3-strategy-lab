@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: gap-momentum-regression-audit
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -22,8 +26,9 @@ jobs:
           python-version: "3.12"
       - name: Validate current strategy implementation
         run: |
-          python -m py_compile b3_strategy_lab/researched_strategies.py scripts/backtest_strategy_management_combinations.py
+          python -m py_compile b3_strategy_lab/researched_strategies.py scripts/backtest_strategy_management_combinations.py scripts/audit_research_freezes.py
           python -m unittest discover -s tests -v
+          python scripts/audit_research_freezes.py
       - name: Run Gap Momentum friction regression
         run: |
           set -euo pipefail
@@ -106,6 +111,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- reports/gap_momentum_regression/AUDIT.json reports/gap_momentum_regression/AUDIT.md .github/workflows/gap-momentum-regression-once.yml
           git commit -m "Audit Gap Momentum regression assumptions"
+          git pull --rebase origin main
           git push origin HEAD:main
 
-# trigger
+# robust trigger
