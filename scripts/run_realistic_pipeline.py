@@ -7,9 +7,13 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from b3_strategy_lab.realistic_certification import transition_binding_issues
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATUS = Path("reports/realistic_pipeline_status.json")
+DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
+DEFAULT_TRANSITION_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 FREEZE_DATE = "2026-08-19"
 
 
@@ -22,7 +26,9 @@ def _read(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _account_classification(audit: dict[str, object]) -> str:
+def _account_classification(audit: dict[str, object], summary: dict[str, object]) -> str:
+    if summary.get("bonus_tax_basis_affects_realized_gain") is True:
+        return "REALISTIC_ACCOUNT_ESTIMATE_WITH_UNCERTIFIED_BONUS_TAX_BASIS"
     return (
         "CERTIFIED_MARKET_INPUTS_COUNTERFACTUAL_REPLAY"
         if audit.get("ready_for_certified_market_inputs")
@@ -127,6 +133,23 @@ def main(argv: list[str] | None = None) -> int:
     if audit_proc.returncode not in {0, 2}:
         raise RuntimeError(f"Input audit exited with {audit_proc.returncode}.")
 
+    audit_details = audit.get("details") if isinstance(audit.get("details"), dict) else {}
+    audit_end = str(audit_details.get("audit_end", "")) if audit_details else ""
+    transition_issues = transition_binding_issues(
+        DEFAULT_TRANSITIONS,
+        DEFAULT_TRANSITION_MANIFEST,
+        expected_end=audit_end or None,
+    )
+    if transition_issues:
+        audit["ready_for_certified_market_inputs"] = False
+        existing = [
+            str(item) for item in audit.get("certified_market_input_blockers", [])
+        ]
+        audit["certified_market_input_blockers"] = sorted(
+            set([*existing, *transition_issues])
+        )
+    audit["ticker_transition_binding_issues"] = transition_issues
+
     runs: list[dict[str, object]] = []
     for label, economic in (("raw_gap", False), ("economic_gap", True)):
         summary_path = Path(f"reports/realistic_{label}_summary.json")
@@ -155,7 +178,10 @@ def main(argv: list[str] | None = None) -> int:
             command.append("--economic-gap-adjustment")
         _run(command)
         summary = _read(summary_path)
-        summary["account_reconstruction_classification"] = _account_classification(audit)
+        summary["account_reconstruction_classification"] = _account_classification(
+            audit, summary
+        )
+        summary["ticker_transition_binding_verified"] = not transition_issues
         summary["strategy_selection_classification"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
         summary["ex_ante_selection_claim_allowed"] = False
         summary["counterfactual_execution_exact"] = False
@@ -204,19 +230,22 @@ def main(argv: list[str] | None = None) -> int:
     raw = next(item for item in runs if item["label"] == "raw_gap")
     economic = next(item for item in runs if item["label"] == "economic_gap")
     certified_market_inputs = bool(audit.get("ready_for_certified_market_inputs"))
+    if any(item.get("bonus_tax_basis_affects_realized_gain") is True for item in runs):
+        certified_market_inputs = False
     walk_scope = (
         "full_strategy_and_management_catalog"
         if args.walk_forward_all_strategies
         else "frozen_gap_momentum_managements_only"
     )
     status = {
-        "schema_version": 6,
+        "schema_version": 7,
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),
         "source_years": source_years,
         "methodology_frozen_at": FREEZE_DATE,
         "input_audit": audit,
+        "ticker_transition_binding_issues": transition_issues,
         "continuous_replay": {
             "selection_status": "RETROSPECTIVE_HYPOTHESIS_REPLAY",
             "ex_ante_selection_claim_allowed": False,
@@ -247,10 +276,12 @@ def main(argv: list[str] | None = None) -> int:
         "actual_personal_account_runner": "scripts/reconcile_actual_personal_account.py",
         "prospective_selection_validation_begins": FREEZE_DATE,
         "interpretation": (
-            "Market-input certification, counterfactual execution and strategy selection "
-            "are separate claims. Certified COTAHIST inputs improve reproducibility but do "
-            "not prove a hypothetical fill. Exact brokerage-account reconciliation requires "
-            "actual broker fills, cash events and documentary START_OF_DAY/END_OF_DAY snapshots."
+            "Market-input certification, counterfactual execution, tax-basis completeness "
+            "and strategy selection are separate claims. Certified COTAHIST inputs improve "
+            "reproducibility but do not prove a hypothetical fill. A sale potentially "
+            "affected by a stock bonus remains tax-basis-uncertified until source-backed "
+            "bonus cost is provided. Exact brokerage-account reconciliation requires actual "
+            "broker fills, cash events and documentary START_OF_DAY/END_OF_DAY snapshots."
         ),
     }
     args.status_output.parent.mkdir(parents=True, exist_ok=True)
