@@ -58,8 +58,9 @@ def transition_binding_issues(
         issues.append("ticker_transition_row_count_mismatch")
 
     declared_file = str(payload.get("transition_file", "")).strip()
-    if declared_file and Path(declared_file).as_posix() != csv_path.as_posix():
-        issues.append("ticker_transition_manifest_file_path_mismatch")
+    if declared_file:
+        if Path(declared_file).resolve() != csv_path.resolve():
+            issues.append("ticker_transition_manifest_file_path_mismatch")
 
     if expected_end:
         coverage_end = str(payload.get("coverage_end", ""))[:10]
@@ -77,22 +78,35 @@ def _row_value(row: object, name: str, default: object = "") -> object:
     return getattr(row, name, default)
 
 
+def _transition_rows(path: Path | str | None) -> list[dict[str, str]]:
+    if path is None:
+        return []
+    source = Path(path)
+    if not source.exists():
+        return []
+    with source.open(newline="", encoding="utf-8") as file:
+        return [dict(row) for row in csv.DictReader(file)]
+
+
 def bonus_tax_basis_dependencies(
     split_evidence_path: Path | str,
     trade_rows: Iterable[object],
     *,
     start: str,
     end: str,
+    transition_csv_path: Path | str | None = None,
 ) -> list[dict[str, object]]:
     """Find realized sales that may depend on an unsupported stock-bonus tax basis.
 
     Receita Federal distinguishes bonificacoes from ordinary stock splits for cost
-    basis. The current public market-data ledger proves share-count ratios but does not
-    prove the issuer-specific capitalized-profit/reserve amount that must be added to
-    tax basis. The conservative rule is therefore to flag any sale of the same ticker
-    on/after a bonus event within the reconstructed history. This can over-block a sale
-    of shares acquired only after the bonus, but it cannot silently certify an incorrect
-    taxable gain.
+    basis. The current engine changes quantity for a bonus but does not yet add the
+    issuer-specific capitalized-profit/reserve amount to acquisition cost. Therefore
+    *no* stock-bonus event is considered tax-basis-supported yet, even if a future
+    evidence file contains a candidate cost field. Certification stays fail-closed until
+    the account engine actually consumes and tests that basis.
+
+    Risk is propagated through source-backed 1:1 ticker transitions so a later sale of
+    a renamed symbol cannot escape the gate.
     """
 
     source = Path(split_evidence_path)
@@ -104,7 +118,7 @@ def bonus_tax_basis_dependencies(
             }
         ]
     payload = json.loads(source.read_text(encoding="utf-8"))
-    bonuses: list[dict[str, str]] = []
+    bonuses: list[dict[str, object]] = []
     for event in payload.get("events") or []:
         label = str(event.get("event", "")).strip().upper()
         ex_date = str(event.get("ex_date", ""))[:10]
@@ -113,18 +127,33 @@ def bonus_tax_basis_dependencies(
             continue
         if ex_date > end:
             continue
-        # Source-backed tax basis can be added later without changing this API.
-        tax_basis = event.get("tax_basis_per_new_share")
-        try:
-            supported = tax_basis is not None and float(tax_basis) >= 0.0
-        except (TypeError, ValueError):
-            supported = False
-        if supported:
-            continue
-        bonuses.append({"ticker": ticker, "ex_date": ex_date, "event": label})
+        bonuses.append(
+            {
+                "ticker": ticker,
+                "ex_date": ex_date,
+                "event": label,
+                "affected_tickers": {ticker},
+            }
+        )
 
     if not bonuses:
         return []
+
+    transitions = sorted(
+        _transition_rows(transition_csv_path),
+        key=lambda row: str(row.get("effective_date", "")),
+    )
+    for bonus in bonuses:
+        affected = bonus["affected_tickers"]
+        assert isinstance(affected, set)
+        for transition in transitions:
+            effective = str(transition.get("effective_date", ""))[:10]
+            if not effective or effective < str(bonus["ex_date"]) or effective > end:
+                continue
+            old = str(transition.get("old_ticker", "")).strip().upper()
+            new = str(transition.get("new_ticker", "")).strip().upper()
+            if old in affected and new:
+                affected.add(new)
 
     dependencies: list[dict[str, object]] = []
     for row in trade_rows:
@@ -135,18 +164,27 @@ def bonus_tax_basis_dependencies(
         if not ticker or not sale_date or sale_date < start or sale_date > end:
             continue
         for bonus in bonuses:
-            if ticker == bonus["ticker"] and sale_date >= bonus["ex_date"]:
+            affected = bonus["affected_tickers"]
+            assert isinstance(affected, set)
+            if ticker in affected and sale_date >= str(bonus["ex_date"]):
                 dependencies.append(
                     {
                         "ticker": ticker,
+                        "original_bonus_ticker": bonus["ticker"],
                         "bonus_ex_date": bonus["ex_date"],
                         "sale_date": sale_date,
                         "event": bonus["event"],
-                        "reason": "source_backed_bonus_tax_basis_missing",
+                        "reason": "stock_bonus_tax_basis_not_applied_by_engine",
                     }
                 )
     unique = {
-        (item["ticker"], item["bonus_ex_date"], item["sale_date"], item["event"]): item
+        (
+            item["ticker"],
+            item["original_bonus_ticker"],
+            item["bonus_ex_date"],
+            item["sale_date"],
+            item["event"],
+        ): item
         for item in dependencies
     }
     return [unique[key] for key in sorted(unique)]
