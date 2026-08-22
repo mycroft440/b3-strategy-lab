@@ -16,6 +16,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     PointInTimeUniverse,
     load_cash_distributions,
 )
+from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
 from b3_strategy_lab.realistic_portfolio import load_transitions, run_realistic  # noqa: E402
 from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
@@ -29,6 +30,7 @@ from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_SNAPSHOTS,
     DEFAULT_SPLIT_EVIDENCE,
     DEFAULT_TRANSITIONS,
+    DEFAULT_TRANSITION_MANIFEST,
     DEFAULT_UNIVERSE,
 )
 from scripts.research_portfolio_allocation import MarketData, _configs  # noqa: E402
@@ -87,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TRANSITIONS)
+    parser.add_argument(
+        "--ticker-transition-manifest",
+        type=Path,
+        default=DEFAULT_TRANSITION_MANIFEST,
+    )
     strategy_group = parser.add_mutually_exclusive_group()
     strategy_group.add_argument("--strategies", nargs="+")
     strategy_group.add_argument(
@@ -156,6 +163,19 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if len(evaluation_dates) < 2:
         parser.error("Insufficient market sessions inside the requested walk-forward window.")
+
+    walk_end = max(evaluation_dates)
+    transition_issues = transition_binding_issues(
+        args.ticker_transitions,
+        args.ticker_transition_manifest,
+        expected_end=walk_end,
+    )
+    if transition_issues:
+        parser.error(
+            "Walk-forward refuses unbound/incomplete ticker transitions: "
+            + ", ".join(transition_issues)
+        )
+
     pricebook = ExecutionPriceBook.from_csv(args.execution_prices)
     events = load_cash_distributions(args.cash_events)
     fee_schedule = FeeSchedule.from_json(args.fee_schedule)
@@ -292,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
     _write_csv(args.output, rows)
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
     summary = {
-        "schema_version": 4,
+        "schema_version": 5,
         "method": "expanding_window_walk_forward",
         "selection_scope": selection_scope,
         "strategy_count": len(strategies),
@@ -305,6 +325,9 @@ def main(argv: list[str] | None = None) -> int:
         "action_directory": str(args.actions_dir),
         "market_data_manifest_directory": str(args.manifests_dir),
         "split_evidence_file": str(args.split_evidence),
+        "ticker_transition_file": str(args.ticker_transitions),
+        "ticker_transition_manifest": str(args.ticker_transition_manifest),
+        "ticker_transition_binding_verified": True,
         "test_accounts_are_independent": True,
         "continuous_tax_account_claim": False,
         "folds": len(rows),
