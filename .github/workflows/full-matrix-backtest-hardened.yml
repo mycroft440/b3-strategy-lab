@@ -54,7 +54,7 @@ permissions:
 
 concurrency:
   group: backtest-results-publication
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"
@@ -83,6 +83,9 @@ jobs:
         run: |
           python -m py_compile \
             b3_strategy_lab/extended_strategies.py \
+            b3_strategy_lab/research_indicators.py \
+            b3_strategy_lab/indicator_strategies.py \
+            b3_strategy_lab/trend_strategies.py \
             b3_strategy_lab/realistic_portfolio.py \
             scripts/backtest_strategy_management_combinations.py \
             scripts/research_portfolio_allocation.py \
