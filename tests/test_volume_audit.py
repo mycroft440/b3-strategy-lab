@@ -39,3 +39,5 @@ class VolumeAuditTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# Touchpoint: trigger the hardened expanded full-matrix run.
