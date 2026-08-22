@@ -23,6 +23,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     PointInTimeUniverse,
     cash_coverage_certification_issues,
 )
+from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
 
 
 DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
@@ -35,6 +36,7 @@ DEFAULT_SPLITS = Path("data/corporate_actions/point_in_time_split_evidence.json"
 DEFAULT_DATA = Path("data/candles_point_in_time")
 DEFAULT_ACTIONS = Path("data/actions_point_in_time")
 DEFAULT_MANIFESTS = Path("data/manifests_point_in_time")
+DEFAULT_TICKER_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_TRANSITIONS = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_FEES = Path("data/fees/b3_equity_fee_schedule.json")
 DEFAULT_OUTPUT = Path("reports/realistic_input_audit.json")
@@ -98,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--actions-dir", type=Path, default=DEFAULT_ACTIONS)
     parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS)
+    parser.add_argument("--ticker-transitions", type=Path, default=DEFAULT_TICKER_TRANSITIONS)
     parser.add_argument("--transition-manifest", type=Path, default=DEFAULT_TRANSITIONS)
     parser.add_argument("--fee-schedule", type=Path, default=DEFAULT_FEES)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -287,6 +290,11 @@ def main(argv: list[str] | None = None) -> int:
     expected_transition_scope = market_data - transition_excluded
     transition_tickers = _ticker_set(transition_payload, "market_data_tickers")
     transition_coverage_end = str(transition_payload.get("coverage_end", ""))[:10]
+    transition_issues = transition_binding_issues(
+        args.ticker_transitions,
+        args.transition_manifest,
+        expected_end=end,
+    )
     checks["ticker_transitions_have_no_unresolved_disappearances"] = (
         transition_payload.get("complete") is True
     )
@@ -296,6 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     checks["ticker_transition_coverage_reaches_replay_end"] = (
         bool(transition_coverage_end) and transition_coverage_end >= end
     )
+    checks["ticker_transition_manifest_binds_exact_csv"] = not transition_issues
     details["unresolved_historical_disappearances"] = (
         int(transition_payload.get("unresolved_disappearances", -1))
         if transition_payload
@@ -308,6 +317,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     details["transition_ticker_count"] = len(transition_tickers)
     details["transition_coverage_end"] = transition_coverage_end
+    details["ticker_transition_file"] = str(args.ticker_transitions)
+    details["ticker_transition_manifest"] = str(args.transition_manifest)
+    details["ticker_transition_binding_issues"] = transition_issues
 
     fees = FeeSchedule.from_json(args.fee_schedule)
     fee_qualities = sorted({rule.quality for rule in fees.rules})
@@ -428,6 +440,7 @@ def main(argv: list[str] | None = None) -> int:
         "ticker_transitions_have_no_unresolved_disappearances",
         "ticker_transition_scope_matches_market_data",
         "ticker_transition_coverage_reaches_replay_end",
+        "ticker_transition_manifest_binds_exact_csv",
         "all_b3_fee_periods_are_official",
         "b3_fee_schedule_covers_period",
     ]
@@ -460,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         selection_limitations.append("candidate_universe_frozen_to_pre_existing_project_list")
 
     payload = {
-        "schema_version": 12,
+        "schema_version": 13,
         "checks": checks,
         "details": details,
         "ready_for_realistic_estimate": ready_for_estimate,
@@ -480,11 +493,13 @@ def main(argv: list[str] | None = None) -> int:
             "Certified public market inputs make a counterfactual replay reproducible, not "
             "execution-exact. Certified small-account tax scope is restricted to ON/PN "
             "shares. Split, cash and ticker-transition evidence are bound to the exact "
-            "market-data symbol set and replay horizon. Point-in-time candles, action "
-            "ledgers and manifests live in isolated roots and are cryptographically bound "
-            "to the same split ledger; they cannot extend past the replay horizon. Daily "
-            "COTAHIST does not prove a hypothetical fill. Exact brokerage-account "
-            "reconciliation requires actual broker fills and source-backed account evidence."
+            "market-data symbol set and replay horizon. The ticker-transition manifest also "
+            "binds the exact CSV bytes and row count consumed by the engine. Point-in-time "
+            "candles, action ledgers and manifests live in isolated roots and are "
+            "cryptographically bound to the same split ledger; they cannot extend past the "
+            "replay horizon. Daily COTAHIST does not prove a hypothetical fill. Exact "
+            "brokerage-account reconciliation requires actual broker fills and source-backed "
+            "account evidence."
         ),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
