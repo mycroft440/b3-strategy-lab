@@ -1,0 +1,42 @@
+name: Parabolic SAR intramonth reentry variant once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/parabolic-sar-intramonth-reentry-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: parabolic-sar-intramonth-reentry-variant
+  cancel-in-progress: true
+
+jobs:
+  test-variant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and verify data
+        run: |
+          python -m py_compile scripts/test_parabolic_sar_intramonth_reentry_variant.py
+          python -m b3_strategy_lab verify-data --interval 1d
+      - name: Run baseline versus intramonth exit-reentry variant
+        run: python scripts/test_parabolic_sar_intramonth_reentry_variant.py
+      - name: Publish report and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/parabolic-sar-intramonth-reentry-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/parabolic_sar_intramonth_reentry_variant/AUDIT.json reports/parabolic_sar_intramonth_reentry_variant/AUDIT.md .github/workflows/parabolic-sar-intramonth-reentry-once.yml
+          git commit -m "Test Parabolic SAR intramonth exit and reentry"
+          git pull --rebase origin main
+          git push origin HEAD:main
