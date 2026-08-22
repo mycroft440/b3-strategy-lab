@@ -1,0 +1,24 @@
+{
+  "source_sha": "d6ff3873f276bf129d69cddec597fe03aeb66953",
+  "strategy": "gap_momentum",
+  "parameters": {
+    "period": 40,
+    "signal_period": 20
+  },
+  "management": "top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted",
+  "start": "2018-01-02",
+  "end": "2026-08-10",
+  "cost_bps": 0.0,
+  "slippage_bps": 0.0,
+  "trades": 442,
+  "turnover": 425.43030984237055,
+  "final_equity": 31250.147979893245,
+  "total_return": 30.250147979893246,
+  "cagr": 0.4920143009207478,
+  "average_annual_return": 0.5303513023958345,
+  "max_drawdown": -0.5633293847571004,
+  "historical_reported_total_return": 31.1689,
+  "absolute_total_return_difference": -0.9187520201067549,
+  "relative_return_difference": -0.02947656221768349,
+  "reproduces_old_within_1pct_relative": false
+}
