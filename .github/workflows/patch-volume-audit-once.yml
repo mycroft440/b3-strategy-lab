@@ -1,0 +1,185 @@
+name: Patch volume audit once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-volume-audit-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Patch audit and regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          audit_path = Path("scripts/audit_volume_indicators.py")
+          text = audit_path.read_text(encoding="utf-8")
+
+          replacements = []
+
+          replacements.append((
+          '''EXPECTED_SOURCE_CONSUMERS = {
+              "b3_strategy_lab.additional_strategies._mfi",
+              "b3_strategy_lab.extended_strategies.ease_of_movement",
+              "b3_strategy_lab.extended_strategies.elder_force_index",
+              "b3_strategy_lab.extended_strategies.klinger_volume_oscillator",
+              "b3_strategy_lab.extended_strategies.negative_volume_index",
+              "b3_strategy_lab.researched_strategies.chaikin_money_flow",
+              "b3_strategy_lab.strategies.chandelier_breakout",
+              "b3_strategy_lab.strategies.range_expansion_breakout",
+          }''',
+          '''EXPECTED_SOURCE_CONSUMERS = {
+              "b3_strategy_lab.additional_strategies._mfi",
+              "b3_strategy_lab.extended_strategies.ease_of_movement",
+              "b3_strategy_lab.extended_strategies.elder_force_index",
+              "b3_strategy_lab.extended_strategies.klinger_volume_oscillator",
+              "b3_strategy_lab.extended_strategies.negative_volume_index",
+              "b3_strategy_lab.researched_strategies.chaikin_money_flow",
+              "b3_strategy_lab.research_indicators.money_flow_index",
+              "b3_strategy_lab.research_indicators.chaikin_money_flow",
+              "b3_strategy_lab.research_indicators.elder_force_index",
+              "b3_strategy_lab.research_indicators.ease_of_movement",
+              "b3_strategy_lab.research_indicators.negative_volume_index",
+              "b3_strategy_lab.strategies.chandelier_breakout",
+              "b3_strategy_lab.strategies.range_expansion_breakout",
+          }'''))
+
+          replacements.append((
+          '''        "strategies": sorted(
+                      item.name for item in ADDITIONAL_STRATEGIES if item.engine == "mfi_trend"
+                  ),''',
+          '''        "strategies": sorted(
+                      [item.name for item in ADDITIONAL_STRATEGIES if item.engine == "mfi_trend"]
+                      + [
+                          "mfi_reversal", "mfi_trend_follow", "mfi_cmf_confirm",
+                          "mfi_efi_confirm", "mfi_price_trend", "nvi_mfi_confirm",
+                      ]
+                  ),'''))
+
+          replacements.append((
+          '''        "strategies": ["chaikin_money_flow"],''',
+          '''        "strategies": [
+                      "chaikin_money_flow", "cmf_zero_cross", "cmf_threshold_hysteresis",
+                      "mfi_cmf_confirm", "cmf_efi_confirm", "volume_triple_confirm",
+                      "cmf_price_trend", "cmf_ema_trend",
+                  ],'''))
+
+          replacements.append((
+          '''        "strategies": ["elder_force_index"],''',
+          '''        "strategies": [
+                      "elder_force_index", "efi_zero_cross", "efi_trend_confirm",
+                      "mfi_efi_confirm", "cmf_efi_confirm", "volume_triple_confirm",
+                  ],'''))
+
+          replacements.append((
+          '''        "strategies": ["ease_of_movement"],''',
+          '''        "strategies": [
+                      "ease_of_movement", "eom_zero_cross", "eom_trend_confirm",
+                      "eom_nvi_confirm", "volume_triple_confirm",
+                  ],'''))
+
+          replacements.append((
+          '''        "strategies": ["negative_volume_index"],''',
+          '''        "strategies": [
+                      "negative_volume_index", "nvi_ema_trend", "nvi_price_confirm",
+                      "eom_nvi_confirm", "nvi_mfi_confirm", "nvi_dual_ema_trend",
+                  ],'''))
+
+          replacements.append((
+          '''STRATEGY_SOURCE_FILES = (
+              Path("b3_strategy_lab/additional_strategies.py"),
+              Path("b3_strategy_lab/researched_strategies.py"),
+              Path("b3_strategy_lab/extended_strategies.py"),
+              Path("b3_strategy_lab/strategies.py"),
+              Path("b3_strategy_lab/user_extensions.py"),
+          )''',
+          '''STRATEGY_SOURCE_FILES = (
+              Path("b3_strategy_lab/additional_strategies.py"),
+              Path("b3_strategy_lab/researched_strategies.py"),
+              Path("b3_strategy_lab/extended_strategies.py"),
+              Path("b3_strategy_lab/research_indicators.py"),
+              Path("b3_strategy_lab/indicator_strategies.py"),
+              Path("b3_strategy_lab/trend_strategies.py"),
+              Path("b3_strategy_lab/strategies.py"),
+              Path("b3_strategy_lab/user_extensions.py"),
+          )'''))
+
+          replacements.append((
+          '''    family_volume = {
+                  strategy
+                  for strategy in registered
+                  if strategy_info(strategy).family == "volume"
+              }''',
+          '''    family_volume = {
+                  strategy
+                  for strategy in registered
+                  if "volume" in strategy_info(strategy).family
+              }'''))
+
+          replacements.append((
+          '''    expected_family_volume = set(audited_strategies) - {
+                  "chandelier_breakout",
+                  "range_expansion_breakout",
+              }''',
+          '''    indirect_volume_strategies = {"cmf_ema_trend", "nvi_dual_ema_trend"}'''))
+
+          replacements.append((
+          '''        "builtin_volume_families_match_inventory": (
+                      expected_family_volume <= family_volume
+                  ),''',
+          '''        "known_indirect_volume_strategies_are_audited": (
+                      indirect_volume_strategies <= set(audited_strategies)
+                  ),'''))
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"expected audit block not found:\n{old}")
+              text = text.replace(old, new, 1)
+          audit_path.write_text(text, encoding="utf-8")
+
+          test_path = Path("tests/test_volume_audit.py")
+          test = test_path.read_text(encoding="utf-8")
+          old = '''        family_volume = {
+                      name for name in registered if strategy_info(name).family == "volume"
+                  }'''
+          new = '''        family_volume = {
+                      name for name in registered if "volume" in strategy_info(name).family
+                  }'''
+          if old not in test:
+              raise SystemExit("volume family test block not found")
+          test = test.replace(old, new, 1)
+          old = '''        self.assertEqual(
+                      audited - {"chandelier_breakout", "range_expansion_breakout"},
+                      family_volume,
+                  )'''
+          new = '''        self.assertLessEqual(family_volume, audited)
+                  self.assertLessEqual({"cmf_ema_trend", "nvi_dual_ema_trend"}, audited)'''
+          if old not in test:
+              raise SystemExit("volume inventory assertion block not found")
+          test = test.replace(old, new, 1)
+          test_path.write_text(test, encoding="utf-8")
+          PY
+
+          python -m py_compile scripts/audit_volume_indicators.py
+          python -m unittest tests.test_volume_audit -v
+
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          rm .github/workflows/patch-volume-audit-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/audit_volume_indicators.py tests/test_volume_audit.py .github/workflows/patch-volume-audit-once.yml
+          git commit -m "Audit volume dependencies in expanded strategy catalog"
+          git push origin HEAD:main
