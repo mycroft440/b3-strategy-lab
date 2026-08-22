@@ -49,3 +49,5 @@ jobs:
           git add .github/workflows/full-matrix-backtest-hardened.yml .github/workflows/patch-full-matrix-concurrency-once.yml
           git commit -m "Run only latest expanded full-matrix backtest"
           git push origin HEAD:main
+
+# Triggered after initial installation.
