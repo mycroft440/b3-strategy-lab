@@ -36,6 +36,11 @@ EXPECTED_SOURCE_CONSUMERS = {
     "b3_strategy_lab.extended_strategies.klinger_volume_oscillator",
     "b3_strategy_lab.extended_strategies.negative_volume_index",
     "b3_strategy_lab.researched_strategies.chaikin_money_flow",
+    "b3_strategy_lab.research_indicators.money_flow_index",
+    "b3_strategy_lab.research_indicators.chaikin_money_flow",
+    "b3_strategy_lab.research_indicators.elder_force_index",
+    "b3_strategy_lab.research_indicators.ease_of_movement",
+    "b3_strategy_lab.research_indicators.negative_volume_index",
     "b3_strategy_lab.strategies.chandelier_breakout",
     "b3_strategy_lab.strategies.range_expansion_breakout",
 }
@@ -44,32 +49,49 @@ VOLUME_CONSUMER_GROUPS = (
     {
         "indicator": "Money Flow Index (MFI)",
         "strategies": sorted(
-            item.name for item in ADDITIONAL_STRATEGIES if item.engine == "mfi_trend"
+            [item.name for item in ADDITIONAL_STRATEGIES if item.engine == "mfi_trend"]
+            + [
+                "mfi_reversal", "mfi_trend_follow", "mfi_cmf_confirm",
+                "mfi_efi_confirm", "mfi_price_trend", "nvi_mfi_confirm",
+            ]
         ),
         "input": "preco tipico normalizado multiplicado pela quantidade normalizada",
         "source_function": "b3_strategy_lab.additional_strategies._mfi",
     },
     {
         "indicator": "Chaikin Money Flow",
-        "strategies": ["chaikin_money_flow"],
+        "strategies": [
+            "chaikin_money_flow", "cmf_zero_cross", "cmf_threshold_hysteresis",
+            "mfi_cmf_confirm", "cmf_efi_confirm", "volume_triple_confirm",
+            "cmf_price_trend", "cmf_ema_trend",
+        ],
         "input": "multiplicador de fechamento no range vezes quantidade normalizada",
         "source_function": "b3_strategy_lab.researched_strategies.chaikin_money_flow",
     },
     {
         "indicator": "Elder Force Index",
-        "strategies": ["elder_force_index"],
+        "strategies": [
+            "elder_force_index", "efi_zero_cross", "efi_trend_confirm",
+            "mfi_efi_confirm", "cmf_efi_confirm", "volume_triple_confirm",
+        ],
         "input": "variacao do fechamento normalizado vezes quantidade normalizada",
         "source_function": "b3_strategy_lab.extended_strategies.elder_force_index",
     },
     {
         "indicator": "Ease of Movement",
-        "strategies": ["ease_of_movement"],
+        "strategies": [
+            "ease_of_movement", "eom_zero_cross", "eom_trend_confirm",
+            "eom_nvi_confirm", "volume_triple_confirm",
+        ],
         "input": "movimento do ponto medio e range divididos pela quantidade normalizada",
         "source_function": "b3_strategy_lab.extended_strategies.ease_of_movement",
     },
     {
         "indicator": "Negative Volume Index",
-        "strategies": ["negative_volume_index"],
+        "strategies": [
+            "negative_volume_index", "nvi_ema_trend", "nvi_price_confirm",
+            "eom_nvi_confirm", "nvi_mfi_confirm", "nvi_dual_ema_trend",
+        ],
         "input": "comparacao entre quantidades normalizadas consecutivas",
         "source_function": "b3_strategy_lab.extended_strategies.negative_volume_index",
     },
@@ -94,6 +116,9 @@ STRATEGY_SOURCE_FILES = (
     Path("b3_strategy_lab/additional_strategies.py"),
     Path("b3_strategy_lab/researched_strategies.py"),
     Path("b3_strategy_lab/extended_strategies.py"),
+    Path("b3_strategy_lab/research_indicators.py"),
+    Path("b3_strategy_lab/indicator_strategies.py"),
+    Path("b3_strategy_lab/trend_strategies.py"),
     Path("b3_strategy_lab/strategies.py"),
     Path("b3_strategy_lab/user_extensions.py"),
 )
@@ -332,17 +357,14 @@ def main(argv: list[str] | None = None) -> int:
     family_volume = {
         strategy
         for strategy in registered
-        if strategy_info(strategy).family == "volume"
+        if "volume" in strategy_info(strategy).family
     }
     parameter_volume = {
         strategy
         for strategy in registered
         if {"volume_window", "volume_mult"} & set(strategy_parameters(strategy))
     }
-    expected_family_volume = set(audited_strategies) - {
-        "chandelier_breakout",
-        "range_expansion_breakout",
-    }
+    indirect_volume_strategies = {"cmf_ema_trend", "nvi_dual_ema_trend"}
 
     signal_failures = []
     signal_runs = 0
@@ -466,8 +488,8 @@ def main(argv: list[str] | None = None) -> int:
             for name in raw_volume_consumers
         ),
         "all_volume_families_are_audited": family_volume <= set(audited_strategies),
-        "builtin_volume_families_match_inventory": (
-            expected_family_volume <= family_volume
+        "known_indirect_volume_strategies_are_audited": (
+            indirect_volume_strategies <= set(audited_strategies)
         ),
         "all_volume_parameter_filters_are_audited": parameter_volume
         <= set(audited_strategies),

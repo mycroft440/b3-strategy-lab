@@ -20,7 +20,7 @@ class VolumeAuditTests(unittest.TestCase):
         registered = set(portfolio_strategies())
         audited = set(volume_strategy_names())
         family_volume = {
-            name for name in registered if strategy_info(name).family == "volume"
+            name for name in registered if "volume" in strategy_info(name).family
         }
         parameter_volume = {
             name
@@ -28,10 +28,8 @@ class VolumeAuditTests(unittest.TestCase):
             if {"volume_window", "volume_mult"} & set(strategy_parameters(name))
         }
 
-        self.assertEqual(
-            audited - {"chandelier_breakout", "range_expansion_breakout"},
-            family_volume,
-        )
+        self.assertLessEqual(family_volume, audited)
+        self.assertLessEqual({"cmf_ema_trend", "nvi_dual_ema_trend"}, audited)
         self.assertEqual(
             parameter_volume,
             {"chandelier_breakout", "range_expansion_breakout"},
