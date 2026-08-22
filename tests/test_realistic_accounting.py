@@ -156,7 +156,7 @@ class GapAdjustmentTests(unittest.TestCase):
             captured["open"] = modified[1].open
             return [0, 0]
 
-        with patch("b3_strategy_lab.realistic_portfolio.build_signals", side_effect=fake_build):
+        with patch("b3_strategy_lab.realistic_portfolio_core.build_signals", side_effect=fake_build):
             _gap_adjusted_eligibility(data, "gap_momentum", [event], "adjusted")
 
         # Raw R$2/share must become R$1 on an adjustment_factor=0.5 series.
@@ -190,7 +190,9 @@ class TaxTests(unittest.TestCase):
         ledger.record_sale("2024-02-10", 30_000.0, 3_000.0)
         feb = ledger.finalize("2024-02")
         self.assertAlmostEqual(feb.taxable_gain, 2_000.0)
-        self.assertAlmostEqual(feb.tax_due, 300.0)
+        self.assertAlmostEqual(feb.gross_tax_before_irrf, 300.0)
+        self.assertAlmostEqual(feb.irrf_credit_used, 3.0)
+        self.assertAlmostEqual(feb.tax_due, 297.0)
 
     def test_provisional_tax_reserves_cash_after_taxable_sales(self) -> None:
         account = self._account()
