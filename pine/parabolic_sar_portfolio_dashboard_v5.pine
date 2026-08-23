@@ -1,30 +1,25 @@
 //@version=5
 indicator("B3 Parabolic SAR + Top 5 Carteira", shorttitle="PSAR Top5 B3", overlay=true, dynamic_requests=true)
 
-// ============================================================================
-// Recriacao em Pine v5 da combinacao vencedora do B3 Strategy Lab:
-//   parabolic_sar_trend
-//   + top1_risk_adjusted_lb252_skip0_trend0_vol63_equal_monthly_abs_cap1_adjusted
+// Recria em Pine v5 a combinacao:
+// parabolic_sar_trend
+// + top1_risk_adjusted_lb252_skip0_trend0_vol63_equal_monthly_abs_cap1_adjusted
 //
-// Contrato:
-// - Dados diarios.
-// - Parabolic SAR 0.02 / 0.20 filtra elegibilidade.
-// - Momentum = close / close[252] - 1.
-// - Volatilidade = desvio-padrao amostral dos retornos diarios em 63 sessoes * sqrt(252).
-// - Score = Momentum / Volatilidade.
-// - Momentum absoluto precisa ser > 0.
-// - Ranking mensal no ultimo fechamento confirmado do mes.
-// - Top 1 e a acao escolhida; Top 2-5 sao exibidas como ranking informativo.
-// - O dashboard tambem mostra a tendencia SAR atual de todo o universo.
+// Regras canonicas:
+// - universo fixo de 40 ativos do backtest;
+// - dados diarios, sessao regular, ajuste apenas por splits;
+// - warm-up iniciado em 01/01/2017, como no Python;
+// - PSAR: AF inicial/incremento 0.02, maximo 0.20;
+// - elegivel somente se PSAR bull e momentum 252 > 0;
+// - score = momentum252 / volatilidade63 anualizada;
+// - ranking no ultimo fechamento confirmado de cada mes;
+// - Top 1 = ativo escolhido; Top 2-5 = ranking informativo.
 //
-// Observacao: o backtest Python usa dados B3 COTAHIST verificados. O TradingView usa
-// seu proprio feed; portanto pequenos desvios de OHLC/historico podem mudar sinais.
-// ============================================================================
+// TradingView e B3 Strategy Lab podem divergir levemente porque usam feeds distintos.
 
-// ----- Parametros canonicos -----
 string GP_SAR = "Parabolic SAR"
 float afStep = input.float(0.02, "AF step", minval=0.001, maxval=1.0, step=0.01, group=GP_SAR)
-float afMax  = input.float(0.20, "AF max",  minval=0.01,  maxval=1.0, step=0.01, group=GP_SAR)
+float afMax = input.float(0.20, "AF max", minval=0.01, maxval=1.0, step=0.01, group=GP_SAR)
 
 string GP_MGMT = "Gerenciamento de carteira"
 int momLen = input.int(252, "Momentum (pregoes)", minval=2, group=GP_MGMT)
@@ -36,7 +31,8 @@ bool showNumbers = input.bool(true, "Mostrar momentum / volatilidade / score", g
 string txtSizeInput = input.string("small", "Tamanho do texto", options=["tiny", "small", "normal"], group=GP_VIEW)
 string txtSize = txtSizeInput == "tiny" ? size.tiny : txtSizeInput == "normal" ? size.normal : size.small
 
-// ----- Objeto usado para ultrapassar o limite global de 127 elementos em tuplas -----
+int WARMUP_TS = timestamp("America/Sao_Paulo", 2017, 1, 1, 0, 0)
+
 type StockMetrics
     bool bull
     float momentum
@@ -49,22 +45,33 @@ type StockMetrics
     int barTime
     int barTimePrev
 
-// ----- Parabolic SAR reproduzido a partir da implementacao Python do repositorio -----
-f_psar_state() =>
+// Indice 0 = primeiro candle disponivel em/apos 01/01/2017.
+f_history_index() =>
+    bool firstWarmupBar = time >= WARMUP_TS and (na(time[1]) or time[1] < WARMUP_TS)
+    ta.barssince(firstWarmupBar)
+
+// Implementacao equivalente a b3_strategy_lab.extended_strategies.parabolic_sar_trend.
+f_psar_state(int historyIndex) =>
     var bool rising = false
     var float sar = na
     var float extreme = na
     var float acceleration = na
     bool signal = false
 
-    if bar_index == 0
+    if na(historyIndex)
+        rising := false
+        sar := na
+        extreme := na
+        acceleration := na
+        signal := false
+    else if historyIndex == 0
         rising := false
         sar := na
         extreme := na
         acceleration := na
         signal := false
     else
-        if bar_index == 1
+        if historyIndex == 1
             rising := close >= close[1]
             sar := rising ? low[1] : high[1]
             extreme := rising ? high[1] : low[1]
@@ -74,9 +81,8 @@ f_psar_state() =>
 
         if rising
             candidate := math.min(candidate, low[1])
-            if bar_index >= 2
+            if historyIndex >= 2
                 candidate := math.min(candidate, low[2])
-
             if low < candidate
                 rising := false
                 sar := extreme
@@ -89,9 +95,8 @@ f_psar_state() =>
                     acceleration := math.min(afMax, acceleration + afStep)
         else
             candidate := math.max(candidate, high[1])
-            if bar_index >= 2
+            if historyIndex >= 2
                 candidate := math.max(candidate, high[2])
-
             if high > candidate
                 rising := true
                 sar := extreme
@@ -107,14 +112,17 @@ f_psar_state() =>
 
     [signal, sar]
 
-// ----- Calcula toda a informacao necessaria dentro do contexto diario da acao -----
 f_metrics() =>
-    [bull, _sar] = f_psar_state()
-    float dailyReturn = na(close[1]) or close[1] <= 0 ? na : close / close[1] - 1.0
-    float momentum = na(close[momLen]) or close[momLen] <= 0 ? na : close / close[momLen] - 1.0
-    // biased=false => estimativa amostral, equivalente ao statistics.stdev() do Python.
-    float volatility = ta.stdev(dailyReturn, volLen, false) * math.sqrt(252.0)
+    int historyIndex = f_history_index()
+    [bull, _sar] = f_psar_state(historyIndex)
+
+    // O Python cria returns[0] = 0 e nao usa candles anteriores ao warm-up.
+    float dailyReturn = na(historyIndex) ? na : historyIndex == 0 ? 0.0 : close / close[1] - 1.0
+    float momentum = not na(historyIndex) and historyIndex >= momLen and close[momLen] > 0 ? close / close[momLen] - 1.0 : na
+    // statistics.stdev() no Python = estimativa amostral; biased=false replica isso.
+    float volatility = not na(historyIndex) and historyIndex >= volLen ? ta.stdev(dailyReturn, volLen, false) * math.sqrt(252.0) : na
     float score = bull and not na(momentum) and momentum > 0 and not na(volatility) and volatility > 0 ? momentum / volatility : na
+
     StockMetrics.new(
          bull,
          momentum,
@@ -127,49 +135,48 @@ f_metrics() =>
          time,
          time[1])
 
-// ----- Universo fixo de 40 acoes usado pelo backtest -----
-// Usamos adjustment.splits para aproximar o modo price-only do laboratorio:
-// normaliza splits, sem adicionar ajuste por dividendos.
-string s01 = ticker.new("BMFBOVESPA", "ABEV3",  session.regular, adjustment.splits)
-string s02 = ticker.new("BMFBOVESPA", "BBAS3",  session.regular, adjustment.splits)
-string s03 = ticker.new("BMFBOVESPA", "BBDC3",  session.regular, adjustment.splits)
-string s04 = ticker.new("BMFBOVESPA", "BBSE3",  session.regular, adjustment.splits)
-string s05 = ticker.new("BMFBOVESPA", "BRAP4",  session.regular, adjustment.splits)
-string s06 = ticker.new("BMFBOVESPA", "BRKM5",  session.regular, adjustment.splits)
-string s07 = ticker.new("BMFBOVESPA", "CMIG4",  session.regular, adjustment.splits)
-string s08 = ticker.new("BMFBOVESPA", "CSAN3",  session.regular, adjustment.splits)
-string s09 = ticker.new("BMFBOVESPA", "CSMG3",  session.regular, adjustment.splits)
-string s10 = ticker.new("BMFBOVESPA", "CSNA3",  session.regular, adjustment.splits)
-string s11 = ticker.new("BMFBOVESPA", "CVCB3",  session.regular, adjustment.splits)
-string s12 = ticker.new("BMFBOVESPA", "EGIE3",  session.regular, adjustment.splits)
-string s13 = ticker.new("BMFBOVESPA", "EQTL3",  session.regular, adjustment.splits)
-string s14 = ticker.new("BMFBOVESPA", "FLRY3",  session.regular, adjustment.splits)
-string s15 = ticker.new("BMFBOVESPA", "GGBR3",  session.regular, adjustment.splits)
-string s16 = ticker.new("BMFBOVESPA", "GOAU4",  session.regular, adjustment.splits)
-string s17 = ticker.new("BMFBOVESPA", "HYPE3",  session.regular, adjustment.splits)
-string s18 = ticker.new("BMFBOVESPA", "IRBR3",  session.regular, adjustment.splits)
-string s19 = ticker.new("BMFBOVESPA", "ITSA4",  session.regular, adjustment.splits)
-string s20 = ticker.new("BMFBOVESPA", "ITUB4",  session.regular, adjustment.splits)
-string s21 = ticker.new("BMFBOVESPA", "JHSF3",  session.regular, adjustment.splits)
+// Universo fixo de 40 ativos usado pelo backtest.
+// adjustment.splits normaliza splits sem aplicar ajuste por dividendos.
+string s01 = ticker.new("BMFBOVESPA", "ABEV3", session.regular, adjustment.splits)
+string s02 = ticker.new("BMFBOVESPA", "BBAS3", session.regular, adjustment.splits)
+string s03 = ticker.new("BMFBOVESPA", "BBDC3", session.regular, adjustment.splits)
+string s04 = ticker.new("BMFBOVESPA", "BBSE3", session.regular, adjustment.splits)
+string s05 = ticker.new("BMFBOVESPA", "BRAP4", session.regular, adjustment.splits)
+string s06 = ticker.new("BMFBOVESPA", "BRKM5", session.regular, adjustment.splits)
+string s07 = ticker.new("BMFBOVESPA", "CMIG4", session.regular, adjustment.splits)
+string s08 = ticker.new("BMFBOVESPA", "CSAN3", session.regular, adjustment.splits)
+string s09 = ticker.new("BMFBOVESPA", "CSMG3", session.regular, adjustment.splits)
+string s10 = ticker.new("BMFBOVESPA", "CSNA3", session.regular, adjustment.splits)
+string s11 = ticker.new("BMFBOVESPA", "CVCB3", session.regular, adjustment.splits)
+string s12 = ticker.new("BMFBOVESPA", "EGIE3", session.regular, adjustment.splits)
+string s13 = ticker.new("BMFBOVESPA", "EQTL3", session.regular, adjustment.splits)
+string s14 = ticker.new("BMFBOVESPA", "FLRY3", session.regular, adjustment.splits)
+string s15 = ticker.new("BMFBOVESPA", "GGBR3", session.regular, adjustment.splits)
+string s16 = ticker.new("BMFBOVESPA", "GOAU4", session.regular, adjustment.splits)
+string s17 = ticker.new("BMFBOVESPA", "HYPE3", session.regular, adjustment.splits)
+string s18 = ticker.new("BMFBOVESPA", "IRBR3", session.regular, adjustment.splits)
+string s19 = ticker.new("BMFBOVESPA", "ITSA4", session.regular, adjustment.splits)
+string s20 = ticker.new("BMFBOVESPA", "ITUB4", session.regular, adjustment.splits)
+string s21 = ticker.new("BMFBOVESPA", "JHSF3", session.regular, adjustment.splits)
 string s22 = ticker.new("BMFBOVESPA", "KLBN11", session.regular, adjustment.splits)
-string s23 = ticker.new("BMFBOVESPA", "LREN3",  session.regular, adjustment.splits)
-string s24 = ticker.new("BMFBOVESPA", "MGLU3",  session.regular, adjustment.splits)
-string s25 = ticker.new("BMFBOVESPA", "MRVE3",  session.regular, adjustment.splits)
-string s26 = ticker.new("BMFBOVESPA", "MULT3",  session.regular, adjustment.splits)
-string s27 = ticker.new("BMFBOVESPA", "PETR4",  session.regular, adjustment.splits)
-string s28 = ticker.new("BMFBOVESPA", "QUAL3",  session.regular, adjustment.splits)
-string s29 = ticker.new("BMFBOVESPA", "RADL3",  session.regular, adjustment.splits)
-string s30 = ticker.new("BMFBOVESPA", "RAIL3",  session.regular, adjustment.splits)
-string s31 = ticker.new("BMFBOVESPA", "RENT3",  session.regular, adjustment.splits)
+string s23 = ticker.new("BMFBOVESPA", "LREN3", session.regular, adjustment.splits)
+string s24 = ticker.new("BMFBOVESPA", "MGLU3", session.regular, adjustment.splits)
+string s25 = ticker.new("BMFBOVESPA", "MRVE3", session.regular, adjustment.splits)
+string s26 = ticker.new("BMFBOVESPA", "MULT3", session.regular, adjustment.splits)
+string s27 = ticker.new("BMFBOVESPA", "PETR4", session.regular, adjustment.splits)
+string s28 = ticker.new("BMFBOVESPA", "QUAL3", session.regular, adjustment.splits)
+string s29 = ticker.new("BMFBOVESPA", "RADL3", session.regular, adjustment.splits)
+string s30 = ticker.new("BMFBOVESPA", "RAIL3", session.regular, adjustment.splits)
+string s31 = ticker.new("BMFBOVESPA", "RENT3", session.regular, adjustment.splits)
 string s32 = ticker.new("BMFBOVESPA", "SANB11", session.regular, adjustment.splits)
-string s33 = ticker.new("BMFBOVESPA", "SBSP3",  session.regular, adjustment.splits)
-string s34 = ticker.new("BMFBOVESPA", "SUZB3",  session.regular, adjustment.splits)
+string s33 = ticker.new("BMFBOVESPA", "SBSP3", session.regular, adjustment.splits)
+string s34 = ticker.new("BMFBOVESPA", "SUZB3", session.regular, adjustment.splits)
 string s35 = ticker.new("BMFBOVESPA", "TAEE11", session.regular, adjustment.splits)
-string s36 = ticker.new("BMFBOVESPA", "TUPY3",  session.regular, adjustment.splits)
-string s37 = ticker.new("BMFBOVESPA", "UGPA3",  session.regular, adjustment.splits)
-string s38 = ticker.new("BMFBOVESPA", "USIM5",  session.regular, adjustment.splits)
-string s39 = ticker.new("BMFBOVESPA", "VALE3",  session.regular, adjustment.splits)
-string s40 = ticker.new("BMFBOVESPA", "WEGE3",  session.regular, adjustment.splits)
+string s36 = ticker.new("BMFBOVESPA", "TUPY3", session.regular, adjustment.splits)
+string s37 = ticker.new("BMFBOVESPA", "UGPA3", session.regular, adjustment.splits)
+string s38 = ticker.new("BMFBOVESPA", "USIM5", session.regular, adjustment.splits)
+string s39 = ticker.new("BMFBOVESPA", "VALE3", session.regular, adjustment.splits)
+string s40 = ticker.new("BMFBOVESPA", "WEGE3", session.regular, adjustment.splits)
 
 var array<string> names = array.from(
      "ABEV3", "BBAS3", "BBDC3", "BBSE3", "BRAP4", "BRKM5", "CMIG4", "CSAN3", "CSMG3", "CSNA3",
@@ -183,7 +190,6 @@ var array<string> symbols = array.from(
      s21, s22, s23, s24, s25, s26, s27, s28, s29, s30,
      s31, s32, s33, s34, s35, s36, s37, s38, s39, s40)
 
-// ----- Estado atual das 40 acoes (recriado a cada barra) -----
 array<string> currentNames = array.new_string()
 array<bool> currentBull = array.new_bool()
 array<float> currentMom = array.new_float()
@@ -191,13 +197,11 @@ array<float> currentVol = array.new_float()
 array<float> currentScore = array.new_float()
 array<float> currentSortKey = array.new_float()
 
-// ----- Candidatos do ultimo fechamento do mes anterior -----
 array<string> monthCandidateNames = array.new_string()
 array<float> monthCandidateMom = array.new_float()
 array<float> monthCandidateVol = array.new_float()
 array<float> monthCandidateScore = array.new_float()
 
-// ----- Top 5 mensal persistente -----
 var array<string> portfolioNames = array.new_string(5, "")
 var array<float> portfolioMom = array.new_float(5, na)
 var array<float> portfolioVol = array.new_float(5, na)
@@ -206,26 +210,21 @@ var int portfolioSourceTime = na
 
 bool newMonth = timeframe.change("M")
 
-// Uma chamada request.security() por acao: exatamente 40 contextos unicos.
+// Uma unica chamada dinamica, iterando por 40 contextos unicos.
 for i = 0 to array.size(symbols) - 1
     string symbolId = array.get(symbols, i)
     string name = array.get(names, i)
-    StockMetrics m = request.security(
-         symbolId,
-         "D",
-         f_metrics(),
-         gaps=barmerge.gaps_off,
-         lookahead=barmerge.lookahead_off)
+    StockMetrics m = request.security(symbolId, "D", f_metrics(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 
     array.push(currentNames, name)
     array.push(currentBull, m.bull)
     array.push(currentMom, m.momentum)
     array.push(currentVol, m.volatility)
     array.push(currentScore, m.score)
-    // Bull elegivel primeiro; Bull com momentum <= 0 depois; Bear por ultimo.
     float sortKey = m.bull ? (na(m.score) ? -1.0e9 : m.score) : -1.0e12
     array.push(currentSortKey, sortKey)
 
+    // No primeiro pregao do novo mes, usa exclusivamente o candle diario anterior.
     if newMonth
         if i == 0
             portfolioSourceTime := m.barTimePrev
@@ -235,8 +234,6 @@ for i = 0 to array.size(symbols) - 1
             array.push(monthCandidateVol, m.volatilityPrev)
             array.push(monthCandidateScore, m.scorePrev)
 
-// No primeiro pregao de cada novo mes, congela o ranking calculado no fechamento
-// confirmado do ultimo pregao do mes anterior.
 if newMonth
     for r = 0 to 4
         array.set(portfolioNames, r, "")
@@ -246,16 +243,15 @@ if newMonth
 
     if array.size(monthCandidateScore) > 0
         array<int> orderIdx = array.sort_indices(monthCandidateScore, order.descending)
-        int take = array.size(orderIdx) < 5 ? array.size(orderIdx) : 5
+        int take = math.min(array.size(orderIdx), 5)
         if take > 0
             for r = 0 to take - 1
-                int sourceIndex = array.get(orderIdx, r)
-                array.set(portfolioNames, r, array.get(monthCandidateNames, sourceIndex))
-                array.set(portfolioMom, r, array.get(monthCandidateMom, sourceIndex))
-                array.set(portfolioVol, r, array.get(monthCandidateVol, sourceIndex))
-                array.set(portfolioScore, r, array.get(monthCandidateScore, sourceIndex))
+                int src = array.get(orderIdx, r)
+                array.set(portfolioNames, r, array.get(monthCandidateNames, src))
+                array.set(portfolioMom, r, array.get(monthCandidateMom, src))
+                array.set(portfolioVol, r, array.get(monthCandidateVol, src))
+                array.set(portfolioScore, r, array.get(monthCandidateScore, src))
 
-// ----- Helpers visuais -----
 f_pct(float x) =>
     na(x) ? "—" : str.tostring(x * 100.0, "#.##") + "%"
 
@@ -271,7 +267,6 @@ color C_TOP = color.rgb(63, 78, 110)
 color C_TEXT = color.white
 color C_MUTED = color.rgb(185, 190, 200)
 
-// 52 linhas: titulo/info + Top5 + lista das 40 acoes + rodape.
 var table dash = table.new(position.top_right, 6, 52, bgcolor=C_BG, frame_color=color.gray, frame_width=1, border_color=color.new(color.gray, 55), border_width=1)
 
 if barstate.isfirst
@@ -282,7 +277,6 @@ if barstate.isfirst
     table.merge_cells(dash, 0, 51, 5, 51)
 
 if barstate.islast
-    // Limpa todas as celulas que podem conter dados variaveis.
     table.cell(dash, 0, 0, "PARABOLIC SAR + CARTEIRA TOP 5", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
 
     string top1 = array.get(portfolioNames, 0)
@@ -294,9 +288,9 @@ if barstate.islast
 
     string refDate = na(portfolioSourceTime) ? "aguardando fechamento mensal" : str.format_time(portfolioSourceTime, "dd/MM/yyyy")
     string top1NowTxt = top1 == "" ? "—" : top1 + " | SAR agora: " + (top1BullNow ? "BULL" : "BEAR")
-    table.cell(dash, 0, 1, "Ranking mensal de " + refDate + " | TOP1: " + top1NowTxt, text_color=C_TEXT, bgcolor=top1BullNow ? color.new(C_BULL, 20) : color.new(C_BEAR, 20), text_size=txtSize)
+    color topBanner = top1 == "" ? C_HEADER : top1BullNow ? color.new(C_BULL, 20) : color.new(C_BEAR, 20)
+    table.cell(dash, 0, 1, "Ranking mensal de " + refDate + " | TOP1: " + top1NowTxt, text_color=C_TEXT, bgcolor=topBanner, text_size=txtSize)
 
-    // Top 5 mensal
     table.cell(dash, 0, 2, "Rank", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
     table.cell(dash, 1, 2, "Acao", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
     table.cell(dash, 2, 2, "Mom252", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
@@ -327,7 +321,6 @@ if barstate.islast
     table.cell(dash, 4, 9, "Score", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
     table.cell(dash, 5, 9, "Ranking", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
 
-    // Ordena: bulls elegiveis por score, depois bulls sem momentum positivo, depois bears.
     array<int> currentOrder = array.sort_indices(currentSortKey, order.descending)
     int outRow = 10
     int bullCount = 0
@@ -360,12 +353,11 @@ if barstate.islast
             table.cell(dash, 5, outRow, rankTxt, text_color=C_TEXT, bgcolor=rowBg, text_size=txtSize)
             outRow += 1
 
-    // Apaga sobra de linhas da tabela para nao manter valores de barras anteriores.
     if outRow <= 49
         for row = outRow to 49
             for col = 0 to 5
                 table.cell(dash, col, row, "", bgcolor=C_BG, text_size=txtSize)
 
-    table.cell(dash, 0, 50, "Acoes em BULL agora: " + str.tostring(bullCount) + "/40 | Top 5 = ranking do ultimo fechamento mensal", text_color=C_MUTED, bgcolor=C_BG, text_size=txtSize)
-    string warning = timeframe.period == "D" ? "Modo equivalente: diario | decisao mensal no fechamento confirmado" : "ATENCAO: para equivalencia com o backtest, use o grafico 1D"
+    table.cell(dash, 0, 50, "Acoes em BULL agora: " + str.tostring(bullCount) + "/40 | Top 5 = ultimo fechamento mensal", text_color=C_MUTED, bgcolor=C_BG, text_size=txtSize)
+    string warning = timeframe.period == "D" ? "Modo equivalente: grafico diario | decisao mensal confirmada" : "ATENCAO: use o grafico 1D para equivalencia com o backtest"
     table.cell(dash, 0, 51, warning, text_color=timeframe.period == "D" ? C_MUTED : color.yellow, bgcolor=C_BG, text_size=txtSize)
