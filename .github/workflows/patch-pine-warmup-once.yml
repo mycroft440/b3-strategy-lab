@@ -55,7 +55,6 @@ f_psar_state() =>
         warmupBars += 1
 
         if warmupBars == 1
-            // Equivale ao indice 0 do Python: ainda nao existe direcao confirmada.
             rising := false
             sar := na
             extreme := na
@@ -63,8 +62,6 @@ f_psar_state() =>
             signal := false
         else
             if warmupBars == 2
-                // Equivale ao indice 1 do Python e usa apenas o primeiro candle
-                // da janela verificada como referencia inicial.
                 rising := close >= close[1]
                 sar := rising ? low[1] : high[1]
                 extreme := rising ? high[1] : low[1]
@@ -76,7 +73,6 @@ f_psar_state() =>
                 candidate := math.min(candidate, low[1])
                 if warmupBars >= 3
                     candidate := math.min(candidate, low[2])
-
                 if low < candidate
                     rising := false
                     sar := extreme
@@ -91,7 +87,6 @@ f_psar_state() =>
                 candidate := math.max(candidate, high[1])
                 if warmupBars >= 3
                     candidate := math.max(candidate, high[2])
-
                 if high > candidate
                     rising := true
                     sar := extreme
@@ -131,3 +126,5 @@ f_psar_state() =>
           git commit -m "Align Pine PSAR warmup with backtest"
           git pull --rebase origin main
           git push origin HEAD:main
+
+# trigger
