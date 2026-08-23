@@ -45,10 +45,21 @@ class PineParabolicDashboardContractTests(unittest.TestCase):
         self.assertIn('timeframe.change("M")', self.source)
         self.assertIn("bull and not na(momentum) and momentum > 0", self.source)
 
+    def test_matches_python_warmup_and_does_not_use_pre_2017_history(self) -> None:
+        self.assertIn('timestamp("America/Sao_Paulo", 2017, 1, 1, 0, 0)', self.source)
+        self.assertIn("firstWarmupBar", self.source)
+        self.assertIn("ta.barssince(firstWarmupBar)", self.source)
+        self.assertIn("historyIndex == 0 ? 0.0", self.source)
+        self.assertIn("historyIndex >= momLen", self.source)
+        self.assertIn("historyIndex >= volLen", self.source)
+        self.assertIn("historyIndex == 1", self.source)
+        self.assertIn("historyIndex >= 2", self.source)
+
     def test_top_five_is_informational_and_top_one_is_chosen(self) -> None:
         self.assertIn('r == 0 ? "INVESTIR"', self.source)
         self.assertIn('monthlyRank == 1 ? "TOP1"', self.source)
         self.assertIn("array.sort_indices(monthCandidateScore, order.descending)", self.source)
+        self.assertIn("m.bullPrev and not na(m.scorePrev)", self.source)
 
     def test_stays_within_tradingview_unique_request_budget(self) -> None:
         # One dynamic request site iterates over the exact 40-symbol universe.
