@@ -1,0 +1,133 @@
+name: Patch Pine dashboard warmup once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/patch-pine-warmup-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Align Pine PSAR state to Python warmup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          pine = Path('pine/parabolic_sar_portfolio_dashboard_v5.pine')
+          text = pine.read_text(encoding='utf-8')
+          start = text.index('// ----- Parabolic SAR reproduzido a partir da implementacao Python do repositorio -----')
+          end = text.index('// ----- Calcula toda a informacao necessaria dentro do contexto diario da acao -----')
+          replacement = r'''// ----- Warm-up identico ao backtest Python -----
+// O laboratorio carrega os sinais a partir de 2017-01-01. O primeiro candle B3
+// disponivel em/apos essa data se torna o indice 0 da implementacao do PSAR.
+int WARMUP_TS = timestamp("America/Sao_Paulo", 2017, 1, 1, 0, 0)
+
+// ----- Parabolic SAR reproduzido a partir da implementacao Python do repositorio -----
+f_psar_state() =>
+    var bool rising = false
+    var float sar = na
+    var float extreme = na
+    var float acceleration = na
+    var int warmupBars = 0
+    bool signal = false
+
+    bool inWarmupWindow = time >= WARMUP_TS
+
+    if not inWarmupWindow
+        rising := false
+        sar := na
+        extreme := na
+        acceleration := na
+        warmupBars := 0
+        signal := false
+    else
+        warmupBars += 1
+
+        if warmupBars == 1
+            // Equivale ao indice 0 do Python: ainda nao existe direcao confirmada.
+            rising := false
+            sar := na
+            extreme := na
+            acceleration := na
+            signal := false
+        else
+            if warmupBars == 2
+                // Equivale ao indice 1 do Python e usa apenas o primeiro candle
+                // da janela verificada como referencia inicial.
+                rising := close >= close[1]
+                sar := rising ? low[1] : high[1]
+                extreme := rising ? high[1] : low[1]
+                acceleration := afStep
+
+            float candidate = sar + acceleration * (extreme - sar)
+
+            if rising
+                candidate := math.min(candidate, low[1])
+                if warmupBars >= 3
+                    candidate := math.min(candidate, low[2])
+
+                if low < candidate
+                    rising := false
+                    sar := extreme
+                    extreme := low
+                    acceleration := afStep
+                else
+                    sar := candidate
+                    if high > extreme
+                        extreme := high
+                        acceleration := math.min(afMax, acceleration + afStep)
+            else
+                candidate := math.max(candidate, high[1])
+                if warmupBars >= 3
+                    candidate := math.max(candidate, high[2])
+
+                if high > candidate
+                    rising := true
+                    sar := extreme
+                    extreme := high
+                    acceleration := afStep
+                else
+                    sar := candidate
+                    if low < extreme
+                        extreme := low
+                        acceleration := math.min(afMax, acceleration + afStep)
+
+            signal := rising and close > sar
+
+    [signal, sar]
+
+'''
+          text = text[:start] + replacement + text[end:]
+          pine.write_text(text, encoding='utf-8')
+
+          test = Path('tests/test_pine_parabolic_dashboard_contract.py')
+          t = test.read_text(encoding='utf-8')
+          needle = '''        self.assertIn("bull and not na(momentum) and momentum > 0", self.source)\n'''
+          insert = needle + '''        self.assertIn('timestamp("America/Sao_Paulo", 2017, 1, 1, 0, 0)', self.source)\n        self.assertIn("warmupBars == 1", self.source)\n        self.assertIn("warmupBars == 2", self.source)\n'''
+          if needle not in t:
+              raise SystemExit('test insertion marker not found')
+          t = t.replace(needle, insert, 1)
+          test.write_text(t, encoding='utf-8')
+          PY
+      - name: Validate Pine dashboard contract
+        run: python -m unittest tests.test_pine_parabolic_dashboard_contract -v
+      - name: Commit patch and self-remove
+        run: |
+          rm .github/workflows/patch-pine-warmup-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- pine/parabolic_sar_portfolio_dashboard_v5.pine tests/test_pine_parabolic_dashboard_contract.py .github/workflows/patch-pine-warmup-once.yml
+          git commit -m "Align Pine PSAR warmup with backtest"
+          git pull --rebase origin main
+          git push origin HEAD:main
