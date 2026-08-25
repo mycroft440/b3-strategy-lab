@@ -46,6 +46,9 @@ concurrency:
   group: realistic-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHONPATH: "."
+
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -58,6 +61,7 @@ jobs:
       - name: Compile realistic and matrix modules
         run: |
           python -m py_compile \
+            b3_strategy_lab/causal_liquidity.py \
             b3_strategy_lab/realistic.py \
             b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
@@ -82,6 +86,8 @@ jobs:
             scripts/backtest_strategy_management_realistic.py \
             scripts/backtest_strategy_management_strict.py \
             scripts/walk_forward_realistic.py \
+            scripts/walk_forward_certified.py \
+            scripts/validate_matrix_top_realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
             scripts/audit_backtest_integrity.py \
             scripts/backtest_research_catalog_priority.py \
