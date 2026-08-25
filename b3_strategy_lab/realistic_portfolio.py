@@ -227,12 +227,22 @@ def run_realistic(
     max_slippage_bps: float,
     transitions,
     economic_gap_adjustment: bool,
+    max_participation_rate: float = 0.01,
     selection_status: str = "retrospective_hypothesis_replay",
     survivorship_safe: bool = False,
     cash_events_complete: bool = False,
     progress_callback=None,
+    model_schedule: dict[str, tuple[str, object]] | None = None,
+    eligibility_cache: dict[str, dict[str, list[int]]] | None = None,
+    metrics_start: str | None = None,
 ):
-    """Realistic replay with non-spendable distribution receivables in equity."""
+    """Realistic replay with non-spendable distribution receivables in equity.
+
+    ``model_schedule`` maps a decision session to a frozen (strategy, config)
+    selection. A schedule change is decided at that session's close and executes at
+    the next simulated opening while the same account, tax ledger and receivables
+    continue across every fold.
+    """
 
     from scripts.backtest_strategy_management_combinations import _build_eligibility
     from scripts.research_portfolio_allocation import (
@@ -254,21 +264,45 @@ def run_realistic(
             base_bps=base_slippage_bps,
             participation_bps_at_1pct=participation_bps_at_1pct,
             max_bps=max_slippage_bps,
+            max_participation_rate=max_participation_rate,
         ),
     )
     signal_start = min(
         candle.date for ticker in data.tickers for candle in data.candles[ticker]
     )
-    eligibility = (
-        _core._gap_adjusted_eligibility(data, strategy, cash_events, "adjusted")
-        if economic_gap_adjustment
-        else _build_eligibility(
-            data,
-            [strategy],
-            "adjusted",
-            signal_start=signal_start,
-        )[strategy]
-    )
+    schedule = dict(sorted((model_schedule or {}).items()))
+    scheduled_models = list(schedule.values())
+    model_strategies = {strategy, *(item[0] for item in scheduled_models)}
+    eligibility_by_strategy: dict[str, dict[str, list[int]]] = {}
+    for model_strategy in sorted(model_strategies):
+        if eligibility_cache is not None and model_strategy in eligibility_cache:
+            eligibility_by_strategy[model_strategy] = eligibility_cache[model_strategy]
+        else:
+            eligibility_by_strategy[model_strategy] = (
+                _core._gap_adjusted_eligibility(
+                    data, model_strategy, cash_events, "adjusted"
+                )
+                if economic_gap_adjustment
+                else _build_eligibility(
+                    data,
+                    [model_strategy],
+                    "adjusted",
+                    signal_start=signal_start,
+                )[model_strategy]
+            )
+
+    def model_on(decision_date: str):
+        chosen = (strategy, config)
+        for effective_date, model in schedule.items():
+            if effective_date > decision_date:
+                break
+            chosen = model
+        return chosen
+
+    if schedule and min(schedule) > dates[0]:
+        raise ValueError(
+            "The first scheduled model must be known by the first processing session."
+        )
     entitlement_map, payment_map = _cash_event_maps(cash_events, dates)
     entitlements: dict[tuple[str, str, str, str, float], int] = {}
     pending_targets: dict[str, float] | None = None
@@ -340,14 +374,26 @@ def run_realistic(
         for event in entitlement_map.get(current, []):
             _register_entitlement_receivable(account, event, entitlements)
 
-        if next_date is not None and _core._is_rebalance(current, next_date, config.rebalance):
-            strategy_eligible = _eligible_tickers(data, current, eligibility) or set()
+        active_strategy, active_config = model_on(current)
+        schedule_change = current in schedule
+        if next_date is not None and (
+            schedule_change
+            or _core._is_rebalance(current, next_date, active_config.rebalance)
+        ):
+            strategy_eligible = (
+                _eligible_tickers(
+                    data,
+                    current,
+                    eligibility_by_strategy[active_strategy],
+                )
+                or set()
+            )
             investable = universe.tickers_on(current)
             allowed = strategy_eligible.intersection(investable)
             pending_targets = _target_weights(
                 data,
                 current,
-                config,
+                active_config,
                 eligible_tickers=allowed,
             )
         else:
@@ -359,13 +405,49 @@ def run_realistic(
         ):
             progress_callback(completed, len(dates), current)
 
-    metrics = _portfolio_metrics(equities, dates, initial_cash)
-    yearly = _yearly_returns(equities, dates, initial_cash)
+    metric_pairs = [
+        (value_date, equity)
+        for value_date, equity in zip(dates, equities)
+        if metrics_start is None or value_date >= metrics_start
+    ]
+    if not metric_pairs:
+        raise ValueError("No session remains on or after metrics_start.")
+    metric_dates = [item[0] for item in metric_pairs]
+    metric_equities = [item[1] for item in metric_pairs]
+    metric_initial_equity = initial_cash
+    if metrics_start is not None:
+        prior_equities = [
+            equity
+            for value_date, equity in zip(dates, equities)
+            if value_date < metrics_start
+        ]
+        if not prior_equities:
+            raise ValueError(
+                "metrics_start requires a preceding close to establish OOS capital."
+            )
+        metric_initial_equity = prior_equities[-1]
+    metrics = _portfolio_metrics(metric_equities, metric_dates, metric_initial_equity)
+    yearly = _yearly_returns(metric_equities, metric_dates, metric_initial_equity)
     fee_qualities = {fee_schedule.quality_on(value) for value in dates}
     fee_quality = ",".join(sorted(fee_qualities))
+    b3_fee_qualities = {fee_schedule.b3_quality_on(value) for value in dates}
+    broker_fee_qualities = {fee_schedule.broker_quality_on(value) for value in dates}
+    b3_fee_quality = ",".join(sorted(b3_fee_qualities))
+    broker_fee_quality = ",".join(sorted(broker_fee_qualities))
+    brokerage_assumption = (
+        "certified_broker_profile"
+        if broker_fee_qualities == {"certified"}
+        else (
+            "zero_brokerage_assumed_unverified"
+            if all(abs(float(rule.brokerage_fixed)) <= 1e-12 for rule in fee_schedule.rules)
+            else "modeled_brokerage_unverified"
+        )
+    )
     validity = "REALISTIC_POINT_IN_TIME"
-    if fee_qualities != {"official"}:
-        validity += "__MODELED_FEES"
+    if b3_fee_qualities != {"official"}:
+        validity += "__MODELED_B3_FEES"
+    if brokerage_assumption != "certified_broker_profile":
+        validity += "__UNVERIFIED_BROKER_PROFILE"
     if not survivorship_safe:
         validity += "__RETROSPECTIVE_UNIVERSE"
     if selection_status == "retrospective_hypothesis_replay":
@@ -378,12 +460,12 @@ def run_realistic(
         validity += "__UNPAID_DISTRIBUTION_RECEIVABLE"
 
     summary = _core.RealisticSummary(
-        strategy=strategy,
-        management=config.name,
-        start=dates[0],
-        end=dates[-1],
+        strategy="walk_forward_selector" if schedule else strategy,
+        management="time_varying_frozen_schedule" if schedule else config.name,
+        start=metric_dates[0],
+        end=metric_dates[-1],
         initial_cash=initial_cash,
-        final_equity=equities[-1],
+        final_equity=metric_equities[-1],
         total_return=metrics["total_return"],
         cagr=metrics["cagr"],
         max_drawdown=metrics["max_drawdown"],
@@ -403,6 +485,11 @@ def run_realistic(
         fee_quality=fee_quality,
         economic_gap_adjustment=economic_gap_adjustment,
         selection_status=selection_status,
+        max_participation_rate=max_participation_rate,
+        liquidity_reference_policy="trailing_pre_trade_own_market",
+        brokerage_assumption=brokerage_assumption,
+        b3_fee_quality=b3_fee_quality,
+        broker_fee_quality=broker_fee_quality,
     )
     return summary, curve, account
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import defaultdict
@@ -13,7 +14,6 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
 from b3_strategy_lab.point_in_time import (  # noqa: E402
-    base_fractional_ticker,
     execution_rows,
     is_company_equity,
     parse_years,
@@ -27,6 +27,14 @@ from b3_strategy_lab.point_in_time import (  # noqa: E402
 DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lookback-sessions", type=int, default=252)
     parser.add_argument("--top-n", type=int, default=40)
     parser.add_argument("--minimum-presence", type=float, default=0.90)
+    parser.add_argument("--liquidity-lookback-sessions", type=int, default=21)
     parser.add_argument("--snapshots-output", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--manifest-output", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--execution-output", type=Path, default=DEFAULT_EXECUTION)
@@ -213,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
         "execution_sources": {
             "standard": {"market_type": "010", "bdi_code": "02"},
             "fractional": {"market_type": "020", "bdi_code": "96"},
+            "liquidity_reference": {
+                "lookback_sessions": args.liquidity_lookback_sessions,
+                "cutoff": "strictly_before_execution_date",
+                "metrics": ["financial_volume", "quantity"],
+                "market_scope": "own_010_or_020_market",
+            },
         },
         "tickers": selected_union,
         "market_data_tickers": market_data_tickers,
@@ -240,31 +255,62 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    standard_filtered = [
-        quote for quote in causal_standard_quotes if quote.ticker.upper() in market_data_set
-    ]
-    fractional_filtered = [
-        quote
-        for quote in causal_fractional_quotes
-        if base_fractional_ticker(quote.ticker) in market_data_set
-    ]
     executions = execution_rows(
-        standard_filtered,
-        fractional_filtered,
+        causal_standard_quotes,
+        causal_fractional_quotes,
         union=market_data_set,
         start=args.start,
         end=end,
+        liquidity_lookback_sessions=args.liquidity_lookback_sessions,
     )
     write_csv(
         args.execution_output,
         executions,
-        ["date", "ticker", "market_type", "open", "close", "financial_volume"],
+        [
+            "date",
+            "ticker",
+            "market_type",
+            "open",
+            "high",
+            "low",
+            "close",
+            "quantity",
+            "trades",
+            "financial_volume",
+            "liquidity_reference_financial_volume",
+            "liquidity_reference_quantity",
+            "liquidity_reference_sessions",
+            "liquidity_reference_end",
+        ],
     )
 
     standard_count = sum(row["market_type"] == "010" for row in executions)
     fractional_count = sum(row["market_type"] == "020" for row in executions)
     if standard_count == 0 or fractional_count == 0:
         raise ValueError("Both standard and fractional execution books are required.")
+
+    manifest["artifact_bindings"] = {
+        "schema_version": 1,
+        "snapshots_file": str(args.snapshots_output),
+        "snapshots_sha256": _sha256(args.snapshots_output),
+        "snapshot_row_count": len(snapshots),
+        "execution_file": str(args.execution_output),
+        "execution_sha256": _sha256(args.execution_output),
+        "execution_row_count": len(executions),
+        "source_archives": [
+            {
+                "year": year,
+                "file": str(path),
+                "sha256": _sha256(path),
+                "size_bytes": path.stat().st_size,
+            }
+            for year, path in zip(years, archives)
+        ],
+    }
+    args.manifest_output.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
     print(f"COTAHIST years: {years[0]}..{years[-1]}")
     if args.end and end != args.end:

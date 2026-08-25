@@ -105,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-slippage-bps", type=float, default=10.0)
     parser.add_argument("--participation-bps-at-1pct", type=float, default=5.0)
     parser.add_argument("--max-slippage-bps", type=float, default=100.0)
+    parser.add_argument("--max-participation-rate", type=float, default=0.01)
     parser.add_argument("--economic-gap-adjustment", action="store_true")
     parser.add_argument(
         "--selection-status",
@@ -212,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         base_slippage_bps=args.base_slippage_bps,
         participation_bps_at_1pct=args.participation_bps_at_1pct,
         max_slippage_bps=args.max_slippage_bps,
+        max_participation_rate=args.max_participation_rate,
         transitions=load_transitions(args.ticker_transitions),
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,

@@ -68,6 +68,11 @@ class RealisticSummary:
     fee_quality: str
     economic_gap_adjustment: bool
     selection_status: str
+    max_participation_rate: float
+    liquidity_reference_policy: str
+    brokerage_assumption: str
+    b3_fee_quality: str
+    broker_fee_quality: str
 
 
 def load_transitions(path: Path | str) -> dict[str, list[TickerTransition]]:
@@ -252,7 +257,12 @@ def _estimate_buy_cost(
     for qty, quote in pricebook.legs(value_date, ticker, quantity):
         raw_notional = qty * quote.open
         fill, _ = account.slippage.price(
-            "BUY", quote.open, raw_notional, quote.financial_volume
+            "BUY",
+            quote.open,
+            raw_notional,
+            quote.capacity_financial_volume,
+            quantity=qty,
+            daily_quantity=quote.capacity_quantity,
         )
         notional = qty * fill
         total += notional + account.fee_schedule.cost(value_date, notional)
@@ -540,6 +550,12 @@ def run_realistic(
     yearly = _yearly_returns(equities, dates, initial_cash)
     fee_qualities = {fee_schedule.quality_on(value) for value in dates}
     fee_quality = ",".join(sorted(fee_qualities))
+    b3_fee_quality = ",".join(
+        sorted({fee_schedule.b3_quality_on(value) for value in dates})
+    )
+    broker_fee_quality = ",".join(
+        sorted({fee_schedule.broker_quality_on(value) for value in dates})
+    )
     validity = "REALISTIC_POINT_IN_TIME"
     if fee_qualities != {"official"}:
         validity += "__MODELED_FEES"
@@ -576,5 +592,14 @@ def run_realistic(
         fee_quality=fee_quality,
         economic_gap_adjustment=economic_gap_adjustment,
         selection_status=selection_status,
+        max_participation_rate=account.slippage.max_participation_rate,
+        liquidity_reference_policy="trailing_pre_trade_own_market",
+        brokerage_assumption=(
+            "certified_broker_profile"
+            if broker_fee_quality == "certified"
+            else "zero_brokerage_assumed_unverified"
+        ),
+        b3_fee_quality=b3_fee_quality,
+        broker_fee_quality=broker_fee_quality,
     )
     return summary, curve, account

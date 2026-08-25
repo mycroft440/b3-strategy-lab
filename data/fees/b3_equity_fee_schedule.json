@@ -8,6 +8,8 @@
       "b3_bps": 3.25,
       "brokerage_fixed": 0.0,
       "quality": "official",
+      "b3_quality": "official",
+      "broker_quality": "unverified",
       "source": "B3 historical tariff policy, confirmed by B3 10-Dec-2020 tariff notice: ordinary non-day-trade cash equities were charged 0.0325% before the 02-Feb-2021 change; https://www.b3.com.br/pt_br/noticias/tarifacao.htm"
     },
     {
@@ -16,6 +18,8 @@
       "b3_bps": 3.20,
       "brokerage_fixed": 0.0,
       "quality": "official",
+      "b3_quality": "official",
+      "broker_quality": "unverified",
       "source": "B3 Circular 177/2020: 0.0050% negotiation + 0.0250% settlement for regular trades, with negotiation raised to 0.0070% during opening/closing auctions, totaling 0.0320%; current low-ADTV opening-auction tariff remains consistent with this treatment."
     }
   ],

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import sys
 from datetime import date, timedelta
@@ -47,6 +48,14 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return []
     with path.open(newline="", encoding="utf-8") as file:
         return list(csv.DictReader(file))
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _fee_schedule_contiguous(fees: FeeSchedule, start: str, end: str) -> bool:
@@ -187,6 +196,35 @@ def main(argv: list[str] | None = None) -> int:
     details["market_data_directory"] = str(args.data_dir)
     details["action_directory"] = str(args.actions_dir)
 
+    artifact_bindings = universe_payload.get("artifact_bindings", {})
+    if not isinstance(artifact_bindings, dict):
+        artifact_bindings = {}
+    snapshot_rows = _rows(args.snapshots)
+    checks["universe_manifest_binds_snapshot_bytes"] = (
+        artifact_bindings.get("snapshots_sha256") == _sha256(args.snapshots)
+    )
+    checks["universe_manifest_binds_snapshot_row_count"] = (
+        int(artifact_bindings.get("snapshot_row_count", -1)) == len(snapshot_rows)
+    )
+    archive_binding_issues: list[str] = []
+    raw_archives = artifact_bindings.get("source_archives", [])
+    if not isinstance(raw_archives, list) or not raw_archives:
+        archive_binding_issues.append("source archive bindings are missing")
+    else:
+        for item in raw_archives:
+            if not isinstance(item, dict):
+                archive_binding_issues.append("invalid source archive binding")
+                continue
+            path = Path(str(item.get("file", "")))
+            if not path.exists():
+                archive_binding_issues.append(f"missing:{path}")
+            elif item.get("sha256") != _sha256(path):
+                archive_binding_issues.append(f"sha256_mismatch:{path}")
+            elif int(item.get("size_bytes", -1)) != path.stat().st_size:
+                archive_binding_issues.append(f"size_mismatch:{path}")
+    checks["universe_manifest_binds_cotahist_archives"] = not archive_binding_issues
+    details["source_archive_binding_issues"] = archive_binding_issues
+
     split_payload = json.loads(args.split_evidence.read_text(encoding="utf-8"))
     split_tickers = _ticker_set(split_payload, "market_data_tickers")
     split_coverage_start = str(split_payload.get("coverage_start", ""))[:10]
@@ -323,15 +361,28 @@ def main(argv: list[str] | None = None) -> int:
 
     fees = FeeSchedule.from_json(args.fee_schedule)
     fee_qualities = sorted({rule.quality for rule in fees.rules})
-    checks["all_b3_fee_periods_are_official"] = fee_qualities == ["official"]
+    b3_fee_qualities = sorted({rule.b3_quality or rule.quality for rule in fees.rules})
+    broker_fee_qualities = sorted(
+        {rule.broker_quality or "unverified" for rule in fees.rules}
+    )
+    checks["all_b3_fee_periods_are_official"] = b3_fee_qualities == ["official"]
     checks["b3_fee_schedule_covers_period"] = _fee_schedule_contiguous(fees, start, end)
     details["fee_qualities"] = fee_qualities
+    details["b3_fee_qualities"] = b3_fee_qualities
+    details["broker_fee_qualities"] = broker_fee_qualities
 
     execution_rows = _rows(args.execution)
+    checks["universe_manifest_binds_execution_bytes"] = (
+        artifact_bindings.get("execution_sha256") == _sha256(args.execution)
+    )
+    checks["universe_manifest_binds_execution_row_count"] = (
+        int(artifact_bindings.get("execution_row_count", -1)) == len(execution_rows)
+    )
     keys: list[tuple[str, str, str]] = []
     standard: set[tuple[str, str]] = set()
     fractional_base: set[tuple[str, str]] = set()
     invalid_execution_rows: list[dict[str, str]] = []
+    noncausal_liquidity_rows: list[dict[str, str]] = []
     execution_dates: set[str] = set()
     execution_bases: set[str] = set()
     for row in execution_rows:
@@ -343,15 +394,33 @@ def main(argv: list[str] | None = None) -> int:
         base = ticker[:-1] if ticker.endswith("F") else ticker
         execution_bases.add(base)
         try:
+            open_price = float(row.get("open", 0) or 0)
+            high = float(row.get("high", 0) or 0)
+            low = float(row.get("low", 0) or 0)
+            close = float(row.get("close", 0) or 0)
             values_ok = (
-                float(row.get("open", 0) or 0) > 0
-                and float(row.get("close", 0) or 0) > 0
+                open_price > 0
+                and high >= max(open_price, close)
+                and 0 < low <= min(open_price, close)
+                and close > 0
+                and int(row.get("quantity", 0) or 0) > 0
+                and int(row.get("trades", 0) or 0) > 0
                 and float(row.get("financial_volume", 0) or 0) > 0
+            )
+            causal_liquidity_ok = (
+                bool(row.get("liquidity_reference_end", ""))
+                and str(row.get("liquidity_reference_end", "")) < value_date
+                and int(row.get("liquidity_reference_sessions", 0) or 0) > 0
+                and float(row.get("liquidity_reference_financial_volume", 0) or 0) > 0
+                and float(row.get("liquidity_reference_quantity", 0) or 0) > 0
             )
         except ValueError:
             values_ok = False
+            causal_liquidity_ok = False
         if not values_ok:
             invalid_execution_rows.append(row)
+        if not causal_liquidity_ok:
+            noncausal_liquidity_rows.append(row)
         if market == "010":
             standard.add((value_date, ticker))
         elif market == "020":
@@ -361,6 +430,10 @@ def main(argv: list[str] | None = None) -> int:
     checks["execution_book_has_fractional_quotes"] = bool(fractional_base)
     checks["execution_book_has_no_duplicate_keys"] = len(keys) == len(set(keys))
     checks["execution_book_has_positive_prices_and_volume"] = not invalid_execution_rows
+    checks["execution_book_ohlc_envelope_is_valid"] = not invalid_execution_rows
+    checks["execution_liquidity_reference_is_strictly_pre_trade"] = (
+        not noncausal_liquidity_rows
+    )
     checks["execution_book_excludes_forbidden_tickers"] = not bool(execution_bases & excluded)
     if no_replacements:
         checks["execution_book_within_allowed_universe"] = (
@@ -396,12 +469,17 @@ def main(argv: list[str] | None = None) -> int:
     details["standard_execution_rows"] = len(standard)
     details["fractional_execution_rows"] = len(fractional_base)
     details["invalid_execution_row_count"] = len(invalid_execution_rows)
+    details["noncausal_liquidity_row_count"] = len(noncausal_liquidity_rows)
+    details["noncausal_liquidity_examples"] = noncausal_liquidity_rows[:20]
     details["missing_snapshot_next_open_count"] = len(missing_next_open)
     details["missing_snapshot_next_open_examples"] = missing_next_open[:50]
 
     structural_account = [
         "universe_is_point_in_time",
         "snapshot_union_matches_manifest",
+        "universe_manifest_binds_snapshot_bytes",
+        "universe_manifest_binds_snapshot_row_count",
+        "universe_manifest_binds_cotahist_archives",
         "market_data_contains_selectable_universe",
         "universe_policy_consistent",
         "declared_replay_end_not_before_last_snapshot",
@@ -421,9 +499,13 @@ def main(argv: list[str] | None = None) -> int:
         "cash_manifest_starts_by_warmup",
         "cash_manifest_coverage_reaches_replay_end",
         "execution_book_has_standard_quotes",
+        "universe_manifest_binds_execution_bytes",
+        "universe_manifest_binds_execution_row_count",
         "execution_book_has_fractional_quotes",
         "execution_book_has_no_duplicate_keys",
         "execution_book_has_positive_prices_and_volume",
+        "execution_book_ohlc_envelope_is_valid",
+        "execution_liquidity_reference_is_strictly_pre_trade",
         "execution_book_excludes_forbidden_tickers",
         "execution_book_within_allowed_universe",
         "execution_book_covers_declared_replay_end",

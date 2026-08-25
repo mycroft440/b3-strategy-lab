@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -30,7 +31,9 @@ from scripts.research_portfolio_allocation import (
     PortfolioConfig,
     _candidate_profile,
     _candidate_profile_uncached,
+    _configs,
     _rebalance,
+    _target_weights,
     run_portfolio,
 )
 
@@ -229,6 +232,114 @@ class StrategyCausalityTests(unittest.TestCase):
                 extended = build_signals(strategy, one_more, **params)
                 self.assertEqual(first, repeated)
                 self.assertEqual(first, extended[: len(first)])
+
+    def test_every_portfolio_strategy_is_invariant_to_future_split_normalization(self) -> None:
+        candles = synthetic_candles(800)
+        # A split that occurs after a training cutoff multiplies all earlier adjusted
+        # prices by one constant and divides adjusted volume by that constant. Signals
+        # before the split must not change when the later split enters the dataset.
+        split_normalized = [
+            replace(
+                item,
+                open=item.open * 0.1,
+                high=item.high * 0.1,
+                low=item.low * 0.1,
+                close=item.close * 0.1,
+                adj_close=item.adj_close * 0.1,
+                volume=item.volume * 10,
+            )
+            for item in candles
+        ]
+        for strategy in portfolio_strategies():
+            params = strategy_parameters(strategy)
+            with self.subTest(strategy=strategy):
+                self.assertEqual(
+                    build_signals(strategy, candles, **params),
+                    build_signals(strategy, split_normalized, **params),
+                )
+
+    def test_every_management_is_invariant_to_future_split_normalization(self) -> None:
+        tickers = ["AAA3", "BBB3", "CCC3"]
+        factors = {"AAA3": 0.1, "BBB3": 0.2, "CCC3": 0.5}
+        by_ticker = {}
+        scaled_by_ticker = {}
+        for ticker_index, ticker in enumerate(tickers, start=1):
+            original = [
+                replace(
+                    item,
+                    ticker=ticker,
+                    source_symbol=ticker,
+                    open=item.open * (1 + ticker_index * 0.001),
+                    high=item.high * (1 + ticker_index * 0.001),
+                    low=item.low * (1 + ticker_index * 0.001),
+                    close=item.close * (1 + ticker_index * 0.001),
+                    adj_close=item.adj_close * (1 + ticker_index * 0.001),
+                )
+                for item in synthetic_candles(800)
+            ]
+            factor = factors[ticker]
+            normalized = [
+                replace(
+                    item,
+                    open=item.open * factor,
+                    high=item.high * factor,
+                    low=item.low * factor,
+                    close=item.close * factor,
+                    adj_close=item.adj_close * factor,
+                    volume=round(item.volume / factor),
+                )
+                for item in original
+            ]
+            by_ticker[ticker] = original
+            scaled_by_ticker[ticker] = normalized
+
+        def market(candles_by_ticker):
+            return SimpleNamespace(
+                tickers=tickers,
+                candles=candles_by_ticker,
+                by_date={
+                    ticker: {item.date: item for item in values}
+                    for ticker, values in candles_by_ticker.items()
+                },
+                index_by_date={
+                    ticker: {item.date: index for index, item in enumerate(values)}
+                    for ticker, values in candles_by_ticker.items()
+                },
+                signal_prices={
+                    ticker: [item.close for item in values]
+                    for ticker, values in candles_by_ticker.items()
+                },
+                raw_returns={
+                    ticker: [0.0]
+                    + [
+                        values[index].close / values[index - 1].close - 1.0
+                        for index in range(1, len(values))
+                    ]
+                    for ticker, values in candles_by_ticker.items()
+                },
+                candidate_profile_cache={},
+            )
+
+        original_data = market(by_ticker)
+        normalized_data = market(scaled_by_ticker)
+        current = by_ticker[tickers[0]][-1].date
+        for config in _configs("adjusted", "all"):
+            with self.subTest(config=config.name):
+                original = _target_weights(
+                    original_data,
+                    current,
+                    config,
+                    eligible_tickers=set(tickers),
+                )
+                normalized = _target_weights(
+                    normalized_data,
+                    current,
+                    config,
+                    eligible_tickers=set(tickers),
+                )
+                self.assertEqual(set(original), set(normalized))
+                for ticker in original:
+                    self.assertAlmostEqual(original[ticker], normalized[ticker], places=12)
 
 
 class RealisticExecutionHardeningTests(unittest.TestCase):

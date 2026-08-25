@@ -39,7 +39,10 @@
     "standard_lot": 100,
     "base_slippage_bps": 10.0,
     "participation_bps_at_1pct": 5.0,
-    "max_slippage_bps": 100.0
+    "max_slippage_bps": 100.0,
+    "max_participation_rate": 0.01,
+    "liquidity_reference": "trailing 21 own-market sessions ending before the execution date",
+    "capacity_policy": "fail closed above the financial-volume or traded-quantity cap"
   },
   "accounting": {
     "initial_cash_brl": 1000.0,

@@ -16,6 +16,10 @@ FRACTIONAL_MARKET = "020"
 STANDARD_LOT = 100
 
 
+class LiquidityCapacityError(ValueError):
+    """A hypothetical order cannot be filled inside the declared capacity cap."""
+
+
 def cash_coverage_certification_issues(
     certification: dict[str, object],
     *,
@@ -201,6 +205,8 @@ class FeeRule:
     brokerage_fixed: float = 0.0
     source: str = ""
     quality: str = "modeled"
+    b3_quality: str = ""
+    broker_quality: str = ""
 
     def contains(self, value: str) -> bool:
         return self.start <= value <= self.end
@@ -218,19 +224,32 @@ class FeeSchedule:
         raw_rules = payload.get("rules")
         if not isinstance(raw_rules, list) or not raw_rules:
             raise ValueError("Fee schedule JSON requires non-empty rules.")
-        return cls(
-            [
+        rules = []
+        for item in raw_rules:
+            quality = str(item.get("quality", "modeled"))
+            rules.append(
                 FeeRule(
                     start=str(item["start"]),
                     end=str(item["end"]),
                     b3_bps=float(item["b3_bps"]),
                     brokerage_fixed=float(item.get("brokerage_fixed", 0.0)),
                     source=str(item.get("source", "")),
-                    quality=str(item.get("quality", "modeled")),
+                    quality=quality,
+                    b3_quality=str(
+                        item.get(
+                            "b3_quality",
+                            "official" if quality in {"official", "certified"} else quality,
+                        )
+                    ),
+                    broker_quality=str(
+                        item.get(
+                            "broker_quality",
+                            "certified" if quality == "certified" else "unverified",
+                        )
+                    ),
                 )
-                for item in raw_rules
-            ]
-        )
+            )
+        return cls(rules)
 
     def rule_on(self, value: str) -> FeeRule:
         matches = [rule for rule in self.rules if rule.contains(value)]
@@ -247,19 +266,66 @@ class FeeSchedule:
     def quality_on(self, value: str) -> str:
         return self.rule_on(value).quality
 
+    def b3_quality_on(self, value: str) -> str:
+        rule = self.rule_on(value)
+        return rule.b3_quality or rule.quality
+
+    def broker_quality_on(self, value: str) -> str:
+        rule = self.rule_on(value)
+        return rule.broker_quality or "unverified"
+
 
 @dataclass(frozen=True)
 class SlippageModel:
     base_bps: float = 10.0
     participation_bps_at_1pct: float = 5.0
     max_bps: float = 100.0
+    max_participation_rate: float = 0.01
+
+    def __post_init__(self) -> None:
+        values = (
+            self.base_bps,
+            self.participation_bps_at_1pct,
+            self.max_bps,
+            self.max_participation_rate,
+        )
+        if any(not math.isfinite(value) or value < 0 for value in values):
+            raise ValueError("Slippage and capacity parameters must be finite and non-negative.")
+        if self.max_bps < self.base_bps:
+            raise ValueError("max_bps cannot be smaller than base_bps.")
+        if self.max_participation_rate <= 0 or self.max_participation_rate > 1:
+            raise ValueError("max_participation_rate must be in (0, 1].")
+
+    def participation(
+        self,
+        notional: float,
+        financial_volume: float,
+        *,
+        quantity: int = 0,
+        traded_quantity: float = 0.0,
+    ) -> tuple[float, float]:
+        if notional <= 0:
+            return 0.0, 0.0
+        if financial_volume <= 0 or not math.isfinite(financial_volume):
+            raise ValueError("Pre-trade financial-volume reference is required.")
+        financial_rate = notional / financial_volume
+        quantity_rate = 0.0
+        if quantity > 0:
+            if traded_quantity <= 0 or not math.isfinite(traded_quantity):
+                raise ValueError("Pre-trade quantity reference is required.")
+            quantity_rate = quantity / traded_quantity
+        observed = max(financial_rate, quantity_rate)
+        if observed > self.max_participation_rate + 1e-12:
+            raise LiquidityCapacityError(
+                "Order exceeds the hard pre-trade liquidity-capacity limit: "
+                f"participation={observed:.6%}, cap={self.max_participation_rate:.6%}."
+            )
+        return financial_rate, quantity_rate
 
     def bps(self, notional: float, daily_financial_volume: float) -> float:
         if notional <= 0:
             return 0.0
-        if daily_financial_volume <= 0 or not math.isfinite(daily_financial_volume):
-            raise ValueError("Financial volume is required for liquidity-aware slippage.")
-        participation = notional / daily_financial_volume
+        participation, _ = self.participation(notional, daily_financial_volume)
         extra = self.participation_bps_at_1pct * (participation / 0.01)
         return min(self.max_bps, self.base_bps + max(0.0, extra))
 
@@ -269,16 +335,30 @@ class SlippageModel:
         raw_price: float,
         notional: float,
         daily_financial_volume: float,
+        *,
+        quantity: int = 0,
+        daily_quantity: float = 0.0,
     ) -> tuple[float, float]:
         if raw_price <= 0 or not math.isfinite(raw_price):
             raise ValueError("Invalid raw execution price.")
-        bps = self.bps(notional, daily_financial_volume)
+        financial_rate, quantity_rate = self.participation(
+            notional,
+            daily_financial_volume,
+            quantity=quantity,
+            traded_quantity=daily_quantity,
+        )
+        participation = max(financial_rate, quantity_rate)
+        extra = self.participation_bps_at_1pct * (participation / 0.01)
+        bps = min(self.max_bps, self.base_bps + max(0.0, extra))
         rate = bps / 10_000
         if side == "BUY":
-            return raw_price * (1 + rate), bps
-        if side == "SELL":
-            return raw_price * (1 - rate), bps
-        raise ValueError(f"Invalid side: {side}")
+            fill = raw_price * (1 + rate)
+        elif side == "SELL":
+            fill = raw_price * (1 - rate)
+        else:
+            raise ValueError(f"Invalid side: {side}")
+        actual_bps = abs(fill / raw_price - 1.0) * 10_000
+        return fill, actual_bps
 
 
 @dataclass(frozen=True)
@@ -289,6 +369,32 @@ class ExecutionQuote:
     open: float
     close: float
     financial_volume: float
+    high: float = 0.0
+    low: float = 0.0
+    quantity: int = 0
+    trades: int = 0
+    liquidity_reference_financial_volume: float = 0.0
+    liquidity_reference_quantity: float = 0.0
+    liquidity_reference_sessions: int = 0
+    liquidity_reference_end: str = ""
+
+    @property
+    def capacity_financial_volume(self) -> float:
+        return (
+            self.liquidity_reference_financial_volume
+            if self.liquidity_reference_financial_volume > 0
+            else self.financial_volume
+        )
+
+    @property
+    def capacity_quantity(self) -> float:
+        if self.liquidity_reference_quantity > 0:
+            return self.liquidity_reference_quantity
+        if self.quantity > 0:
+            return float(self.quantity)
+        # Backward-compatible approximation for in-memory unit fixtures only.
+        # Production CSV loading requires the explicit causal quantity reference.
+        return self.financial_volume / self.open if self.open > 0 else 0.0
 
 
 def _base_fractional_ticker(ticker: str) -> str:
@@ -327,21 +433,79 @@ class ExecutionPriceBook:
                 open=quote.open,
                 close=quote.close,
                 financial_volume=quote.financial_volume,
+                high=quote.high,
+                low=quote.low,
+                quantity=quote.quantity,
+                trades=quote.trades,
+                liquidity_reference_financial_volume=quote.liquidity_reference_financial_volume,
+                liquidity_reference_quantity=quote.liquidity_reference_quantity,
+                liquidity_reference_sessions=quote.liquidity_reference_sessions,
+                liquidity_reference_end=quote.liquidity_reference_end,
             )
 
     @classmethod
-    def from_csv(cls, path: Path | str, standard_lot: int = STANDARD_LOT) -> "ExecutionPriceBook":
+    def from_csv(
+        cls,
+        path: Path | str,
+        standard_lot: int = STANDARD_LOT,
+        *,
+        require_causal_liquidity: bool = True,
+    ) -> "ExecutionPriceBook":
         rows: list[ExecutionQuote] = []
         with Path(path).open(newline="", encoding="utf-8") as file:
-            for row in csv.DictReader(file):
+            reader = csv.DictReader(file)
+            causal_fields = {
+                "high",
+                "low",
+                "quantity",
+                "trades",
+                "liquidity_reference_financial_volume",
+                "liquidity_reference_quantity",
+                "liquidity_reference_sessions",
+                "liquidity_reference_end",
+            }
+            missing = causal_fields - set(reader.fieldnames or [])
+            if require_causal_liquidity and missing:
+                raise ValueError(
+                    "Execution book lacks causal liquidity/OHLC fields: "
+                    + ", ".join(sorted(missing))
+                )
+            for row in reader:
+                value_date = str(row["date"])[:10]
+                reference_end = str(row.get("liquidity_reference_end", ""))[:10]
+                if require_causal_liquidity and (
+                    not reference_end
+                    or reference_end >= value_date
+                    or float(row.get("liquidity_reference_financial_volume", 0) or 0) <= 0
+                    or float(row.get("liquidity_reference_quantity", 0) or 0) <= 0
+                    or int(row.get("liquidity_reference_sessions", 0) or 0) <= 0
+                ):
+                    raise ValueError(
+                        f"{value_date}/{row.get('ticker', '')}/{row.get('market_type', '')}: "
+                        "execution quote lacks a strictly pre-trade liquidity reference."
+                    )
                 rows.append(
                     ExecutionQuote(
-                        date=str(row["date"])[:10],
+                        date=value_date,
                         ticker=str(row["ticker"]).upper(),
                         market_type=str(row["market_type"]),
                         open=float(row["open"]),
                         close=float(row["close"]),
                         financial_volume=float(row["financial_volume"]),
+                        high=float(row.get("high", 0) or 0),
+                        low=float(row.get("low", 0) or 0),
+                        quantity=int(row.get("quantity", 0) or 0),
+                        trades=int(row.get("trades", 0) or 0),
+                        liquidity_reference_financial_volume=float(
+                            row.get("liquidity_reference_financial_volume", 0) or 0
+                        ),
+                        liquidity_reference_quantity=float(
+                            row.get("liquidity_reference_quantity", 0) or 0
+                        ),
+                        liquidity_reference_sessions=int(
+                            row.get("liquidity_reference_sessions", 0) or 0
+                        ),
+                        liquidity_reference_end=reference_end,
                     )
                 )
         return cls(rows, standard_lot=standard_lot)
@@ -500,6 +664,10 @@ class TradeLedgerRow:
     fee: float
     slippage_bps: float
     realized_gain: float = 0.0
+    financial_participation: float = 0.0
+    quantity_participation: float = 0.0
+    capacity_reference_end: str = ""
+    fill_outside_daily_range: bool = False
 
 
 @dataclass(frozen=True)
@@ -548,8 +716,19 @@ class RealCashAccount:
         if quantity <= 0:
             return
         raw_notional = quantity * quote.open
+        financial_participation, quantity_participation = self.slippage.participation(
+            raw_notional,
+            quote.capacity_financial_volume,
+            quantity=quantity,
+            traded_quantity=quote.capacity_quantity,
+        )
         fill, slip_bps = self.slippage.price(
-            "BUY", quote.open, raw_notional, quote.financial_volume
+            "BUY",
+            quote.open,
+            raw_notional,
+            quote.capacity_financial_volume,
+            quantity=quantity,
+            daily_quantity=quote.capacity_quantity,
         )
         notional = quantity * fill
         fee = self.fee_schedule.cost(value_date, notional)
@@ -576,6 +755,14 @@ class RealCashAccount:
                 notional=notional,
                 fee=fee,
                 slippage_bps=slip_bps,
+                financial_participation=financial_participation,
+                quantity_participation=quantity_participation,
+                capacity_reference_end=quote.liquidity_reference_end,
+                fill_outside_daily_range=(
+                    quote.low > 0
+                    and quote.high > 0
+                    and not (quote.low - 1e-12 <= fill <= quote.high + 1e-12)
+                ),
             )
         )
 
@@ -592,8 +779,19 @@ class RealCashAccount:
         if quantity > position.shares:
             raise ValueError(f"Cannot sell {quantity} {ticker}; only {position.shares} held.")
         raw_notional = quantity * quote.open
+        financial_participation, quantity_participation = self.slippage.participation(
+            raw_notional,
+            quote.capacity_financial_volume,
+            quantity=quantity,
+            traded_quantity=quote.capacity_quantity,
+        )
         fill, slip_bps = self.slippage.price(
-            "SELL", quote.open, raw_notional, quote.financial_volume
+            "SELL",
+            quote.open,
+            raw_notional,
+            quote.capacity_financial_volume,
+            quantity=quantity,
+            daily_quantity=quote.capacity_quantity,
         )
         notional = quantity * fill
         fee = self.fee_schedule.cost(value_date, notional)
@@ -619,6 +817,14 @@ class RealCashAccount:
                 fee=fee,
                 slippage_bps=slip_bps,
                 realized_gain=realized_gain,
+                financial_participation=financial_participation,
+                quantity_participation=quantity_participation,
+                capacity_reference_end=quote.liquidity_reference_end,
+                fill_outside_daily_range=(
+                    quote.low > 0
+                    and quote.high > 0
+                    and not (quote.low - 1e-12 <= fill <= quote.high + 1e-12)
+                ),
             )
         )
 

@@ -171,9 +171,11 @@ def main(argv: list[str] | None = None) -> int:
         archives,
         tickers,
         exclude_date=exclude_date,
-        require_standard_for_fractional_from=str(
-            universe.get("selected_as_of", coverage_start)
-        ),
+        # A fractional-market print without a standard-lot print is legitimate.
+        # Do not synthesize a standard candle and do not abort the entire dataset;
+        # the execution engine will correctly reject an order that requires the
+        # absent standard open on that session.
+        require_standard_for_fractional_from=None,
     )
     coverage_dates = [
         quote.date for quotes in quotes_by_ticker.values() for quote in quotes

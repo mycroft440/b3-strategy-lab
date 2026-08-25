@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import defaultdict
@@ -27,6 +28,14 @@ from b3_strategy_lab.point_in_time import (  # noqa: E402
 DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 DEFAULT_ALLOWED_UNIVERSE = Path("data/universes/fixed_40_2018.json")
 EXCLUDED_TICKERS = {"BOAC34"}
 
@@ -346,7 +355,22 @@ def main(argv: list[str] | None = None) -> int:
     write_csv(
         args.execution_output,
         executions,
-        ["date", "ticker", "market_type", "open", "close", "financial_volume"],
+        [
+            "date",
+            "ticker",
+            "market_type",
+            "open",
+            "high",
+            "low",
+            "close",
+            "quantity",
+            "trades",
+            "financial_volume",
+            "liquidity_reference_financial_volume",
+            "liquidity_reference_quantity",
+            "liquidity_reference_sessions",
+            "liquidity_reference_end",
+        ],
     )
 
     standard_count = sum(row["market_type"] == "010" for row in executions)
@@ -356,6 +380,28 @@ def main(argv: list[str] | None = None) -> int:
             "Fractional execution book is empty. COTAHIST market 020/BDI 96 coverage "
             "is required for an R$1,000 realistic account."
         )
+    manifest["artifact_bindings"] = {
+        "schema_version": 1,
+        "snapshots_file": str(args.snapshots_output),
+        "snapshots_sha256": _sha256(args.snapshots_output),
+        "snapshot_row_count": len(snapshots),
+        "execution_file": str(args.execution_output),
+        "execution_sha256": _sha256(args.execution_output),
+        "execution_row_count": len(executions),
+        "source_archives": [
+            {
+                "year": year,
+                "file": str(path),
+                "sha256": _sha256(path),
+                "size_bytes": path.stat().st_size,
+            }
+            for year, path in zip(years, archives)
+        ],
+    }
+    args.manifest_output.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     print(f"Allowed pre-existing symbols: {len(allowed_tickers)}")
     print(f"Explicit exclusions: {', '.join(sorted(EXCLUDED_TICKERS))}")
     print(

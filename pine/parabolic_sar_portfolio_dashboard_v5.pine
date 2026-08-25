@@ -136,7 +136,7 @@ f_metrics() =>
          time[1])
 
 // Universo fixo de 40 ativos usado pelo backtest.
-// adjustment.splits normaliza splits sem aplicar ajuste por dividendos.
+// Cada simbolo usa ajuste apenas por splits, sem ajuste por dividendos.
 string s01 = ticker.new("BMFBOVESPA", "ABEV3", session.regular, adjustment.splits)
 string s02 = ticker.new("BMFBOVESPA", "BBAS3", session.regular, adjustment.splits)
 string s03 = ticker.new("BMFBOVESPA", "BBDC3", session.regular, adjustment.splits)

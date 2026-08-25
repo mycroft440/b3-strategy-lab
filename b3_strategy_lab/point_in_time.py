@@ -4,7 +4,7 @@ import csv
 import hashlib
 import re
 import zipfile
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import date
 from pathlib import Path
 
@@ -326,34 +326,94 @@ def execution_rows(
     union: set[str],
     start: str,
     end: str,
+    liquidity_lookback_sessions: int = 21,
 ) -> list[dict[str, object]]:
+    if liquidity_lookback_sessions <= 0:
+        raise ValueError("liquidity_lookback_sessions must be positive.")
+
+    def rows_for_market(quotes: list, market_type: str) -> list[dict[str, object]]:
+        """Build quotes whose capacity inputs use strictly earlier sessions.
+
+        COTAHIST's volume for the execution date is known only after that session.
+        A hypothetical opening fill therefore uses a trailing reference ending before
+        the fill date. ISIN is preferred as the history key so a source-backed ticker
+        rename does not erase the security's pre-trade liquidity history.
+        """
+
+        result: list[dict[str, object]] = []
+        history: dict[str, deque[tuple[str, float, int]]] = defaultdict(
+            lambda: deque(maxlen=liquidity_lookback_sessions)
+        )
+        active_keys: set[str] = set()
+        by_date: dict[str, list] = defaultdict(list)
+        for quote in quotes:
+            by_date[quote.date].append(quote)
+
+        for value_date in sorted(by_date):
+            same_day = sorted(by_date[value_date], key=lambda item: item.ticker)
+            for quote in same_day:
+                base = (
+                    quote.ticker.upper()
+                    if market_type == STANDARD_MARKET
+                    else base_fractional_ticker(quote.ticker)
+                )
+                if base not in union or not (start <= value_date <= end):
+                    continue
+                history_key = str(quote.isin).strip().upper() or base
+                prior = history[history_key]
+                reference_financial = (
+                    sum(item[1] for item in prior) / len(prior) if prior else 0.0
+                )
+                reference_quantity = (
+                    sum(item[2] for item in prior) / len(prior) if prior else 0.0
+                )
+                result.append(
+                    {
+                        "date": value_date,
+                        "ticker": quote.ticker.upper(),
+                        "market_type": market_type,
+                        "open": quote.open,
+                        "high": quote.high,
+                        "low": quote.low,
+                        "close": quote.close,
+                        "quantity": quote.volume,
+                        "trades": quote.trades,
+                        "financial_volume": quote.financial_volume,
+                        "liquidity_reference_financial_volume": reference_financial,
+                        "liquidity_reference_quantity": reference_quantity,
+                        "liquidity_reference_sessions": len(prior),
+                        "liquidity_reference_end": prior[-1][0] if prior else "",
+                    }
+                )
+
+            # Add the complete current market session only after every same-day row
+            # was emitted. Missing observations enter the rolling window as zero;
+            # averaging only positive quotes would overstate sparse securities.
+            today_by_key: dict[str, tuple[float, int]] = {}
+            for quote in same_day:
+                base = (
+                    quote.ticker.upper()
+                    if market_type == STANDARD_MARKET
+                    else base_fractional_ticker(quote.ticker)
+                )
+                if base not in union:
+                    continue
+                history_key = str(quote.isin).strip().upper() or base
+                financial, quantity = today_by_key.get(history_key, (0.0, 0))
+                today_by_key[history_key] = (
+                    financial + max(0.0, float(quote.financial_volume)),
+                    quantity + max(0, int(quote.volume)),
+                )
+            all_keys = active_keys | set(today_by_key)
+            for history_key in all_keys:
+                financial, quantity = today_by_key.get(history_key, (0.0, 0))
+                history[history_key].append((value_date, financial, quantity))
+            active_keys = all_keys
+        return result
+
     rows: list[dict[str, object]] = []
-    for quote in standard_quotes:
-        ticker = quote.ticker.upper()
-        if ticker in union and start <= quote.date <= end:
-            rows.append(
-                {
-                    "date": quote.date,
-                    "ticker": ticker,
-                    "market_type": STANDARD_MARKET,
-                    "open": quote.open,
-                    "close": quote.close,
-                    "financial_volume": quote.financial_volume,
-                }
-            )
-    for quote in fractional_quotes:
-        base = base_fractional_ticker(quote.ticker)
-        if base in union and start <= quote.date <= end:
-            rows.append(
-                {
-                    "date": quote.date,
-                    "ticker": quote.ticker.upper(),
-                    "market_type": FRACTIONAL_MARKET,
-                    "open": quote.open,
-                    "close": quote.close,
-                    "financial_volume": quote.financial_volume,
-                }
-            )
+    rows.extend(rows_for_market(standard_quotes, STANDARD_MARKET))
+    rows.extend(rows_for_market(fractional_quotes, FRACTIONAL_MARKET))
     rows.sort(
         key=lambda row: (str(row["date"]), str(row["ticker"]), str(row["market_type"]))
     )

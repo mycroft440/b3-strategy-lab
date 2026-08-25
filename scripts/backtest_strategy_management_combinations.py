@@ -20,6 +20,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.cli import _signal_candles  # noqa: E402
+from b3_strategy_lab.catalog_contract import (  # noqa: E402
+    DEFAULT_CATALOG_CONTRACT,
+    validate_catalog_contract,
+)
 from b3_strategy_lab.strategies import (  # noqa: E402
     build_signals,
     portfolio_strategies,
@@ -99,7 +103,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--allow-unverified-data", action="store_true")
+    parser.add_argument(
+        "--catalog-contract",
+        type=Path,
+        default=DEFAULT_CATALOG_CONTRACT,
+    )
     args = parser.parse_args(argv)
+
+    catalog_contract = validate_catalog_contract(args.catalog_contract)
 
     if args.initial_cash <= 0:
         parser.error("--initial-cash precisa ser maior que zero.")
@@ -235,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         elapsed_seconds=time.perf_counter() - started,
         universe=universe,
         data=data,
+        catalog_contract=catalog_contract,
     )
     _print_top(rows[: args.top])
     return 0
@@ -554,12 +566,20 @@ def _write_manifest(
     elapsed_seconds: float,
     universe: dict[str, object],
     data: MarketData,
+    catalog_contract: dict[str, object],
 ) -> None:
     commit, dirty = _git_state()
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": commit,
         "git_dirty": dirty,
+        "catalog_contract": {
+            "path": str(args.catalog_contract),
+            "sha256": catalog_contract["catalog_sha256"],
+            "strategy_count": catalog_contract["strategy_count"],
+            "management_count": catalog_contract["management_count"],
+            "candidate_count": catalog_contract["candidate_count"],
+        },
         "source_sha256": {
             "b3_strategy_lab/backtest.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/backtest.py"

@@ -264,6 +264,8 @@ def write_composite_fee_schedule(
                     "brokerage_fixed": broker.brokerage_fixed_per_order,
                     "fixed_fee_application": broker.fixed_fee_application,
                     "quality": "certified",
+                    "b3_quality": "official",
+                    "broker_quality": "certified",
                     "source": (
                         f"B3={b3.get('source', '')}; broker={broker_profile.broker_name}; "
                         f"broker_evidence={' | '.join(broker.evidence)}"

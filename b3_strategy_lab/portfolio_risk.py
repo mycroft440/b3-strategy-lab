@@ -196,7 +196,12 @@ def covariance_target_weights(
     if config.score == "all":
         selected = candidates
     else:
-        candidates.sort(key=lambda item: item["score"], reverse=True)
+        candidates.sort(
+            key=lambda item: (
+                -round(float(item["score"]), 12),
+                str(item["ticker"]),
+            )
+        )
         selected = candidates[: config.top_n]
 
     weights = core._weights(selected, config)

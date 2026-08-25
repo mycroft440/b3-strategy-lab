@@ -48,6 +48,7 @@ REALISTIC_EXECUTION_FIELDS = (
     "base_slippage_bps",
     "participation_bps_at_1pct",
     "max_slippage_bps",
+    "max_participation_rate",
 )
 REALISTIC_ACCOUNTING_FIELDS = (
     "initial_cash_brl",
@@ -144,7 +145,12 @@ def audit_freeze(path: Path) -> dict[str, object]:
         )
         checks["execution_numeric_assumptions_are_valid"] = _nonnegative_finite(
             execution,
-            ("base_slippage_bps", "participation_bps_at_1pct", "max_slippage_bps"),
+            (
+                "base_slippage_bps",
+                "participation_bps_at_1pct",
+                "max_slippage_bps",
+                "max_participation_rate",
+            ),
         )
         checks["point_in_time_universe_contract_is_present"] = bool(point_in_time)
         checks["accounting_fails_closed_on_stale_prices"] = (

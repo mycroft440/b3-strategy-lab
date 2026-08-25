@@ -665,7 +665,16 @@ def _target_weights(
     if config.score == "all":
         selected = candidates
     else:
-        candidates.sort(key=lambda item: item["score"], reverse=True)
+        # Split normalization multiplies a ticker's complete pre-event history by
+        # one constant. Ratios are mathematically identical, but binary floating
+        # point may differ in the final ulps and silently flip an exact tie. Quantize
+        # only the ordering key and use ticker as the deterministic tie-break.
+        candidates.sort(
+            key=lambda item: (
+                -round(float(item["score"]), 12),
+                str(item["ticker"]),
+            )
+        )
         selected = candidates[: config.top_n]
 
     weights = _weights(selected, config)

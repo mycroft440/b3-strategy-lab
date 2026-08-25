@@ -1,0 +1,9 @@
+{
+  "candidate_count": 111852,
+  "catalog_sha256": "bb2f7f49f3130f87d55725ef6106905915a47da616047ba67bc5411abde25f85",
+  "config_set": "all",
+  "management_count": 478,
+  "schema_version": 1,
+  "signal_mode": "adjusted",
+  "strategy_count": 234
+}

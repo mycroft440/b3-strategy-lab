@@ -15,6 +15,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from b3_strategy_lab.strategies import portfolio_strategies
+from b3_strategy_lab.catalog_contract import (  # noqa: E402
+    DEFAULT_CATALOG_CONTRACT,
+    validate_catalog_contract,
+)
 from scripts.backtest_strategy_management_combinations import _ranking_key, _write_results
 
 
@@ -63,6 +67,7 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
     reference = manifests[0]
     keys = (
         "git_commit",
+        "catalog_contract",
         "universe",
         "datasets",
         "tickers",
@@ -228,9 +233,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--top", type=int, default=10)
     parser.add_argument("--summary-output", type=Path, default=Path("reports/TOP_10.md"))
     parser.add_argument("--json-output", type=Path, default=Path("reports/TOP_10.json"))
+    parser.add_argument(
+        "--catalog-contract",
+        type=Path,
+        default=DEFAULT_CATALOG_CONTRACT,
+    )
     args = parser.parse_args(argv)
     if args.top <= 0:
         parser.error("--top precisa ser maior que zero.")
+    catalog_contract = validate_catalog_contract(args.catalog_contract)
 
     result_paths = sorted(args.input_dir.glob("shard_*.csv.gz"))
     if not result_paths:
@@ -274,7 +285,13 @@ def main(argv: list[str] | None = None) -> int:
         row["rank"] = rank
 
     management_count = int(manifests[0]["management_count"])
-    expected_combinations = len(expected_strategies) * management_count
+    expected_combinations = int(catalog_contract["candidate_count"])
+    declared_catalog = manifests[0].get("catalog_contract", {})
+    if not isinstance(declared_catalog, dict) or (
+        declared_catalog.get("sha256") != catalog_contract["catalog_sha256"]
+        or int(declared_catalog.get("candidate_count", -1)) != expected_combinations
+    ):
+        raise ValueError("Shards are not bound to the current runtime catalog contract.")
     if len(all_rows) != expected_combinations:
         raise ValueError(
             f"Cardinalidade global inválida: {len(all_rows)} != {expected_combinations}."
