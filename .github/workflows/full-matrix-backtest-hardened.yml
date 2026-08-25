@@ -241,9 +241,9 @@ jobs:
         with:
           name: matrix-shard-${{ matrix.index }}
           path: |
-            reports/shards/shard_${{ matrix.index }}.csv.gz
-            reports/shards/shard_${{ matrix.index }}.manifest.json
-            reports/shards/shard_${{ matrix.index }}_top10_annual.md
+            reports/shards/shard_${SHARD_INDEX}.csv.gz
+            reports/shards/shard_${SHARD_INDEX}.manifest.json
+            reports/shards/shard_${SHARD_INDEX}_top10_annual.md
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -324,26 +324,33 @@ jobs:
           path: research-artifact
 
       - name: Resolver período e preparar dados point-in-time
-        env:
-          INITIAL_CASH: ${{ inputs.initial_cash || '1000' }}
         run: |
           set -euo pipefail
-          python - <<'PY' >> "$GITHUB_ENV"
+          REAL_START="$(python - <<'PY'
           import json
           from pathlib import Path
           payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
-          start = payload["period"]["start"]
-          end = payload["period"]["end"]
-          start_year = int(start[:4])
-          end_year = int(end[:4])
-          print(f"REAL_START={start}")
-          print(f"REAL_END={end}")
-          print(f"SOURCE_YEARS={start_year - 1}:{end_year}")
+          print(payload["period"]["start"])
           PY
+          )"
+          REAL_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
+          print(payload["period"]["end"])
+          PY
+          )"
+          START_YEAR="${REAL_START:0:4}"
+          END_YEAR="${REAL_END:0:4}"
+          SOURCE_YEARS="$((START_YEAR - 1)):${END_YEAR}"
+          echo "REAL_START=$REAL_START" >> "$GITHUB_ENV"
+          echo "REAL_END=$REAL_END" >> "$GITHUB_ENV"
+          echo "SOURCE_YEARS=$SOURCE_YEARS" >> "$GITHUB_ENV"
           python scripts/build_survivorship_safe_realistic_universe.py \
             --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
           python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
-          python scripts/sync_point_in_time_universe_realistic.py --years "$SOURCE_YEARS" --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" --download --refresh-actions
 
       - name: Exigir insumos realistas certificados
         run: |
