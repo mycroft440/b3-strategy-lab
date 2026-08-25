@@ -74,7 +74,7 @@ jobs:
             scripts/walk_forward_certified.py
 
       - name: Testar causalidade de liquidez
-        run: python -m unittest tests.test_causal_liquidity -v
+        run: python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
 
       - name: Preparar dados point-in-time e certificações
         env:
@@ -98,7 +98,8 @@ jobs:
           if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
           "${CMD[@]}"
           python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
-          python scripts/sync_point_in_time_universe_realistic.py --years "$SOURCE_YEARS" --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" --download --refresh-actions
           python scripts/audit_realistic_backtest_inputs.py
           python - <<'PY'
           import json
