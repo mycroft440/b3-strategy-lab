@@ -65,6 +65,8 @@ def _run_candidate(
         "--tax-output",
         str(tax),
     ]
+    if strategy == "gap_momentum":
+        command.append("--economic-gap-adjustment")
     subprocess.run(command, cwd=ROOT, check=True)
     payload = json.loads(summary.read_text(encoding="utf-8"))
     payload["research_rank"] = rank
@@ -213,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
                 "distributions_net": float(item["distributions_net"]),
                 "validity": item["validity"],
                 "selection_status": item["selection_status"],
+                "economic_gap_adjustment": bool(item.get("economic_gap_adjustment")),
             }
         )
 
@@ -233,7 +236,8 @@ def main(argv: list[str] | None = None) -> int:
         "interpretation": (
             "This reranks hindsight-generated finalists using the realistic account engine. "
             "It improves execution/account fidelity but does not remove strategy-selection "
-            "hindsight. Use full-catalog walk-forward for out-of-sample selection validation."
+            "hindsight. Gap Momentum is replayed with economic cash-distribution gap "
+            "adjustment. Use full-catalog walk-forward for out-of-sample selection validation."
         ),
         "realistic_ranking": ranking,
         "excluded_candidates": excluded,
