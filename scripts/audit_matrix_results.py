@@ -36,6 +36,27 @@ def _open_results(path: Path):
     return path.open(encoding="utf-8", newline="")
 
 
+def _real_money_blockers(manifest: dict[str, object]) -> list[str]:
+    blockers: list[str] = []
+    if manifest.get("result_classification") != "REALISTIC_POINT_IN_TIME_VALIDATED":
+        blockers.append("matrix_result_is_research_not_realistic_point_in_time_validation")
+    if manifest.get("real_money_claim_allowed") is not True:
+        blockers.append("manifest_forbids_real_money_claim")
+    if manifest.get("evaluation_scope") == "full_period":
+        blockers.append("strategy_and_management_selected_on_full_period")
+    universe = manifest.get("universe")
+    if not isinstance(universe, dict) or universe.get("survivorship_safe") is not True:
+        blockers.append("universe_is_not_survivorship_safe")
+    if manifest.get("dividends_jcp") != "included_with_certified_cash_events":
+        blockers.append("dividends_and_jcp_are_not_certified_in_matrix")
+    limitations = {str(item) for item in (manifest.get("limitations") or [])}
+    if "taxes_excluded" in limitations:
+        blockers.append("taxes_are_excluded")
+    if "standard_market_open_used_for_integer_share_research_execution" in limitations:
+        blockers.append("fractional_market_execution_is_not_modeled")
+    return sorted(set(blockers))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Audita cardinalidade, ordenacao, metricas e hashes da matriz completa."
@@ -205,6 +226,9 @@ def main(argv: list[str] | None = None) -> int:
         "dataset_hashes_match": dataset_hashes_match,
         "split_evidence_hash_matches": split_evidence_hash_matches,
     }
+    research_ready = all(checks.values())
+    real_money_blockers = _real_money_blockers(manifest)
+    real_money_ready = research_ready and not real_money_blockers
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "results": str(args.results),
@@ -217,8 +241,15 @@ def main(argv: list[str] | None = None) -> int:
         "rows": row_count,
         "strategy_count": len(observed_strategies),
         "management_count": len(observed_managements),
+        "result_classification": manifest.get("result_classification"),
         "checks": checks,
-        "ready": all(checks.values()),
+        "ready": research_ready,
+        "ready_for_research_ranking": research_ready,
+        "ready_for_real_money": real_money_ready,
+        "real_money_claim_allowed": bool(
+            real_money_ready and manifest.get("real_money_claim_allowed") is True
+        ),
+        "real_money_blockers": real_money_blockers,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = output_path.with_suffix(output_path.suffix + ".tmp")
@@ -228,11 +259,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     temporary.replace(output_path)
     print(
-        f"{output_path}: ready={payload['ready']}, linhas={row_count}, "
+        f"{output_path}: research_ready={payload['ready_for_research_ranking']}, "
+        f"real_money_ready={payload['ready_for_real_money']}, linhas={row_count}, "
         f"estrategias={len(observed_strategies)}, gestoes={len(observed_managements)}, "
         f"top_n={annual_top_n}"
     )
-    return 0 if payload["ready"] else 1
+    return 0 if payload["ready_for_research_ranking"] else 1
 
 
 if __name__ == "__main__":

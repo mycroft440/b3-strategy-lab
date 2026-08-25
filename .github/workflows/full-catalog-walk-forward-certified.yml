@@ -1,0 +1,174 @@
+name: Certified full-catalog walk-forward
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: Início do histórico
+        required: true
+        default: "2018-01-02"
+        type: string
+      end:
+        description: Fim do histórico (vazio = último dado disponível)
+        required: false
+        default: ""
+        type: string
+      first_test_year:
+        description: Primeiro ano totalmente fora da amostra
+        required: true
+        default: "2021"
+        type: string
+      last_test_year:
+        description: Último ano de teste (vazio = último disponível)
+        required: false
+        default: ""
+        type: string
+      initial_cash:
+        description: Capital inicial por fold
+        required: true
+        default: "1000"
+        type: string
+      objective:
+        description: Métrica usada apenas no treino
+        required: true
+        default: "cagr"
+        type: choice
+        options:
+          - cagr
+          - total_return
+          - sharpe
+
+permissions:
+  contents: read
+
+concurrency:
+  group: certified-full-catalog-walk-forward
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  walk_forward:
+    name: Seleção causal fora da amostra
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compilar camada realista e causal
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/causal_liquidity.py \
+            b3_strategy_lab/realistic.py \
+            b3_strategy_lab/realistic_core.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/walk_forward_realistic.py \
+            scripts/walk_forward_certified.py
+
+      - name: Testar causalidade de liquidez
+        run: python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
+
+      - name: Preparar dados point-in-time e certificações
+        env:
+          START_DATE: ${{ inputs.start }}
+          END_DATE: ${{ inputs.end }}
+        run: |
+          set -euo pipefail
+          START_YEAR="${START_DATE:0:4}"
+          if [ -n "$END_DATE" ]; then
+            END_YEAR="${END_DATE:0:4}"
+          else
+            END_YEAR="$(date -u +%Y)"
+          fi
+          SOURCE_YEARS="$((START_YEAR - 1)):${END_YEAR}"
+          CMD=(
+            python scripts/build_survivorship_safe_realistic_universe.py
+            --start "$START_DATE"
+            --years "$SOURCE_YEARS"
+            --download
+          )
+          if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
+          "${CMD[@]}"
+          python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" --download --refresh-actions
+          python scripts/audit_realistic_backtest_inputs.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          audit = json.loads(Path("reports/realistic_input_audit.json").read_text())
+          if audit.get("ready_for_certified_market_inputs") is not True:
+              raise SystemExit(
+                  "certified market inputs are not ready: "
+                  + repr(audit.get("certified_market_input_blockers"))
+              )
+          PY
+
+      - name: Executar walk-forward do catálogo completo
+        env:
+          START_DATE: ${{ inputs.start }}
+          END_DATE: ${{ inputs.end }}
+          FIRST_TEST_YEAR: ${{ inputs.first_test_year }}
+          LAST_TEST_YEAR: ${{ inputs.last_test_year }}
+          INITIAL_CASH: ${{ inputs.initial_cash }}
+          OBJECTIVE: ${{ inputs.objective }}
+        run: |
+          set -euo pipefail
+          CMD=(
+            python scripts/walk_forward_certified.py
+            --require-full-scope
+            --all-strategies
+            --start "$START_DATE"
+            --first-test-year "$FIRST_TEST_YEAR"
+            --initial-cash "$INITIAL_CASH"
+            --objective "$OBJECTIVE"
+            --output reports/FULL_CATALOG_WALK_FORWARD.csv
+            --summary-output reports/FULL_CATALOG_WALK_FORWARD.json
+          )
+          if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
+          if [ -n "$LAST_TEST_YEAR" ]; then CMD+=(--last-test-year "$LAST_TEST_YEAR"); fi
+          "${CMD[@]}"
+
+      - name: Exigir seleção realmente fora da amostra
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path("reports/FULL_CATALOG_WALK_FORWARD.json").read_text())
+          required = {
+              "full_multiple_testing_scope": True,
+              "selection_uses_test_data": False,
+              "survivorship_safe_universe": True,
+              "ex_ante_selection_claim_allowed": True,
+              "cash_events_complete": True,
+              "cash_certification_verified": True,
+              "causal_opening_liquidity_required": True,
+          }
+          failures = [
+              f"{key}={summary.get(key)!r}"
+              for key, expected in required.items()
+              if summary.get(key) is not expected
+          ]
+          if failures:
+              raise SystemExit("walk-forward certification failed: " + ", ".join(failures))
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Publicar resultado fora da amostra
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-strategy-lab-full-catalog-walk-forward-${{ github.run_number }}
+          path: |
+            reports/FULL_CATALOG_WALK_FORWARD.csv
+            reports/FULL_CATALOG_WALK_FORWARD.json
+            reports/realistic_input_audit.json
+          if-no-files-found: error
+          retention-days: 30

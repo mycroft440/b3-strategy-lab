@@ -9,12 +9,14 @@ synchronizer, so a short causal replay cannot truncate or invalidate research da
 """
 
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from b3_strategy_lab.b3_official import B3CorporateActionError  # noqa: E402
 from scripts import sync_point_in_time_universe as base  # noqa: E402
 
 
@@ -24,6 +26,9 @@ DEFAULT_REALISTIC_MANIFESTS = Path("data/manifests_point_in_time")
 DEFAULT_REALISTIC_SPLIT_EVIDENCE = Path(
     "data/corporate_actions/point_in_time_split_evidence.json"
 )
+DEFAULT_ACTION_WORKERS = 1
+SYNC_ATTEMPTS = 3
+SYNC_RETRY_DELAYS_SECONDS = (20, 60)
 
 
 def _option_value(arguments: list[str], option: str) -> str | None:
@@ -62,7 +67,32 @@ def main(argv: list[str] | None = None) -> int:
     if _option_value(arguments, "--dataset-split-evidence") is None:
         arguments.extend(["--dataset-split-evidence", split_evidence])
 
-    return base.main(arguments)
+    # The public listed-company endpoint is sensitive to bursts. Realistic mode
+    # favors deterministic evidence collection over throughput; callers can still
+    # opt into more workers explicitly when they control their own cache/rate limit.
+    if _option_value(arguments, "--action-workers") is None:
+        arguments.extend(["--action-workers", str(DEFAULT_ACTION_WORKERS)])
+
+    # Successful issuer supplements are written atomically by the base synchronizer.
+    # If the B3 endpoint transiently returns an empty/non-JSON response, a retry of
+    # the full sync therefore resumes from those cached successes and only fetches
+    # the missing issuers. We retry only the explicit B3 transport/data error and
+    # preserve fail-closed behavior after the bounded attempts are exhausted.
+    for attempt in range(1, SYNC_ATTEMPTS + 1):
+        try:
+            return base.main(arguments)
+        except B3CorporateActionError as error:
+            if attempt >= SYNC_ATTEMPTS:
+                raise
+            delay = SYNC_RETRY_DELAYS_SECONDS[attempt - 1]
+            print(
+                f"B3 supplement sync transient failure (attempt {attempt}/{SYNC_ATTEMPTS}): "
+                f"{error}. Retrying cached resume after {delay}s.",
+                flush=True,
+            )
+            time.sleep(delay)
+
+    raise AssertionError("unreachable")
 
 
 if __name__ == "__main__":

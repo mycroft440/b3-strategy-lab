@@ -1,4 +1,4 @@
-name: Full matrix backtest — Top 10 hardened
+name: Full matrix backtest — research + realistic validation
 
 on:
   workflow_dispatch:
@@ -19,12 +19,12 @@ on:
         default: "1000"
         type: string
       cost_bps:
-        description: Custo por ordem em bps
+        description: Custo por ordem em bps na triagem retrospectiva
         required: true
         default: "3.2"
         type: string
       slippage_bps:
-        description: Slippage em bps
+        description: Slippage em bps na triagem retrospectiva
         required: true
         default: "10"
         type: string
@@ -41,12 +41,19 @@ on:
       - "scripts/audit_backtest_readiness.py"
       - "scripts/audit_volume_indicators.py"
       - "scripts/sync_official_universe.py"
+      - "scripts/validate_matrix_top_realistic.py"
+      - "scripts/backtest_strategy_management_realistic.py"
+      - "scripts/audit_realistic_backtest_inputs.py"
+      - "scripts/build_survivorship_safe_realistic_universe.py"
+      - "scripts/build_ticker_transitions.py"
+      - "scripts/sync_point_in_time_universe_realistic.py"
       - "data/candles/**"
       - "data/corporate_actions/**"
       - "data/universes/fixed_40_2018.json"
+      - "data/fees/**"
       - "tests/**"
 
-run-name: "Backtest completo endurecido — Top 10"
+run-name: "Backtest 90k+ — triagem + validação realista"
 
 permissions:
   contents: write
@@ -82,6 +89,7 @@ jobs:
       - name: Compilar módulos críticos
         run: |
           python -m py_compile \
+            b3_strategy_lab/causal_liquidity.py \
             b3_strategy_lab/extended_strategies.py \
             b3_strategy_lab/research_indicators.py \
             b3_strategy_lab/indicator_strategies.py \
@@ -92,7 +100,9 @@ jobs:
             scripts/merge_matrix_shards.py \
             scripts/audit_matrix_results.py \
             scripts/backtest_strategy_management_realistic.py \
+            scripts/validate_matrix_top_realistic.py \
             scripts/walk_forward_realistic.py \
+            scripts/walk_forward_certified.py \
             scripts/run_realistic_pipeline.py
 
       - name: Executar suíte completa antes da matriz
@@ -156,6 +166,7 @@ jobs:
           from pathlib import Path
           payload = {
               "status": "RUNNING",
+              "stage": "retrospective_research_screen",
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
               "run_id": int(os.environ["RUN_ID"]),
               "run_number": int(os.environ["RUN_NUMBER"]),
@@ -164,6 +175,7 @@ jobs:
               "management_count": int(os.environ["MANAGEMENT_COUNT"]),
               "combination_count": int(os.environ["COMBINATION_COUNT"]),
               "top_n": 10,
+              "real_money_claim_allowed": False,
           }
           Path("reports/latest_backtest/STATUS.json").write_text(
               json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
@@ -194,7 +206,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Executar shard
+      - name: Executar shard de pesquisa
         env:
           STRATEGIES: ${{ matrix.strategies }}
           SHARD_INDEX: ${{ matrix.index }}
@@ -237,7 +249,7 @@ jobs:
           compression-level: 0
 
   merge:
-    name: Consolidar e auditar 90k+
+    name: Consolidar e auditar triagem 90k+
     needs: [prepare, backtest]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -257,7 +269,7 @@ jobs:
           path: reports/shards
           merge-multiple: true
 
-      - name: Consolidar ranking global
+      - name: Consolidar shortlist retrospectiva
         run: |
           python scripts/merge_matrix_shards.py \
             --input-dir reports/shards \
@@ -266,20 +278,20 @@ jobs:
             --summary-output reports/TOP_10.md \
             --json-output reports/TOP_10.json
 
-      - name: Auditar resultado completo
+      - name: Auditar resultado de pesquisa
         run: |
           python scripts/audit_matrix_results.py \
             --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
             --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
             --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
 
-      - name: Exibir Top 10
+      - name: Exibir shortlist de pesquisa
         run: cat reports/TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publicar artifact final
+      - name: Publicar artifact da triagem
         uses: actions/upload-artifact@v4
         with:
-          name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
           path: |
             reports/TOP_10.md
             reports/TOP_10.json
@@ -291,20 +303,115 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  realistic_validation:
+    name: Revalidar shortlist no motor realista
+    needs: [prepare, merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Baixar shortlist de pesquisa
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
+          path: research-artifact
+
+      - name: Resolver período e preparar dados point-in-time
+        run: |
+          set -euo pipefail
+          REAL_START="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
+          print(payload["period"]["start"])
+          PY
+          )"
+          REAL_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
+          print(payload["period"]["end"])
+          PY
+          )"
+          START_YEAR="${REAL_START:0:4}"
+          END_YEAR="${REAL_END:0:4}"
+          SOURCE_YEARS="$((START_YEAR - 1)):${END_YEAR}"
+          echo "REAL_START=$REAL_START" >> "$GITHUB_ENV"
+          echo "REAL_END=$REAL_END" >> "$GITHUB_ENV"
+          echo "SOURCE_YEARS=$SOURCE_YEARS" >> "$GITHUB_ENV"
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
+          python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" --download --refresh-actions
+
+      - name: Exigir insumos realistas certificados
+        run: |
+          set -euo pipefail
+          python scripts/audit_realistic_backtest_inputs.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          audit = json.loads(Path("reports/realistic_input_audit.json").read_text())
+          if audit.get("ready_for_certified_market_inputs") is not True:
+              raise SystemExit(
+                  "realistic inputs are not certified: "
+                  + repr(audit.get("certified_market_input_blockers"))
+              )
+          PY
+
+      - name: Reexecutar Top 10 com fracionário, proventos, impostos e slippage causal
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          cp research-artifact/TOP_10.json reports/TOP_10.json
+          python scripts/validate_matrix_top_realistic.py \
+            --candidates reports/TOP_10.json \
+            --output reports/REALISTIC_TOP_10.json \
+            --markdown-output reports/REALISTIC_TOP_10.md \
+            --require-valid 1
+          cat reports/REALISTIC_TOP_10.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar validação realista
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
+          path: |
+            reports/REALISTIC_TOP_10.md
+            reports/REALISTIC_TOP_10.json
+            reports/realistic_candidates/**
+            reports/realistic_input_audit.json
+          if-no-files-found: error
+          retention-days: 30
+
   publish:
     name: Publicar resultado verificável
-    needs: [prepare, announce, backtest, merge]
+    needs: [prepare, announce, backtest, merge, realistic_validation]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Baixar resultado final
+      - name: Baixar triagem retrospectiva
         if: ${{ needs.merge.result == 'success' }}
         uses: actions/download-artifact@v4
         with:
-          name: b3-strategy-lab-backtest-top10-${{ github.run_number }}
-          path: final-artifact
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
+          path: research-artifact
+
+      - name: Baixar validação realista
+        if: ${{ needs.realistic_validation.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
+          path: realistic-artifact
 
       - name: Montar status final
         env:
@@ -315,6 +422,7 @@ jobs:
           ANNOUNCE_RESULT: ${{ needs.announce.result }}
           BACKTEST_RESULT: ${{ needs.backtest.result }}
           MERGE_RESULT: ${{ needs.merge.result }}
+          REALISTIC_RESULT: ${{ needs.realistic_validation.result }}
           STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
           MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
@@ -323,11 +431,16 @@ jobs:
           rm -rf reports/latest_backtest
           mkdir -p reports/latest_backtest
           if [ "$MERGE_RESULT" = "success" ]; then
-            cp final-artifact/TOP_10.md reports/latest_backtest/TOP_10.md
-            cp final-artifact/TOP_10.json reports/latest_backtest/TOP_10.json
-            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
-            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
-            cp final-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/TOP_10_ANNUAL.md
+            cp research-artifact/TOP_10.md reports/latest_backtest/RESEARCH_TOP_10.md
+            cp research-artifact/TOP_10.json reports/latest_backtest/RESEARCH_TOP_10.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/RESEARCH_TOP_10_ANNUAL.md
+          fi
+          if [ "$REALISTIC_RESULT" = "success" ]; then
+            cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
+            cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
+            cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
           fi
           python - <<'PY'
           import json, os
@@ -336,14 +449,30 @@ jobs:
           latest = Path("reports/latest_backtest")
           audit_path = latest / "AUDIT.json"
           manifest_path = latest / "MANIFEST.json"
+          realistic_path = latest / "TOP_10.json"
           audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
           manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
-          audit_ok = bool(audit and audit.get("ready") is True)
+          realistic = json.loads(realistic_path.read_text()) if realistic_path.exists() else None
+          research_ok = bool(audit and audit.get("ready_for_research_ranking") is True)
+          research_real_money_ready = bool(audit and audit.get("ready_for_real_money") is True)
+          realistic_ok = bool(
+              realistic
+              and int(realistic.get("validated_candidate_count", 0)) > 0
+              and realistic.get("result_classification")
+                  == "REALISTIC_POINT_IN_TIME_RETROSPECTIVE_FINALIST_REPLAY"
+              and realistic.get("real_money_claim_allowed") is False
+              and realistic.get("ex_ante_selection_claim_allowed") is False
+              and realistic.get("counterfactual_execution_exact") is False
+          )
           jobs_ok = all(os.environ[name] == "success" for name in (
-              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT"
+              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT", "REALISTIC_RESULT"
           ))
           source_matches = bool(manifest and manifest.get("git_commit") == os.environ["WORKFLOW_SHA"])
-          status = "SUCCESS" if jobs_ok and audit_ok and source_matches else "FAILED"
+          status = (
+              "REALISTIC_RETROSPECTIVE_SUCCESS"
+              if jobs_ok and research_ok and realistic_ok and source_matches
+              else "FAILED"
+          )
           payload = {
               "status": status,
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -357,15 +486,26 @@ jobs:
                   "announce": os.environ["ANNOUNCE_RESULT"],
                   "backtest": os.environ["BACKTEST_RESULT"],
                   "merge": os.environ["MERGE_RESULT"],
+                  "realistic_validation": os.environ["REALISTIC_RESULT"],
               },
               "strategy_count": int(manifest.get("strategy_count", 0)) if manifest else int(os.environ.get("STRATEGY_COUNT") or 0),
               "management_count": int(manifest.get("management_count", 0)) if manifest else int(os.environ.get("MANAGEMENT_COUNT") or 0),
               "combination_count": int(manifest.get("combinations", 0)) if manifest else int(os.environ.get("COMBINATION_COUNT") or 0),
               "top_n": 10,
-              "audit_ready": audit_ok,
+              "research_ranking_ready": research_ok,
+              "research_matrix_real_money_ready": research_real_money_ready,
+              "realistic_finalist_validation_ready": realistic_ok,
+              "result_classification": (
+                  realistic.get("result_classification") if realistic else None
+              ),
+              "real_money_claim_allowed": False,
+              "counterfactual_execution_exact": False,
+              "ex_ante_selection_claim_allowed": False,
+              "selection_bias_remaining": True,
+              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-          if status != "SUCCESS":
+          if status == "FAILED":
               (latest / "FAILURE.md").write_text("# Backtest não aprovado\n\n" + json.dumps(payload, indent=2) + "\n")
           PY
 
@@ -378,12 +518,12 @@ jobs:
           git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
           git push --force origin HEAD:backtest-results
 
-      - name: Exigir aprovação
+      - name: Exigir aprovação realista retrospectiva
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           status = json.loads(Path("reports/latest_backtest/STATUS.json").read_text())
-          if status["status"] != "SUCCESS":
-              raise SystemExit("full matrix backtest not approved")
+          if status["status"] != "REALISTIC_RETROSPECTIVE_SUCCESS":
+              raise SystemExit("full matrix realistic finalist validation not approved")
           PY

@@ -61,6 +61,7 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
             "data/corporate_actions/point_in_time_split_evidence.json",
         )
         self.assertEqual(pairs["--dataset-split-evidence"], pairs["--split-evidence"])
+        self.assertEqual(pairs["--action-workers"], "1")
 
     def test_realistic_sync_preserves_explicit_overrides(self) -> None:
         arguments = [
@@ -72,6 +73,8 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
             "tmp/manifests",
             "--split-evidence",
             "tmp/splits.json",
+            "--action-workers",
+            "3",
         ]
         with patch.object(sync_realistic.base, "main", return_value=0) as delegated:
             self.assertEqual(sync_realistic.main(arguments), 0)
@@ -80,8 +83,34 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         self.assertEqual(forwarded.count("--actions-dir"), 1)
         self.assertEqual(forwarded.count("--manifests-dir"), 1)
         self.assertEqual(forwarded.count("--split-evidence"), 1)
+        self.assertEqual(forwarded.count("--action-workers"), 1)
+        action_workers_index = forwarded.index("--action-workers")
+        self.assertEqual(forwarded[action_workers_index + 1], "3")
         index = forwarded.index("--dataset-split-evidence")
         self.assertEqual(forwarded[index + 1], "tmp/splits.json")
+
+    def test_realistic_sync_retries_only_transient_b3_errors(self) -> None:
+        transient = sync_realistic.B3CorporateActionError("temporary invalid response")
+        with (
+            patch.object(sync_realistic.base, "main", side_effect=[transient, 0]) as delegated,
+            patch.object(sync_realistic.time, "sleep") as sleeper,
+        ):
+            self.assertEqual(sync_realistic.main(["--years", "2017:2018"]), 0)
+        self.assertEqual(delegated.call_count, 2)
+        sleeper.assert_called_once_with(sync_realistic.SYNC_RETRY_DELAYS_SECONDS[0])
+
+    def test_realistic_sync_exhaustion_remains_fail_closed(self) -> None:
+        failures = [
+            sync_realistic.B3CorporateActionError(f"temporary invalid response {index}")
+            for index in range(sync_realistic.SYNC_ATTEMPTS)
+        ]
+        with (
+            patch.object(sync_realistic.base, "main", side_effect=failures),
+            patch.object(sync_realistic.time, "sleep") as sleeper,
+        ):
+            with self.assertRaises(sync_realistic.B3CorporateActionError):
+                sync_realistic.main(["--years", "2017:2018"])
+        self.assertEqual(sleeper.call_count, sync_realistic.SYNC_ATTEMPTS - 1)
 
     def test_base_sync_rejects_two_different_split_ledgers(self) -> None:
         with self.assertRaises(SystemExit):

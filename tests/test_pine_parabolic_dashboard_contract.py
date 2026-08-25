@@ -31,7 +31,11 @@ class PineParabolicDashboardContractTests(unittest.TestCase):
         self.assertEqual(declared, self.universe["tickers"])
 
     def test_requests_split_adjusted_not_dividend_adjusted_prices(self) -> None:
-        self.assertEqual(self.source.count("adjustment.splits"), 40)
+        split_adjusted_tickers = re.findall(
+            r'ticker\.new\("BMFBOVESPA",\s*"[A-Z0-9]+",\s*session\.regular,\s*adjustment\.splits\)',
+            self.source,
+        )
+        self.assertEqual(len(split_adjusted_tickers), 40)
         self.assertNotIn("adjustment.dividends", self.source)
 
     def test_matches_winning_management_defaults(self) -> None:
