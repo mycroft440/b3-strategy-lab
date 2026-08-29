@@ -139,10 +139,13 @@ os sinais de elegibilidade com 478 gerenciamentos de carteira.
 Ele usa sinal no fechamento, execucao na abertura seguinte, OHLC normalizado
 somente por splits e exclui dividendos/JCP. O historico de indicadores das
 estrategias e dos gerenciamentos comeca no aquecimento certificado em
-2017-01-01. O catalogo possui 189 estrategias
+2017-01-01. O gerenciamento escolhe e pondera a cesta apenas nas datas de
+rebalanceamento; dentro desse intervalo, mudancas do sinal binario retiram ou
+recolocam cada ativo da cesta na abertura seguinte, sem refazer o ranking.
+O catalogo atual possui 233 estrategias
 parametrizadas e `buy_and_hold`, que nao entra em varreduras de parametros, mas
-entra normalmente na matriz. Uma execucao integral atual cruza 190 x 478 =
-90.820 combinacoes.
+entra normalmente na matriz. Uma execucao integral atual cruza 234 x 478 =
+111.852 combinacoes.
 
 ```powershell
 python scripts\backtest_strategy_management_combinations.py --initial-cash 1000 --cost-bps 3.2 --slippage-bps 10
@@ -242,11 +245,12 @@ Arquivos gerados:
 O catalogo completo, incluindo os presets, pode ser consultado com
 `python -m b3_strategy_lab list-strategies`. As 12 formulas pesquisadas e suas
 regras exatas estao em [docs/researched_strategies.md](docs/researched_strategies.md).
-O segundo lote preserva essas 168 estrategias e adiciona 21 motores distintos,
-documentados em [docs/extended_strategies.md](docs/extended_strategies.md), para
-um total de 189 estrategias com sweep de parametros. Somado ao sinal permanente
-`buy_and_hold`, o executor da matriz combina 190 estrategias com os
-gerenciamentos de carteira.
+O segundo lote preservou as 168 estrategias iniciais e adicionou 21 motores
+distintos, documentados em
+[docs/extended_strategies.md](docs/extended_strategies.md). Extensoes posteriores
+levaram o catalogo atual a 233 estrategias com sweep de parametros. Somado ao
+sinal permanente `buy_and_hold`, o executor da matriz combina 234 estrategias
+com os gerenciamentos de carteira.
 
 Novas estrategias e indicadores podem ser adicionados apenas com decorators em
 `b3_strategy_lab/user_extensions.py`, sem editar o registro central. Veja

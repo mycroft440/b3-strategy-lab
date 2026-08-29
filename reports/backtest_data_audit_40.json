@@ -1,20 +1,20 @@
 {
-  "age_calendar_days": 1,
+  "age_calendar_days": 11,
   "bias_disclosure": "As 10 acoes originais foram mantidas por decisao do usuario. As 30 adicoes foram ranqueadas pelo volume financeiro COTAHIST do ano completo de 2018, exigindo pelo menos 95% de presenca em todos os anos ate a data de atualizacao e excluindo classes adicionais das mesmas companhias emissoras ja presentes. Como a avaliacao comeca em 2018-01-02, o ranking anual usa informacao posterior ao inicio do teste e introduz vies de selecao; a exigencia de continuidade posterior tambem introduz vies de sobrevivencia. O universo serve para comparar estrategias e nao constitui recomendacao de investimento nem reconstrucao integral do mercado investivel historico.",
   "checks": {
     "all_rows_have_isin": true,
     "all_rows_have_trades": true,
     "all_split_ledgers_verified_for_warmup": true,
     "all_tickers_share_every_evaluation_session": true,
-    "data_is_recent": true,
+    "data_is_recent": false,
     "universe_discloses_survivorship_bias": true
   },
   "common_sessions": 2146,
   "evaluation_end": "2026-08-19",
   "evaluation_start": "2018-01-02",
-  "generated_at_utc": "2026-08-21T01:00:04+00:00",
+  "generated_at_utc": "2026-08-29T18:52:56+00:00",
   "maximum_age_calendar_days": 4,
-  "ready": true,
+  "ready": false,
   "survivorship_safe": false,
   "tickers": [
     {

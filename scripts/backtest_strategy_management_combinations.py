@@ -6,13 +6,14 @@ import gzip
 import hashlib
 import io
 import json
+import math
 import os
 import subprocess
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -101,10 +102,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-unverified-data", action="store_true")
     args = parser.parse_args(argv)
 
-    if args.initial_cash <= 0:
+    if not math.isfinite(args.initial_cash) or args.initial_cash <= 0:
         parser.error("--initial-cash precisa ser maior que zero.")
-    if args.cost_bps < 0 or args.slippage_bps < 0:
-        parser.error("Custos e slippage nao podem ser negativos.")
+    if (
+        not math.isfinite(args.cost_bps)
+        or not math.isfinite(args.slippage_bps)
+        or args.cost_bps < 0
+        or args.slippage_bps < 0
+    ):
+        parser.error("Custos e slippage precisam ser finitos e nao negativos.")
     if args.lot_size < 0:
         parser.error("--lot-size nao pode ser negativo.")
     if args.top <= 0:
@@ -113,6 +119,26 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--workers precisa ser maior que zero.")
     if args.workers > (os.cpu_count() or 1):
         parser.error("--workers nao pode exceder a quantidade de CPUs disponiveis.")
+    try:
+        start_date = date.fromisoformat(args.start)
+        end_date = date.fromisoformat(args.end) if args.end else None
+    except ValueError:
+        parser.error("--start e --end precisam usar datas ISO no formato AAAA-MM-DD.")
+    if end_date is not None and start_date > end_date:
+        parser.error("--start nao pode ser posterior a --end.")
+
+    strategies = [strategy.strip().lower() for strategy in args.strategies]
+    if not strategies or any(not strategy for strategy in strategies):
+        parser.error("Informe pelo menos uma estrategia valida.")
+    duplicates = sorted(
+        {strategy for strategy in strategies if strategies.count(strategy) > 1}
+    )
+    if duplicates:
+        parser.error("Estrategias duplicadas: " + ", ".join(duplicates))
+    supported_strategies = set(portfolio_strategies())
+    unknown = sorted(set(strategies) - supported_strategies)
+    if unknown:
+        parser.error("Estrategias fora do catalogo: " + ", ".join(unknown))
 
     universe = _load_universe(args.universe_manifest)
     manifest_tickers = [ticker.upper() for ticker in universe["tickers"]]
@@ -122,12 +148,11 @@ def main(argv: list[str] | None = None) -> int:
             "--tickers diverge do --universe-manifest; forneca um manifesto proprio "
             "para tornar a selecao reproduzivel."
         )
-    if args.start < str(universe["selected_as_of"]):
+    if start_date < date.fromisoformat(str(universe["selected_as_of"])):
         parser.error(
             f"--start nao pode anteceder selected_as_of={universe['selected_as_of']} "
             "do universo fixo."
         )
-    strategies = [strategy.strip().lower() for strategy in args.strategies]
     data = MarketData(
         tickers,
         args.interval,
@@ -150,6 +175,8 @@ def main(argv: list[str] | None = None) -> int:
         signal_start=str(universe["warmup_start"]),
     )
     configs = _configs(args.signal_mode, args.config_set)
+    if len({config.name for config in configs}) != len(configs):
+        raise ValueError("O catalogo de gerenciamento contem nomes duplicados.")
     total = len(strategies) * len(configs)
     started = time.perf_counter()
     rows: list[dict[str, object]] = []
@@ -556,10 +583,19 @@ def _write_manifest(
     data: MarketData,
 ) -> None:
     commit, dirty = _git_state()
+    catalog_strategies = portfolio_strategies()
+    catalog_configs = _configs(args.signal_mode, "all")
+    catalog_complete = (
+        set(strategies) == set(catalog_strategies)
+        and len(strategies) == len(catalog_strategies)
+        and {config.name for config in configs}
+        == {config.name for config in catalog_configs}
+    )
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": commit,
         "git_dirty": dirty,
+        "git_dirty_scope": "calculation_sources_and_workflows_excluding_hashed_market_data",
         "source_sha256": {
             "b3_strategy_lab/backtest.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/backtest.py"
@@ -579,6 +615,18 @@ def _write_manifest(
             "b3_strategy_lab/extensions.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/extensions.py"
             ),
+            "b3_strategy_lab/portfolio_risk.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/portfolio_risk.py"
+            ),
+            "b3_strategy_lab/research_indicators.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/research_indicators.py"
+            ),
+            "b3_strategy_lab/indicator_strategies.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/indicator_strategies.py"
+            ),
+            "b3_strategy_lab/trend_strategies.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/trend_strategies.py"
+            ),
             "b3_strategy_lab/user_extensions.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/user_extensions.py"
             ),
@@ -596,6 +644,9 @@ def _write_manifest(
             ),
             "scripts/research_portfolio_allocation.py": _sha256_file(
                 PROJECT_ROOT / "scripts/research_portfolio_allocation.py"
+            ),
+            "scripts/research_portfolio_allocation_core.py": _sha256_file(
+                PROJECT_ROOT / "scripts/research_portfolio_allocation_core.py"
             ),
         },
         "universe": {
@@ -626,6 +677,10 @@ def _write_manifest(
         "management_count": len(configs),
         "management_configs": [asdict(config) for config in configs],
         "combinations": combinations,
+        "catalog_complete": catalog_complete,
+        "catalog_strategy_count": len(catalog_strategies),
+        "catalog_management_count": len(catalog_configs),
+        "catalog_combination_count": len(catalog_strategies) * len(catalog_configs),
         "interval": args.interval,
         "start": start,
         "end": end,
@@ -641,6 +696,14 @@ def _write_manifest(
         "slippage_bps": args.slippage_bps,
         "lot_size": args.lot_size,
         "ranking": "total_return_desc_then_cagr_desc_then_strategy_management_asc",
+        "signal_execution_policy": (
+            "designated_basket_binary_signal_changes_execute_next_open_"
+            "without_intraperiod_reranking"
+        ),
+        "initial_entry_policy": (
+            "prior_close_decision_executes_at_first_open_when_start_is_"
+            "rebalance_boundary"
+        ),
         "execution_missing_price_policy": "fail_closed_fresh_open_and_close_required",
         "buy_allocation_policy": "target_shares_at_market_open_then_common_scale_for_costs",
         "evaluation_scope": "full_period",
@@ -731,7 +794,6 @@ def _git_state() -> tuple[str, bool]:
                 "--",
                 "b3_strategy_lab",
                 "scripts",
-                "data",
                 ".github/workflows",
             ],
             cwd=PROJECT_ROOT,

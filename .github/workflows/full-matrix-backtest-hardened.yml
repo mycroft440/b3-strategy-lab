@@ -53,7 +53,7 @@ on:
       - "data/fees/**"
       - "tests/**"
 
-run-name: "Backtest 90k+ — triagem + validação realista"
+run-name: "Backtest 100k+ — triagem + validação realista"
 
 permissions:
   contents: write
@@ -94,11 +94,15 @@ jobs:
             b3_strategy_lab/research_indicators.py \
             b3_strategy_lab/indicator_strategies.py \
             b3_strategy_lab/trend_strategies.py \
+            b3_strategy_lab/portfolio_risk.py \
             b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/realistic_portfolio_core.py \
             scripts/backtest_strategy_management_combinations.py \
             scripts/research_portfolio_allocation.py \
+            scripts/research_portfolio_allocation_core.py \
             scripts/merge_matrix_shards.py \
             scripts/audit_matrix_results.py \
+            scripts/audit_backtest_integrity.py \
             scripts/backtest_strategy_management_realistic.py \
             scripts/validate_matrix_top_realistic.py \
             scripts/walk_forward_realistic.py \
@@ -108,10 +112,19 @@ jobs:
       - name: Executar suíte completa antes da matriz
         run: python -m unittest discover -s tests -v
 
+      - name: Atualizar dados oficiais da B3
+        run: |
+          python scripts/sync_official_universe.py \
+            --download \
+            --refresh-current \
+            --refresh-actions \
+            --refresh-selection
+
       - name: Validar dados verificados
         run: |
           python -m b3_strategy_lab verify-data --interval 1d
           python scripts/audit_backtest_readiness.py --max-age-calendar-days 4
+          python scripts/audit_backtest_integrity.py --start 2018-01-01
           python scripts/audit_volume_indicators.py
 
       - name: Montar matriz de shards
@@ -140,6 +153,19 @@ jobs:
           print(f"management_count={management_count}")
           print(f"combination_count={len(strategies) * management_count}")
           PY
+
+      - name: Compartilhar dados verificados com os shards
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: |
+            data/candles
+            data/manifests
+            data/corporate_actions
+            data/universes/fixed_40_2018.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
 
   announce:
     name: Registrar execução atual
@@ -206,6 +232,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Baixar dados verificados desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
       - name: Executar shard de pesquisa
         env:
           STRATEGIES: ${{ matrix.strategies }}
@@ -249,7 +281,7 @@ jobs:
           compression-level: 0
 
   merge:
-    name: Consolidar e auditar triagem 90k+
+    name: Consolidar e auditar triagem 100k+
     needs: [prepare, backtest]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -261,6 +293,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Baixar dados verificados desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
 
       - name: Baixar todos os shards
         uses: actions/download-artifact@v4

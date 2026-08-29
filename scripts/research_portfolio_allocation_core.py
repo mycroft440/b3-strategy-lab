@@ -220,12 +220,28 @@ def run_portfolio(
     shares = {ticker: 0.0 for ticker in data.tickers}
     last_prices: dict[str, float] = {}
     pending_targets: dict[str, float] | None = None
+    designated_targets: dict[str, float] = {}
+    active_targets: dict[str, float] = {}
     curve: list[PortfolioCurveRow] = []
     equities: list[float] = []
     total_trades = 0
     total_turnover = 0.0
     exposure_days = 0
     position_days = 0
+
+    prior_dates = [value for value in data.dates if value < dates[0]]
+    prior_date = prior_dates[-1] if prior_dates else None
+    if (
+        prior_date is not None
+        and _is_rebalance_date(prior_date, dates[0], config.rebalance)
+    ):
+        designated_targets = _target_weights(
+            data,
+            prior_date,
+            config,
+            eligible_tickers=_eligible_tickers(data, prior_date, eligibility),
+        )
+        pending_targets = dict(designated_targets)
 
     for index, current_date in enumerate(dates):
         next_date = dates[index + 1] if index + 1 < len(dates) else None
@@ -252,6 +268,7 @@ def run_portfolio(
                 slippage_rate,
                 lot_size,
             )
+            active_targets = dict(pending_targets)
             total_trades += trade_count
             total_turnover += turnover
 
@@ -292,15 +309,35 @@ def run_portfolio(
                 )
             )
 
-        if next_date is not None and _is_rebalance_date(current_date, next_date, config.rebalance):
-            pending_targets = _target_weights(
+        pending_targets = None
+        if next_date is not None and _is_rebalance_date(
+            current_date, next_date, config.rebalance
+        ):
+            designated_targets = _target_weights(
                 data,
                 current_date,
                 config,
                 eligible_tickers=_eligible_tickers(data, current_date, eligibility),
             )
-        else:
-            pending_targets = None
+            # A scheduled management rebalance must still run when the target
+            # names/weights are unchanged, because market moves make the actual
+            # portfolio weights drift between decision dates.
+            pending_targets = dict(designated_targets)
+        elif next_date is not None and eligibility is not None:
+            # The management rule fixes the designated basket until its next
+            # weekly/monthly decision. Trading-strategy exits and re-entries are
+            # nevertheless acted on at the next open, as the binary signal
+            # contract promises: 0 means cash and 1 means invested when the asset
+            # remains in that designated basket. The ranking is not recomputed
+            # between management rebalances.
+            eligible_now = _eligible_tickers(data, current_date, eligibility) or set()
+            signal_targets = {
+                ticker: weight
+                for ticker, weight in designated_targets.items()
+                if ticker in eligible_now
+            }
+            if signal_targets != active_targets:
+                pending_targets = signal_targets
 
     result_metrics = _portfolio_metrics(equities, dates, initial_cash)
     yearly = _yearly_returns(equities, dates, initial_cash)

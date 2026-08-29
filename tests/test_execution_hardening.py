@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import json
 import math
 import os
 import subprocess
@@ -218,7 +219,7 @@ class StrategyCausalityTests(unittest.TestCase):
     def test_every_portfolio_strategy_is_prefix_causal_and_deterministic(self) -> None:
         candles = synthetic_candles()
         catalog = portfolio_strategies()
-        self.assertGreaterEqual(len(catalog), 190)
+        self.assertGreaterEqual(len(catalog), 234)
         for strategy in catalog:
             params = strategy_parameters(strategy)
             with self.subTest(strategy=strategy):
@@ -232,6 +233,101 @@ class StrategyCausalityTests(unittest.TestCase):
 
 
 class RealisticExecutionHardeningTests(unittest.TestCase):
+    def test_realistic_engine_honors_signal_exit_and_reentry_next_open(self) -> None:
+        dates = [
+            "2023-12-27",
+            "2023-12-28",
+            "2023-12-29",
+            "2024-01-02",
+            "2024-01-03",
+            "2024-01-04",
+            "2024-01-05",
+        ]
+        prices = [10.0, 11.0, 13.0, 14.0, 15.0, 16.0, 17.0]
+        candles = [
+            candle(value_date, "AAA3", price)
+            for value_date, price in zip(dates, prices)
+        ]
+        data = SimpleNamespace(
+            tickers=["AAA3"],
+            dates=dates,
+            candles={"AAA3": candles},
+            by_date={"AAA3": {item.date: item for item in candles}},
+            index_by_date={
+                "AAA3": {item.date: index for index, item in enumerate(candles)}
+            },
+            signal_prices={"AAA3": prices},
+            raw_returns={
+                "AAA3": [
+                    0.0,
+                    *[
+                        prices[index] / prices[index - 1] - 1.0
+                        for index in range(1, len(prices))
+                    ],
+                ]
+            },
+            candidate_profile_cache={},
+        )
+        pricebook = ExecutionPriceBook(
+            [
+                ExecutionQuote(
+                    value_date,
+                    "AAA3F",
+                    "020",
+                    price,
+                    price,
+                    1_000_000.0,
+                )
+                for value_date, price in zip(dates[3:], prices[3:])
+            ]
+        )
+        eligibility = {"AAA3": [0, 0, 1, 1, 0, 1, 1]}
+        config = PortfolioConfig(
+            name="monthly_signal_contract",
+            lookback=1,
+            top_n=1,
+            vol_window=2,
+            rebalance="monthly",
+            score="all",
+            weighting="equal",
+            absolute_momentum=False,
+            signal_mode="adjusted",
+        )
+
+        with patch(
+            "scripts.backtest_strategy_management_combinations._build_eligibility",
+            return_value={"dummy": eligibility},
+        ):
+            summary, curve, _account = run_realistic(
+                data=data,
+                universe=PointInTimeUniverse(
+                    [UniverseSnapshot(dates[0], frozenset({"AAA3"}))]
+                ),
+                pricebook=pricebook,
+                cash_events=[],
+                fee_schedule=FeeSchedule(
+                    [FeeRule("2000-01-01", "2099-12-31", 0.0)]
+                ),
+                strategy="dummy",
+                config=config,
+                start="2024-01-02",
+                end="2024-01-05",
+                initial_cash=100.0,
+                base_slippage_bps=0.0,
+                participation_bps_at_1pct=0.0,
+                max_slippage_bps=0.0,
+                transitions={},
+                economic_gap_adjustment=False,
+                survivorship_safe=True,
+                cash_events_complete=True,
+            )
+
+        self.assertEqual(
+            [point.selected for point in curve],
+            ["AAA3", "AAA3", "", "AAA3"],
+        )
+        self.assertEqual(summary.trades, 3)
+
     def test_proportional_buy_plan_does_not_starve_later_ticker(self) -> None:
         account = RealCashAccount(
             1000.0,
@@ -341,6 +437,24 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
             serial_annual = serial.with_suffix("").with_suffix("").with_name("serial_top3_annual.md")
             parallel_annual = parallel.with_suffix("").with_suffix("").with_name("parallel_top3_annual.md")
             self.assertEqual(serial_annual.read_bytes(), parallel_annual.read_bytes())
+            manifest = json.loads(
+                serial.with_suffix("").with_suffix(".manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertFalse(manifest["catalog_complete"])
+            self.assertEqual(manifest["catalog_strategy_count"], 234)
+            self.assertEqual(manifest["catalog_management_count"], 478)
+            self.assertEqual(manifest["catalog_combination_count"], 111_852)
+            self.assertEqual(
+                manifest["signal_execution_policy"],
+                "designated_basket_binary_signal_changes_execute_next_open_"
+                "without_intraperiod_reranking",
+            )
+            self.assertIn(
+                "scripts/research_portfolio_allocation_core.py",
+                manifest["source_sha256"],
+            )
 
 
 if __name__ == "__main__":

@@ -190,11 +190,25 @@ def run_strict(
     shares = {ticker: 0.0 for ticker in data.tickers}
     cash = float(initial_cash)
     pending: dict[str, float] | None = None
+    designated_targets: dict[str, float] = {}
+    active_targets: dict[str, float] = {}
     equities: list[float] = []
     ledger: list[dict[str, object]] = []
     trades = attempts = skips = 0
     turnover = fees = slippage = 0.0
     cost_rate, slip_rate = cost_bps / 10_000, slippage_bps / 10_000
+
+    all_dates = common_dates(data)
+    prior_dates = [value for value in all_dates if value < dates[0]]
+    prior = prior_dates[-1] if prior_dates else None
+    if prior is not None and _rebalance_close(prior, dates[0], config.rebalance):
+        designated_targets = _target_weights(
+            data,
+            prior,
+            config,
+            eligible_tickers=_eligible_tickers(data, prior, eligibility),
+        )
+        pending = dict(designated_targets)
 
     for index, current in enumerate(dates):
         candles = {ticker: data.by_date[ticker][current] for ticker in data.tickers}
@@ -204,6 +218,7 @@ def run_strict(
                 current, data.tickers, candles, shares, cash, pending, cost_rate, slip_rate, lot_size
             )
             if ok:
+                active_targets = dict(pending)
                 trades += count
                 turnover += turn
                 fees += fee
@@ -228,11 +243,26 @@ def run_strict(
         equities.append(equity)
 
         next_date = dates[index + 1] if index + 1 < len(dates) else None
-        pending = (
-            _target_weights(data, current, config, eligible_tickers=_eligible_tickers(data, current, eligibility))
-            if next_date is not None and _rebalance_close(current, next_date, config.rebalance)
-            else None
-        )
+        pending = None
+        if next_date is not None and _rebalance_close(
+            current, next_date, config.rebalance
+        ):
+            designated_targets = _target_weights(
+                data,
+                current,
+                config,
+                eligible_tickers=_eligible_tickers(data, current, eligibility),
+            )
+            pending = dict(designated_targets)
+        elif next_date is not None:
+            eligible_now = _eligible_tickers(data, current, eligibility) or set()
+            signal_targets = {
+                ticker: weight
+                for ticker, weight in designated_targets.items()
+                if ticker in eligible_now
+            }
+            if signal_targets != active_targets:
+                pending = signal_targets
 
     metrics = _portfolio_metrics(equities, dates, initial_cash)
     yearly = _yearly_returns(equities, dates, initial_cash)

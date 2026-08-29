@@ -82,6 +82,8 @@ momentum,trix_signal,sim,sim,period=15;signal_period=9,TRIX: cruzamento da varia
 momentum,true_strength_index,sim,sim,long_period=25;short_period=13;signal_period=7,True Strength Index: momentum duplamente suavizado contra a linha de sinal.
 price_action,inside_bar_breakout,sim,sim,expiry=5;atr_period=14;atr_mult=3.0;hold_limit=20,Inside Bar: rompe a maxima da barra-mae com saidas objetivas.
 price_action,nr7_breakout,sim,sim,setup_period=7;expiry=5;atr_period=14;atr_mult=3.0;hold_limit=20,NR7 de Crabel: rompe a maxima do menor range em sete barras.
+regime,low_vol_trend,sim,sim,vol_period=63;trend_window=100;max_vol=0.35,Tendencia de preco filtrada por baixa volatilidade realizada.
+regime,realized_vol_low_momentum,sim,sim,vol_period=63;momentum_lookback=63;max_vol=0.45,Momentum positivo apenas em regime de volatilidade realizada controlada.
 regime,vertical_horizontal_filter,sim,sim,period=28;entry_level=0.4;exit_level=0.25;trend_window=50,VHF: entra em tendencia altista direcional e sai quando o regime enfraquece.
 reversao,bollinger_reversion,sim,sim,window=20;num_std=2.0;exit_z=0.0,Compra na banda inferior de Bollinger e sai no retorno ao centro.
 reversao,connors_rsi_reversion,sim,sim,rsi_period=3;streak_rsi_period=2;rank_period=100;lower=20.0;upper=70.0,Reversao por Connors RSI.
@@ -111,6 +113,8 @@ reversao,rsi_reversion_trend_entry,sim,sim,rsi_period=14;lower=50.0;upper=80.0;t
 reversao,rvi_reversal,sim,sim,period=10;entry_level=-0.4;exit_level=0.0,Reversao por cruzamento do Relative Vigor Index apos fraqueza extrema.
 reversao,trend_pullback,sim,sim,trend_window=200;rsi_period=14;lower=40.0;upper=70.0,Compra pullback em tendencia positiva.
 reversao,turtle_soup,sim,sim,lookback=20;sma_window=5;atr_period=14;stop_atr=0.5;hold_limit=5,"Turtle Soup long-only: falso rompimento da minima com saida por media, ATR ou tempo."
+reversao,typical_price_pullback,sim,sim,period=50;pullback_pct=0.03,Compra desconto do Typical Price contra sua media e sai na recuperacao.
+reversao_volume,mfi_reversal,sim,sim,period=14;lower=25.0;upper=70.0,MFI recupera da sobrevenda; sai em sobrecompra.
 rompimento,atr_breakout,sim,sim,lookback=20;atr_period=14;atr_mult=3.0,Rompimento de maxima com stop movel por ATR.
 rompimento,atr_breakout_10_atr7_x2,sim,sim,lookback=10;atr_period=7;atr_mult=2.0;trend_window=0,Rompimento de maxima com stop movel calculado por ATR.
 rompimento,atr_breakout_20_atr10_x2,sim,sim,lookback=20;atr_period=10;atr_mult=2.0;trend_window=0,Rompimento de maxima com stop movel calculado por ATR.
@@ -137,18 +141,32 @@ rompimento,donchian_breakout_55_20_trend200,sim,sim,entry_window=55;exit_window=
 rompimento,keltner_breakout,sim,sim,window=20;atr_period=10;atr_mult=2.0;exit_z=0.0;trend_window=0,Rompimento de canal de Keltner com filtro opcional de tendencia.
 rompimento,range_expansion_breakout,sim,sim,range_mult=0.5;atr_period=14;atr_mult=3.0;trend_window=50;volume_window=20;volume_mult=1.0;max_hold=40,Compra expansao de range no fechamento com stop por ATR.
 rompimento,squeeze_breakout,sim,sim,window=20;num_std=2.0;atr_period=20;keltner_mult=1.5;squeeze_bars=3;atr_mult=3.0,Rompimento altista apos Bollinger comprimir dentro do canal de Keltner.
+rompimento_volatilidade,high_vol_breakout,sim,sim,vol_period=63;breakout_lookback=55;min_vol=0.3,Rompimento de maxima em regime de volatilidade elevada.
+rompimento_volatilidade,realized_vol_breakout,sim,sim,vol_period=63;breakout_lookback=20;min_vol=0.2;exit_sma=20,"Rompimento acompanhado de volatilidade realizada minima, com saida por media."
 sazonalidade,halloween_effect,sim,sim,entry_month=11;exit_month=5,Efeito Halloween: comprado de novembro a abril e em caixa de maio a outubro.
 sazonalidade,turn_of_month,sim,sim,sessions_before=1;sessions_after=3,Janela sazonal do ultimo pregao ate o terceiro pregao do mes seguinte.
 tendencia,aroon_trend,sim,sim,period=25;strong_level=70.0,Aroon: segue novas maximas e sai quando novas minimas dominam.
+tendencia,atr_channel_trend,sim,sim,ema_period=50;atr_period=20;atr_mult=1.5,Entrada acima de canal EMA+ATR e saida na perda da media.
+tendencia,atr_trailing_trend,sim,sim,trend_period=100;atr_period=20;atr_mult=3.0,Tendencia acima da EMA com trailing stop baseado em ATR.
+tendencia,cmf_ema_trend,sim,sim,cmf_period=21;ema_period=100;entry_cmf=0.05;exit_cmf=-0.05,Tendencia de preco por EMA confirmada por Chaikin Money Flow.
+tendencia,donchian_40_20_trend,sim,sim,entry_lookback=40;exit_lookback=20,Donchian 40/20: rompe maxima de 40 e sai na minima de 20.
+tendencia,donchian_80_30_trend,sim,sim,entry_lookback=80;exit_lookback=30,Donchian mais lento 80/30 para tendencias prolongadas.
+tendencia,efficiency_ratio_trend,sim,sim,period=40;threshold=0.35,Razao de eficiencia alta e direcao positiva para filtrar ruido lateral.
 tendencia,ema_cross,sim,sim,fast=12;slow=26,Cruzamento de medias moveis exponenciais.
 tendencia,ema_cross_100_200,sim,sim,average_type=ema;fast=100;slow=200,Cruzamento de medias EMA 100/200.
 tendencia,ema_cross_10_30,sim,sim,average_type=ema;fast=10;slow=30,Cruzamento de medias EMA 10/30.
 tendencia,ema_cross_20_50,sim,sim,average_type=ema;fast=20;slow=50,Cruzamento de medias EMA 20/50.
 tendencia,ema_cross_50_100,sim,sim,average_type=ema;fast=50;slow=100,Cruzamento de medias EMA 50/100.
 tendencia,ema_cross_5_20,sim,sim,average_type=ema;fast=5;slow=20,Cruzamento de medias EMA 5/20.
+tendencia,ema_fast_slow_trend,sim,sim,fast=20;slow=80,EMA curta acima da longa com preco acima da EMA curta.
+tendencia,ema_pullback_trend,sim,sim,fast=21;slow=100,Compra recuperacao da EMA curta durante tendencia definida pela EMA longa.
+tendencia,ema_slope_price_trend,sim,sim,ema_period=80;slope_lookback=20,Preco acima de EMA cuja inclinacao permanece positiva.
+tendencia,ema_triple_alignment_trend,sim,sim,fast=20;middle=50;slow=200,Alinhamento de tres EMAs em ordem de alta.
 tendencia,frama_trend,sim,sim,window=16,Tendencia pela media fractal adaptativa FRAMA de Ehlers.
+tendencia,highest_close_breakout_trend,sim,sim,entry_lookback=60;exit_lookback=20,Rompimento do maior fechamento com saida pelo menor fechamento recente.
 tendencia,ichimoku_cloud,sim,sim,tenkan_period=9;kijun_period=26;span_b_period=52;displacement=26,Ichimoku causal: preco acima da nuvem e Tenkan acima da Kijun.
 tendencia,kama_trend,sim,sim,er_period=10;fast_period=2;slow_period=30,Tendencia por KAMA de Kaufman com confirmacao simultanea de preco e inclinacao.
+tendencia,low_vol_momentum_trend,sim,sim,vol_period=63;ema_period=100;momentum_lookback=63;max_vol=0.4,Momentum e EMA positivos sob teto de volatilidade realizada.
 tendencia,macd,sim,sim,fast=12;slow=26;signal_window=9,Segue a linha MACD contra a linha de sinal.
 tendencia,macd_10_30_9,sim,sim,fast=10;slow=30;signal_window=9;trend_window=0,MACD parametrizado com confirmacao de tendencia opcional.
 tendencia,macd_12_26_12,sim,sim,fast=12;slow=26;signal_window=12;trend_window=0,MACD parametrizado com confirmacao de tendencia opcional.
@@ -160,23 +178,42 @@ tendencia,macd_19_39_9,sim,sim,fast=19;slow=39;signal_window=9;trend_window=0,MA
 tendencia,macd_24_52_18,sim,sim,fast=24;slow=52;signal_window=18;trend_window=0,MACD parametrizado com confirmacao de tendencia opcional.
 tendencia,macd_5_35_5,sim,sim,fast=5;slow=35;signal_window=5;trend_window=0,MACD parametrizado com confirmacao de tendencia opcional.
 tendencia,macd_8_17_9,sim,sim,fast=8;slow=17;signal_window=9;trend_window=0,MACD parametrizado com confirmacao de tendencia opcional.
+tendencia,macd_signal_long_trend,sim,sim,fast=12;slow=26;signal_period=9;trend_period=100,"MACD acima do sinal e de zero, confirmado por EMA longa."
+tendencia,macd_zero_trend,sim,sim,fast=12;slow=26,MACD acima de zero com preco acima da EMA lenta.
+tendencia,nvi_dual_ema_trend,sim,sim,fast=50;slow=150,NVI acima de duas EMAs alinhadas em alta.
 tendencia,parabolic_sar_trend,sim,sim,af_step=0.02;af_max=0.2,Parabolic SAR de Wilder: comprado apenas no estado ascendente.
 tendencia,precision_trend_ehlers,sim,sim,long_period=250;short_period=40,Precision Trend de Ehlers: compra no ROC positivo do filtro e sai no ROC negativo.
 tendencia,price_sma,sim,sim,sma_window=200,Fica comprado quando o preco fecha acima da media simples.
+tendencia,roc_dual_horizon_trend,sim,sim,short=63;long=126,ROC positivo simultaneamente em dois horizontes.
+tendencia,roc_stack_trend,sim,sim,short=21;middle=63;long=126,Momentum positivo em tres horizontes para confirmar tendencia.
 tendencia,sma_cross,sim,sim,fast=50;slow=200,Cruzamento de medias moveis simples.
 tendencia,sma_cross_100_200,sim,sim,average_type=sma;fast=100;slow=200,Cruzamento de medias SMA 100/200.
 tendencia,sma_cross_10_50,sim,sim,average_type=sma;fast=10;slow=50,Cruzamento de medias SMA 10/50.
 tendencia,sma_cross_20_100,sim,sim,average_type=sma;fast=20;slow=100,Cruzamento de medias SMA 20/100.
 tendencia,sma_cross_50_100,sim,sim,average_type=sma;fast=50;slow=100,Cruzamento de medias SMA 50/100.
 tendencia,sma_cross_5_20,sim,sim,average_type=sma;fast=5;slow=20,Cruzamento de medias SMA 5/20.
+tendencia,sma_pullback_trend,sim,sim,fast=20;slow=100,Compra recuperacao da SMA curta dentro de tendencia de alta.
+tendencia,sma_slope_price_trend,sim,sim,sma_period=100;slope_lookback=20,Preco acima de SMA com inclinacao positiva.
 tendencia,sma_stop,sim,sim,sma_window=200;stop_pct=0.2,Segue media simples com stop percentual a partir do topo.
+tendencia,sma_triple_alignment_trend,sim,sim,fast=20;middle=50;slow=200,Alinhamento de tres SMAs em ordem de alta.
 tendencia,supertrend_follow,sim,sim,atr_period=10;atr_mult=3.0,Segue tendencia pelo indicador SuperTrend baseado em ATR.
+tendencia,typical_price_sma_trend,sim,sim,period=50,Typical Price acima de sua media simples.
 tendencia,ultimate_oscillator_ehlers,sim,sim,band_edge=20;bandwidth=2.0;rms_period=100,Ultimate Oscillator de Ehlers: comprado acima de zero e em caixa abaixo de zero.
 tendencia,vortex_trend,sim,sim,period=14,Vortex de Botes-Siepman: comprado enquanto VI+ permanece acima de VI-.
+tendencia_volume,cmf_price_trend,sim,sim,cmf_period=21;price_period=50;entry_cmf=0.03;exit_cmf=-0.02,Tendencia de preco com CMF acima de limiar positivo.
+tendencia_volume,efi_trend_confirm,sim,sim,period=13;trend_window=100,Force Index positivo confirmado por media de preco.
+tendencia_volume,eom_trend_confirm,sim,sim,period=14;trend_window=100,Ease of Movement positivo com tendencia de preco.
+tendencia_volume,mfi_price_trend,sim,sim,mfi_period=14;price_period=50;entry_mfi=52.0;exit_mfi=45.0,Typical Price em tendencia com confirmacao do MFI.
+tendencia_volume,mfi_trend_follow,sim,sim,period=14;trend_window=100;entry=55.0;exit=45.0,MFI forte confirmado por tendencia de preco.
+tendencia_volume,nvi_price_confirm,sim,sim,nvi_ema=100;price_sma=100,NVI acima da EMA e preco acima da media.
 volatilidade,choppiness_breakout,sim,sim,period=14;high_level=61.8;low_level=38.2;trend_window=20;atr_period=14;atr_mult=3.0,Rompimento depois que o Choppiness Index sai de compressao para tendencia.
 volume,chaikin_money_flow,sim,sim,period=21;trend_window=100,Cruzamento positivo do Chaikin Money Flow com filtro opcional de tendencia.
+volume,cmf_threshold_hysteresis,sim,sim,period=21;entry=0.05;exit=-0.02,CMF com bandas distintas de entrada e saida para reduzir ruido.
+volume,cmf_zero_cross,sim,sim,period=21,Comprado enquanto Chaikin Money Flow permanece positivo.
 volume,ease_of_movement,sim,sim,period=14,Ease of Movement suavizado: comprado quando preco e volume favorecem alta.
+volume,efi_zero_cross,sim,sim,period=13,Elder Force Index positivo como regime comprador.
 volume,elder_force_index,sim,sim,period=13;trend_window=50,Force Index de Elder positivo com confirmacao da tendencia de preco.
+volume,eom_zero_cross,sim,sim,period=14,Ease of Movement positivo como sinal de compra.
 volume,klinger_volume_oscillator,sim,sim,fast_period=34;slow_period=55;signal_period=13,Klinger Volume Oscillator acima da EMA de sinal.
 volume,mfi_momentum_10_50_30_sma100,sim,sim,period=10;entry_level=50.0;exit_level=30.0;trend_window=100,Money Flow Index combina preco e volume com filtro de tendencia.
 volume,mfi_momentum_14_55_35_sma100,sim,sim,period=14;entry_level=55.0;exit_level=35.0;trend_window=100,Money Flow Index combina preco e volume com filtro de tendencia.
@@ -189,3 +226,10 @@ volume,mfi_trend_14_25_75_sma200,sim,sim,period=14;entry_level=25.0;exit_level=7
 volume,mfi_trend_21_25_75_sma200,sim,sim,period=21;entry_level=25.0;exit_level=75.0;trend_window=200,Money Flow Index combina preco e volume com filtro de tendencia.
 volume,mfi_trend_7_20_80_sma50,sim,sim,period=7;entry_level=20.0;exit_level=80.0;trend_window=50,Money Flow Index combina preco e volume com filtro de tendencia.
 volume,negative_volume_index,sim,sim,ema_period=255,Negative Volume Index de Fosback acima de sua EMA anual.
+volume,nvi_ema_trend,sim,sim,ema_period=100,Negative Volume Index acima de sua EMA.
+volume_hibrido,cmf_efi_confirm,sim,sim,cmf_period=21;efi_period=13,Chaikin Money Flow e Force Index simultaneamente positivos.
+volume_hibrido,eom_nvi_confirm,sim,sim,eom_period=14;nvi_ema=100,Ease of Movement positivo com NVI acima da EMA.
+volume_hibrido,mfi_cmf_confirm,sim,sim,mfi_period=14;cmf_period=21;entry_mfi=55.0;exit_mfi=45.0,MFI e CMF precisam confirmar fluxo comprador.
+volume_hibrido,mfi_efi_confirm,sim,sim,mfi_period=14;efi_period=13;entry_mfi=55.0;exit_mfi=45.0,MFI e Elder Force Index confirmam entrada e saida.
+volume_hibrido,nvi_mfi_confirm,sim,sim,nvi_ema=100;mfi_period=14;entry_mfi=52.0;exit_mfi=45.0,NVI acima da EMA combinado com MFI comprador.
+volume_hibrido,volume_triple_confirm,sim,sim,cmf_period=21;efi_period=13;eom_period=14,"CMF, Force Index e Ease of Movement confirmam o regime comprador."

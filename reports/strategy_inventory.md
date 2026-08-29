@@ -114,6 +114,8 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 
 | Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
 |---|---|---|---|---|
+| low_vol_trend | sim | sim | `vol_period=63;trend_window=100;max_vol=0.35` | Tendencia de preco filtrada por baixa volatilidade realizada. |
+| realized_vol_low_momentum | sim | sim | `vol_period=63;momentum_lookback=63;max_vol=0.45` | Momentum positivo apenas em regime de volatilidade realizada controlada. |
 | vertical_horizontal_filter | sim | sim | `period=28;entry_level=0.4;exit_level=0.25;trend_window=50` | VHF: entra em tendencia altista direcional e sai quando o regime enfraquece. |
 
 ## reversao
@@ -148,6 +150,13 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | rvi_reversal | sim | sim | `period=10;entry_level=-0.4;exit_level=0.0` | Reversao por cruzamento do Relative Vigor Index apos fraqueza extrema. |
 | trend_pullback | sim | sim | `trend_window=200;rsi_period=14;lower=40.0;upper=70.0` | Compra pullback em tendencia positiva. |
 | turtle_soup | sim | sim | `lookback=20;sma_window=5;atr_period=14;stop_atr=0.5;hold_limit=5` | Turtle Soup long-only: falso rompimento da minima com saida por media, ATR ou tempo. |
+| typical_price_pullback | sim | sim | `period=50;pullback_pct=0.03` | Compra desconto do Typical Price contra sua media e sai na recuperacao. |
+
+## reversao_volume
+
+| Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
+|---|---|---|---|---|
+| mfi_reversal | sim | sim | `period=14;lower=25.0;upper=70.0` | MFI recupera da sobrevenda; sai em sobrecompra. |
 
 ## rompimento
 
@@ -180,6 +189,13 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | range_expansion_breakout | sim | sim | `range_mult=0.5;atr_period=14;atr_mult=3.0;trend_window=50;volume_window=20;volume_mult=1.0;max_hold=40` | Compra expansao de range no fechamento com stop por ATR. |
 | squeeze_breakout | sim | sim | `window=20;num_std=2.0;atr_period=20;keltner_mult=1.5;squeeze_bars=3;atr_mult=3.0` | Rompimento altista apos Bollinger comprimir dentro do canal de Keltner. |
 
+## rompimento_volatilidade
+
+| Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
+|---|---|---|---|---|
+| high_vol_breakout | sim | sim | `vol_period=63;breakout_lookback=55;min_vol=0.3` | Rompimento de maxima em regime de volatilidade elevada. |
+| realized_vol_breakout | sim | sim | `vol_period=63;breakout_lookback=20;min_vol=0.2;exit_sma=20` | Rompimento acompanhado de volatilidade realizada minima, com saida por media. |
+
 ## sazonalidade
 
 | Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
@@ -192,15 +208,27 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
 |---|---|---|---|---|
 | aroon_trend | sim | sim | `period=25;strong_level=70.0` | Aroon: segue novas maximas e sai quando novas minimas dominam. |
+| atr_channel_trend | sim | sim | `ema_period=50;atr_period=20;atr_mult=1.5` | Entrada acima de canal EMA+ATR e saida na perda da media. |
+| atr_trailing_trend | sim | sim | `trend_period=100;atr_period=20;atr_mult=3.0` | Tendencia acima da EMA com trailing stop baseado em ATR. |
+| cmf_ema_trend | sim | sim | `cmf_period=21;ema_period=100;entry_cmf=0.05;exit_cmf=-0.05` | Tendencia de preco por EMA confirmada por Chaikin Money Flow. |
+| donchian_40_20_trend | sim | sim | `entry_lookback=40;exit_lookback=20` | Donchian 40/20: rompe maxima de 40 e sai na minima de 20. |
+| donchian_80_30_trend | sim | sim | `entry_lookback=80;exit_lookback=30` | Donchian mais lento 80/30 para tendencias prolongadas. |
+| efficiency_ratio_trend | sim | sim | `period=40;threshold=0.35` | Razao de eficiencia alta e direcao positiva para filtrar ruido lateral. |
 | ema_cross | sim | sim | `fast=12;slow=26` | Cruzamento de medias moveis exponenciais. |
 | ema_cross_100_200 | sim | sim | `average_type=ema;fast=100;slow=200` | Cruzamento de medias EMA 100/200. |
 | ema_cross_10_30 | sim | sim | `average_type=ema;fast=10;slow=30` | Cruzamento de medias EMA 10/30. |
 | ema_cross_20_50 | sim | sim | `average_type=ema;fast=20;slow=50` | Cruzamento de medias EMA 20/50. |
 | ema_cross_50_100 | sim | sim | `average_type=ema;fast=50;slow=100` | Cruzamento de medias EMA 50/100. |
 | ema_cross_5_20 | sim | sim | `average_type=ema;fast=5;slow=20` | Cruzamento de medias EMA 5/20. |
+| ema_fast_slow_trend | sim | sim | `fast=20;slow=80` | EMA curta acima da longa com preco acima da EMA curta. |
+| ema_pullback_trend | sim | sim | `fast=21;slow=100` | Compra recuperacao da EMA curta durante tendencia definida pela EMA longa. |
+| ema_slope_price_trend | sim | sim | `ema_period=80;slope_lookback=20` | Preco acima de EMA cuja inclinacao permanece positiva. |
+| ema_triple_alignment_trend | sim | sim | `fast=20;middle=50;slow=200` | Alinhamento de tres EMAs em ordem de alta. |
 | frama_trend | sim | sim | `window=16` | Tendencia pela media fractal adaptativa FRAMA de Ehlers. |
+| highest_close_breakout_trend | sim | sim | `entry_lookback=60;exit_lookback=20` | Rompimento do maior fechamento com saida pelo menor fechamento recente. |
 | ichimoku_cloud | sim | sim | `tenkan_period=9;kijun_period=26;span_b_period=52;displacement=26` | Ichimoku causal: preco acima da nuvem e Tenkan acima da Kijun. |
 | kama_trend | sim | sim | `er_period=10;fast_period=2;slow_period=30` | Tendencia por KAMA de Kaufman com confirmacao simultanea de preco e inclinacao. |
+| low_vol_momentum_trend | sim | sim | `vol_period=63;ema_period=100;momentum_lookback=63;max_vol=0.4` | Momentum e EMA positivos sob teto de volatilidade realizada. |
 | macd | sim | sim | `fast=12;slow=26;signal_window=9` | Segue a linha MACD contra a linha de sinal. |
 | macd_10_30_9 | sim | sim | `fast=10;slow=30;signal_window=9;trend_window=0` | MACD parametrizado com confirmacao de tendencia opcional. |
 | macd_12_26_12 | sim | sim | `fast=12;slow=26;signal_window=12;trend_window=0` | MACD parametrizado com confirmacao de tendencia opcional. |
@@ -212,19 +240,39 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | macd_24_52_18 | sim | sim | `fast=24;slow=52;signal_window=18;trend_window=0` | MACD parametrizado com confirmacao de tendencia opcional. |
 | macd_5_35_5 | sim | sim | `fast=5;slow=35;signal_window=5;trend_window=0` | MACD parametrizado com confirmacao de tendencia opcional. |
 | macd_8_17_9 | sim | sim | `fast=8;slow=17;signal_window=9;trend_window=0` | MACD parametrizado com confirmacao de tendencia opcional. |
+| macd_signal_long_trend | sim | sim | `fast=12;slow=26;signal_period=9;trend_period=100` | MACD acima do sinal e de zero, confirmado por EMA longa. |
+| macd_zero_trend | sim | sim | `fast=12;slow=26` | MACD acima de zero com preco acima da EMA lenta. |
+| nvi_dual_ema_trend | sim | sim | `fast=50;slow=150` | NVI acima de duas EMAs alinhadas em alta. |
 | parabolic_sar_trend | sim | sim | `af_step=0.02;af_max=0.2` | Parabolic SAR de Wilder: comprado apenas no estado ascendente. |
 | precision_trend_ehlers | sim | sim | `long_period=250;short_period=40` | Precision Trend de Ehlers: compra no ROC positivo do filtro e sai no ROC negativo. |
 | price_sma | sim | sim | `sma_window=200` | Fica comprado quando o preco fecha acima da media simples. |
+| roc_dual_horizon_trend | sim | sim | `short=63;long=126` | ROC positivo simultaneamente em dois horizontes. |
+| roc_stack_trend | sim | sim | `short=21;middle=63;long=126` | Momentum positivo em tres horizontes para confirmar tendencia. |
 | sma_cross | sim | sim | `fast=50;slow=200` | Cruzamento de medias moveis simples. |
 | sma_cross_100_200 | sim | sim | `average_type=sma;fast=100;slow=200` | Cruzamento de medias SMA 100/200. |
 | sma_cross_10_50 | sim | sim | `average_type=sma;fast=10;slow=50` | Cruzamento de medias SMA 10/50. |
 | sma_cross_20_100 | sim | sim | `average_type=sma;fast=20;slow=100` | Cruzamento de medias SMA 20/100. |
 | sma_cross_50_100 | sim | sim | `average_type=sma;fast=50;slow=100` | Cruzamento de medias SMA 50/100. |
 | sma_cross_5_20 | sim | sim | `average_type=sma;fast=5;slow=20` | Cruzamento de medias SMA 5/20. |
+| sma_pullback_trend | sim | sim | `fast=20;slow=100` | Compra recuperacao da SMA curta dentro de tendencia de alta. |
+| sma_slope_price_trend | sim | sim | `sma_period=100;slope_lookback=20` | Preco acima de SMA com inclinacao positiva. |
 | sma_stop | sim | sim | `sma_window=200;stop_pct=0.2` | Segue media simples com stop percentual a partir do topo. |
+| sma_triple_alignment_trend | sim | sim | `fast=20;middle=50;slow=200` | Alinhamento de tres SMAs em ordem de alta. |
 | supertrend_follow | sim | sim | `atr_period=10;atr_mult=3.0` | Segue tendencia pelo indicador SuperTrend baseado em ATR. |
+| typical_price_sma_trend | sim | sim | `period=50` | Typical Price acima de sua media simples. |
 | ultimate_oscillator_ehlers | sim | sim | `band_edge=20;bandwidth=2.0;rms_period=100` | Ultimate Oscillator de Ehlers: comprado acima de zero e em caixa abaixo de zero. |
 | vortex_trend | sim | sim | `period=14` | Vortex de Botes-Siepman: comprado enquanto VI+ permanece acima de VI-. |
+
+## tendencia_volume
+
+| Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
+|---|---|---|---|---|
+| cmf_price_trend | sim | sim | `cmf_period=21;price_period=50;entry_cmf=0.03;exit_cmf=-0.02` | Tendencia de preco com CMF acima de limiar positivo. |
+| efi_trend_confirm | sim | sim | `period=13;trend_window=100` | Force Index positivo confirmado por media de preco. |
+| eom_trend_confirm | sim | sim | `period=14;trend_window=100` | Ease of Movement positivo com tendencia de preco. |
+| mfi_price_trend | sim | sim | `mfi_period=14;price_period=50;entry_mfi=52.0;exit_mfi=45.0` | Typical Price em tendencia com confirmacao do MFI. |
+| mfi_trend_follow | sim | sim | `period=14;trend_window=100;entry=55.0;exit=45.0` | MFI forte confirmado por tendencia de preco. |
+| nvi_price_confirm | sim | sim | `nvi_ema=100;price_sma=100` | NVI acima da EMA e preco acima da media. |
 
 ## volatilidade
 
@@ -237,8 +285,12 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
 |---|---|---|---|---|
 | chaikin_money_flow | sim | sim | `period=21;trend_window=100` | Cruzamento positivo do Chaikin Money Flow com filtro opcional de tendencia. |
+| cmf_threshold_hysteresis | sim | sim | `period=21;entry=0.05;exit=-0.02` | CMF com bandas distintas de entrada e saida para reduzir ruido. |
+| cmf_zero_cross | sim | sim | `period=21` | Comprado enquanto Chaikin Money Flow permanece positivo. |
 | ease_of_movement | sim | sim | `period=14` | Ease of Movement suavizado: comprado quando preco e volume favorecem alta. |
+| efi_zero_cross | sim | sim | `period=13` | Elder Force Index positivo como regime comprador. |
 | elder_force_index | sim | sim | `period=13;trend_window=50` | Force Index de Elder positivo com confirmacao da tendencia de preco. |
+| eom_zero_cross | sim | sim | `period=14` | Ease of Movement positivo como sinal de compra. |
 | klinger_volume_oscillator | sim | sim | `fast_period=34;slow_period=55;signal_period=13` | Klinger Volume Oscillator acima da EMA de sinal. |
 | mfi_momentum_10_50_30_sma100 | sim | sim | `period=10;entry_level=50.0;exit_level=30.0;trend_window=100` | Money Flow Index combina preco e volume com filtro de tendencia. |
 | mfi_momentum_14_55_35_sma100 | sim | sim | `period=14;entry_level=55.0;exit_level=35.0;trend_window=100` | Money Flow Index combina preco e volume com filtro de tendencia. |
@@ -251,3 +303,15 @@ Catalogo gerado a partir de `b3_strategy_lab/strategies.py`.
 | mfi_trend_21_25_75_sma200 | sim | sim | `period=21;entry_level=25.0;exit_level=75.0;trend_window=200` | Money Flow Index combina preco e volume com filtro de tendencia. |
 | mfi_trend_7_20_80_sma50 | sim | sim | `period=7;entry_level=20.0;exit_level=80.0;trend_window=50` | Money Flow Index combina preco e volume com filtro de tendencia. |
 | negative_volume_index | sim | sim | `ema_period=255` | Negative Volume Index de Fosback acima de sua EMA anual. |
+| nvi_ema_trend | sim | sim | `ema_period=100` | Negative Volume Index acima de sua EMA. |
+
+## volume_hibrido
+
+| Estrategia | Sweep | Matriz de carteira | Parametros padrao | Descricao |
+|---|---|---|---|---|
+| cmf_efi_confirm | sim | sim | `cmf_period=21;efi_period=13` | Chaikin Money Flow e Force Index simultaneamente positivos. |
+| eom_nvi_confirm | sim | sim | `eom_period=14;nvi_ema=100` | Ease of Movement positivo com NVI acima da EMA. |
+| mfi_cmf_confirm | sim | sim | `mfi_period=14;cmf_period=21;entry_mfi=55.0;exit_mfi=45.0` | MFI e CMF precisam confirmar fluxo comprador. |
+| mfi_efi_confirm | sim | sim | `mfi_period=14;efi_period=13;entry_mfi=55.0;exit_mfi=45.0` | MFI e Elder Force Index confirmam entrada e saida. |
+| nvi_mfi_confirm | sim | sim | `nvi_ema=100;mfi_period=14;entry_mfi=52.0;exit_mfi=45.0` | NVI acima da EMA combinado com MFI comprador. |
+| volume_triple_confirm | sim | sim | `cmf_period=21;efi_period=13;eom_period=14` | CMF, Force Index e Ease of Movement confirmam o regime comprador. |

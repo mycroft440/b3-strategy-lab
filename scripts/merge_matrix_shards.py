@@ -63,6 +63,9 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
     reference = manifests[0]
     keys = (
         "git_commit",
+        "git_dirty",
+        "git_dirty_scope",
+        "source_sha256",
         "universe",
         "datasets",
         "tickers",
@@ -83,6 +86,10 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
         "slippage_bps",
         "lot_size",
         "ranking",
+        "signal_execution_policy",
+        "initial_entry_policy",
+        "execution_missing_price_policy",
+        "buy_allocation_policy",
         "evaluation_scope",
         "train_ratio_applied",
         "result_classification",
@@ -90,7 +97,13 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
         "limitations",
         "final_valuation",
     )
+    if reference.get("git_dirty") is not False:
+        raise ValueError("Shard 0 foi calculado com fontes ou dados versionados modificados.")
     for index, manifest in enumerate(manifests[1:], start=1):
+        if manifest.get("git_dirty") is not False:
+            raise ValueError(
+                f"Shard {index} foi calculado com fontes ou dados versionados modificados."
+            )
         for key in keys:
             if manifest.get(key) != reference.get(key):
                 raise ValueError(f"Shard {index}: campo incompatível no manifesto: {key}.")
@@ -112,6 +125,7 @@ def _build_manifest(
             "strategy_count": len(strategies),
             "strategies": strategies,
             "combinations": combinations,
+            "catalog_complete": set(strategies) == set(portfolio_strategies()),
             "sharded_execution": True,
             "shard_count": len(manifests),
             "workers_per_shard": manifests[0].get("workers"),

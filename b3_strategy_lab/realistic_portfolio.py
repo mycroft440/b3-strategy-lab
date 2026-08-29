@@ -26,6 +26,19 @@ def _apply_ticker_transitions(account, transitions) -> None:
     _original_apply_ticker_transitions(account, transitions)
 
 
+def _remap_target_weights(targets, transitions) -> dict[str, float]:
+    """Carry designated weights through a supported ticker rename."""
+
+    result = dict(targets)
+    for transition in transitions:
+        weight = result.pop(transition.old_ticker, 0.0)
+        if weight > 0 and transition.new_ticker:
+            result[transition.new_ticker] = (
+                result.get(transition.new_ticker, 0.0) + weight
+            )
+    return result
+
+
 def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
     processor = getattr(account, "process_due_taxes", None)
     if processor is not None:
@@ -272,12 +285,37 @@ def run_realistic(
     entitlement_map, payment_map = _cash_event_maps(cash_events, dates)
     entitlements: dict[tuple[str, str, str, str, float], int] = {}
     pending_targets: dict[str, float] | None = None
+    designated_targets: dict[str, float] = {}
+    active_targets: dict[str, float] = {}
     curve: list[_core.CurveRow] = []
     equities: list[float] = []
     distributions_net = 0.0
     progress_interval = max(1, len(dates) // 100)
     if progress_callback is not None:
         progress_callback(0, len(dates), dates[0])
+
+    prior_dates = [value for value in data.dates if value < dates[0]]
+    prior_date = prior_dates[-1] if prior_dates else None
+    if prior_date is not None and _core._is_rebalance(
+        prior_date, dates[0], config.rebalance
+    ):
+        try:
+            prior_investable = universe.tickers_on(prior_date)
+        except ValueError:
+            # Never borrow the first future universe snapshot to manufacture an
+            # opening portfolio. A replay that starts before universe coverage
+            # begins remains in cash until its first causal decision.
+            prior_investable = set()
+        prior_eligible = _eligible_tickers(data, prior_date, eligibility) or set()
+        allowed = prior_eligible.intersection(prior_investable)
+        if allowed:
+            designated_targets = _target_weights(
+                data,
+                prior_date,
+                config,
+                eligible_tickers=allowed,
+            )
+            pending_targets = dict(designated_targets)
 
     for index, current in enumerate(dates):
         next_date = dates[index + 1] if index + 1 < len(dates) else None
@@ -288,12 +326,21 @@ def run_realistic(
         _apply_split_from_adjustment_factors(account, data, current)
         if current in transitions:
             _apply_ticker_transitions(account, transitions[current])
+            designated_targets = _remap_target_weights(
+                designated_targets, transitions[current]
+            )
+            active_targets = _remap_target_weights(active_targets, transitions[current])
+            if pending_targets is not None:
+                pending_targets = _remap_target_weights(
+                    pending_targets, transitions[current]
+                )
 
         for event in preopen_payments:
             distributions_net += _credit_event(account, event, entitlements)
 
         if pending_targets is not None:
             account = rebalance_atomic(account, data, pricebook, current, pending_targets)
+            active_targets = dict(pending_targets)
 
         for event in same_day_payments:
             distributions_net += _credit_event(account, event, entitlements)
@@ -340,18 +387,30 @@ def run_realistic(
         for event in entitlement_map.get(current, []):
             _register_entitlement_receivable(account, event, entitlements)
 
-        if next_date is not None and _core._is_rebalance(current, next_date, config.rebalance):
+        pending_targets = None
+        if next_date is not None and _core._is_rebalance(
+            current, next_date, config.rebalance
+        ):
             strategy_eligible = _eligible_tickers(data, current, eligibility) or set()
             investable = universe.tickers_on(current)
             allowed = strategy_eligible.intersection(investable)
-            pending_targets = _target_weights(
+            designated_targets = _target_weights(
                 data,
                 current,
                 config,
                 eligible_tickers=allowed,
             )
-        else:
-            pending_targets = None
+            pending_targets = dict(designated_targets)
+        elif next_date is not None:
+            strategy_eligible = _eligible_tickers(data, current, eligibility) or set()
+            investable = universe.tickers_on(current)
+            signal_targets = {
+                ticker: weight
+                for ticker, weight in designated_targets.items()
+                if ticker in strategy_eligible and ticker in investable
+            }
+            if signal_targets != active_targets:
+                pending_targets = signal_targets
 
         completed = index + 1
         if progress_callback is not None and (

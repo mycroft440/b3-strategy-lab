@@ -160,13 +160,38 @@ def main(argv: list[str] | None = None) -> int:
         Path(path).exists() and _sha256(Path(path)) == expected_hash
         for path, expected_hash in manifest["source_sha256"].items()
     )
+    required_source_hashes = {
+        "b3_strategy_lab/backtest.py",
+        "b3_strategy_lab/candles.py",
+        "b3_strategy_lab/cli.py",
+        "b3_strategy_lab/cotahist.py",
+        "b3_strategy_lab/strategies.py",
+        "b3_strategy_lab/extensions.py",
+        "b3_strategy_lab/user_extensions.py",
+        "b3_strategy_lab/additional_strategies.py",
+        "b3_strategy_lab/researched_strategies.py",
+        "b3_strategy_lab/extended_strategies.py",
+        "b3_strategy_lab/research_indicators.py",
+        "b3_strategy_lab/indicator_strategies.py",
+        "b3_strategy_lab/trend_strategies.py",
+        "b3_strategy_lab/portfolio_risk.py",
+        "scripts/backtest_strategy_management_combinations.py",
+        "scripts/research_portfolio_allocation.py",
+        "scripts/research_portfolio_allocation_core.py",
+    }
+    if manifest.get("sharded_execution") is True:
+        required_source_hashes.add("scripts/merge_matrix_shards.py")
     universe_path = Path(manifest["universe"]["manifest"])
     universe_hash_matches = (
         universe_path.exists()
         and _sha256(universe_path) == manifest["universe"]["sha256"]
     )
     dataset_hashes_match = all(
-        _sha256(Path("data/candles") / f"{ticker.lower()}_{manifest['interval']}.csv")
+        (Path("data/candles") / f"{ticker.lower()}_{manifest['interval']}.csv").exists()
+        and _sha256(
+            Path("data/candles")
+            / f"{ticker.lower()}_{manifest['interval']}.csv"
+        )
         == values["candle_sha256"]
         for ticker, values in manifest["datasets"].items()
     )
@@ -175,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     split_evidence_hash_matches = (
         len(split_evidence_hashes) == 1
+        and Path("data/corporate_actions/split_evidence.json").exists()
         and _sha256(Path("data/corporate_actions/split_evidence.json"))
         == next(iter(split_evidence_hashes))
     )
@@ -188,10 +214,39 @@ def main(argv: list[str] | None = None) -> int:
             and observed_strategies == expected_strategies
             and observed_managements == expected_managements
         ),
+        "manifest_counts_match_declared_catalogs": (
+            int(manifest.get("strategy_count", -1)) == len(expected_strategies)
+            and int(manifest.get("management_count", -1))
+            == len(expected_managements)
+            and expected_rows
+            == len(expected_strategies) * len(expected_managements)
+        ),
+        "full_catalog_really_exceeds_100k": (
+            manifest.get("catalog_complete") is True
+            and (
+                expected_rows > 100_000
+                and expected_rows
+                == int(manifest.get("catalog_combination_count", -1))
+                and len(expected_strategies)
+                == int(manifest.get("catalog_strategy_count", -1))
+                and len(expected_managements)
+                == int(manifest.get("catalog_management_count", -1))
+            )
+        ),
         "ranking_is_deterministic_total_return_cagr_names": sorted_as_declared,
         "execution_policy_is_fail_closed": (
             manifest.get("execution_missing_price_policy")
             == "fail_closed_fresh_open_and_close_required"
+        ),
+        "signal_changes_execute_at_next_open": (
+            manifest.get("signal_execution_policy")
+            == "designated_basket_binary_signal_changes_execute_next_open_"
+            "without_intraperiod_reranking"
+        ),
+        "initial_rebalance_boundary_uses_prior_close": (
+            manifest.get("initial_entry_policy")
+            == "prior_close_decision_executes_at_first_open_when_start_is_"
+            "rebalance_boundary"
         ),
         "buy_allocation_policy_is_declared": (
             manifest.get("buy_allocation_policy")
@@ -222,6 +277,14 @@ def main(argv: list[str] | None = None) -> int:
         "all_rows_match_manifest_window": dates_and_candles_match,
         "annual_report_top_matches_csv": annual_report_top_matches_csv,
         "source_hashes_match": source_hashes_match,
+        "all_critical_sources_are_hashed": required_source_hashes.issubset(
+            manifest["source_sha256"]
+        ),
+        "calculation_worktree_was_clean": manifest.get("git_dirty") is False,
+        "calculation_worktree_scope_is_explicit": (
+            manifest.get("git_dirty_scope")
+            == "calculation_sources_and_workflows_excluding_hashed_market_data"
+        ),
         "universe_hash_matches": universe_hash_matches,
         "dataset_hashes_match": dataset_hashes_match,
         "split_evidence_hash_matches": split_evidence_hash_matches,

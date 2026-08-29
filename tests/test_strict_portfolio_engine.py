@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from types import SimpleNamespace
 
-from scripts.backtest_strategy_management_strict import common_dates, rebalance_atomic
+from scripts.backtest_strategy_management_strict import (
+    common_dates,
+    rebalance_atomic,
+    run_strict,
+)
+from scripts.research_portfolio_allocation import PortfolioConfig
 
 
 class StrictPortfolioEngineTests(unittest.TestCase):
@@ -89,6 +94,75 @@ class StrictPortfolioEngineTests(unittest.TestCase):
         )
 
         self.assertEqual(common_dates(data), ["2024-01-03"])
+
+    def test_strategy_signal_changes_execute_next_open_between_rebalances(self) -> None:
+        dates = [
+            "2023-12-27",
+            "2023-12-28",
+            "2023-12-29",
+            "2024-01-02",
+            "2024-01-03",
+            "2024-01-04",
+            "2024-01-05",
+        ]
+        prices = [10.0, 11.0, 13.0, 14.0, 15.0, 16.0, 17.0]
+        candles = {
+            value_date: SimpleNamespace(open=price, close=price)
+            for value_date, price in zip(dates, prices)
+        }
+        data = SimpleNamespace(
+            tickers=["AAA3"],
+            by_date={"AAA3": candles},
+            index_by_date={
+                "AAA3": {value_date: index for index, value_date in enumerate(dates)}
+            },
+            signal_prices={"AAA3": prices},
+            raw_returns={
+                "AAA3": [
+                    0.0,
+                    *[
+                        prices[index] / prices[index - 1] - 1.0
+                        for index in range(1, len(prices))
+                    ],
+                ]
+            },
+            candidate_profile_cache={},
+        )
+        config = PortfolioConfig(
+            name="monthly_signal_contract",
+            lookback=1,
+            top_n=1,
+            vol_window=2,
+            rebalance="monthly",
+            score="all",
+            weighting="equal",
+            absolute_momentum=False,
+            signal_mode="adjusted",
+        )
+        eligibility = {"AAA3": [0, 0, 1, 1, 0, 1, 1]}
+
+        summary, ledger = run_strict(
+            data,
+            config,
+            start="2024-01-02",
+            end="2024-01-05",
+            initial_cash=100.0,
+            cost_bps=0.0,
+            slippage_bps=0.0,
+            lot_size=1,
+            eligibility=eligibility,
+            collect_trades=True,
+        )
+
+        self.assertEqual(summary.trades, 3)
+        self.assertEqual(
+            [(row["date"], row["side"]) for row in ledger],
+            [
+                ("2024-01-02", "BUY"),
+                ("2024-01-04", "SELL"),
+                ("2024-01-05", "BUY"),
+            ],
+        )
 
 
 if __name__ == "__main__":

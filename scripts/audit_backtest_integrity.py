@@ -3,10 +3,16 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
-from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle
-from b3_strategy_lab.cotahist import load_verified_candles
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle  # noqa: E402
+from b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402
 
 
 @dataclass(frozen=True)

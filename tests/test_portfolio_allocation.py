@@ -158,10 +158,53 @@ class PortfolioCombinationTests(unittest.TestCase):
 
         self.assertNotIn("--train-ratio", result.stdout)
 
+    def test_full_matrix_cli_rejects_duplicate_strategies_before_loading_data(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/backtest_strategy_management_combinations.py",
+                "--strategies",
+                "buy_and_hold",
+                "buy_and_hold",
+            ],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Estrategias duplicadas", result.stderr)
+
+    def test_full_matrix_cli_rejects_nonfinite_money_inputs(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/backtest_strategy_management_combinations.py",
+                "--initial-cash",
+                "nan",
+            ],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--initial-cash precisa ser maior que zero", result.stderr)
+
     def test_catalog_has_478_management_strategies(self) -> None:
         configs = _configs("raw", "all")
         self.assertEqual(len(configs), 478)
         self.assertEqual(len({config.name for config in configs}), 478)
+
+    def test_default_matrix_really_exceeds_one_hundred_thousand_pairs(self) -> None:
+        strategies = portfolio_strategies()
+        configs = _configs("adjusted", "all")
+        self.assertGreaterEqual(len(strategies), 234)
+        self.assertGreater(len(strategies) * len(configs), 100_000)
+        self.assertEqual(len(strategies), len(set(strategies)))
+        self.assertEqual(len(configs), len({config.name for config in configs}))
 
     def test_default_matrix_includes_buy_and_hold(self) -> None:
         self.assertIn("buy_and_hold", portfolio_strategies())
@@ -270,6 +313,74 @@ class PortfolioCombinationTests(unittest.TestCase):
         )
         self.assertTrue(any("SLOW3" in point.selected for point in curve))
         self.assertTrue(all(point.dividend_cash == 0.0 for point in curve))
+
+    def test_strategy_exit_and_reentry_execute_at_next_open_between_rebalances(self) -> None:
+        data = MarketData.__new__(MarketData)
+        data.tickers = ["AAA3"]
+        data.interval = "1d"
+        data.signal_mode = "adjusted"
+        dates = [
+            "2023-12-27",
+            "2023-12-28",
+            "2023-12-29",
+            "2024-01-02",
+            "2024-01-03",
+            "2024-01-04",
+            "2024-01-05",
+        ]
+        prices = [10.0, 11.0, 13.0, 14.0, 15.0, 16.0, 17.0]
+        candles = [
+            candle(value_date, "AAA3", price)
+            for value_date, price in zip(dates, prices)
+        ]
+        data.candles = {"AAA3": candles}
+        data.by_date = {"AAA3": {item.date: item for item in candles}}
+        data.index_by_date = {
+            "AAA3": {item.date: index for index, item in enumerate(candles)}
+        }
+        data.signal_prices = {"AAA3": prices}
+        data.raw_returns = {
+            "AAA3": [
+                0.0,
+                *[
+                    prices[index] / prices[index - 1] - 1.0
+                    for index in range(1, len(prices))
+                ],
+            ]
+        }
+        data.dates = dates
+        data.candidate_profile_cache = {}
+
+        config = PortfolioConfig(
+            name="monthly_signal_contract",
+            lookback=1,
+            top_n=1,
+            vol_window=2,
+            rebalance="monthly",
+            score="all",
+            weighting="equal",
+            absolute_momentum=False,
+            signal_mode="adjusted",
+        )
+        eligibility = {"AAA3": [0, 0, 1, 1, 0, 1, 1]}
+
+        summary, curve = run_portfolio(
+            data,
+            config,
+            start="2024-01-02",
+            end="2024-01-05",
+            initial_cash=100.0,
+            cost_bps=0.0,
+            slippage_bps=0.0,
+            lot_size=1,
+            eligibility=eligibility,
+        )
+
+        self.assertEqual(
+            [point.selected for point in curve],
+            ["AAA3", "AAA3", "", "AAA3"],
+        )
+        self.assertEqual(summary.trades, 3)
 
     def test_portfolio_executes_and_marks_on_split_normalized_prices(self) -> None:
         data = market_data()

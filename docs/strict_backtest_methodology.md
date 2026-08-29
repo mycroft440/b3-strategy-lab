@@ -15,7 +15,9 @@ O motor estrito aplica estas regras:
 - nao usa `last_price` como substituto silencioso para uma abertura ausente;
 - um rebalanceamento e **atomico**: se faltar a abertura de qualquer posicao que precisa ser vendida ou de qualquer alvo que precisa ser comprado, nenhuma perna da troca e executada;
 - a carteira e marcada a mercado somente com fechamento fresco da sessao corrente; uma posicao sem fechamento valido gera erro em vez de permanecer valorizada indefinidamente por preco antigo;
-- sinal/alvo e calculado no fechamento da sessao de decisao e a execucao ocorre somente na abertura da sessao seguinte de rebalanceamento;
+- o gerenciamento escolhe e pondera a cesta no fechamento anterior a cada rebalanceamento;
+- dentro da cesta designada, cada mudanca do sinal binario da estrategia e executada na abertura seguinte, sem reranquear ativos entre rebalanceamentos;
+- quando o inicio do teste coincide com uma fronteira de rebalanceamento, a decisao usa o fechamento comum imediatamente anterior e executa na primeira abertura do periodo;
 - custos e slippage sao debitados diretamente do caixa e gravados separadamente;
 - caixa negativo, quantidade negativa e estados nao finitos provocam rollback do rebalanceamento;
 - o vencedor e ranqueado **somente no treino**; o periodo de teste nao participa da escolha;
@@ -70,6 +72,6 @@ Eliminar esse ultimo viés exige reconstruir, para cada data historica, o conjun
 
 ## Interpretacao
 
-Um retorno alto no ranking historico de 90.820 combinacoes continua sendo util como **descoberta de hipotese**, mas nao como estimativa confiavel do que teria sido obtido ao vivo.
+Um retorno alto no ranking historico das 111.852 combinacoes atuais continua sendo util como **descoberta de hipotese**, mas nao como estimativa confiavel do que teria sido obtido ao vivo.
 
 O resultado de maior interesse passa a ser o `test_*` do script estrito, porque a escolha da estrategia e do gerenciamento foi congelada antes do inicio do holdout. Mesmo esse resultado deve carregar o aviso de viés de universo ate existir um universo historico point-in-time.

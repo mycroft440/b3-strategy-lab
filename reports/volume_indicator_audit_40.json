@@ -2,23 +2,43 @@
   "audited_strategies": [
     "chaikin_money_flow",
     "chandelier_breakout",
+    "cmf_efi_confirm",
+    "cmf_ema_trend",
+    "cmf_price_trend",
+    "cmf_threshold_hysteresis",
+    "cmf_zero_cross",
     "ease_of_movement",
+    "efi_trend_confirm",
+    "efi_zero_cross",
     "elder_force_index",
+    "eom_nvi_confirm",
+    "eom_trend_confirm",
+    "eom_zero_cross",
     "klinger_volume_oscillator",
+    "mfi_cmf_confirm",
+    "mfi_efi_confirm",
     "mfi_momentum_10_50_30_sma100",
     "mfi_momentum_14_55_35_sma100",
     "mfi_momentum_14_55_35_sma200",
     "mfi_momentum_21_60_40_sma200",
     "mfi_momentum_7_50_30_sma50",
+    "mfi_price_trend",
+    "mfi_reversal",
     "mfi_trend_10_20_80_sma100",
     "mfi_trend_14_20_80_sma100",
     "mfi_trend_14_25_75_sma200",
     "mfi_trend_21_25_75_sma200",
     "mfi_trend_7_20_80_sma50",
+    "mfi_trend_follow",
     "negative_volume_index",
-    "range_expansion_breakout"
+    "nvi_dual_ema_trend",
+    "nvi_ema_trend",
+    "nvi_mfi_confirm",
+    "nvi_price_confirm",
+    "range_expansion_breakout",
+    "volume_triple_confirm"
   ],
-  "audited_strategy_count": 17,
+  "audited_strategy_count": 37,
   "checks": {
     "adjusted_price_quantity_preserves_raw_notional_with_integer_rounding": true,
     "adjusted_volume_matches_split_factor_with_rounding": true,
@@ -34,9 +54,9 @@
     "all_volume_parameter_filters_are_audited": true,
     "all_volume_signal_runs_are_binary_and_causal": true,
     "builtin_source_volume_consumers_match_inventory": true,
-    "builtin_volume_families_match_inventory": true,
     "builtin_volume_parameter_filters_match_inventory": true,
     "historical_events_missing_from_current_b3_api_are_loaded": true,
+    "known_indirect_volume_strategies_are_audited": true,
     "official_event_factors_leave_no_extreme_price_discontinuity": true,
     "official_financial_volume_has_no_large_ohlc_inconsistency": true,
     "user_extensions_do_not_bypass_signal_volume_basis": true
@@ -52,23 +72,29 @@
   },
   "evaluation_end": "2026-08-19",
   "evaluation_start": "2018-01-02",
-  "generated_at_utc": "2026-08-21T01:04:07+00:00",
+  "generated_at_utc": "2026-08-29T18:53:04+00:00",
   "indicator_groups": [
     {
       "indicator": "Money Flow Index (MFI)",
       "input": "preco tipico normalizado multiplicado pela quantidade normalizada",
       "source_function": "b3_strategy_lab.additional_strategies._mfi",
       "strategies": [
+        "mfi_cmf_confirm",
+        "mfi_efi_confirm",
         "mfi_momentum_10_50_30_sma100",
         "mfi_momentum_14_55_35_sma100",
         "mfi_momentum_14_55_35_sma200",
         "mfi_momentum_21_60_40_sma200",
         "mfi_momentum_7_50_30_sma50",
+        "mfi_price_trend",
+        "mfi_reversal",
         "mfi_trend_10_20_80_sma100",
         "mfi_trend_14_20_80_sma100",
         "mfi_trend_14_25_75_sma200",
         "mfi_trend_21_25_75_sma200",
-        "mfi_trend_7_20_80_sma50"
+        "mfi_trend_7_20_80_sma50",
+        "mfi_trend_follow",
+        "nvi_mfi_confirm"
       ]
     },
     {
@@ -76,7 +102,14 @@
       "input": "multiplicador de fechamento no range vezes quantidade normalizada",
       "source_function": "b3_strategy_lab.researched_strategies.chaikin_money_flow",
       "strategies": [
-        "chaikin_money_flow"
+        "chaikin_money_flow",
+        "cmf_zero_cross",
+        "cmf_threshold_hysteresis",
+        "mfi_cmf_confirm",
+        "cmf_efi_confirm",
+        "volume_triple_confirm",
+        "cmf_price_trend",
+        "cmf_ema_trend"
       ]
     },
     {
@@ -84,7 +117,12 @@
       "input": "variacao do fechamento normalizado vezes quantidade normalizada",
       "source_function": "b3_strategy_lab.extended_strategies.elder_force_index",
       "strategies": [
-        "elder_force_index"
+        "elder_force_index",
+        "efi_zero_cross",
+        "efi_trend_confirm",
+        "mfi_efi_confirm",
+        "cmf_efi_confirm",
+        "volume_triple_confirm"
       ]
     },
     {
@@ -92,7 +130,11 @@
       "input": "movimento do ponto medio e range divididos pela quantidade normalizada",
       "source_function": "b3_strategy_lab.extended_strategies.ease_of_movement",
       "strategies": [
-        "ease_of_movement"
+        "ease_of_movement",
+        "eom_zero_cross",
+        "eom_trend_confirm",
+        "eom_nvi_confirm",
+        "volume_triple_confirm"
       ]
     },
     {
@@ -100,7 +142,12 @@
       "input": "comparacao entre quantidades normalizadas consecutivas",
       "source_function": "b3_strategy_lab.extended_strategies.negative_volume_index",
       "strategies": [
-        "negative_volume_index"
+        "negative_volume_index",
+        "nvi_ema_trend",
+        "nvi_price_confirm",
+        "eom_nvi_confirm",
+        "nvi_mfi_confirm",
+        "nvi_dual_ema_trend"
       ]
     },
     {
@@ -121,7 +168,7 @@
       ]
     }
   ],
-  "indicator_runs": 0,
+  "indicator_runs": 280,
   "official_vwap_outliers": [
     {
       "candle_sha256": "c16cbccb4efb2542b59d0f7f89686d6cada256ebafcd03f1d4c89eb67dbfbbb2",
@@ -182,7 +229,7 @@
   ],
   "ready": true,
   "signal_failures": [],
-  "signal_runs": 680,
+  "signal_runs": 1480,
   "source": {
     "financial_volume_field": "VOLTOT consolidado dos mercados 010 e 020",
     "fractional_activity_market": "020 / BDI 96",
@@ -199,6 +246,11 @@
     "b3_strategy_lab.extended_strategies.elder_force_index",
     "b3_strategy_lab.extended_strategies.klinger_volume_oscillator",
     "b3_strategy_lab.extended_strategies.negative_volume_index",
+    "b3_strategy_lab.research_indicators.chaikin_money_flow",
+    "b3_strategy_lab.research_indicators.ease_of_movement",
+    "b3_strategy_lab.research_indicators.elder_force_index",
+    "b3_strategy_lab.research_indicators.money_flow_index",
+    "b3_strategy_lab.research_indicators.negative_volume_index",
     "b3_strategy_lab.researched_strategies.chaikin_money_flow",
     "b3_strategy_lab.strategies.chandelier_breakout",
     "b3_strategy_lab.strategies.range_expansion_breakout"
