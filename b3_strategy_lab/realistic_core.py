@@ -279,6 +279,8 @@ class SlippageModel:
             raise ValueError("Slippage parameters must be finite and non-negative.")
         if self.max_bps < self.base_bps:
             raise ValueError("max_bps cannot be lower than base_bps.")
+        if self.max_bps >= 10_000:
+            raise ValueError("max_bps must keep sell execution prices positive.")
 
     def bps(self, notional: float, daily_financial_volume: float) -> float:
         if not math.isfinite(notional) or notional < 0:
@@ -432,6 +434,15 @@ class BrazilEquityTaxLedger:
         exemption_sales_limit: float = 20_000.0,
         ordinary_rate: float = 0.15,
     ) -> None:
+        if (
+            not math.isfinite(exemption_sales_limit)
+            or exemption_sales_limit < 0
+        ):
+            raise ValueError(
+                "exemption_sales_limit must be finite and non-negative."
+            )
+        if not math.isfinite(ordinary_rate) or not 0 <= ordinary_rate <= 1:
+            raise ValueError("ordinary_rate must be finite and between zero and one.")
         self.exemption_sales_limit = exemption_sales_limit
         self.ordinary_rate = ordinary_rate
         self._sales: dict[str, float] = defaultdict(float)
@@ -440,6 +451,10 @@ class BrazilEquityTaxLedger:
         self.loss_carry = 0.0
 
     def record_sale(self, value_date: str, gross_sale: float, realized_gain: float) -> None:
+        if not math.isfinite(gross_sale) or gross_sale < 0:
+            raise ValueError("gross_sale must be finite and non-negative.")
+        if not math.isfinite(realized_gain):
+            raise ValueError("realized_gain must be finite.")
         month = _month(value_date)
         if month in self._finalized:
             raise ValueError(f"Tax month {month} already finalized.")
@@ -491,11 +506,15 @@ class CashDistributionTaxLedger:
     settled_months: set[str] = field(default_factory=set)
 
     def net_jcp(self, payment_date: str, gross: float) -> tuple[float, float]:
+        if not math.isfinite(gross) or gross < 0:
+            raise ValueError("gross JCP must be finite and non-negative.")
         rate = 0.175 if payment_date >= "2026-01-01" else 0.15
         tax = gross * rate
         return gross - tax, tax
 
     def record_dividend(self, payment_date: str, payer: str, gross: float) -> None:
+        if not math.isfinite(gross) or gross < 0:
+            raise ValueError("gross dividend must be finite and non-negative.")
         self.monthly_dividends[(_month(payment_date), payer.upper())] += gross
 
     def settle_dividend_month(self, month: str) -> float:
@@ -549,8 +568,8 @@ class RealCashAccount:
         slippage: SlippageModel,
         tax_ledger: BrazilEquityTaxLedger | None = None,
     ) -> None:
-        if initial_cash <= 0:
-            raise ValueError("initial_cash must be positive.")
+        if not math.isfinite(initial_cash) or initial_cash <= 0:
+            raise ValueError("initial_cash must be finite and positive.")
         self.cash = float(initial_cash)
         self.fee_schedule = fee_schedule
         self.slippage = slippage

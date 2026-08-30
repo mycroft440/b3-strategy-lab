@@ -193,6 +193,23 @@ class PortfolioCombinationTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("--initial-cash precisa ser maior que zero", result.stderr)
 
+    def test_full_matrix_cli_rejects_slippage_that_makes_sell_price_nonpositive(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/backtest_strategy_management_combinations.py",
+                "--slippage-bps",
+                "10000",
+            ],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("menor que 10000", result.stderr)
+
     def test_catalog_has_478_management_strategies(self) -> None:
         configs = _configs("raw", "all")
         self.assertEqual(len(configs), 478)

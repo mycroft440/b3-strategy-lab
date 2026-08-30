@@ -275,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
             math.isfinite(float(manifest.get(field, math.nan)))
             and float(manifest.get(field, -1)) >= 0
             for field in ("cost_bps", "slippage_bps")
-        ),
+        ) and float(manifest.get("slippage_bps", math.inf)) < 10_000,
         "all_numeric_metrics_are_finite": metrics_are_finite,
         "total_return_matches_equity_ratio": returns_match_equity,
         "all_rows_match_manifest_window": dates_and_candles_match,

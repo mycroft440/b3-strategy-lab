@@ -111,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         or args.slippage_bps < 0
     ):
         parser.error("Custos e slippage precisam ser finitos e nao negativos.")
+    if args.slippage_bps >= 10_000:
+        parser.error("--slippage-bps precisa ser menor que 10000.")
     if args.lot_size < 0:
         parser.error("--lot-size nao pode ser negativo.")
     if args.top <= 0:

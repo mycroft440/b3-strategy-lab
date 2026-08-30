@@ -423,6 +423,17 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
 
 @unittest.skipIf((os.cpu_count() or 1) < 2, "parallel smoke requires at least 2 CPUs")
 class MatrixParallelDeterminismTests(unittest.TestCase):
+    def test_full_matrix_workflow_declares_replay_and_snapshot_contracts(self) -> None:
+        workflow = (
+            ROOT / ".github/workflows/full-matrix-backtest-hardened.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('data/quality_reviews.json', workflow)
+        self.assertIn('--allow-historical-cutoff', workflow)
+        self.assertIn('REFRESH_DATA=false', workflow)
+        self.assertNotIn('--as-of "$SYNC_END"', workflow)
+        self.assertIn('REALISTIC_INPUT_SNAPSHOT.tar.gz', workflow)
+        self.assertIn('sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256', workflow)
+
     def test_serial_and_parallel_small_matrix_are_identical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             serial = Path(directory) / "serial.csv.gz"

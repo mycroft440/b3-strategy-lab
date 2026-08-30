@@ -166,7 +166,11 @@ e sua [auditoria](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-re
 devem ser lidos em conjunto. O workflow tambem versiona nesse branch o CSV
 completo da matriz e o snapshot exato de candles, manifestos e eventos cujos
 hashes aparecem no manifesto, permitindo repetir a auditoria sem depender da
-retencao temporaria de artifacts. A execucao publicada em 20/08/2026 usou dados ate
+retencao temporaria de artifacts. Pushes na `main` reproduzem o cutoff certificado
+versionado e registram sua idade real; uma atualizacao de fontes e solicitada
+explicitamente no disparo manual por `refresh_data` ou por uma data final posterior
+ao cutoff. A validacao realista publica ainda um arquivo compactado, com SHA-256,
+dos insumos point-in-time derivados que consumiu. A execucao publicada em 20/08/2026 usou dados ate
 10/08/2026 e custos/slippage zero; por isso ela e apenas um artefato retrospectivo
 anterior a estas correcoes, nao uma estimativa de dinheiro real. Uma nova matriz
 so substitui essa referencia depois que o workflow publicar `STATUS=SUCCESS`,

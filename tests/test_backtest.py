@@ -5,6 +5,7 @@ from dataclasses import replace
 
 from b3_strategy_lab.backtest import (
     _action_buckets,
+    _slipped_price,
     run_strategy_vs_buy_hold,
     simulate_buy_and_hold,
     simulate_buy_and_hold_price_only,
@@ -34,6 +35,12 @@ def candle(day: str, open_: float, close: float) -> Candle:
 
 
 class BacktestTests(unittest.TestCase):
+    def test_slippage_rate_cannot_make_sell_price_nonpositive(self) -> None:
+        for invalid in (-0.1, 1.0, float("nan"), float("inf")):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    _slipped_price(10.0, "SELL", invalid)
+
     def test_strategy_signal_trades_on_next_open(self) -> None:
         candles = [
             candle("2024-01-02", 100.0, 200.0),

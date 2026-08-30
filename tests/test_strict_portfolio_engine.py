@@ -28,6 +28,7 @@ class StrictPortfolioEngineTests(unittest.TestCase):
             ("cost_bps", float("inf")),
             ("slippage_bps", -1.0),
             ("slippage_bps", float("nan")),
+            ("slippage_bps", 10_000.0),
             ("lot_size", -1),
         )
         for field, value in invalid_cases:

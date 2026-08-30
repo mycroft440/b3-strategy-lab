@@ -169,6 +169,34 @@ class GapAdjustmentTests(unittest.TestCase):
 
 
 class TaxTests(unittest.TestCase):
+    def test_tax_ledgers_reject_invalid_economic_assumptions(self) -> None:
+        for values in (
+            {"exemption_sales_limit": -1.0},
+            {"exemption_sales_limit": float("nan")},
+            {"ordinary_rate": -0.1},
+            {"ordinary_rate": float("inf")},
+            {"ordinary_rate": 1.1},
+        ):
+            with self.subTest(values=values):
+                with self.assertRaises(ValueError):
+                    BrazilEquityTaxLedger(**values)
+
+        ledger = BrazilEquityTaxLedger()
+        for gross_sale, gain in (
+            (-1.0, 0.0),
+            (float("nan"), 0.0),
+            (1.0, float("inf")),
+        ):
+            with self.subTest(gross_sale=gross_sale, gain=gain):
+                with self.assertRaises(ValueError):
+                    ledger.record_sale("2024-01-02", gross_sale, gain)
+
+        distributions = CashDistributionTaxLedger()
+        with self.assertRaises(ValueError):
+            distributions.net_jcp("2026-01-02", float("nan"))
+        with self.assertRaises(ValueError):
+            distributions.record_dividend("2026-01-02", "AAA3", -1.0)
+
     def _account(self) -> RealCashAccount:
         return RealCashAccount(
             100_000.0,
@@ -266,6 +294,7 @@ class CashAccountTests(unittest.TestCase):
             {"participation_bps_at_1pct": float("nan")},
             {"max_bps": float("inf")},
             {"base_bps": 10.0, "max_bps": 9.0},
+            {"max_bps": 10_000.0},
         )
         for values in invalid_models:
             with self.subTest(values=values):
@@ -277,6 +306,14 @@ class CashAccountTests(unittest.TestCase):
             with self.subTest(notional=invalid_notional):
                 with self.assertRaises(ValueError):
                     model.bps(invalid_notional, 1_000.0)
+
+    def test_cash_account_rejects_nonfinite_initial_cash(self) -> None:
+        fees = FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)])
+        slippage = SlippageModel(base_bps=0.0, participation_bps_at_1pct=0.0)
+        for initial_cash in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(initial_cash=initial_cash):
+                with self.assertRaises(ValueError):
+                    RealCashAccount(initial_cash, fees, slippage)
 
     def test_buy_and_sell_preserve_nonnegative_cash_and_realized_gain(self) -> None:
         fees = FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 3.0)])

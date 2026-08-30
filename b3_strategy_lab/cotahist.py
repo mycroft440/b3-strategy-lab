@@ -5,6 +5,7 @@ import json
 import math
 import os
 import tempfile
+import time
 import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass
@@ -235,9 +236,13 @@ def download_cotahist(
     output_dir: Path | str,
     *,
     refresh: bool = False,
+    attempts: int = 3,
+    retry_delay_seconds: float = 2.0,
 ) -> Path:
     if year < 1986 or year > date.today().year:
         raise ValueError(f"Ano COTAHIST invalido: {year}.")
+    if attempts <= 0 or retry_delay_seconds < 0:
+        raise ValueError("attempts deve ser positivo e retry_delay_seconds nao negativo.")
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=True)
     output = directory / f"COTAHIST_A{year}.ZIP"
@@ -248,19 +253,28 @@ def download_cotahist(
         return output
 
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    fd, temporary_name = tempfile.mkstemp(prefix=f".cotahist-{year}-", suffix=".zip", dir=directory)
-    os.close(fd)
-    temporary = Path(temporary_name)
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as file:
-            while chunk := response.read(1024 * 1024):
-                file.write(chunk)
-        _check_zip(temporary)
-        temporary.replace(output)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
-    return output
+    for attempt in range(1, attempts + 1):
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=f".cotahist-{year}-", suffix=".zip", dir=directory
+        )
+        os.close(fd)
+        temporary = Path(temporary_name)
+        try:
+            with (
+                urllib.request.urlopen(request, timeout=120) as response,
+                temporary.open("wb") as file,
+            ):
+                while chunk := response.read(1024 * 1024):
+                    file.write(chunk)
+            _check_zip(temporary)
+            temporary.replace(output)
+            return output
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            if attempt == attempts:
+                raise
+            time.sleep(retry_delay_seconds * attempt)
+    raise AssertionError("download retry loop exhausted without returning")
 
 
 def build_verified_daily_candles(

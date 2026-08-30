@@ -296,6 +296,8 @@ def _validate_economic_assumptions(
         raise ValueError("cost_bps precisa ser finito e nao negativo")
     if not math.isfinite(slippage_bps) or slippage_bps < 0:
         raise ValueError("slippage_bps precisa ser finito e nao negativo")
+    if slippage_bps >= 10_000:
+        raise ValueError("slippage_bps precisa ser menor que 10000")
     if not isinstance(lot_size, int) or isinstance(lot_size, bool) or lot_size < 0:
         raise ValueError("lot_size precisa ser inteiro e nao negativo")
 

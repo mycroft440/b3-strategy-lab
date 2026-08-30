@@ -26,21 +26,28 @@ def main(argv: list[str] | None = None) -> int:
         help="Falha se o último pregão comum estiver mais antigo que este limite.",
     )
     parser.add_argument(
-        "--as-of",
+        "--expected-end",
+        help="Cutoff certificado esperado (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--allow-historical-cutoff",
+        action="store_true",
         help=(
-            "Data de referencia da auditoria (YYYY-MM-DD). Use o cutoff historico "
-            "para uma execucao reproduzivel."
+            "Aceita explicitamente um snapshot historico que coincida com "
+            "--expected-end, sem classifica-lo como recente."
         ),
     )
     args = parser.parse_args(argv)
     if args.max_age_calendar_days < 0:
         parser.error("--max-age-calendar-days não pode ser negativo.")
     try:
-        freshness_reference = (
-            date.fromisoformat(args.as_of) if args.as_of else date.today()
+        expected_end = (
+            date.fromisoformat(args.expected_end) if args.expected_end else None
         )
     except ValueError:
-        parser.error("--as-of precisa estar no formato YYYY-MM-DD.")
+        parser.error("--expected-end precisa estar no formato YYYY-MM-DD.")
+    if args.allow_historical_cutoff and expected_end is None:
+        parser.error("--allow-historical-cutoff exige --expected-end.")
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     tickers = [str(ticker).upper() for ticker in universe["tickers"]]
@@ -92,7 +99,14 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     evaluation_end_date = date.fromisoformat(evaluation_end)
+    freshness_reference = date.today()
     age_calendar_days = (freshness_reference - evaluation_end_date).days
+    data_is_recent = 0 <= age_calendar_days <= args.max_age_calendar_days
+    historical_cutoff_accepted = bool(
+        args.allow_historical_cutoff
+        and expected_end is not None
+        and evaluation_end_date == expected_end
+    )
     checks = {
         "all_tickers_share_every_evaluation_session": common_dates == union_dates,
         "all_rows_have_isin": all(row["missing_isin_rows"] == 0 for row in rows),
@@ -106,7 +120,9 @@ def main(argv: list[str] | None = None) -> int:
         "evaluation_end_does_not_exceed_reference_date": (
             evaluation_end_date <= freshness_reference
         ),
-        "data_is_recent": 0 <= age_calendar_days <= args.max_age_calendar_days,
+        "freshness_policy_is_satisfied": (
+            data_is_recent or historical_cutoff_accepted
+        ),
     }
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -118,6 +134,9 @@ def main(argv: list[str] | None = None) -> int:
         "evaluation_start": evaluation_start,
         "evaluation_end": evaluation_end,
         "freshness_reference_date": freshness_reference.isoformat(),
+        "expected_end": expected_end.isoformat() if expected_end else None,
+        "data_is_recent": data_is_recent,
+        "historical_cutoff_accepted": historical_cutoff_accepted,
         "age_calendar_days": age_calendar_days,
         "maximum_age_calendar_days": args.max_age_calendar_days,
         "common_sessions": len(common_dates),

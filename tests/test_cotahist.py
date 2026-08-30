@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
+import zipfile
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,6 +16,7 @@ from b3_strategy_lab.cotahist import (
     OfficialQuote,
     build_verified_daily_candles,
     create_manifest,
+    download_cotahist,
     parse_cotahist_lines,
     resample_daily_to_weekly,
     save_verified_candles,
@@ -105,6 +109,31 @@ def quote(
 
 
 class CotahistParsingTests(unittest.TestCase):
+    def test_download_retries_an_invalid_zip_without_publishing_partial_file(self) -> None:
+        valid = io.BytesIO()
+        with zipfile.ZipFile(valid, "w") as archive:
+            archive.writestr("COTAHIST_A2024.TXT", "fixture")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with (
+                patch(
+                    "b3_strategy_lab.cotahist.urllib.request.urlopen",
+                    side_effect=[io.BytesIO(b"not-a-zip"), io.BytesIO(valid.getvalue())],
+                ) as opener,
+                patch("b3_strategy_lab.cotahist.date") as mocked_date,
+            ):
+                mocked_date.today.return_value = date(2026, 8, 30)
+                output = download_cotahist(
+                    2024,
+                    temporary,
+                    attempts=2,
+                    retry_delay_seconds=0,
+                )
+
+            self.assertTrue(zipfile.is_zipfile(output))
+            self.assertEqual(opener.call_count, 2)
+            self.assertEqual(list(Path(temporary).glob(".cotahist-*.zip")), [])
+
     def test_historical_cutoff_filters_later_fractional_anomaly_before_validation(self) -> None:
         standard = quote(
             "2024-01-02",

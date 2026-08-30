@@ -567,6 +567,14 @@ def _apply_action(
 
 
 def _slipped_price(price: float, side: str, slippage_rate: float) -> float:
+    if not math.isfinite(price) or price <= 0:
+        raise ValueError("Preco base invalido para slippage.")
+    if (
+        not math.isfinite(slippage_rate)
+        or slippage_rate < 0
+        or slippage_rate >= 1
+    ):
+        raise ValueError("Slippage precisa estar no intervalo [0, 1).")
     if side == "BUY":
         return price * (1 + slippage_rate)
     if side == "SELL":

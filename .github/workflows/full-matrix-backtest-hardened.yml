@@ -9,10 +9,15 @@ on:
         default: "2018-01-02"
         type: string
       end:
-        description: Data final (vazio = último pregão comum disponível)
+        description: Data final (vazio = cutoff certificado versionado)
         required: false
         default: ""
         type: string
+      refresh_data:
+        description: Tentar atualizar fontes B3 antes da execução
+        required: false
+        default: false
+        type: boolean
       initial_cash:
         description: Capital inicial em reais
         required: true
@@ -39,6 +44,7 @@ on:
       - "data/manifests/**"
       - "data/corporate_actions/**"
       - "data/universes/fixed_40_2018.json"
+      - "data/quality_reviews.json"
       - "data/fees/**"
       - "tests/**"
 
@@ -106,12 +112,10 @@ jobs:
       - name: Resolver cutoff oficial reproduzível
         env:
           REQUESTED_END: ${{ inputs.end || '' }}
+          REQUEST_REFRESH: ${{ inputs.refresh_data || false }}
         run: |
           set -euo pipefail
-          if [ -n "$REQUESTED_END" ]; then
-            SYNC_END="$REQUESTED_END"
-          else
-            SYNC_END="$(python - <<'PY'
+          CERTIFIED_END="$(python - <<'PY'
           import json
           from pathlib import Path
           from b3_strategy_lab.cotahist import load_verified_candles
@@ -129,6 +133,16 @@ jobs:
           print(min(ends))
           PY
           )"
+          SYNC_END="$CERTIFIED_END"
+          REFRESH_DATA=false
+          if [ "$REQUEST_REFRESH" = "true" ]; then
+            REFRESH_DATA=true
+            SYNC_END="${REQUESTED_END:-$(date -u -d 'yesterday' +%F)}"
+          elif [ -n "$REQUESTED_END" ] && [[ "$REQUESTED_END" > "$CERTIFIED_END" ]]; then
+            REFRESH_DATA=true
+            SYNC_END="$REQUESTED_END"
+          elif [ -n "$REQUESTED_END" ]; then
+            SYNC_END="$REQUESTED_END"
           fi
           python - "$SYNC_END" <<'PY'
           import sys
@@ -138,10 +152,16 @@ jobs:
           if value >= date.today():
               raise SystemExit("cutoff precisa ser anterior ao dia corrente")
           PY
+          echo "CERTIFIED_END=$CERTIFIED_END" >> "$GITHUB_ENV"
           echo "SYNC_END=$SYNC_END" >> "$GITHUB_ENV"
+          echo "REFRESH_DATA=$REFRESH_DATA" >> "$GITHUB_ENV"
 
       - name: Atualizar dados oficiais da B3
         run: |
+          if [ "$REFRESH_DATA" != "true" ]; then
+            echo "Usando snapshot certificado versionado ate $CERTIFIED_END."
+            exit 0
+          fi
           END_YEAR="${SYNC_END:0:4}"
           python scripts/sync_official_universe.py \
             --years "2017:${END_YEAR}" \
@@ -154,9 +174,14 @@ jobs:
       - name: Validar dados verificados
         run: |
           python -m b3_strategy_lab verify-data --interval 1d
-          python scripts/audit_backtest_readiness.py \
-            --max-age-calendar-days 4 \
-            --as-of "$SYNC_END"
+          if [ "$REFRESH_DATA" = "true" ]; then
+            python scripts/audit_backtest_readiness.py --max-age-calendar-days 4
+          else
+            python scripts/audit_backtest_readiness.py \
+              --max-age-calendar-days 4 \
+              --expected-end "$CERTIFIED_END" \
+              --allow-historical-cutoff
+          fi
           python scripts/audit_backtest_integrity.py --start 2018-01-01
           python scripts/audit_volume_indicators.py
 
@@ -196,6 +221,7 @@ jobs:
             data/manifests
             data/corporate_actions
             data/universes/fixed_40_2018.json
+            data/quality_reviews.json
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
@@ -438,6 +464,33 @@ jobs:
               )
           PY
 
+      - name: Empacotar snapshot exato dos insumos realistas
+        run: |
+          set -euo pipefail
+          tar \
+            --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 --group=0 --numeric-owner \
+            -czf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz \
+            data/candles_point_in_time \
+            data/actions_point_in_time \
+            data/manifests_point_in_time \
+            data/universes/point_in_time_union.json \
+            data/universes/point_in_time_weekly.csv \
+            data/execution/b3_standard_fractional_open.csv \
+            data/corporate_actions/point_in_time_cash_distributions.csv \
+            data/corporate_actions/point_in_time_cash_distributions.manifest.json \
+            data/corporate_actions/cash_distribution_coverage_certification.json \
+            data/corporate_actions/point_in_time_split_evidence.json \
+            data/corporate_actions/ticker_transitions.csv \
+            data/corporate_actions/ticker_transitions.manifest.json \
+            data/fees/b3_equity_fee_schedule.json
+          (
+            cd reports
+            sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz \
+              > REALISTIC_INPUT_SNAPSHOT.sha256
+          )
+
       - name: Reexecutar Top 10 com fracionário, proventos, impostos e slippage causal
         run: |
           set -euo pipefail
@@ -459,8 +512,10 @@ jobs:
             reports/REALISTIC_TOP_10.json
             reports/realistic_candidates/**
             reports/realistic_input_audit.json
+            reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            reports/REALISTIC_INPUT_SNAPSHOT.sha256
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90
 
   publish:
     name: Publicar resultado verificável
@@ -483,6 +538,14 @@ jobs:
         with:
           name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
           path: realistic-artifact
+
+      - name: Validar checksum do snapshot realista
+        if: ${{ needs.realistic_validation.result == 'success' }}
+        run: |
+          (
+            cd realistic-artifact
+            sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+          )
 
       - name: Baixar snapshot exato dos dados verificados
         if: ${{ needs.prepare.result == 'success' }}
@@ -529,6 +592,8 @@ jobs:
             cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
             cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
             cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
           fi
           python - <<'PY'
           import json, os
@@ -597,9 +662,14 @@ jobs:
                   "data/manifests",
                   "data/corporate_actions",
                   "data/universes/fixed_40_2018.json",
+                  "data/quality_reviews.json",
               ],
               "research_matrix_path": (
                   "reports/latest_backtest/MATRIX.csv.gz" if manifest else None
+              ),
+              "realistic_input_snapshot_path": (
+                  "reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz"
+                  if realistic else None
               ),
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
@@ -620,7 +690,8 @@ jobs:
               data/candles \
               data/manifests \
               data/corporate_actions \
-              data/universes/fixed_40_2018.json
+              data/universes/fixed_40_2018.json \
+              data/quality_reviews.json
           fi
           git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
           git push --force origin HEAD:backtest-results
