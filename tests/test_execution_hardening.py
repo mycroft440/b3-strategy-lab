@@ -218,6 +218,7 @@ class StrictResearchExecutionTests(unittest.TestCase):
 class StrategyCausalityTests(unittest.TestCase):
     def test_every_portfolio_strategy_is_prefix_causal_and_deterministic(self) -> None:
         candles = synthetic_candles()
+        session_calendar = [item.date for item in candles]
         catalog = portfolio_strategies()
         self.assertGreaterEqual(len(catalog), 234)
         for strategy in catalog:
@@ -225,9 +226,15 @@ class StrategyCausalityTests(unittest.TestCase):
             with self.subTest(strategy=strategy):
                 prefix = candles[:800]
                 one_more = candles[:801]
-                first = build_signals(strategy, prefix, **params)
-                repeated = build_signals(strategy, prefix, **params)
-                extended = build_signals(strategy, one_more, **params)
+                first = build_signals(
+                    strategy, prefix, session_calendar=session_calendar, **params
+                )
+                repeated = build_signals(
+                    strategy, prefix, session_calendar=session_calendar, **params
+                )
+                extended = build_signals(
+                    strategy, one_more, session_calendar=session_calendar, **params
+                )
                 self.assertEqual(first, repeated)
                 self.assertEqual(first, extended[: len(first)])
 
@@ -450,6 +457,10 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
                 manifest["signal_execution_policy"],
                 "designated_basket_binary_signal_changes_execute_next_open_"
                 "without_intraperiod_reranking",
+            )
+            self.assertEqual(
+                manifest["signal_calendar_policy"],
+                "verified_global_market_sessions_independent_of_ticker_price_path",
             )
             self.assertIn(
                 "scripts/research_portfolio_allocation_core.py",

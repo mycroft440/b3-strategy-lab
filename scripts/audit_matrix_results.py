@@ -243,6 +243,10 @@ def main(argv: list[str] | None = None) -> int:
             == "designated_basket_binary_signal_changes_execute_next_open_"
             "without_intraperiod_reranking"
         ),
+        "signals_use_price_independent_verified_session_calendar": (
+            manifest.get("signal_calendar_policy")
+            == "verified_global_market_sessions_independent_of_ticker_price_path"
+        ),
         "initial_rebalance_boundary_uses_prior_close": (
             manifest.get("initial_entry_policy")
             == "prior_close_decision_executes_at_first_open_when_start_is_"

@@ -91,6 +91,19 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertEqual(build_signals("buy_and_hold", candles), [1, 1, 1])
         self.assertEqual(strategy_parameters("buy_and_hold"), {})
 
+    def test_build_signals_rejects_truthy_non_binary_values_before_coercion(self) -> None:
+        candles = [candle(1, 10, 11, 9, 10)]
+        for invalid in (2, -1, "1", 1.0):
+            with self.subTest(invalid=invalid):
+                STRATEGIES["invalid_test_signal"] = (
+                    lambda values, raw=invalid: [raw for _ in values]
+                )
+                try:
+                    with self.assertRaisesRegex(RuntimeError, "nao binario"):
+                        build_signals("invalid_test_signal", candles)
+                finally:
+                    STRATEGIES.pop("invalid_test_signal", None)
+
     def test_new_strategies_return_binary_signal_for_each_candle(self) -> None:
         candles = [
             candle(1, 10, 11, 9, 10),

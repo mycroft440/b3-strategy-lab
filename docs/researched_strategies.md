@@ -30,9 +30,10 @@ regimes.
 | `turtle_soup` | minima rompe a menor minima dos 20 candles anteriores, mas o fechamento recupera esse nivel | fechamento na/acima da SMA 5, abaixo da minima do setup menos 0,5 ATR, ou apos cinco candles | `lookback=20`, `sma_window=5`, `atr_period=14`, `stop_atr=0.5`, `hold_limit=5` |
 | `turn_of_month` | sinal no fechamento anterior ao ultimo pregao do mes | sinal de saida depois do terceiro pregao do mes seguinte | `sessions_before=1`, `sessions_after=3` |
 
-`turn_of_month` reconhece uma fronteira mensal somente quando ha candles dos
-dois meses adjacentes. Isso evita classificar o primeiro ou ultimo candle de um
-arquivo truncado como uma virada de mes inexistente.
+`turn_of_month` reconhece as fronteiras no calendario global de pregoes
+verificados, recebido separadamente dos candles do ativo. A decisao no
+fechamento continua estavel quando novos precos sao anexados: saber que a proxima
+sessao e o primeiro ou o ultimo pregao do mes nao depende de observar esse preco.
 
 ## Fontes de formula
 

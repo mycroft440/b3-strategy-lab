@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from b3_strategy_lab.candles import CorporateAction, save_actions, validate_candles
 from b3_strategy_lab.cotahist import (
@@ -20,7 +21,7 @@ from b3_strategy_lab.cotahist import (
     verify_dataset,
     write_manifest,
 )
-from scripts.sync_official_universe import _with_fractional_volume
+from scripts.sync_official_universe import _read_official_quotes, _with_fractional_volume
 
 
 def cotahist_line(
@@ -104,6 +105,52 @@ def quote(
 
 
 class CotahistParsingTests(unittest.TestCase):
+    def test_historical_cutoff_filters_later_fractional_anomaly_before_validation(self) -> None:
+        standard = quote(
+            "2024-01-02",
+            open_=10.0,
+            high=11.0,
+            low=9.0,
+            close=10.0,
+            volume=1_000,
+        )
+        fractional_after_cutoff = OfficialQuote(
+            date="2024-01-03",
+            ticker="TEST3F",
+            open=10.0,
+            high=10.0,
+            low=10.0,
+            close=10.0,
+            volume=100,
+            trades=1,
+            financial_volume=1_000.0,
+            quotation_factor=1,
+            bdi_code="02",
+            market_type="020",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "COTAHIST_A2024.ZIP"
+            archive.write_bytes(b"fixture")
+            with (
+                patch(
+                    "scripts.sync_official_universe.read_cotahist",
+                    return_value=[standard],
+                ),
+                patch(
+                    "scripts.sync_official_universe.read_fractional_cotahist",
+                    return_value=[fractional_after_cutoff],
+                ),
+            ):
+                quotes, _sources = _read_official_quotes(
+                    [(2024, archive)],
+                    ["TEST3"],
+                    exclude_date="2024-01-10",
+                    end_date="2024-01-02",
+                    require_standard_for_fractional_from="2024-01-01",
+                )
+
+        self.assertEqual([item.date for item in quotes["TEST3"]], ["2024-01-02"])
+
     def test_parses_fixed_width_prices_using_quotation_factor(self) -> None:
         parsed = parse_cotahist_lines(
             [

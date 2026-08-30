@@ -25,9 +25,22 @@ def main(argv: list[str] | None = None) -> int:
         default=4,
         help="Falha se o último pregão comum estiver mais antigo que este limite.",
     )
+    parser.add_argument(
+        "--as-of",
+        help=(
+            "Data de referencia da auditoria (YYYY-MM-DD). Use o cutoff historico "
+            "para uma execucao reproduzivel."
+        ),
+    )
     args = parser.parse_args(argv)
     if args.max_age_calendar_days < 0:
         parser.error("--max-age-calendar-days não pode ser negativo.")
+    try:
+        freshness_reference = (
+            date.fromisoformat(args.as_of) if args.as_of else date.today()
+        )
+    except ValueError:
+        parser.error("--as-of precisa estar no formato YYYY-MM-DD.")
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     tickers = [str(ticker).upper() for ticker in universe["tickers"]]
@@ -78,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
             }
         )
 
+    evaluation_end_date = date.fromisoformat(evaluation_end)
+    age_calendar_days = (freshness_reference - evaluation_end_date).days
     checks = {
         "all_tickers_share_every_evaluation_session": common_dates == union_dates,
         "all_rows_have_isin": all(row["missing_isin_rows"] == 0 for row in rows),
@@ -88,9 +103,10 @@ def main(argv: list[str] | None = None) -> int:
             for row in rows
         ),
         "universe_discloses_survivorship_bias": universe["survivorship_safe"] is False,
-        "data_is_recent": 0
-        <= (date.today() - date.fromisoformat(evaluation_end)).days
-        <= args.max_age_calendar_days,
+        "evaluation_end_does_not_exceed_reference_date": (
+            evaluation_end_date <= freshness_reference
+        ),
+        "data_is_recent": 0 <= age_calendar_days <= args.max_age_calendar_days,
     }
     payload = {
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -101,9 +117,8 @@ def main(argv: list[str] | None = None) -> int:
         "warmup_start": coverage_start,
         "evaluation_start": evaluation_start,
         "evaluation_end": evaluation_end,
-        "age_calendar_days": (
-            date.today() - date.fromisoformat(evaluation_end)
-        ).days,
+        "freshness_reference_date": freshness_reference.isoformat(),
+        "age_calendar_days": age_calendar_days,
         "maximum_age_calendar_days": args.max_age_calendar_days,
         "common_sessions": len(common_dates),
         "union_sessions": len(union_dates),

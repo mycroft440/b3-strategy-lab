@@ -12,6 +12,37 @@ from scripts.research_portfolio_allocation import PortfolioConfig
 
 
 class StrictPortfolioEngineTests(unittest.TestCase):
+    def test_rejects_invalid_economic_assumptions_before_loading_dates(self) -> None:
+        data = SimpleNamespace(tickers=[])
+        config = PortfolioConfig(name="validation")
+        defaults = {
+            "initial_cash": 100.0,
+            "cost_bps": 0.0,
+            "slippage_bps": 0.0,
+            "lot_size": 1,
+        }
+        invalid_cases = (
+            ("initial_cash", 0.0),
+            ("initial_cash", float("nan")),
+            ("cost_bps", -1.0),
+            ("cost_bps", float("inf")),
+            ("slippage_bps", -1.0),
+            ("slippage_bps", float("nan")),
+            ("lot_size", -1),
+        )
+        for field, value in invalid_cases:
+            with self.subTest(field=field, value=value):
+                assumptions = {**defaults, field: value}
+                with self.assertRaises(ValueError):
+                    run_strict(
+                        data,
+                        config,
+                        start="2024-01-01",
+                        end="2024-01-02",
+                        eligibility={},
+                        **assumptions,
+                    )
+
     def test_missing_target_open_rolls_back_entire_rebalance(self) -> None:
         shares = {"AAA3": 10.0, "BBB3": 0.0}
         candles = {"AAA3": SimpleNamespace(open=10.0, close=10.5)}

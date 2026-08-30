@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import statistics
 from dataclasses import dataclass
+from numbers import Integral
 
 from .candles import Candle
 
@@ -1050,7 +1051,7 @@ def strategy_parameters(strategy_name: str) -> dict[str, object]:
     strategy = STRATEGIES[name]
     parameters: dict[str, object] = {}
     for key, parameter in inspect.signature(strategy).parameters.items():
-        if key == "candles":
+        if key in {"candles", "session_calendar"}:
             continue
         parameters[key] = "" if parameter.default is inspect.Signature.empty else parameter.default
     return parameters
@@ -1077,10 +1078,15 @@ def build_signals(strategy_name: str, candles: list[Candle], **params) -> list[i
         for key, value in params.items()
         if key in signature.parameters and value is not None
     }
-    signals = strategy(candles, **supported_params)
-    if len(signals) != len(candles):
+    raw_signals = strategy(candles, **supported_params)
+    if len(raw_signals) != len(candles):
         raise RuntimeError("A estrategia retornou uma quantidade de sinais diferente dos candles.")
-    return [1 if signal else 0 for signal in signals]
+    for index, signal in enumerate(raw_signals):
+        if not isinstance(signal, (bool, Integral)) or int(signal) not in (0, 1):
+            raise RuntimeError(
+                f"A estrategia retornou sinal nao binario no indice {index}: {signal!r}."
+            )
+    return [int(signal) for signal in raw_signals]
 
 
 def rolling_mean(values: list[float], window: int) -> list[float | None]:

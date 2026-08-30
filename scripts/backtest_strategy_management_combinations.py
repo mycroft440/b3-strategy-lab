@@ -292,6 +292,11 @@ def _build_eligibility(
             window_signals = build_signals(
                 strategy,
                 _signal_candles(verified_window, signal_mode),
+                session_calendar=[
+                    value
+                    for value in data.dates
+                    if signal_start is None or value >= signal_start
+                ],
                 **params,
             )
             signals = [0] * first_index + window_signals
@@ -699,6 +704,9 @@ def _write_manifest(
         "signal_execution_policy": (
             "designated_basket_binary_signal_changes_execute_next_open_"
             "without_intraperiod_reranking"
+        ),
+        "signal_calendar_policy": (
+            "verified_global_market_sessions_independent_of_ticker_price_path"
         ),
         "initial_entry_policy": (
             "prior_close_decision_executes_at_first_open_when_start_is_"

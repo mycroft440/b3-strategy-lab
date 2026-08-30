@@ -87,6 +87,7 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
         "lot_size",
         "ranking",
         "signal_execution_policy",
+        "signal_calendar_policy",
         "initial_entry_policy",
         "execution_missing_price_policy",
         "buy_allocation_policy",

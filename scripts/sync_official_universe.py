@@ -84,6 +84,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quality-reviews", type=Path, default=DEFAULT_QUALITY_REVIEWS)
     parser.add_argument("--selection-report", type=Path, default=DEFAULT_SELECTION_REPORT)
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
+    parser.add_argument(
+        "--end",
+        help=(
+            "Ultima data oficial a incluir (YYYY-MM-DD). Registros posteriores "
+            "sao ignorados antes das validacoes de integridade."
+        ),
+    )
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--refresh-current", action="store_true")
     parser.add_argument("--refresh-actions", action="store_true")
@@ -93,6 +100,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.action_workers <= 0:
         parser.error("--action-workers precisa ser positivo.")
+    try:
+        end_date = date.fromisoformat(args.end).isoformat() if args.end else None
+    except ValueError:
+        parser.error("--end precisa estar no formato YYYY-MM-DD.")
+    if end_date is not None and end_date >= date.today().isoformat():
+        parser.error("--end precisa ser anterior ao dia corrente.")
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     tickers = [str(ticker).strip().upper() for ticker in universe["tickers"]]
     coverage_start = str(universe["warmup_start"])
@@ -110,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         archives,
         tickers,
         exclude_date=date.today().isoformat(),
+        end_date=end_date,
         require_standard_for_fractional_from=str(universe["selected_as_of"]),
     )
     if args.selection_report:
@@ -389,6 +403,7 @@ def _read_official_quotes(
     tickers: list[str],
     *,
     exclude_date: str,
+    end_date: str | None = None,
     require_standard_for_fractional_from: str | None = None,
 ) -> tuple[dict[str, list[OfficialQuote]], list[SourceArchive]]:
     by_ticker: dict[str, list[OfficialQuote]] = defaultdict(list)
@@ -398,12 +413,14 @@ def _read_official_quotes(
             quote
             for quote in read_cotahist(archive, tickers=tickers)
             if quote.date < exclude_date
+            and (end_date is None or quote.date <= end_date)
         ]
         fractional = [
             quote
             for quote in read_fractional_cotahist(archive)
             if base_fractional_ticker(quote.ticker) in tickers
             and quote.date < exclude_date
+            and (end_date is None or quote.date <= end_date)
         ]
         fractional_by_base_date = {
             (base_fractional_ticker(quote.ticker), quote.date): quote

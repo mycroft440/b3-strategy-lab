@@ -34,20 +34,9 @@ on:
     paths:
       - ".github/workflows/full-matrix-backtest-hardened.yml"
       - "b3_strategy_lab/**"
-      - "scripts/backtest_strategy_management_combinations.py"
-      - "scripts/research_portfolio_allocation.py"
-      - "scripts/merge_matrix_shards.py"
-      - "scripts/audit_matrix_results.py"
-      - "scripts/audit_backtest_readiness.py"
-      - "scripts/audit_volume_indicators.py"
-      - "scripts/sync_official_universe.py"
-      - "scripts/validate_matrix_top_realistic.py"
-      - "scripts/backtest_strategy_management_realistic.py"
-      - "scripts/audit_realistic_backtest_inputs.py"
-      - "scripts/build_survivorship_safe_realistic_universe.py"
-      - "scripts/build_ticker_transitions.py"
-      - "scripts/sync_point_in_time_universe_realistic.py"
+      - "scripts/**"
       - "data/candles/**"
+      - "data/manifests/**"
       - "data/corporate_actions/**"
       - "data/universes/fixed_40_2018.json"
       - "data/fees/**"
@@ -103,6 +92,8 @@ jobs:
             scripts/merge_matrix_shards.py \
             scripts/audit_matrix_results.py \
             scripts/audit_backtest_integrity.py \
+            scripts/audit_backtest_readiness.py \
+            scripts/sync_official_universe.py \
             scripts/backtest_strategy_management_realistic.py \
             scripts/validate_matrix_top_realistic.py \
             scripts/walk_forward_realistic.py \
@@ -112,9 +103,49 @@ jobs:
       - name: Executar suíte completa antes da matriz
         run: python -m unittest discover -s tests -v
 
+      - name: Resolver cutoff oficial reproduzível
+        env:
+          REQUESTED_END: ${{ inputs.end || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED_END" ]; then
+            SYNC_END="$REQUESTED_END"
+          else
+            SYNC_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          from b3_strategy_lab.cotahist import load_verified_candles
+
+          universe = json.loads(Path("data/universes/fixed_40_2018.json").read_text())
+          coverage_start = str(universe["warmup_start"])
+          ends = []
+          for ticker in universe["tickers"]:
+              candles, _manifest = load_verified_candles(
+                  str(ticker),
+                  "1d",
+                  require_verified_splits_from=coverage_start,
+              )
+              ends.append(candles[-1].date)
+          print(min(ends))
+          PY
+          )"
+          fi
+          python - "$SYNC_END" <<'PY'
+          import sys
+          from datetime import date
+
+          value = date.fromisoformat(sys.argv[1])
+          if value >= date.today():
+              raise SystemExit("cutoff precisa ser anterior ao dia corrente")
+          PY
+          echo "SYNC_END=$SYNC_END" >> "$GITHUB_ENV"
+
       - name: Atualizar dados oficiais da B3
         run: |
+          END_YEAR="${SYNC_END:0:4}"
           python scripts/sync_official_universe.py \
+            --years "2017:${END_YEAR}" \
+            --end "$SYNC_END" \
             --download \
             --refresh-current \
             --refresh-actions \
@@ -123,7 +154,9 @@ jobs:
       - name: Validar dados verificados
         run: |
           python -m b3_strategy_lab verify-data --interval 1d
-          python scripts/audit_backtest_readiness.py --max-age-calendar-days 4
+          python scripts/audit_backtest_readiness.py \
+            --max-age-calendar-days 4 \
+            --as-of "$SYNC_END"
           python scripts/audit_backtest_integrity.py --start 2018-01-01
           python scripts/audit_volume_indicators.py
 
@@ -451,6 +484,22 @@ jobs:
           name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
           path: realistic-artifact
 
+      - name: Baixar snapshot exato dos dados verificados
+        if: ${{ needs.prepare.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Revalidar triagem contra o snapshot que será publicado
+        if: ${{ needs.merge.result == 'success' }}
+        run: |
+          python scripts/audit_matrix_results.py \
+            --results research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --manifest research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            --annual-report research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
+            --output research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+
       - name: Montar status final
         env:
           RUN_ID: ${{ github.run_id }}
@@ -474,6 +523,7 @@ jobs:
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/RESEARCH_TOP_10_ANNUAL.md
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_backtest/MATRIX.csv.gz
           fi
           if [ "$REALISTIC_RESULT" = "success" ]; then
             cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
@@ -541,6 +591,16 @@ jobs:
               "ex_ante_selection_claim_allowed": False,
               "selection_bias_remaining": True,
               "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
+              "verified_data_snapshot_included": os.environ["PREPARE_RESULT"] == "success",
+              "verified_data_snapshot_paths": [
+                  "data/candles",
+                  "data/manifests",
+                  "data/corporate_actions",
+                  "data/universes/fixed_40_2018.json",
+              ],
+              "research_matrix_path": (
+                  "reports/latest_backtest/MATRIX.csv.gz" if manifest else None
+              ),
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
           if status == "FAILED":
@@ -548,11 +608,20 @@ jobs:
           PY
 
       - name: Gravar latest em backtest-results
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- reports/latest_backtest
+          if [ "$PREPARE_RESULT" = "success" ]; then
+            git add -- \
+              data/candles \
+              data/manifests \
+              data/corporate_actions \
+              data/universes/fixed_40_2018.json
+          fi
           git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
           git push --force origin HEAD:backtest-results
 

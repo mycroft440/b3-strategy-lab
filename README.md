@@ -142,6 +142,8 @@ estrategias e dos gerenciamentos comeca no aquecimento certificado em
 2017-01-01. O gerenciamento escolhe e pondera a cesta apenas nas datas de
 rebalanceamento; dentro desse intervalo, mudancas do sinal binario retiram ou
 recolocam cada ativo da cesta na abertura seguinte, sem refazer o ranking.
+Estrategias sazonais recebem o calendario global de pregoes verificados; assim,
+uma fronteira mensal nunca e inferida pela chegada de um candle futuro do ativo.
 O catalogo atual possui 233 estrategias
 parametrizadas e `buy_and_hold`, que nao entra em varreduras de parametros, mas
 entra normalmente na matriz. Uma execucao integral atual cruza 234 x 478 =
@@ -161,7 +163,10 @@ Os resultados publicados ficam em um branch separado. A
 [ultima matriz publicada](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/TOP_10.md),
 seu [manifesto](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/MANIFEST.json)
 e sua [auditoria](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/AUDIT.json)
-devem ser lidos em conjunto. A execucao publicada em 20/08/2026 usou dados ate
+devem ser lidos em conjunto. O workflow tambem versiona nesse branch o CSV
+completo da matriz e o snapshot exato de candles, manifestos e eventos cujos
+hashes aparecem no manifesto, permitindo repetir a auditoria sem depender da
+retencao temporaria de artifacts. A execucao publicada em 20/08/2026 usou dados ate
 10/08/2026 e custos/slippage zero; por isso ela e apenas um artefato retrospectivo
 anterior a estas correcoes, nao uma estimativa de dinheiro real. Uma nova matriz
 so substitui essa referencia depois que o workflow publicar `STATUS=SUCCESS`,

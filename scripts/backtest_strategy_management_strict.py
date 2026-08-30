@@ -184,6 +184,12 @@ def run_strict(
     eligibility: dict[str, list[int]],
     collect_trades: bool = False,
 ) -> tuple[Summary, list[dict[str, object]]]:
+    _validate_economic_assumptions(
+        initial_cash=initial_cash,
+        cost_bps=cost_bps,
+        slippage_bps=slippage_bps,
+        lot_size=lot_size,
+    )
     dates = common_dates(data, start, end)
     if len(dates) < 2:
         raise ValueError("Periodo comum insuficiente")
@@ -277,6 +283,23 @@ def _metric(summary: Summary, objective: str) -> float:
     return {"cagr": summary.cagr, "total_return": summary.total_return, "sharpe": summary.sharpe}[objective]
 
 
+def _validate_economic_assumptions(
+    *,
+    initial_cash: float,
+    cost_bps: float,
+    slippage_bps: float,
+    lot_size: int,
+) -> None:
+    if not math.isfinite(initial_cash) or initial_cash <= 0:
+        raise ValueError("initial_cash precisa ser finito e positivo")
+    if not math.isfinite(cost_bps) or cost_bps < 0:
+        raise ValueError("cost_bps precisa ser finito e nao negativo")
+    if not math.isfinite(slippage_bps) or slippage_bps < 0:
+        raise ValueError("slippage_bps precisa ser finito e nao negativo")
+    if not isinstance(lot_size, int) or isinstance(lot_size, bool) or lot_size < 0:
+        raise ValueError("lot_size precisa ser inteiro e nao negativo")
+
+
 def _summary(prefix: str, value: Summary) -> dict[str, object]:
     return {f"{prefix}_{field}": getattr(value, field) for field in Summary.__dataclass_fields__ if field != "strategy"}
 
@@ -316,6 +339,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.start > args.train_end or args.train_end >= args.test_start:
         parser.error("Exija start <= train-end < test-start")
+    try:
+        _validate_economic_assumptions(
+            initial_cash=args.initial_cash,
+            cost_bps=args.cost_bps,
+            slippage_bps=args.slippage_bps,
+            lot_size=args.lot_size,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
 
     universe = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
     tickers = [str(item).upper() for item in universe["tickers"]]

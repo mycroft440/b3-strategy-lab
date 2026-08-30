@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import statistics
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Callable
 
 from .candles import Candle
@@ -521,23 +521,55 @@ def turn_of_month(
     *,
     sessions_before: int = 1,
     sessions_after: int = 3,
+    session_calendar: list[str] | None = None,
 ) -> list[int]:
-    """Hold from the last session through the first three sessions of a month."""
+    """Hold around month-end using a calendar independent of future prices."""
     if sessions_before <= 0 or sessions_after <= 0:
         raise ValueError("sessions_before e sessions_after precisam ser maiores que zero.")
     if not candles:
         return []
 
+    candle_dates = [
+        date.fromisoformat(candle.date.split(" ", 1)[0]) for candle in candles
+    ]
+    if candle_dates != sorted(set(candle_dates)):
+        raise ValueError("candles precisam ter datas unicas em ordem crescente.")
+
+    if session_calendar is None:
+        # The public matrix always supplies the verified B3 calendar.  This
+        # deterministic fallback keeps standalone calls prefix-causal without
+        # pretending that a future price observation defines a month boundary.
+        calendar_dates = set(candle_dates)
+        current = candle_dates[0]
+        horizon = candle_dates[-1] + timedelta(days=45)
+        while current <= horizon:
+            if current.weekday() < 5:
+                calendar_dates.add(current)
+            current += timedelta(days=1)
+        ordered_calendar = sorted(calendar_dates)
+    else:
+        ordered_calendar = [
+            date.fromisoformat(str(value).split(" ", 1)[0])
+            for value in session_calendar
+        ]
+        if ordered_calendar != sorted(set(ordered_calendar)):
+            raise ValueError(
+                "session_calendar precisa ter datas unicas em ordem crescente."
+            )
+        missing = sorted(set(candle_dates) - set(ordered_calendar))
+        if missing:
+            raise ValueError(
+                "session_calendar nao cobre todos os candles: "
+                f"{[value.isoformat() for value in missing[:5]]}."
+            )
+
     grouped: dict[tuple[int, int], list[int]] = {}
-    for index, candle in enumerate(candles):
-        session = date.fromisoformat(candle.date.split(" ", 1)[0])
+    for index, session in enumerate(ordered_calendar):
         grouped.setdefault((session.year, session.month), []).append(index)
 
-    in_window = [False for _ in candles]
+    in_window = [False for _ in ordered_calendar]
     month_groups = list(grouped.values())
     for group_index, indices in enumerate(month_groups):
-        # A fronteira observada evita classificar um historico truncado no meio
-        # do primeiro/ultimo mes como se ele contivesse a virada completa.
         if group_index > 0:
             for index in indices[:sessions_after]:
                 in_window[index] = True
@@ -546,7 +578,13 @@ def turn_of_month(
                 in_window[index] = True
 
     # A close signal is the desired position at the next session's open.
-    return [int(in_window[index + 1]) if index + 1 < len(candles) else 0 for index in range(len(candles))]
+    calendar_index = {session: index for index, session in enumerate(ordered_calendar)}
+    return [
+        int(in_window[calendar_index[session] + 1])
+        if calendar_index[session] + 1 < len(ordered_calendar)
+        else 0
+        for session in candle_dates
+    ]
 
 
 RESEARCHED_STRATEGIES = (

@@ -222,20 +222,68 @@ class ResearchedStrategyTests(unittest.TestCase):
         ]
         candles = [candle(session, 10, 11, 9, 10) for session in sessions]
 
-        signals = build_signals("turn_of_month", candles)
+        signals = build_signals(
+            "turn_of_month", candles, session_calendar=sessions
+        )
 
         self.assertEqual(signals, [0, 1, 1, 1, 1, 0, 0])
+        self.assertEqual(
+            build_signals(
+                "turn_of_month",
+                candles[:3],
+                session_calendar=sessions,
+            ),
+            signals[:3],
+        )
+
+    def test_turn_of_month_is_prefix_causal_at_every_calendar_boundary(self) -> None:
+        current = date(2023, 1, 2)
+        final = date(2025, 1, 15)
+        sessions = []
+        while current <= final:
+            if current.weekday() < 5:
+                sessions.append(current.isoformat())
+            current += timedelta(days=1)
+        candles = [candle(session, 10, 11, 9, 10) for session in sessions]
+        complete = build_signals(
+            "turn_of_month", candles, session_calendar=sessions
+        )
+
+        boundary_prefixes = {
+            index + 1
+            for index in range(len(sessions) - 1)
+            if sessions[index][:7] != sessions[index + 1][:7]
+        }
+        self.assertGreaterEqual(len(boundary_prefixes), 20)
+        for prefix_length in sorted(boundary_prefixes):
+            with self.subTest(prefix_length=prefix_length):
+                prefix = build_signals(
+                    "turn_of_month",
+                    candles[:prefix_length],
+                    session_calendar=sessions,
+                )
+                self.assertEqual(prefix, complete[:prefix_length])
 
     def test_price_based_strategies_do_not_rewrite_past_signals(self) -> None:
         closes = [100 + 0.04 * index + 4 * math.sin(index / 7) for index in range(320)]
         candles = price_candles(closes)
+        session_calendar = [item.date for item in candles]
 
         for strategy in RESEARCHED_STRATEGIES:
-            if strategy.name == "turn_of_month":
-                continue
             with self.subTest(strategy=strategy.name):
-                complete = build_signals(strategy.name, candles, **strategy_parameters(strategy.name))
-                prefix = build_signals(strategy.name, candles[:-1], **strategy_parameters(strategy.name))
+                params = strategy_parameters(strategy.name)
+                complete = build_signals(
+                    strategy.name,
+                    candles,
+                    session_calendar=session_calendar,
+                    **params,
+                )
+                prefix = build_signals(
+                    strategy.name,
+                    candles[:-1],
+                    session_calendar=session_calendar,
+                    **params,
+                )
                 self.assertEqual(complete[:-1], prefix)
 
     def test_cli_sweep_falls_back_to_canonical_parameters(self) -> None:

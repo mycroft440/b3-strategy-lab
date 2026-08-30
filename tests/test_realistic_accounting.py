@@ -242,6 +242,42 @@ class TaxTests(unittest.TestCase):
 
 
 class CashAccountTests(unittest.TestCase):
+    def test_fee_rules_and_costs_reject_invalid_economic_values(self) -> None:
+        invalid_rules = (
+            ("2024-12-31", "2024-01-01", 1.0, 0.0),
+            ("2024-01-01", "2024-12-31", -1.0, 0.0),
+            ("2024-01-01", "2024-12-31", float("nan"), 0.0),
+            ("2024-01-01", "2024-12-31", 1.0, -1.0),
+        )
+        for start, end, b3_bps, brokerage in invalid_rules:
+            with self.subTest(values=(start, end, b3_bps, brokerage)):
+                with self.assertRaises(ValueError):
+                    FeeRule(start, end, b3_bps, brokerage)
+
+        schedule = FeeSchedule([FeeRule("2024-01-01", "2024-12-31", 0.0)])
+        for invalid_notional in (-1.0, float("nan"), float("inf")):
+            with self.subTest(notional=invalid_notional):
+                with self.assertRaises(ValueError):
+                    schedule.cost("2024-06-01", invalid_notional)
+
+    def test_slippage_model_rejects_invalid_parameters_and_notionals(self) -> None:
+        invalid_models = (
+            {"base_bps": -1.0},
+            {"participation_bps_at_1pct": float("nan")},
+            {"max_bps": float("inf")},
+            {"base_bps": 10.0, "max_bps": 9.0},
+        )
+        for values in invalid_models:
+            with self.subTest(values=values):
+                with self.assertRaises(ValueError):
+                    SlippageModel(**values)
+
+        model = SlippageModel(base_bps=0.0, participation_bps_at_1pct=0.0)
+        for invalid_notional in (-1.0, float("nan"), float("inf")):
+            with self.subTest(notional=invalid_notional):
+                with self.assertRaises(ValueError):
+                    model.bps(invalid_notional, 1_000.0)
+
     def test_buy_and_sell_preserve_nonnegative_cash_and_realized_gain(self) -> None:
         fees = FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 3.0)])
         account = RealCashAccount(

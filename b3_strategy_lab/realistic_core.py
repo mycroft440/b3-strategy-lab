@@ -202,6 +202,19 @@ class FeeRule:
     source: str = ""
     quality: str = "modeled"
 
+    def __post_init__(self) -> None:
+        try:
+            start = date.fromisoformat(self.start)
+            end = date.fromisoformat(self.end)
+        except ValueError as exc:
+            raise ValueError("Fee-rule dates must be valid ISO dates.") from exc
+        if start > end:
+            raise ValueError("Fee-rule start cannot exceed end.")
+        if not math.isfinite(self.b3_bps) or self.b3_bps < 0:
+            raise ValueError("b3_bps must be finite and non-negative.")
+        if not math.isfinite(self.brokerage_fixed) or self.brokerage_fixed < 0:
+            raise ValueError("brokerage_fixed must be finite and non-negative.")
+
     def contains(self, value: str) -> bool:
         return self.start <= value <= self.end
 
@@ -239,7 +252,9 @@ class FeeSchedule:
         return matches[0]
 
     def cost(self, value: str, notional: float) -> float:
-        if notional <= 0:
+        if not math.isfinite(notional) or notional < 0:
+            raise ValueError("Notional must be finite and non-negative.")
+        if notional == 0:
             return 0.0
         rule = self.rule_on(value)
         return notional * rule.b3_bps / 10_000 + rule.brokerage_fixed
@@ -254,8 +269,21 @@ class SlippageModel:
     participation_bps_at_1pct: float = 5.0
     max_bps: float = 100.0
 
+    def __post_init__(self) -> None:
+        values = (
+            self.base_bps,
+            self.participation_bps_at_1pct,
+            self.max_bps,
+        )
+        if any(not math.isfinite(value) or value < 0 for value in values):
+            raise ValueError("Slippage parameters must be finite and non-negative.")
+        if self.max_bps < self.base_bps:
+            raise ValueError("max_bps cannot be lower than base_bps.")
+
     def bps(self, notional: float, daily_financial_volume: float) -> float:
-        if notional <= 0:
+        if not math.isfinite(notional) or notional < 0:
+            raise ValueError("Notional must be finite and non-negative.")
+        if notional == 0:
             return 0.0
         if daily_financial_volume <= 0 or not math.isfinite(daily_financial_volume):
             raise ValueError("Financial volume is required for liquidity-aware slippage.")
