@@ -112,6 +112,14 @@ class FractionalExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Missing fractional-market open"):
             self._book(False).legs("2024-01-02", "AAA3", 14)
 
+    def test_fractional_only_session_executes_only_the_fractional_leg(self) -> None:
+        book = ExecutionPriceBook(
+            [ExecutionQuote("2018-05-03", "PCAR3F", "020", 79.0, 79.0, 1_106.0)]
+        )
+        self.assertEqual(book.legs("2018-05-03", "PCAR3", 14)[0][0], 14)
+        with self.assertRaisesRegex(ValueError, "Missing standard-market open"):
+            book.legs("2018-05-03", "PCAR3", 100)
+
 
 class GapAdjustmentTests(unittest.TestCase):
     def _candle(self, value_date: str, open_price: float, close_price: float, factor: float) -> Candle:

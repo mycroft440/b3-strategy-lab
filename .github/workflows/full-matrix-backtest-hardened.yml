@@ -72,6 +72,9 @@ jobs:
       strategy_count: ${{ steps.shards.outputs.strategy_count }}
       management_count: ${{ steps.shards.outputs.management_count }}
       combination_count: ${{ steps.shards.outputs.combination_count }}
+      certified_end: ${{ steps.cutoff.outputs.certified_end }}
+      sync_end: ${{ steps.cutoff.outputs.sync_end }}
+      refresh_data: ${{ steps.cutoff.outputs.refresh_data }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,6 +113,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Resolver cutoff oficial reproduzível
+        id: cutoff
         env:
           REQUESTED_END: ${{ inputs.end || '' }}
           REQUEST_REFRESH: ${{ inputs.refresh_data || false }}
@@ -155,6 +159,9 @@ jobs:
           echo "CERTIFIED_END=$CERTIFIED_END" >> "$GITHUB_ENV"
           echo "SYNC_END=$SYNC_END" >> "$GITHUB_ENV"
           echo "REFRESH_DATA=$REFRESH_DATA" >> "$GITHUB_ENV"
+          echo "certified_end=$CERTIFIED_END" >> "$GITHUB_OUTPUT"
+          echo "sync_end=$SYNC_END" >> "$GITHUB_OUTPUT"
+          echo "refresh_data=$REFRESH_DATA" >> "$GITHUB_OUTPUT"
 
       - name: Atualizar dados oficiais da B3
         run: |
@@ -211,6 +218,14 @@ jobs:
           print(f"management_count={management_count}")
           print(f"combination_count={len(strategies) * management_count}")
           PY
+
+      - name: Compartilhar auditoria de cutoff e atualidade
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-readiness-${{ github.run_id }}
+          path: reports/backtest_data_audit_40.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Compartilhar dados verificados com os shards
         uses: actions/upload-artifact@v4
@@ -405,6 +420,8 @@ jobs:
     needs: [prepare, merge]
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    outputs:
+      snapshot_ready: ${{ steps.realistic_snapshot.outputs.ready }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -421,6 +438,9 @@ jobs:
           path: research-artifact
 
       - name: Resolver período e preparar dados point-in-time
+        id: realistic_data
+        env:
+          REFRESH_DATA: ${{ needs.prepare.outputs.refresh_data }}
         run: |
           set -euo pipefail
           REAL_START="$(python - <<'PY'
@@ -443,11 +463,39 @@ jobs:
           echo "REAL_START=$REAL_START" >> "$GITHUB_ENV"
           echo "REAL_END=$REAL_END" >> "$GITHUB_ENV"
           echo "SOURCE_YEARS=$SOURCE_YEARS" >> "$GITHUB_ENV"
-          python scripts/build_survivorship_safe_realistic_universe.py \
-            --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
-          python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
-          python scripts/sync_point_in_time_universe_realistic.py \
-            --years "$SOURCE_YEARS" --download --refresh-actions
+          if [ "$REFRESH_DATA" = "true" ]; then
+            python scripts/build_survivorship_safe_realistic_universe.py \
+              --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
+            python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
+            python scripts/sync_point_in_time_universe_realistic.py \
+              --years "$SOURCE_YEARS" --download --refresh-actions
+          else
+            git fetch origin backtest-results:refs/remotes/origin/backtest-results
+            SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            if ! git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null; then
+              echo "::error::Snapshot point-in-time certificado ausente. Execute manualmente com refresh_data=true."
+              exit 1
+            fi
+            mkdir -p reports
+            git show "origin/backtest-results:${SNAPSHOT}" > reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            git show "origin/backtest-results:${CHECKSUM}" > reports/REALISTIC_INPUT_SNAPSHOT.sha256
+            (
+              cd reports
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+            tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            python - "$REAL_END" <<'PY'
+          import json, sys
+          from pathlib import Path
+          universe = json.loads(Path("data/universes/point_in_time_union.json").read_text())
+          if str(universe.get("selection_end")) != sys.argv[1]:
+              raise SystemExit(
+                  "snapshot PIT diverge do cutoff da matriz: "
+                  f"{universe.get('selection_end')} != {sys.argv[1]}"
+              )
+          PY
+          fi
 
       - name: Exigir insumos realistas certificados
         run: |
@@ -465,6 +513,8 @@ jobs:
           PY
 
       - name: Empacotar snapshot exato dos insumos realistas
+        id: realistic_snapshot
+        if: ${{ always() && steps.realistic_data.outcome == 'success' }}
         run: |
           set -euo pipefail
           tar \
@@ -490,6 +540,7 @@ jobs:
             sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz \
               > REALISTIC_INPUT_SNAPSHOT.sha256
           )
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Reexecutar Top 10 com fracionário, proventos, impostos e slippage causal
         run: |
@@ -504,6 +555,7 @@ jobs:
           cat reports/REALISTIC_TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publicar validação realista
+        if: ${{ always() && steps.realistic_snapshot.outputs.ready == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
@@ -533,14 +585,14 @@ jobs:
           path: research-artifact
 
       - name: Baixar validação realista
-        if: ${{ needs.realistic_validation.result == 'success' }}
+        if: ${{ needs.realistic_validation.outputs.snapshot_ready == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
           path: realistic-artifact
 
       - name: Validar checksum do snapshot realista
-        if: ${{ needs.realistic_validation.result == 'success' }}
+        if: ${{ needs.realistic_validation.outputs.snapshot_ready == 'true' }}
         run: |
           (
             cd realistic-artifact
@@ -553,6 +605,13 @@ jobs:
         with:
           name: verified-market-data-${{ github.run_id }}
           path: data
+
+      - name: Baixar auditoria atual de cutoff e atualidade
+        if: ${{ needs.prepare.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: backtest-readiness-${{ github.run_id }}
+          path: readiness-artifact
 
       - name: Revalidar triagem contra o snapshot que será publicado
         if: ${{ needs.merge.result == 'success' }}
@@ -573,6 +632,7 @@ jobs:
           BACKTEST_RESULT: ${{ needs.backtest.result }}
           MERGE_RESULT: ${{ needs.merge.result }}
           REALISTIC_RESULT: ${{ needs.realistic_validation.result }}
+          REALISTIC_SNAPSHOT_READY: ${{ needs.realistic_validation.outputs.snapshot_ready || 'false' }}
           STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
           MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
@@ -580,6 +640,10 @@ jobs:
           set -euo pipefail
           rm -rf reports/latest_backtest
           mkdir -p reports/latest_backtest
+          if [ "$PREPARE_RESULT" = "success" ]; then
+            cp readiness-artifact/backtest_data_audit_40.json reports/backtest_data_audit_40.json
+            cp readiness-artifact/backtest_data_audit_40.json reports/latest_backtest/DATA_READINESS.json
+          fi
           if [ "$MERGE_RESULT" = "success" ]; then
             cp research-artifact/TOP_10.md reports/latest_backtest/RESEARCH_TOP_10.md
             cp research-artifact/TOP_10.json reports/latest_backtest/RESEARCH_TOP_10.json
@@ -588,12 +652,16 @@ jobs:
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/RESEARCH_TOP_10_ANNUAL.md
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_backtest/MATRIX.csv.gz
           fi
-          if [ "$REALISTIC_RESULT" = "success" ]; then
-            cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
-            cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
-            cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
+          if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            if [ -f realistic-artifact/realistic_input_audit.json ]; then
+              cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
+            fi
+            if [ -f realistic-artifact/REALISTIC_TOP_10.json ]; then
+              cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
+              cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
+            fi
           fi
           python - <<'PY'
           import json, os
@@ -603,9 +671,11 @@ jobs:
           audit_path = latest / "AUDIT.json"
           manifest_path = latest / "MANIFEST.json"
           realistic_path = latest / "TOP_10.json"
+          readiness_path = latest / "DATA_READINESS.json"
           audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
           manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
           realistic = json.loads(realistic_path.read_text()) if realistic_path.exists() else None
+          readiness = json.loads(readiness_path.read_text()) if readiness_path.exists() else None
           research_ok = bool(audit and audit.get("ready_for_research_ranking") is True)
           research_real_money_ready = bool(audit and audit.get("ready_for_real_money") is True)
           realistic_ok = bool(
@@ -617,15 +687,17 @@ jobs:
               and realistic.get("ex_ante_selection_claim_allowed") is False
               and realistic.get("counterfactual_execution_exact") is False
           )
-          jobs_ok = all(os.environ[name] == "success" for name in (
-              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT", "REALISTIC_RESULT"
+          research_jobs_ok = all(os.environ[name] == "success" for name in (
+              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT"
           ))
+          full_jobs_ok = research_jobs_ok and os.environ["REALISTIC_RESULT"] == "success"
           source_matches = bool(manifest and manifest.get("git_commit") == os.environ["WORKFLOW_SHA"])
-          status = (
-              "REALISTIC_RETROSPECTIVE_SUCCESS"
-              if jobs_ok and research_ok and realistic_ok and source_matches
-              else "FAILED"
-          )
+          if full_jobs_ok and research_ok and realistic_ok and source_matches:
+              status = "REALISTIC_RETROSPECTIVE_SUCCESS"
+          elif research_jobs_ok and research_ok and source_matches:
+              status = "RESEARCH_SUCCESS_REALISTIC_BLOCKED"
+          else:
+              status = "FAILED"
           payload = {
               "status": status,
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -646,10 +718,26 @@ jobs:
               "combination_count": int(manifest.get("combinations", 0)) if manifest else int(os.environ.get("COMBINATION_COUNT") or 0),
               "top_n": 10,
               "research_ranking_ready": research_ok,
+              "research_matrix_completed": bool(
+                  research_jobs_ok and research_ok and source_matches
+              ),
               "research_matrix_real_money_ready": research_real_money_ready,
               "realistic_finalist_validation_ready": realistic_ok,
               "result_classification": (
-                  realistic.get("result_classification") if realistic else None
+                  realistic.get("result_classification")
+                  if realistic
+                  else audit.get("result_classification") if audit else None
+              ),
+              "data_cutoff": readiness.get("evaluation_end") if readiness else None,
+              "data_freshness_reference_date": (
+                  readiness.get("freshness_reference_date") if readiness else None
+              ),
+              "data_age_calendar_days": (
+                  readiness.get("age_calendar_days") if readiness else None
+              ),
+              "data_is_recent": readiness.get("data_is_recent") if readiness else None,
+              "historical_cutoff_accepted": (
+                  readiness.get("historical_cutoff_accepted") if readiness else None
               ),
               "real_money_claim_allowed": False,
               "counterfactual_execution_exact": False,
@@ -669,12 +757,18 @@ jobs:
               ),
               "realistic_input_snapshot_path": (
                   "reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz"
-                  if realistic else None
+                  if os.environ["REALISTIC_SNAPSHOT_READY"] == "true" else None
               ),
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
           if status == "FAILED":
               (latest / "FAILURE.md").write_text("# Backtest não aprovado\n\n" + json.dumps(payload, indent=2) + "\n")
+          elif status == "RESEARCH_SUCCESS_REALISTIC_BLOCKED":
+              (latest / "REALISTIC_VALIDATION_BLOCKED.md").write_text(
+                  "# Matriz de pesquisa aprovada; validação realista bloqueada\n\n"
+                  + json.dumps(payload, indent=2)
+                  + "\n"
+              )
           PY
 
       - name: Gravar latest em backtest-results
@@ -687,6 +781,7 @@ jobs:
           git add -- reports/latest_backtest
           if [ "$PREPARE_RESULT" = "success" ]; then
             git add -- \
+              reports/backtest_data_audit_40.json \
               data/candles \
               data/manifests \
               data/corporate_actions \

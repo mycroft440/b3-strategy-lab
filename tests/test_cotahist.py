@@ -86,6 +86,7 @@ def cotahist_envelope(detail_lines: list[str], *, declared_count: int | None = N
 def quote(
     day: str,
     *,
+    ticker: str = "TEST3",
     open_: float,
     high: float,
     low: float,
@@ -94,7 +95,7 @@ def quote(
 ) -> OfficialQuote:
     return OfficialQuote(
         date=day,
-        ticker="TEST3",
+        ticker=ticker,
         open=open_,
         high=high,
         low=low,
@@ -175,10 +176,79 @@ class CotahistParsingTests(unittest.TestCase):
                     ["TEST3"],
                     exclude_date="2024-01-10",
                     end_date="2024-01-02",
-                    require_standard_for_fractional_from="2024-01-01",
                 )
 
         self.assertEqual([item.date for item in quotes["TEST3"]], ["2024-01-02"])
+
+    def test_legitimate_pcar3_fractional_only_sessions_do_not_create_standard_candles(self) -> None:
+        fractional_dates = (
+            "2018-02-02",
+            "2018-02-26",
+            "2018-05-03",
+            "2018-05-08",
+            "2018-10-19",
+        )
+        standard = quote(
+            "2018-01-02",
+            ticker="PCAR3",
+            open_=70.0,
+            high=71.0,
+            low=69.0,
+            close=70.0,
+            volume=100,
+        )
+        fractional = [
+            OfficialQuote(
+                date=value_date,
+                ticker="PCAR3F",
+                open=85.0,
+                high=90.0,
+                low=79.0,
+                close=85.0,
+                volume=quantity,
+                trades=1,
+                financial_volume=financial_volume,
+                quotation_factor=1,
+                bdi_code="96",
+                market_type="020",
+                isin="BRPCARACNOR3",
+            )
+            for value_date, quantity, financial_volume in (
+                ("2018-02-02", 2, 180.0),
+                ("2018-02-26", 4, 359.96),
+                ("2018-05-03", 14, 1_106.0),
+                ("2018-05-08", 2, 180.0),
+                ("2018-10-19", 1, 85.0),
+            )
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "COTAHIST_A2018.ZIP"
+            archive.write_bytes(b"fixture")
+            with (
+                patch(
+                    "scripts.sync_official_universe.read_cotahist",
+                    return_value=[standard],
+                ),
+                patch(
+                    "scripts.sync_official_universe.read_fractional_cotahist",
+                    return_value=fractional,
+                ),
+                patch("builtins.print") as printed,
+            ):
+                quotes, _sources = _read_official_quotes(
+                    [(2018, archive)],
+                    ["PCAR3"],
+                    exclude_date="2019-01-01",
+                )
+
+        self.assertEqual([item.date for item in quotes["PCAR3"]], ["2018-01-02"])
+        self.assertFalse(set(fractional_dates) & {item.date for item in quotes["PCAR3"]})
+        self.assertTrue(
+            any(
+                "5 registro(s) fracionario(s) sem OHLC padrao" in str(call)
+                for call in printed.call_args_list
+            )
+        )
 
     def test_parses_fixed_width_prices_using_quotation_factor(self) -> None:
         parsed = parse_cotahist_lines(

@@ -171,9 +171,6 @@ def main(argv: list[str] | None = None) -> int:
         archives,
         tickers,
         exclude_date=exclude_date,
-        require_standard_for_fractional_from=str(
-            universe.get("selected_as_of", coverage_start)
-        ),
     )
     coverage_dates = [
         quote.date for quotes in quotes_by_ticker.values() for quote in quotes

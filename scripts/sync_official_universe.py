@@ -124,7 +124,6 @@ def main(argv: list[str] | None = None) -> int:
         tickers,
         exclude_date=date.today().isoformat(),
         end_date=end_date,
-        require_standard_for_fractional_from=str(universe["selected_as_of"]),
     )
     if args.selection_report:
         if args.selection_report.exists() and not args.refresh_selection:
@@ -404,7 +403,6 @@ def _read_official_quotes(
     *,
     exclude_date: str,
     end_date: str | None = None,
-    require_standard_for_fractional_from: str | None = None,
 ) -> tuple[dict[str, list[OfficialQuote]], list[SourceArchive]]:
     by_ticker: dict[str, list[OfficialQuote]] = defaultdict(list)
     sources = []
@@ -435,17 +433,6 @@ def _read_official_quotes(
                 f"{year}: {len(fractional_only)} registro(s) fracionario(s) sem "
                 "OHLC padrao; nao foi sintetizado candle",
                 flush=True,
-            )
-        blocking_fractional_only = [
-            key
-            for key in fractional_only
-            if require_standard_for_fractional_from is not None
-            and key[1] >= require_standard_for_fractional_from
-        ]
-        if blocking_fractional_only:
-            raise ValueError(
-                f"{year}: atividade fracionaria sem candle padrao dentro da janela "
-                f"avaliada: {blocking_fractional_only[:5]}."
             )
         quotes = [
             _with_fractional_volume(

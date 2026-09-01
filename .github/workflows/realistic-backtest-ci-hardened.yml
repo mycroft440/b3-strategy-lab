@@ -16,6 +16,7 @@ on:
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
+      - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   push:
@@ -35,6 +36,7 @@ on:
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
+      - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   workflow_dispatch:
@@ -103,6 +105,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
   realistic-2018-smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

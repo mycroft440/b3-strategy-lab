@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -19,6 +20,20 @@ BLOCKING_VALIDITY_TAGS = (
     "UNCERTIFIED_CASH_EVENTS",
     "UNBOUND_TICKER_TRANSITIONS",
     "BONUS_TAX_BASIS_UNCERTIFIED",
+)
+
+FINITE_METRICS = (
+    "final_equity",
+    "total_return",
+    "cagr",
+    "max_drawdown",
+    "annual_volatility",
+    "sharpe",
+    "average_annual_return",
+    "fees_paid",
+    "ordinary_income_tax_paid",
+    "distribution_tax_paid",
+    "distributions_net",
 )
 
 
@@ -93,11 +108,33 @@ def _validation_issues(payload: dict[str, object]) -> list[str]:
         issues.append(f"fee_quality={payload.get('fee_quality')}")
     if payload.get("selection_status") != "retrospective_hypothesis_replay":
         issues.append("unexpected_selection_status")
+    for field in FINITE_METRICS:
+        try:
+            value = float(payload[field])
+        except (KeyError, TypeError, ValueError):
+            issues.append(f"invalid_metric:{field}")
+            continue
+        if not math.isfinite(value):
+            issues.append(f"nonfinite_metric:{field}")
     try:
-        if float(payload.get("final_equity", 0.0)) <= 0:
+        if math.isfinite(float(payload["final_equity"])) and float(
+            payload["final_equity"]
+        ) <= 0:
             issues.append("nonpositive_final_equity")
-    except (TypeError, ValueError):
-        issues.append("invalid_final_equity")
+    except (KeyError, TypeError, ValueError):
+        pass
+    try:
+        raw_trades = payload["trades"]
+        trades_value = float(raw_trades)
+        if (
+            isinstance(raw_trades, bool)
+            or not math.isfinite(trades_value)
+            or not trades_value.is_integer()
+            or trades_value < 0
+        ):
+            raise ValueError
+    except (KeyError, TypeError, ValueError):
+        issues.append("invalid_trades")
     return sorted(set(issues))
 
 
@@ -155,7 +192,13 @@ def main(argv: list[str] | None = None) -> int:
     end = str(period.get("end", ""))
     initial_cash = float(source.get("initial_cash", 0.0))
     candidates = source.get("top_10")
-    if not start or not end or initial_cash <= 0 or not isinstance(candidates, list):
+    if (
+        not start
+        or not end
+        or not math.isfinite(initial_cash)
+        or initial_cash <= 0
+        or not isinstance(candidates, list)
+    ):
         raise ValueError("Candidate file is missing period, initial_cash or top_10.")
 
     validated: list[dict[str, object]] = []

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -47,6 +48,17 @@ def _rows(path: Path) -> list[dict[str, str]]:
         return []
     with path.open(newline="", encoding="utf-8") as file:
         return list(csv.DictReader(file))
+
+
+def _execution_values_valid(row: dict[str, object]) -> bool:
+    try:
+        values = tuple(
+            float(row.get(field, 0) or 0)
+            for field in ("open", "close", "financial_volume")
+        )
+    except (TypeError, ValueError):
+        return False
+    return all(math.isfinite(value) and value > 0 for value in values)
 
 
 def _fee_schedule_contiguous(fees: FeeSchedule, start: str, end: str) -> bool:
@@ -342,15 +354,7 @@ def main(argv: list[str] | None = None) -> int:
         execution_dates.add(value_date)
         base = ticker[:-1] if ticker.endswith("F") else ticker
         execution_bases.add(base)
-        try:
-            values_ok = (
-                float(row.get("open", 0) or 0) > 0
-                and float(row.get("close", 0) or 0) > 0
-                and float(row.get("financial_volume", 0) or 0) > 0
-            )
-        except ValueError:
-            values_ok = False
-        if not values_ok:
+        if not _execution_values_valid(row):
             invalid_execution_rows.append(row)
         if market == "010":
             standard.add((value_date, ticker))

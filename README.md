@@ -160,21 +160,26 @@ Use `--workers 1` para a referencia serial ou ajuste o valor conforme a memoria 
 as CPUs disponiveis.
 
 Os resultados publicados ficam em um branch separado. A
-[ultima matriz publicada](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/TOP_10.md),
+[ultima matriz publicada](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/RESEARCH_TOP_10.md),
 seu [manifesto](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/MANIFEST.json)
 e sua [auditoria](https://github.com/mycroft440/b3-strategy-lab/blob/backtest-results/reports/latest_backtest/AUDIT.json)
 devem ser lidos em conjunto. O workflow tambem versiona nesse branch o CSV
 completo da matriz e o snapshot exato de candles, manifestos e eventos cujos
 hashes aparecem no manifesto, permitindo repetir a auditoria sem depender da
 retencao temporaria de artifacts. Pushes na `main` reproduzem o cutoff certificado
-versionado e registram sua idade real; uma atualizacao de fontes e solicitada
-explicitamente no disparo manual por `refresh_data` ou por uma data final posterior
-ao cutoff. A validacao realista publica ainda um arquivo compactado, com SHA-256,
-dos insumos point-in-time derivados que consumiu. A execucao publicada em 20/08/2026 usou dados ate
+versionado, registram sua idade real e reutilizam o snapshot point-in-time
+versionado com SHA-256. Uma nova coleta de fontes mutaveis da B3 so ocorre no
+disparo manual com `refresh_data=true` (ou quando uma data final posterior exige
+atualizacao). A validacao realista publica o arquivo compactado e seu SHA-256 mesmo
+quando uma auditoria posterior bloqueia o uso desses insumos. O status
+`RESEARCH_SUCCESS_REALISTIC_BLOCKED` significa que a matriz completa foi aprovada
+somente como pesquisa, enquanto a camada realista permanece bloqueada; ele nunca
+autoriza alegacao de dinheiro real. A execucao publicada em 20/08/2026 usou dados ate
 10/08/2026 e custos/slippage zero; por isso ela e apenas um artefato retrospectivo
 anterior a estas correcoes, nao uma estimativa de dinheiro real. Uma nova matriz
-so substitui essa referencia depois que o workflow publicar `STATUS=SUCCESS`,
-hashes coerentes e os novos custos no manifesto.
+so substitui essa referencia depois que o workflow publicar hashes coerentes e os
+novos custos no manifesto. A aprovacao integral exige
+`STATUS=REALISTIC_RETROSPECTIVE_SUCCESS`.
 
 Para iniciar sem terminal, use `abrir_painel_backtest.bat` no Windows ou
 `./abrir_painel_backtest.sh` no Linux/macOS. O painel atualiza e audita os dados,

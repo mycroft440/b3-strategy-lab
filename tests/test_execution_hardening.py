@@ -335,6 +335,88 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
         )
         self.assertEqual(summary.trades, 3)
 
+    def test_fractional_only_quote_cannot_mask_a_missing_standard_close(self) -> None:
+        dates = [
+            "2023-12-27",
+            "2023-12-28",
+            "2023-12-29",
+            "2024-01-02",
+            "2024-01-03",
+        ]
+        prices = [10.0, 11.0, 13.0, 14.0]
+        items = [
+            candle(value_date, "PCAR3", price)
+            for value_date, price in zip(dates[:-1], prices)
+        ]
+        data = SimpleNamespace(
+            tickers=["PCAR3"],
+            dates=dates,
+            candles={"PCAR3": items},
+            by_date={"PCAR3": {item.date: item for item in items}},
+            index_by_date={
+                "PCAR3": {item.date: index for index, item in enumerate(items)}
+            },
+            signal_prices={"PCAR3": prices},
+            raw_returns={
+                "PCAR3": [
+                    0.0,
+                    *[
+                        prices[index] / prices[index - 1] - 1.0
+                        for index in range(1, len(prices))
+                    ],
+                ]
+            },
+            candidate_profile_cache={},
+        )
+        pricebook = ExecutionPriceBook(
+            [
+                ExecutionQuote(value_date, "PCAR3F", "020", 10.0, 10.0, 1_000.0)
+                for value_date in dates[-2:]
+            ]
+        )
+        config = PortfolioConfig(
+            name="monthly_fractional_only_regression",
+            lookback=1,
+            top_n=1,
+            vol_window=2,
+            rebalance="monthly",
+            score="all",
+            weighting="equal",
+            absolute_momentum=False,
+            signal_mode="adjusted",
+        )
+
+        with (
+            patch(
+                "scripts.backtest_strategy_management_combinations._build_eligibility",
+                return_value={"dummy": {"PCAR3": [0, 0, 1, 1]}},
+            ),
+            self.assertRaisesRegex(ValueError, "held position lacks a fresh official close"),
+        ):
+            run_realistic(
+                data=data,
+                universe=PointInTimeUniverse(
+                    [UniverseSnapshot(dates[0], frozenset({"PCAR3"}))]
+                ),
+                pricebook=pricebook,
+                cash_events=[],
+                fee_schedule=FeeSchedule(
+                    [FeeRule("2000-01-01", "2099-12-31", 0.0)]
+                ),
+                strategy="dummy",
+                config=config,
+                start=dates[-2],
+                end=dates[-1],
+                initial_cash=100.0,
+                base_slippage_bps=0.0,
+                participation_bps_at_1pct=0.0,
+                max_slippage_bps=0.0,
+                transitions={},
+                economic_gap_adjustment=False,
+                survivorship_safe=True,
+                cash_events_complete=True,
+            )
+
     def test_proportional_buy_plan_does_not_starve_later_ticker(self) -> None:
         account = RealCashAccount(
             1000.0,
@@ -433,6 +515,20 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
         self.assertNotIn('--as-of "$SYNC_END"', workflow)
         self.assertIn('REALISTIC_INPUT_SNAPSHOT.tar.gz', workflow)
         self.assertIn('sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256', workflow)
+        self.assertIn('RESEARCH_SUCCESS_REALISTIC_BLOCKED', workflow)
+        self.assertIn('DATA_READINESS.json', workflow)
+        self.assertIn('data_age_calendar_days', workflow)
+        self.assertIn('origin/backtest-results:${SNAPSHOT}', workflow)
+        self.assertIn('refresh_data=true', workflow)
+
+        realistic_ci = (
+            ROOT / ".github/workflows/realistic-backtest-ci-hardened.yml"
+        ).read_text(encoding="utf-8")
+        self.assertGreaterEqual(realistic_ci.count('data/quality_reviews.json'), 2)
+        self.assertIn(
+            "if: ${{ github.event_name == 'workflow_dispatch' }}",
+            realistic_ci,
+        )
 
     def test_serial_and_parallel_small_matrix_are_identical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
