@@ -11,6 +11,11 @@ class WorkflowIntegrityContractTests(unittest.TestCase):
         )
         self.assertIn("CALCULATION_SHA=", text)
         self.assertIn('git worktree add --detach "$SOURCE_DIR" "$CALCULATION_SHA"', text)
+        self.assertIn("sourceRun.data.head_sha !== process.env.CALCULATION_SHA", text)
+        self.assertIn(".github/workflows/full-matrix-backtest-hardened.yml", text)
+        self.assertIn("verified-market-data-${{ env.SOURCE_RUN_ID }}", text)
+        self.assertIn('SOURCE_DATA="$GITHUB_WORKSPACE/recovery-source-data"', text)
+        self.assertIn('cp -a "$SOURCE_DATA/candles" "$SOURCE_DIR/data/candles"', text)
         self.assertGreaterEqual(text.count('cd "$SOURCE_DIR"'), 3)
 
     def test_snapshot_checksum_asymmetry_is_fail_closed_everywhere(self) -> None:
