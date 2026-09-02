@@ -24,7 +24,7 @@ on:
         default: ""
         type: string
       initial_cash:
-        description: Capital inicial por fold
+        description: Capital inicial da conta OOS contínua
         required: true
         default: "1000"
         type: string
@@ -50,7 +50,7 @@ env:
 
 jobs:
   walk_forward:
-    name: Pesquisa causal fora da amostra
+    name: Pesquisa causal OOS com conta contínua
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -79,6 +79,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
           python -m unittest discover -s tests -p 'test_provisional_tax_reserve_irrf.py' -v
+          python -m unittest discover -s tests -p 'test_continuous_oos_account.py' -v
           python -m unittest discover -s tests -p 'test_walk_forward_certified_semantics.py' -v
           python -m unittest discover -s tests -p 'test_statistical_validation.py' -v
 
@@ -133,12 +134,14 @@ jobs:
             --require-full-scope
             --all-strategies
             --economic-gap-adjustment
+            --continuous-oos-account
             --start "$START_DATE"
             --first-test-year "$FIRST_TEST_YEAR"
             --initial-cash "$INITIAL_CASH"
             --objective "$OBJECTIVE"
             --output reports/FULL_CATALOG_WALK_FORWARD.csv
             --summary-output reports/FULL_CATALOG_WALK_FORWARD.json
+            --continuous-curve-output reports/FULL_CATALOG_WALK_FORWARD_CONTINUOUS_CURVE.csv
           )
           if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
           if [ -n "$LAST_TEST_YEAR" ]; then CMD+=(--last-test-year "$LAST_TEST_YEAR"); fi
@@ -154,6 +157,10 @@ jobs:
               "full_multiple_testing_scope": True,
               "selection_uses_test_data": False,
               "survivorship_safe_universe": True,
+              "continuous_oos_account": True,
+              "test_accounts_are_independent": False,
+              "continuous_tax_account_claim": True,
+              "continuous_oos_account_required": True,
               "research_claim_allowed": True,
               "ex_ante_selection_claim_allowed": False,
               "formal_multiple_testing_significance_correction": False,
@@ -169,6 +176,9 @@ jobs:
           ]
           if failures:
               raise SystemExit("walk-forward research certification failed: " + ", ".join(failures))
+          curve = Path("reports/FULL_CATALOG_WALK_FORWARD_CONTINUOUS_CURVE.csv")
+          if not curve.exists() or curve.stat().st_size == 0:
+              raise SystemExit("continuous OOS curve is missing or empty")
           print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
 
@@ -179,6 +189,7 @@ jobs:
           path: |
             reports/FULL_CATALOG_WALK_FORWARD.csv
             reports/FULL_CATALOG_WALK_FORWARD.json
+            reports/FULL_CATALOG_WALK_FORWARD_CONTINUOUS_CURVE.csv
             reports/realistic_input_audit.json
           if-no-files-found: error
           retention-days: 30
