@@ -18,6 +18,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
 )
 from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
 from b3_strategy_lab.realistic_portfolio import load_transitions, run_realistic  # noqa: E402
+from b3_strategy_lab.statistical_validation import oos_evidence_summary  # noqa: E402
 from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_ACTIONS,
@@ -74,8 +75,9 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Expanding-window walk-forward using the real-money-oriented engine. "
             "Each test year is completely excluded from candidate selection. "
-            "Use --all-strategies to reproduce the full strategy-management "
-            "multiple-testing scope instead of validating only a frozen hypothesis."
+            "Use --all-strategies to reproduce the full strategy-management search "
+            "scope. Full scope prevents hiding tried candidates, but is not by itself "
+            "a formal multiple-testing significance correction."
         )
     )
     parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
@@ -101,8 +103,8 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Test the full portfolio_strategies() catalog in every training fold. "
-            "This is computationally expensive but is the appropriate scope for "
-            "auditing the original across-strategy selection bias."
+            "This is computationally expensive and makes the candidate-search scope "
+            "explicit; it does not create statistical significance by itself."
         ),
     )
     parser.add_argument("--managements", nargs="+")
@@ -311,8 +313,10 @@ def main(argv: list[str] | None = None) -> int:
 
     _write_csv(args.output, rows)
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
+    evidence = oos_evidence_summary(positive_folds=positive, folds=len(rows))
+    research_claim_allowed = survivorship_safe and not False
     summary = {
-        "schema_version": 5,
+        "schema_version": 6,
         "method": "expanding_window_walk_forward",
         "selection_scope": selection_scope,
         "strategy_count": len(strategies),
@@ -320,7 +324,10 @@ def main(argv: list[str] | None = None) -> int:
         "full_multiple_testing_scope": full_multiple_testing_scope,
         "selection_uses_test_data": False,
         "survivorship_safe_universe": survivorship_safe,
-        "ex_ante_selection_claim_allowed": survivorship_safe,
+        "research_claim_allowed": research_claim_allowed,
+        "ex_ante_selection_claim_allowed": False,
+        "formal_multiple_testing_significance_correction": False,
+        "formal_multiple_testing_correction_required_for_ex_ante_claim": True,
         "market_data_directory": str(args.data_dir),
         "action_directory": str(args.actions_dir),
         "market_data_manifest_directory": str(args.manifests_dir),
@@ -338,16 +345,18 @@ def main(argv: list[str] | None = None) -> int:
             if rows
             else 0.0
         ),
+        **evidence,
         "selection_bias_interpretation": (
-            "The original across-strategy multiple-testing bias is addressed only when "
-            "full_multiple_testing_scope=true. A gap_momentum-only run validates the "
-            "frozen hypothesis/management selection, not the historical choice among "
-            "the full strategy catalog."
+            "Full candidate scope makes the training search explicit and untouched test "
+            "folds prevent direct test-set leakage. It does not constitute a formal "
+            "multiple-testing significance correction. Treat the result as OOS research "
+            "evidence, not proof that the selected strategy is an ex-ante statistical winner."
         ),
         "note": (
             "Each fold starts from the same standardized initial cash because integer "
             "shares, the R$20k monthly sales threshold and tax-loss carry make a simple "
-            "multiplication of yearly returns an invalid reconstruction of one live account."
+            "multiplication of yearly returns an invalid reconstruction of one live account. "
+            "A continuous OOS account is a separate validation requirement."
         ),
     }
     args.summary_output.parent.mkdir(parents=True, exist_ok=True)
