@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from b3_strategy_lab.realistic import cash_coverage_certification_issues  # noqa: E402
+from b3_strategy_lab.statistical_validation import oos_evidence_summary  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_CASH_CERTIFICATION,
     DEFAULT_CASH_EVENTS,
@@ -132,12 +133,42 @@ def main(argv: list[str] | None = None) -> int:
     summary["causal_opening_liquidity_required"] = True
     summary["economic_gap_adjustment_required"] = True
     summary["certified_strategy_semantics"] = "economic_gap_adjustment_for_gap_momentum"
+
+    summary.update(
+        oos_evidence_summary(
+            positive_folds=int(summary.get("positive_test_folds", 0)),
+            folds=int(summary.get("folds", 0)),
+        )
+    )
+    summary["formal_multiple_testing_significance_correction"] = False
+    summary["formal_multiple_testing_correction_required_for_ex_ante_claim"] = True
+    summary["matrix_role"] = "retrospective_hypothesis_generation_only"
+    summary["multiple_testing_interpretation"] = (
+        "Selecting from the full catalog using training data and evaluating the selected "
+        "procedure on untouched test folds prevents direct test-set leakage. It does not, "
+        "by itself, constitute a formal multiple-testing significance correction such as "
+        "a reality check, SPA/PBO or deflated-Sharpe analysis."
+    )
+
+    research_claim_allowed = (
+        summary.get("full_multiple_testing_scope") is True
+        and summary.get("selection_uses_test_data") is False
+        and summary.get("survivorship_safe_universe") is True
+    )
+    summary["research_claim_allowed"] = research_claim_allowed
+    # Fail closed: until a formal multiple-testing significance correction is present,
+    # the workflow may report OOS research evidence but must not label the selected
+    # strategy as an ex-ante statistically established winner.
+    summary["ex_ante_selection_claim_allowed"] = False
+
     if known.require_full_scope:
         required = {
             "full_multiple_testing_scope": True,
             "selection_uses_test_data": False,
             "survivorship_safe_universe": True,
-            "ex_ante_selection_claim_allowed": True,
+            "research_claim_allowed": True,
+            "ex_ante_selection_claim_allowed": False,
+            "formal_multiple_testing_significance_correction": False,
         }
         failures = [
             f"{key}={summary.get(key)!r}"
@@ -146,9 +177,9 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if failures:
             raise SystemExit(
-                "Walk-forward final-selection gate failed: " + ", ".join(failures)
+                "Walk-forward research gate failed: " + ", ".join(failures)
             )
-        summary["selection_gate"] = "FULL_CATALOG_OUT_OF_SAMPLE"
+        summary["selection_gate"] = "FULL_CATALOG_OUT_OF_SAMPLE_RESEARCH_ONLY"
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
