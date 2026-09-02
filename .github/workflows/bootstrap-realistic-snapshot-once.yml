@@ -1,0 +1,25 @@
+name: Bootstrap realistic snapshot once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/bootstrap-realistic-snapshot-once.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reiniciar matriz com atualização dos dados realistas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run full-matrix-backtest-hardened.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            -f refresh_data=true
