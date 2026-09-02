@@ -1,4 +1,4 @@
-name: Certified full-catalog walk-forward
+name: Certified full-catalog OOS research
 
 on:
   workflow_dispatch:
@@ -50,7 +50,7 @@ env:
 
 jobs:
   walk_forward:
-    name: Seleção causal fora da amostra
+    name: Pesquisa causal fora da amostra
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -62,19 +62,25 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compilar camada realista e causal
+      - name: Compilar camada realista, causal e estatística
         run: |
           python -m py_compile \
+            b3_strategy_lab/audit_hardening.py \
             b3_strategy_lab/causal_liquidity.py \
             b3_strategy_lab/realistic.py \
             b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/statistical_validation.py \
             scripts/backtest_strategy_management_realistic.py \
             scripts/walk_forward_realistic.py \
             scripts/walk_forward_certified.py
 
-      - name: Testar causalidade de liquidez
-        run: python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
+      - name: Testar contratos críticos da auditoria
+        run: |
+          python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
+          python -m unittest discover -s tests -p 'test_provisional_tax_reserve_irrf.py' -v
+          python -m unittest discover -s tests -p 'test_walk_forward_certified_semantics.py' -v
+          python -m unittest discover -s tests -p 'test_statistical_validation.py' -v
 
       - name: Preparar dados point-in-time e certificações
         env:
@@ -126,6 +132,7 @@ jobs:
             python scripts/walk_forward_certified.py
             --require-full-scope
             --all-strategies
+            --economic-gap-adjustment
             --start "$START_DATE"
             --first-test-year "$FIRST_TEST_YEAR"
             --initial-cash "$INITIAL_CASH"
@@ -137,7 +144,7 @@ jobs:
           if [ -n "$LAST_TEST_YEAR" ]; then CMD+=(--last-test-year "$LAST_TEST_YEAR"); fi
           "${CMD[@]}"
 
-      - name: Exigir seleção realmente fora da amostra
+      - name: Exigir pesquisa realmente fora da amostra sem sobreafirmação estatística
         run: |
           python - <<'PY'
           import json
@@ -147,10 +154,13 @@ jobs:
               "full_multiple_testing_scope": True,
               "selection_uses_test_data": False,
               "survivorship_safe_universe": True,
-              "ex_ante_selection_claim_allowed": True,
+              "research_claim_allowed": True,
+              "ex_ante_selection_claim_allowed": False,
+              "formal_multiple_testing_significance_correction": False,
               "cash_events_complete": True,
               "cash_certification_verified": True,
               "causal_opening_liquidity_required": True,
+              "economic_gap_adjustment_required": True,
           }
           failures = [
               f"{key}={summary.get(key)!r}"
@@ -158,7 +168,7 @@ jobs:
               if summary.get(key) is not expected
           ]
           if failures:
-              raise SystemExit("walk-forward certification failed: " + ", ".join(failures))
+              raise SystemExit("walk-forward research certification failed: " + ", ".join(failures))
           print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
 
