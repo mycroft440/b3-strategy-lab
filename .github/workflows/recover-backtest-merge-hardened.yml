@@ -36,7 +36,10 @@ jobs:
 
       - name: Validar ferramentas de merge/auditoria
         run: |
-          python -m py_compile scripts/merge_matrix_shards.py scripts/audit_matrix_results.py
+          python -m py_compile \
+            scripts/merge_matrix_shards.py \
+            scripts/audit_matrix_results.py \
+            scripts/audit_backtest_readiness.py
 
       - name: Baixar shards do run informado
         uses: actions/download-artifact@v4
@@ -80,32 +83,105 @@ jobs:
 
       - name: Auditar
         run: |
+          set -euo pipefail
           python scripts/audit_matrix_results.py \
             --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
             --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
             --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+          MATRIX_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json")
+          print(json.loads(path.read_text(encoding="utf-8"))["end"])
+          PY
+          )"
+          python scripts/audit_backtest_readiness.py \
+            --max-age-calendar-days 4 \
+            --expected-end "$MATRIX_END" \
+            --allow-historical-cutoff \
+            --output reports/backtest_data_audit_40.json
 
       - name: Preparar latest recuperado
         run: |
           set -euo pipefail
-          rm -rf reports/latest_backtest
-          mkdir -p reports/latest_backtest
-          cp reports/TOP_10.md reports/latest_backtest/TOP_10.md
-          cp reports/TOP_10.json reports/latest_backtest/TOP_10.json
-          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
-          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
-          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/TOP_10_ANNUAL.md
+          PUBLISH_DIR="$RUNNER_TEMP/backtest-results-publish"
+          RECOVERED_DIR="$RUNNER_TEMP/recovered-latest"
+          PRESERVED_DIR="$RUNNER_TEMP/preserved-latest"
+          rm -rf "$PUBLISH_DIR" "$RECOVERED_DIR" "$PRESERVED_DIR"
+          mkdir -p "$RECOVERED_DIR" "$PRESERVED_DIR"
+          cp reports/TOP_10.md "$RECOVERED_DIR/RESEARCH_TOP_10.md"
+          cp reports/TOP_10.json "$RECOVERED_DIR/RESEARCH_TOP_10.json"
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json "$RECOVERED_DIR/AUDIT.json"
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json "$RECOVERED_DIR/MANIFEST.json"
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md "$RECOVERED_DIR/RESEARCH_TOP_10_ANNUAL.md"
+          cp reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz "$RECOVERED_DIR/MATRIX.csv.gz"
+          cp reports/backtest_data_audit_40.json "$RECOVERED_DIR/DATA_READINESS.json"
+          git fetch origin backtest-results:refs/remotes/origin/backtest-results
+          git worktree add --detach "$PUBLISH_DIR" origin/backtest-results
+          for name in \
+            REALISTIC_INPUT_SNAPSHOT.tar.gz \
+            REALISTIC_INPUT_SNAPSHOT.sha256 \
+            REALISTIC_INPUT_AUDIT.json; do
+            if [ -f "$PUBLISH_DIR/reports/latest_backtest/$name" ]; then
+              cp "$PUBLISH_DIR/reports/latest_backtest/$name" "$PRESERVED_DIR/$name"
+            fi
+          done
+          if [ -f "$PRESERVED_DIR/REALISTIC_INPUT_SNAPSHOT.tar.gz" ]; then
+            (
+              cd "$PRESERVED_DIR"
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+          fi
+          rm -rf "$PUBLISH_DIR/reports/latest_backtest"
+          mkdir -p "$PUBLISH_DIR/reports/latest_backtest"
+          cp "$RECOVERED_DIR"/* "$PUBLISH_DIR/reports/latest_backtest/"
+          for preserved in "$PRESERVED_DIR"/*; do
+            if [ -f "$preserved" ]; then
+              cp "$preserved" "$PUBLISH_DIR/reports/latest_backtest/"
+            fi
+          done
+          cp reports/backtest_data_audit_40.json "$PUBLISH_DIR/reports/backtest_data_audit_40.json"
+          for data_root in data/candles data/manifests data/corporate_actions; do
+            rm -rf "$PUBLISH_DIR/$data_root"
+            mkdir -p "$PUBLISH_DIR/$(dirname "$data_root")"
+            cp -a "$data_root" "$PUBLISH_DIR/$data_root"
+          done
+          cp data/universes/fixed_40_2018.json "$PUBLISH_DIR/data/universes/fixed_40_2018.json"
+          cp data/quality_reviews.json "$PUBLISH_DIR/data/quality_reviews.json"
+          SOURCE_PATHS="$RUNNER_TEMP/recovery-source-paths.txt"
+          python - <<'PY' > "$SOURCE_PATHS"
+          import json
+          from pathlib import Path
+          manifest = json.loads(
+              Path("reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          for raw in sorted(manifest["source_sha256"]):
+              path = Path(raw)
+              if path.is_absolute() or ".." in path.parts or not path.is_file():
+                  raise SystemExit(f"invalid recovery source path: {raw}")
+              print(path.as_posix())
+          PY
+          while IFS= read -r source_path; do
+            mkdir -p "$PUBLISH_DIR/$(dirname "$source_path")"
+            cp "$source_path" "$PUBLISH_DIR/$source_path"
+          done < "$SOURCE_PATHS"
+          export PUBLISH_DIR
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          latest = Path("reports/latest_backtest")
+          latest = Path(os.environ["PUBLISH_DIR"]) / "reports/latest_backtest"
           audit = json.loads((latest / "AUDIT.json").read_text())
           manifest = json.loads((latest / "MANIFEST.json").read_text())
-          if audit.get("ready") is not True:
+          readiness_path = latest / "DATA_READINESS.json"
+          readiness = json.loads(readiness_path.read_text()) if readiness_path.exists() else None
+          if audit.get("ready_for_research_ranking") is not True:
               raise SystemExit("auditoria do recovery não está pronta")
+          snapshot_exists = (latest / "REALISTIC_INPUT_SNAPSHOT.tar.gz").exists()
           payload = {
-              "status": "SUCCESS",
+              "status": "RESEARCH_SUCCESS_REALISTIC_BLOCKED",
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
               "recovery_run_id": int(os.environ["GITHUB_RUN_ID"]),
               "source_run_id": int(os.environ["SOURCE_RUN_ID"]),
@@ -115,16 +191,65 @@ jobs:
               "management_count": int(manifest["management_count"]),
               "combination_count": int(manifest["combinations"]),
               "top_n": 10,
-              "audit_ready": True,
+              "research_ranking_ready": True,
+              "research_matrix_completed": True,
+              "research_matrix_real_money_ready": False,
+              "realistic_finalist_validation_ready": False,
+              "result_classification": audit.get("result_classification"),
+              "data_cutoff": readiness.get("evaluation_end") if readiness else None,
+              "data_freshness_reference_date": (
+                  readiness.get("freshness_reference_date") if readiness else None
+              ),
+              "data_age_calendar_days": (
+                  readiness.get("age_calendar_days") if readiness else None
+              ),
+              "data_is_recent": readiness.get("data_is_recent") if readiness else None,
+              "historical_cutoff_accepted": (
+                  readiness.get("historical_cutoff_accepted") if readiness else None
+              ),
+              "real_money_claim_allowed": False,
+              "counterfactual_execution_exact": False,
+              "ex_ante_selection_claim_allowed": False,
+              "selection_bias_remaining": True,
+              "verified_data_snapshot_included": True,
+              "verified_data_snapshot_paths": [
+                  "data/candles",
+                  "data/manifests",
+                  "data/corporate_actions",
+                  "data/universes/fixed_40_2018.json",
+                  "data/quality_reviews.json",
+              ],
+              "recovery_source_hashes_verified": True,
+              "research_matrix_path": "reports/latest_backtest/MATRIX.csv.gz",
+              "realistic_input_snapshot_path": (
+                  "reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz"
+                  if snapshot_exists else None
+              ),
+              "realistic_input_snapshot_current_run": False,
+              "realistic_input_snapshot_reused": snapshot_exists,
+              "realistic_input_audit_current_run": False,
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+          (latest / "REALISTIC_VALIDATION_BLOCKED.md").write_text(
+              "# Matriz de pesquisa recuperada; validação realista não reexecutada\n\n"
+              + json.dumps(payload, indent=2, ensure_ascii=False)
+              + "\n"
+          )
           PY
 
       - name: Publicar em backtest-results
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- reports/latest_backtest
-          git commit -m "Backtest recovery ${{ github.run_number }}: publish [skip ci]"
-          git push --force origin HEAD:backtest-results
+          PUBLISH_DIR="$RUNNER_TEMP/backtest-results-publish"
+          SOURCE_PATHS="$RUNNER_TEMP/recovery-source-paths.txt"
+          git -C "$PUBLISH_DIR" config user.name "github-actions[bot]"
+          git -C "$PUBLISH_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$PUBLISH_DIR" add -A -- \
+            data \
+            reports/backtest_data_audit_40.json \
+            reports/latest_backtest
+          while IFS= read -r source_path; do
+            git -C "$PUBLISH_DIR" add -- "$source_path"
+          done < "$SOURCE_PATHS"
+          git -C "$PUBLISH_DIR" commit -m "Backtest recovery ${{ github.run_number }}: publish [skip ci]"
+          git -C "$PUBLISH_DIR" push origin HEAD:backtest-results

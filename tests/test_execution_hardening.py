@@ -520,15 +520,57 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
         self.assertIn('data_age_calendar_days', workflow)
         self.assertIn('origin/backtest-results:${SNAPSHOT}', workflow)
         self.assertIn('refresh_data=true', workflow)
+        announce = workflow.split("\n  announce:\n", 1)[1].split(
+            "\n  backtest:\n", 1
+        )[0]
+        self.assertIn(
+            'git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"',
+            announce,
+        )
+        self.assertIn(
+            "sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256",
+            announce,
+        )
+        self.assertIn("git add -- reports/latest_backtest", announce)
+        publish = workflow.split("\n  publish:\n", 1)[1]
+        self.assertIn(
+            "elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]",
+            publish,
+        )
+        self.assertIn("REALISTIC_SNAPSHOT_PUBLISHED=true", publish)
+        self.assertIn('os.environ["REALISTIC_SNAPSHOT_PUBLISHED"]', publish)
 
         realistic_ci = (
             ROOT / ".github/workflows/realistic-backtest-ci-hardened.yml"
         ).read_text(encoding="utf-8")
         self.assertGreaterEqual(realistic_ci.count('data/quality_reviews.json'), 2)
+        self.assertGreaterEqual(realistic_ci.count('scripts/sync_official_universe.py'), 3)
+        self.assertGreaterEqual(
+            realistic_ci.count('.github/workflows/full-matrix-backtest-hardened.yml'),
+            2,
+        )
         self.assertIn(
             "if: ${{ github.event_name == 'workflow_dispatch' }}",
             realistic_ci,
         )
+
+        recovery = (
+            ROOT / ".github/workflows/recover-backtest-merge-hardened.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"status": "RESEARCH_SUCCESS_REALISTIC_BLOCKED"', recovery)
+        self.assertIn("RESEARCH_TOP_10.md", recovery)
+        self.assertIn("MATRIX.csv.gz", recovery)
+        self.assertIn("REALISTIC_INPUT_SNAPSHOT.sha256", recovery)
+        self.assertIn("sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256", recovery)
+        self.assertIn("audit_backtest_readiness.py", recovery)
+        self.assertIn('cp -a "$data_root" "$PUBLISH_DIR/$data_root"', recovery)
+        self.assertIn('manifest["source_sha256"]', recovery)
+        self.assertIn('"verified_data_snapshot_included": True', recovery)
+        self.assertIn('"realistic_input_audit_current_run": False', recovery)
+        self.assertIn("git worktree add --detach", recovery)
+        self.assertIn("git -C \"$PUBLISH_DIR\" push origin HEAD:backtest-results", recovery)
+        self.assertNotIn('"status": "SUCCESS"', recovery)
+        self.assertNotIn("git push --force origin HEAD:backtest-results", recovery)
 
     def test_serial_and_parallel_small_matrix_are_identical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

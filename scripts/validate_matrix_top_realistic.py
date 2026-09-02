@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 import subprocess
@@ -35,6 +36,93 @@ FINITE_METRICS = (
     "distribution_tax_paid",
     "distributions_net",
 )
+
+NONNEGATIVE_METRICS = (
+    "annual_volatility",
+    "fees_paid",
+    "ordinary_income_tax_paid",
+    "distribution_tax_paid",
+    "distributions_net",
+)
+
+
+def _csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as file:
+        return list(csv.DictReader(file))
+
+
+def _artifact_binding_issues(
+    payload: dict[str, object],
+    *,
+    curve_path: Path,
+    trades_path: Path,
+    cash_path: Path,
+) -> list[str]:
+    issues: list[str] = []
+    try:
+        curve = _csv_rows(curve_path)
+        trades = _csv_rows(trades_path)
+        cash = _csv_rows(cash_path)
+    except (OSError, csv.Error, UnicodeError, ValueError):
+        return ["invalid_output_artifact"]
+    if not curve:
+        return ["empty_curve"]
+    if curve[0].get("date") != str(payload.get("start", "")):
+        issues.append("curve_start_mismatch")
+    if curve[-1].get("date") != str(payload.get("end", "")):
+        issues.append("curve_end_mismatch")
+    try:
+        curve_final = float(curve[-1]["equity"])
+        summary_final = float(payload["final_equity"])
+        if not (
+            math.isfinite(curve_final)
+            and math.isclose(curve_final, summary_final, rel_tol=1e-10, abs_tol=1e-8)
+        ):
+            issues.append("curve_final_equity_mismatch")
+    except (KeyError, TypeError, ValueError):
+        issues.append("invalid_curve_final_equity")
+    try:
+        if len(trades) != int(payload["trades"]):
+            issues.append("trade_ledger_count_mismatch")
+        ledger_fees = sum(float(row["fee"]) for row in trades)
+        if not (
+            math.isfinite(ledger_fees)
+            and math.isclose(
+                ledger_fees,
+                float(payload["fees_paid"]),
+                rel_tol=1e-10,
+                abs_tol=1e-8,
+            )
+        ):
+            issues.append("trade_ledger_fee_mismatch")
+    except (KeyError, TypeError, ValueError):
+        issues.append("invalid_trade_ledger")
+    try:
+        ledger_distributions = sum(float(row["net"]) for row in cash)
+        ledger_distribution_tax = sum(float(row["tax"]) for row in cash)
+        if not (
+            math.isfinite(ledger_distributions)
+            and math.isclose(
+                ledger_distributions,
+                float(payload["distributions_net"]),
+                rel_tol=1e-10,
+                abs_tol=1e-8,
+            )
+        ):
+            issues.append("cash_ledger_distribution_mismatch")
+        if not (
+            math.isfinite(ledger_distribution_tax)
+            and math.isclose(
+                ledger_distribution_tax,
+                float(payload["distribution_tax_paid"]),
+                rel_tol=1e-10,
+                abs_tol=1e-8,
+            )
+        ):
+            issues.append("cash_ledger_tax_mismatch")
+    except (KeyError, TypeError, ValueError):
+        issues.append("invalid_cash_ledger")
+    return sorted(set(issues))
 
 
 def _run_candidate(
@@ -84,13 +172,27 @@ def _run_candidate(
         command.append("--economic-gap-adjustment")
     subprocess.run(command, cwd=ROOT, check=True)
     payload = json.loads(summary.read_text(encoding="utf-8"))
+    payload["_artifact_binding_issues"] = _artifact_binding_issues(
+        payload,
+        curve_path=curve,
+        trades_path=trades,
+        cash_path=cash,
+    )
     payload["research_rank"] = rank
     payload["research_strategy"] = strategy
     payload["research_management"] = management
     return payload
 
 
-def _validation_issues(payload: dict[str, object]) -> list[str]:
+def _validation_issues(
+    payload: dict[str, object],
+    *,
+    expected_strategy: str | None = None,
+    expected_management: str | None = None,
+    expected_start: str | None = None,
+    expected_end: str | None = None,
+    expected_initial_cash: float | None = None,
+) -> list[str]:
     issues: list[str] = []
     validity = str(payload.get("validity", ""))
     for tag in BLOCKING_VALIDITY_TAGS:
@@ -108,6 +210,12 @@ def _validation_issues(payload: dict[str, object]) -> list[str]:
         issues.append(f"fee_quality={payload.get('fee_quality')}")
     if payload.get("selection_status") != "retrospective_hypothesis_replay":
         issues.append("unexpected_selection_status")
+    if not validity.startswith("REALISTIC_POINT_IN_TIME"):
+        issues.append("unexpected_validity_class")
+    if payload.get("point_in_time_universe") is not True:
+        issues.append("point_in_time_universe=false")
+    if payload.get("fractional_execution") is not True:
+        issues.append("fractional_execution=false")
     for field in FINITE_METRICS:
         try:
             value = float(payload[field])
@@ -116,11 +224,52 @@ def _validation_issues(payload: dict[str, object]) -> list[str]:
             continue
         if not math.isfinite(value):
             issues.append(f"nonfinite_metric:{field}")
+    for field in NONNEGATIVE_METRICS:
+        try:
+            if float(payload[field]) < 0:
+                issues.append(f"negative_metric:{field}")
+        except (KeyError, TypeError, ValueError):
+            pass
     try:
         if math.isfinite(float(payload["final_equity"])) and float(
             payload["final_equity"]
         ) <= 0:
             issues.append("nonpositive_final_equity")
+    except (KeyError, TypeError, ValueError):
+        pass
+    try:
+        initial_cash = float(payload["initial_cash"])
+        final_equity = float(payload["final_equity"])
+        total_return = float(payload["total_return"])
+        if not math.isfinite(initial_cash) or initial_cash <= 0:
+            raise ValueError
+        implied_return = final_equity / initial_cash - 1.0
+        if not math.isclose(
+            total_return, implied_return, rel_tol=1e-10, abs_tol=1e-10
+        ):
+            issues.append("total_return_equity_identity_mismatch")
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        issues.append("invalid_initial_cash")
+    try:
+        start_date = datetime.fromisoformat(str(payload["start"]))
+        end_date = datetime.fromisoformat(str(payload["end"]))
+        if end_date < start_date:
+            raise ValueError
+        initial_cash = float(payload["initial_cash"])
+        final_equity = float(payload["final_equity"])
+        implied_return = final_equity / initial_cash - 1.0
+        years = max((end_date - start_date).total_seconds() / 31_557_600.0, 1 / 365.25)
+        implied_cagr = (1.0 + implied_return) ** (1.0 / years) - 1.0
+        if not math.isclose(
+            float(payload["cagr"]), implied_cagr, rel_tol=1e-10, abs_tol=1e-10
+        ):
+            issues.append("cagr_equity_period_identity_mismatch")
+    except (KeyError, TypeError, ValueError, ZeroDivisionError, OverflowError):
+        issues.append("invalid_cagr_identity")
+    try:
+        drawdown = float(payload["max_drawdown"])
+        if math.isfinite(drawdown) and not (-1.0 <= drawdown <= 0.0):
+            issues.append("max_drawdown_out_of_range")
     except (KeyError, TypeError, ValueError):
         pass
     try:
@@ -135,6 +284,32 @@ def _validation_issues(payload: dict[str, object]) -> list[str]:
             raise ValueError
     except (KeyError, TypeError, ValueError):
         issues.append("invalid_trades")
+    expected_fields = (
+        ("strategy", expected_strategy),
+        ("management", expected_management),
+        ("start", expected_start),
+        ("end", expected_end),
+    )
+    for field, expected in expected_fields:
+        if expected is not None and str(payload.get(field, "")) != expected:
+            issues.append(f"candidate_binding_mismatch:{field}")
+    if expected_initial_cash is not None:
+        try:
+            actual_initial_cash = float(payload["initial_cash"])
+            if not math.isclose(
+                actual_initial_cash,
+                expected_initial_cash,
+                rel_tol=1e-12,
+                abs_tol=1e-9,
+            ):
+                issues.append("candidate_binding_mismatch:initial_cash")
+        except (KeyError, TypeError, ValueError):
+            pass
+    artifact_issues = payload.get("_artifact_binding_issues", [])
+    if not isinstance(artifact_issues, list):
+        issues.append("invalid_artifact_binding_issues")
+    else:
+        issues.extend(str(issue) for issue in artifact_issues)
     return sorted(set(issues))
 
 
@@ -218,7 +393,14 @@ def main(argv: list[str] | None = None) -> int:
             initial_cash=initial_cash,
             output_dir=args.work_dir,
         )
-        issues = _validation_issues(payload)
+        issues = _validation_issues(
+            payload,
+            expected_strategy=strategy,
+            expected_management=management,
+            expected_start=start,
+            expected_end=end,
+            expected_initial_cash=initial_cash,
+        )
         if issues:
             excluded.append(
                 {

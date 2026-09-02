@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import math
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.audit_matrix_results import _real_money_blockers
 from scripts.audit_realistic_backtest_inputs import _execution_values_valid
-from scripts.validate_matrix_top_realistic import _validation_issues
+from scripts.validate_matrix_top_realistic import (
+    _artifact_binding_issues,
+    _validation_issues,
+)
 
 
 class MatrixRealMoneyGateTests(unittest.TestCase):
@@ -38,9 +43,14 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
             "selection_status": "retrospective_hypothesis_replay",
+            "point_in_time_universe": True,
+            "fractional_execution": True,
+            "start": "2023-01-01",
+            "end": "2024-01-01",
+            "initial_cash": 1000.0,
             "final_equity": 1234.56,
             "total_return": 0.23456,
-            "cagr": 0.10,
+            "cagr": 1.23456 ** (365.25 / 365.0) - 1.0,
             "max_drawdown": -0.20,
             "annual_volatility": 0.15,
             "sharpe": 0.8,
@@ -65,6 +75,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "bonus_tax_basis_affects_realized_gain": True,
             "fee_quality": "modeled",
             "selection_status": "retrospective_hypothesis_replay",
+            "point_in_time_universe": True,
+            "fractional_execution": True,
+            "start": "2023-01-01",
+            "end": "2024-01-01",
+            "initial_cash": 1000.0,
             "final_equity": 1000.0,
             "total_return": 0.0,
             "cagr": 0.0,
@@ -97,6 +112,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
             "selection_status": "retrospective_hypothesis_replay",
+            "point_in_time_universe": True,
+            "fractional_execution": True,
+            "start": "2023-01-01",
+            "end": "2024-01-01",
+            "initial_cash": 1000.0,
             "final_equity": 1000.0,
             "total_return": 0.0,
             "cagr": 0.0,
@@ -145,6 +165,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
             "selection_status": "retrospective_hypothesis_replay",
+            "point_in_time_universe": True,
+            "fractional_execution": True,
+            "start": "2023-01-01",
+            "end": "2024-01-01",
+            "initial_cash": 1000.0,
             "final_equity": 1000.0,
             "total_return": 0.0,
             "cagr": 0.0,
@@ -159,6 +184,104 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "distributions_net": 0.0,
         }
         self.assertIn("invalid_trades", _validation_issues(payload))
+
+    def test_realistic_gate_rejects_finite_but_incoherent_economics_and_binding(self) -> None:
+        payload = {
+            "validity": "NOT_REALISTIC",
+            "survivorship_safe": True,
+            "cash_events_complete": True,
+            "ticker_transition_binding_verified": True,
+            "bonus_tax_basis_affects_realized_gain": False,
+            "fee_quality": "official",
+            "selection_status": "retrospective_hypothesis_replay",
+            "point_in_time_universe": False,
+            "fractional_execution": False,
+            "strategy": "wrong",
+            "management": "wrong",
+            "start": "2018-01-03",
+            "end": "2018-12-27",
+            "initial_cash": 1000.0,
+            "final_equity": 1000.0,
+            "total_return": 999.0,
+            "cagr": 777.0,
+            "max_drawdown": 0.42,
+            "annual_volatility": -0.15,
+            "sharpe": 0.8,
+            "average_annual_return": 0.11,
+            "trades": 10,
+            "fees_paid": -2.0,
+            "ordinary_income_tax_paid": -1.0,
+            "distribution_tax_paid": -1.0,
+            "distributions_net": -10.0,
+        }
+        issues = _validation_issues(
+            payload,
+            expected_strategy="gap_momentum",
+            expected_management="expected-management",
+            expected_start="2018-01-02",
+            expected_end="2018-12-28",
+            expected_initial_cash=2000.0,
+        )
+        self.assertIn("unexpected_validity_class", issues)
+        self.assertIn("point_in_time_universe=false", issues)
+        self.assertIn("fractional_execution=false", issues)
+        self.assertIn("total_return_equity_identity_mismatch", issues)
+        self.assertIn("cagr_equity_period_identity_mismatch", issues)
+        self.assertIn("max_drawdown_out_of_range", issues)
+        self.assertIn("negative_metric:annual_volatility", issues)
+        self.assertIn("negative_metric:fees_paid", issues)
+        self.assertIn("candidate_binding_mismatch:strategy", issues)
+        self.assertIn("candidate_binding_mismatch:management", issues)
+        self.assertIn("candidate_binding_mismatch:start", issues)
+        self.assertIn("candidate_binding_mismatch:end", issues)
+        self.assertIn("candidate_binding_mismatch:initial_cash", issues)
+
+    def test_realistic_summary_is_bound_to_curve_and_ledgers(self) -> None:
+        payload = {
+            "start": "2018-01-02",
+            "end": "2018-01-03",
+            "final_equity": 1100.0,
+            "trades": 2,
+            "fees_paid": 3.0,
+            "distributions_net": 5.0,
+            "distribution_tax_paid": 1.0,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            curve = root / "curve.csv"
+            trades = root / "trades.csv"
+            cash = root / "cash.csv"
+            curve.write_text(
+                "date,equity\n2018-01-02,1000\n2018-01-03,1100\n",
+                encoding="utf-8",
+            )
+            trades.write_text(
+                "date,fee\n2018-01-02,1\n2018-01-03,2\n",
+                encoding="utf-8",
+            )
+            cash.write_text("date,net,tax\n2018-01-03,5,1\n", encoding="utf-8")
+            self.assertEqual(
+                _artifact_binding_issues(
+                    payload,
+                    curve_path=curve,
+                    trades_path=trades,
+                    cash_path=cash,
+                ),
+                [],
+            )
+            curve.write_text(
+                "date,equity\n2018-01-02,1000\n2018-01-03,1099\n",
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "curve_final_equity_mismatch",
+                _artifact_binding_issues(
+                    payload,
+                    curve_path=curve,
+                    trades_path=trades,
+                    cash_path=cash,
+                ),
+            )
 
 
 if __name__ == "__main__":

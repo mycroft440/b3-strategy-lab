@@ -247,6 +247,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Publicar RUNNING em backtest-results
         env:
@@ -258,8 +260,20 @@ jobs:
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
         run: |
           set -euo pipefail
+          git fetch origin backtest-results:refs/remotes/origin/backtest-results
           rm -rf reports/latest_backtest
           mkdir -p reports/latest_backtest
+          SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
+          CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+          if git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null \
+            && git cat-file -e "origin/backtest-results:${CHECKSUM}" 2>/dev/null; then
+            git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"
+            git show "origin/backtest-results:${CHECKSUM}" > "$CHECKSUM"
+            (
+              cd reports/latest_backtest
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+          fi
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
@@ -284,7 +298,7 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- reports/latest_backtest/STATUS.json
+          git add -- reports/latest_backtest
           git commit -m "Backtest ${RUN_NUMBER}: running [skip ci]"
           git push --force origin HEAD:backtest-results
 
@@ -638,6 +652,22 @@ jobs:
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
         run: |
           set -euo pipefail
+          rm -rf previous-realistic-snapshot
+          mkdir -p previous-realistic-snapshot
+          git fetch origin backtest-results:refs/remotes/origin/backtest-results
+          PREVIOUS_SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
+          PREVIOUS_CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+          if git cat-file -e "origin/backtest-results:${PREVIOUS_SNAPSHOT}" 2>/dev/null \
+            && git cat-file -e "origin/backtest-results:${PREVIOUS_CHECKSUM}" 2>/dev/null; then
+            git show "origin/backtest-results:${PREVIOUS_SNAPSHOT}" \
+              > previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            git show "origin/backtest-results:${PREVIOUS_CHECKSUM}" \
+              > previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256
+            (
+              cd previous-realistic-snapshot
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+          fi
           rm -rf reports/latest_backtest
           mkdir -p reports/latest_backtest
           if [ "$PREPARE_RESULT" = "success" ]; then
@@ -652,9 +682,11 @@ jobs:
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/RESEARCH_TOP_10_ANNUAL.md
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_backtest/MATRIX.csv.gz
           fi
+          REALISTIC_SNAPSHOT_PUBLISHED=false
           if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            REALISTIC_SNAPSHOT_PUBLISHED=true
             if [ -f realistic-artifact/realistic_input_audit.json ]; then
               cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
             fi
@@ -662,7 +694,12 @@ jobs:
               cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
               cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
             fi
+          elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]; then
+            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            REALISTIC_SNAPSHOT_PUBLISHED=true
           fi
+          export REALISTIC_SNAPSHOT_PUBLISHED
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
@@ -757,7 +794,14 @@ jobs:
               ),
               "realistic_input_snapshot_path": (
                   "reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz"
-                  if os.environ["REALISTIC_SNAPSHOT_READY"] == "true" else None
+                  if os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true" else None
+              ),
+              "realistic_input_snapshot_current_run": (
+                  os.environ["REALISTIC_SNAPSHOT_READY"] == "true"
+              ),
+              "realistic_input_snapshot_reused": bool(
+                  os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true"
+                  and os.environ["REALISTIC_SNAPSHOT_READY"] != "true"
               ),
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")

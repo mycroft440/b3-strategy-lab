@@ -12,12 +12,15 @@ on:
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
       - "scripts/build_cash_distribution_coverage_certification.py"
+      - "scripts/sync_official_universe.py"
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
+      - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - ".github/workflows/recover-backtest-merge-hardened.yml"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   push:
     branches:
@@ -32,12 +35,15 @@ on:
       - "scripts/build_point_in_time_universe.py"
       - "scripts/build_ticker_transitions.py"
       - "scripts/build_cash_distribution_coverage_certification.py"
+      - "scripts/sync_official_universe.py"
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
       - "data/fees/**"
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
+      - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - ".github/workflows/recover-backtest-merge-hardened.yml"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   workflow_dispatch:
 
@@ -83,6 +89,7 @@ jobs:
             scripts/build_survivorship_safe_realistic_universe.py \
             scripts/build_ticker_transitions.py \
             scripts/build_cash_distribution_coverage_certification.py \
+            scripts/sync_official_universe.py \
             scripts/sync_point_in_time_universe.py \
             scripts/sync_point_in_time_universe_realistic.py \
             scripts/backtest_strategy_management_realistic.py \
