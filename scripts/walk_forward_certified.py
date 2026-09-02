@@ -167,6 +167,27 @@ def main(argv: list[str] | None = None) -> int:
         "partial-fill reconstruction that the daily source data cannot support."
     )
 
+    announcement_timing_verified = (
+        certification.get("announcement_timing_certified") is True
+    )
+    summary["corporate_action_announcement_timing_verified"] = announcement_timing_verified
+    summary["economic_gap_signal_timing_claim_allowed"] = announcement_timing_verified
+    summary["corporate_action_timing_interpretation"] = (
+        "Cash-event coverage and values can be certified independently from the historical "
+        "timestamp at which each event/rate became public. Economic gap adjustment must not "
+        "be described as strictly point-in-time signal information unless the certification "
+        "explicitly sets announcement_timing_certified=true with supporting evidence."
+    )
+
+    # Existing engine metrics are retained for compatibility, but their exact meanings
+    # are now machine-readable so reports cannot silently overstate them.
+    summary["sharpe_definition"] = "mean_daily_return_over_sample_std_annualized_assuming_rf_zero"
+    summary["sharpe_is_excess_return_over_risk_free_rate"] = False
+    summary["average_annual_return_definition"] = (
+        "arithmetic_mean_of_calendar_period_returns_including_partial_edge_years"
+    )
+    summary["average_annual_return_may_include_partial_years"] = True
+
     summary.update(
         oos_evidence_summary(
             positive_folds=int(summary.get("positive_test_folds", 0)),
@@ -193,6 +214,9 @@ def main(argv: list[str] | None = None) -> int:
         and summary.get("execution_capacity_gate_required") is True
     )
     summary["research_claim_allowed"] = research_claim_allowed
+    summary["strict_point_in_time_signal_claim_allowed"] = (
+        research_claim_allowed and announcement_timing_verified
+    )
     # Fail closed: until a formal multiple-testing significance correction is present,
     # the workflow may report OOS research evidence but must not label the selected
     # strategy as an ex-ante statistically established winner.
@@ -210,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
             "research_claim_allowed": True,
             "ex_ante_selection_claim_allowed": False,
             "formal_multiple_testing_significance_correction": False,
+            "sharpe_is_excess_return_over_risk_free_rate": False,
         }
         failures = [
             f"{key}={summary.get(key)!r}"
