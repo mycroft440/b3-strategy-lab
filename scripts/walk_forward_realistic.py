@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -51,12 +52,30 @@ def _year_bounds(data_dates: list[str], year: int) -> tuple[str, str] | None:
 
 def _metric(summary, objective: str) -> float:
     if objective == "cagr":
-        return float(summary.cagr)
-    if objective == "total_return":
-        return float(summary.total_return)
-    if objective == "sharpe":
-        return float(summary.sharpe)
-    raise ValueError(objective)
+        value = float(summary.cagr)
+    elif objective == "total_return":
+        value = float(summary.total_return)
+    elif objective == "sharpe":
+        value = float(summary.sharpe)
+    else:
+        raise ValueError(objective)
+    if not math.isfinite(value):
+        raise ValueError(f"Non-finite training objective {objective}: {value!r}")
+    return value
+
+
+def _rank_candidates(ranked):
+    """Sort best-first with deterministic lexical tie-breaking.
+
+    Never rely on comparing PortfolioConfig objects: dataclass instances are not
+    orderable by default and exact metric ties are a valid outcome, especially for
+    strategies/configurations that make no trades over a training window.
+    """
+
+    return sorted(
+        ranked,
+        key=lambda item: (-float(item[0]), str(item[1]), str(item[2].name)),
+    )
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -276,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
                     survivorship_safe=survivorship_safe,
                 )
                 ranked.append((_metric(train, args.objective), strategy, config, train))
-        ranked.sort(key=lambda item: item[0], reverse=True)
+        ranked = _rank_candidates(ranked)
         _score, winner_strategy, winner_config, train_summary = ranked[0]
 
         test_summary, test_curve, test_account = run_realistic(
