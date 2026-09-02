@@ -28,6 +28,20 @@ def _value_after(argv: list[str], flag: str, default: str) -> str:
     return argv[index + 1]
 
 
+def _force_certified_semantics(argv: list[str]) -> list[str]:
+    """Make strategy semantics deterministic in the certified path.
+
+    ``gap_momentum`` must interpret ex-distribution gaps economically. Leaving the
+    adjustment as an optional CLI flag allowed the certified full-catalog run to
+    evaluate a different strategy definition from the realistic replay.
+    """
+
+    result = list(argv)
+    if "--economic-gap-adjustment" not in result:
+        result.append("--economic-gap-adjustment")
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(add_help=False)
@@ -38,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--require-full-scope", action="store_true")
     known, forwarded = parser.parse_known_args(raw)
+    forwarded = _force_certified_semantics(forwarded)
 
     universe_path = Path(
         _value_after(forwarded, "--universe-manifest", str(DEFAULT_UNIVERSE))
@@ -94,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def certified_run(*args, **kwargs):
         kwargs["cash_events_complete"] = True
+        kwargs["economic_gap_adjustment"] = True
         return original_run(*args, **kwargs)
 
     _walk.run_realistic = certified_run
@@ -114,6 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     summary["cash_certification_verified"] = True
     summary["cash_certification"] = str(known.cash_certification)
     summary["causal_opening_liquidity_required"] = True
+    summary["economic_gap_adjustment_required"] = True
+    summary["certified_strategy_semantics"] = "economic_gap_adjustment_for_gap_momentum"
     if known.require_full_scope:
         required = {
             "full_multiple_testing_scope": True,
