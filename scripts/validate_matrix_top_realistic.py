@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import math
+import statistics
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -51,18 +52,81 @@ def _csv_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(file))
 
 
+def _curve_recalculated_metrics(
+    curve: list[dict[str, str]],
+    *,
+    initial_cash: float,
+) -> dict[str, float]:
+    if not math.isfinite(initial_cash) or initial_cash <= 0:
+        raise ValueError("initial cash must be finite and positive")
+    if len(curve) < 2:
+        raise ValueError("curve must contain at least two sessions")
+
+    dates: list[datetime] = []
+    equities: list[float] = []
+    for row in curve:
+        current = datetime.fromisoformat(str(row["date"]))
+        equity = float(row["equity"])
+        if not math.isfinite(equity) or equity <= 0:
+            raise ValueError("curve equity must be finite and positive")
+        if dates and current <= dates[-1]:
+            raise ValueError("curve dates must be strictly increasing")
+        dates.append(current)
+        equities.append(equity)
+
+    returns = [
+        equities[index] / equities[index - 1] - 1.0
+        for index in range(1, len(equities))
+    ]
+    years = max(
+        (dates[-1] - dates[0]).total_seconds() / 31_557_600.0,
+        1 / 365.25,
+    )
+    periods_per_year = (len(equities) - 1) / years
+    if len(returns) >= 2:
+        return_std = statistics.stdev(returns)
+        annual_volatility = return_std * math.sqrt(periods_per_year)
+        sharpe = (
+            statistics.mean(returns) / return_std * math.sqrt(periods_per_year)
+            if return_std > 0
+            else 0.0
+        )
+    else:
+        annual_volatility = 0.0
+        sharpe = 0.0
+
+    year_ends: dict[int, float] = {}
+    for current, equity in zip(dates, equities):
+        year_ends[current.year] = equity
+    prior_equity = initial_cash
+    yearly_returns: list[float] = []
+    for end_equity in year_ends.values():
+        yearly_returns.append(end_equity / prior_equity - 1.0)
+        prior_equity = end_equity
+
+    return {
+        "annual_volatility": annual_volatility,
+        "sharpe": sharpe,
+        "average_annual_return": (
+            statistics.mean(yearly_returns) if yearly_returns else 0.0
+        ),
+    }
+
+
 def _artifact_binding_issues(
     payload: dict[str, object],
     *,
     curve_path: Path,
     trades_path: Path,
     cash_path: Path,
+    tax_path: Path | None = None,
 ) -> list[str]:
     issues: list[str] = []
     try:
         curve = _csv_rows(curve_path)
         trades = _csv_rows(trades_path)
         cash = _csv_rows(cash_path)
+        tax = _csv_rows(tax_path) if tax_path is not None else []
     except (OSError, csv.Error, UnicodeError, ValueError):
         return ["invalid_output_artifact"]
     if not curve:
@@ -122,6 +186,69 @@ def _artifact_binding_issues(
             issues.append("cash_ledger_tax_mismatch")
     except (KeyError, TypeError, ValueError):
         issues.append("invalid_cash_ledger")
+
+    if tax_path is None:
+        return sorted(set(issues))
+
+    try:
+        recomputed = _curve_recalculated_metrics(
+            curve,
+            initial_cash=float(payload["initial_cash"]),
+        )
+        metric_issue_names = {
+            "annual_volatility": "curve_annual_volatility_mismatch",
+            "sharpe": "curve_sharpe_mismatch",
+            "average_annual_return": "curve_average_annual_return_mismatch",
+        }
+        for field, issue_name in metric_issue_names.items():
+            actual = float(payload[field])
+            expected = float(recomputed[field])
+            if not (
+                math.isfinite(actual)
+                and math.isfinite(expected)
+                and math.isclose(actual, expected, rel_tol=1e-9, abs_tol=1e-10)
+            ):
+                issues.append(issue_name)
+    except (KeyError, TypeError, ValueError, OverflowError, statistics.StatisticsError):
+        issues.append("invalid_curve_metrics")
+
+    try:
+        ledger_irrf = sum(float(row.get("irrf_withheld_month", 0.0) or 0.0) for row in tax)
+        ledger_tax_due = sum(float(row["tax_due"]) for row in tax)
+        outstanding = float(payload["outstanding_accrued_tax_liability"])
+        ordinary_paid = float(payload["ordinary_income_tax_paid"])
+        if not all(math.isfinite(value) for value in (ledger_irrf, ledger_tax_due, outstanding, ordinary_paid)):
+            raise ValueError("non-finite tax reconciliation value")
+        expected_darf_paid = ledger_tax_due - outstanding
+        if expected_darf_paid < -1e-8:
+            issues.append("tax_ledger_outstanding_liability_exceeds_accrual")
+        else:
+            expected_darf_paid = max(0.0, expected_darf_paid)
+            expected_ordinary_paid = ledger_irrf + expected_darf_paid
+            if not math.isclose(
+                ordinary_paid,
+                expected_ordinary_paid,
+                rel_tol=1e-9,
+                abs_tol=1e-8,
+            ):
+                issues.append("tax_ledger_ordinary_income_tax_paid_mismatch")
+            if "ordinary_irrf_withheld" in payload and not math.isclose(
+                float(payload["ordinary_irrf_withheld"]),
+                ledger_irrf,
+                rel_tol=1e-9,
+                abs_tol=1e-8,
+            ):
+                issues.append("tax_ledger_irrf_withheld_mismatch")
+            if "darf_paid" in payload and not math.isclose(
+                float(payload["darf_paid"]),
+                expected_darf_paid,
+                rel_tol=1e-9,
+                abs_tol=1e-8,
+            ):
+                issues.append("tax_ledger_darf_paid_mismatch")
+    except (KeyError, TypeError, ValueError):
+        issues.append("invalid_tax_ledger")
+
     return sorted(set(issues))
 
 
@@ -177,6 +304,7 @@ def _run_candidate(
         curve_path=curve,
         trades_path=trades,
         cash_path=cash,
+        tax_path=tax,
     )
     payload["research_rank"] = rank
     payload["research_strategy"] = strategy
