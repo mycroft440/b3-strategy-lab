@@ -54,7 +54,7 @@ jobs:
       - name: Validar conjunto de shards
         run: |
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           csvs = sorted(Path("reports/shards").glob("shard_*.csv.gz"))
           manifests = sorted(Path("reports/shards").glob("shard_*.manifest.json"))
@@ -69,11 +69,34 @@ jobs:
           }
           if len(source_commits) != 1 or None in source_commits:
               raise SystemExit(f"proveniência inconsistente entre shards: {source_commits}")
-          print(f"shards={len(csvs)} calculation_sha={next(iter(source_commits))}")
+          calculation_sha = str(next(iter(source_commits)))
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"CALCULATION_SHA={calculation_sha}\n")
+          print(f"shards={len(csvs)} calculation_sha={calculation_sha}")
           PY
+
+      - name: Fixar ambiente no commit original dos shards
+        run: |
+          set -euo pipefail
+          SOURCE_DIR="$RUNNER_TEMP/recovery-source"
+          rm -rf "$SOURCE_DIR"
+          git cat-file -e "${CALCULATION_SHA}^{commit}"
+          git worktree add --detach "$SOURCE_DIR" "$CALCULATION_SHA"
+          mkdir -p "$SOURCE_DIR/reports/shards"
+          cp -a reports/shards/. "$SOURCE_DIR/reports/shards/"
+          (
+            cd "$SOURCE_DIR"
+            python -m py_compile \
+              scripts/merge_matrix_shards.py \
+              scripts/audit_matrix_results.py \
+              scripts/audit_backtest_readiness.py
+          )
+          echo "SOURCE_DIR=$SOURCE_DIR" >> "$GITHUB_ENV"
 
       - name: Consolidar
         run: |
+          set -euo pipefail
+          cd "$SOURCE_DIR"
           python scripts/merge_matrix_shards.py \
             --input-dir reports/shards \
             --top "$TOP_N" \
@@ -84,6 +107,7 @@ jobs:
       - name: Auditar
         run: |
           set -euo pipefail
+          cd "$SOURCE_DIR"
           python scripts/audit_matrix_results.py \
             --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
             --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
@@ -104,6 +128,7 @@ jobs:
       - name: Preparar latest recuperado
         run: |
           set -euo pipefail
+          cd "$SOURCE_DIR"
           PUBLISH_DIR="$RUNNER_TEMP/backtest-results-publish"
           RECOVERED_DIR="$RUNNER_TEMP/recovered-latest"
           PRESERVED_DIR="$RUNNER_TEMP/preserved-latest"
@@ -126,7 +151,15 @@ jobs:
               cp "$PUBLISH_DIR/reports/latest_backtest/$name" "$PRESERVED_DIR/$name"
             fi
           done
-          if [ -f "$PRESERVED_DIR/REALISTIC_INPUT_SNAPSHOT.tar.gz" ]; then
+          snapshot_exists=false
+          checksum_exists=false
+          [ -f "$PRESERVED_DIR/REALISTIC_INPUT_SNAPSHOT.tar.gz" ] && snapshot_exists=true
+          [ -f "$PRESERVED_DIR/REALISTIC_INPUT_SNAPSHOT.sha256" ] && checksum_exists=true
+          if [ "$snapshot_exists" != "$checksum_exists" ]; then
+            echo "::error::snapshot/checksum realista assimétricos em backtest-results"
+            exit 1
+          fi
+          if [ "$snapshot_exists" = "true" ]; then
             (
               cd "$PRESERVED_DIR"
               sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
