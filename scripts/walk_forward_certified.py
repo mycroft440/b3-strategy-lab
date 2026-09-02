@@ -197,8 +197,6 @@ def main(argv: list[str] | None = None) -> int:
         "explicitly sets announcement_timing_certified=true with supporting evidence."
     )
 
-    # Existing engine metrics are retained for compatibility, but their exact meanings
-    # are now machine-readable so reports cannot silently overstate them.
     summary["sharpe_definition"] = "mean_daily_return_over_sample_std_annualized_assuming_rf_zero"
     summary["sharpe_is_excess_return_over_risk_free_rate"] = False
     summary["average_annual_return_definition"] = (
@@ -221,6 +219,15 @@ def main(argv: list[str] | None = None) -> int:
             positive_folds=positive_complete,
             folds=len(complete_rows),
         )
+    )
+    summary["oos_sign_test_independence_assumption_certified"] = False
+    summary["oos_sign_test_inferential_claim_allowed"] = False
+    summary["oos_sign_test_interpretation"] = (
+        "The exact binomial sign-test number is retained as a descriptive diagnostic only. "
+        "Expanding-window selections share overlapping training history and the certified "
+        "continuous OOS run also carries one account state across years, so independence of "
+        "annual fold outcomes is not established. Do not interpret this p-value as formal "
+        "statistical significance."
     )
 
     summary["formal_multiple_testing_significance_correction"] = False
@@ -246,9 +253,6 @@ def main(argv: list[str] | None = None) -> int:
     summary["strict_point_in_time_signal_claim_allowed"] = (
         research_claim_allowed and announcement_timing_verified
     )
-    # Fail closed: until a formal multiple-testing significance correction is present,
-    # the workflow may report OOS research evidence but must not label the selected
-    # strategy as an ex-ante statistically established winner.
     summary["ex_ante_selection_claim_allowed"] = False
 
     if known.require_full_scope:
@@ -264,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             "ex_ante_selection_claim_allowed": False,
             "formal_multiple_testing_significance_correction": False,
             "sharpe_is_excess_return_over_risk_free_rate": False,
+            "oos_sign_test_inferential_claim_allowed": False,
         }
         failures = [
             f"{key}={summary.get(key)!r}"
