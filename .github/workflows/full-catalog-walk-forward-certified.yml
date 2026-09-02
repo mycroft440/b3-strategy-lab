@@ -78,6 +78,7 @@ jobs:
       - name: Testar contratos críticos da auditoria
         run: |
           python -m unittest discover -s tests -p 'test_causal_liquidity.py' -v
+          python -m unittest discover -s tests -p 'test_execution_capacity_gate.py' -v
           python -m unittest discover -s tests -p 'test_provisional_tax_reserve_irrf.py' -v
           python -m unittest discover -s tests -p 'test_continuous_oos_account.py' -v
           python -m unittest discover -s tests -p 'test_walk_forward_certified_semantics.py' -v
@@ -135,6 +136,7 @@ jobs:
             --all-strategies
             --economic-gap-adjustment
             --continuous-oos-account
+            --max-causal-adv-participation 0.01
             --start "$START_DATE"
             --first-test-year "$FIRST_TEST_YEAR"
             --initial-cash "$INITIAL_CASH"
@@ -161,6 +163,7 @@ jobs:
               "test_accounts_are_independent": False,
               "continuous_tax_account_claim": True,
               "continuous_oos_account_required": True,
+              "execution_capacity_gate_required": True,
               "research_claim_allowed": True,
               "ex_ante_selection_claim_allowed": False,
               "formal_multiple_testing_significance_correction": False,
@@ -174,6 +177,11 @@ jobs:
               for key, expected in required.items()
               if summary.get(key) is not expected
           ]
+          if abs(float(summary.get("max_causal_adv_participation", -1.0)) - 0.01) > 1e-12:
+              failures.append(
+                  "max_causal_adv_participation="
+                  + repr(summary.get("max_causal_adv_participation"))
+              )
           if failures:
               raise SystemExit("walk-forward research certification failed: " + ", ".join(failures))
           curve = Path("reports/FULL_CATALOG_WALK_FORWARD_CONTINUOUS_CURVE.csv")
