@@ -30,16 +30,12 @@ def _value_after(argv: list[str], flag: str, default: str) -> str:
 
 
 def _force_certified_semantics(argv: list[str]) -> list[str]:
-    """Make strategy semantics deterministic in the certified path.
-
-    ``gap_momentum`` must interpret ex-distribution gaps economically. Leaving the
-    adjustment as an optional CLI flag allowed the certified full-catalog run to
-    evaluate a different strategy definition from the realistic replay.
-    """
+    """Make strategy and account semantics deterministic in the certified path."""
 
     result = list(argv)
-    if "--economic-gap-adjustment" not in result:
-        result.append("--economic-gap-adjustment")
+    for required_flag in ("--economic-gap-adjustment", "--continuous-oos-account"):
+        if required_flag not in result:
+            result.append(required_flag)
     return result
 
 
@@ -132,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     summary["cash_certification"] = str(known.cash_certification)
     summary["causal_opening_liquidity_required"] = True
     summary["economic_gap_adjustment_required"] = True
+    summary["continuous_oos_account_required"] = True
     summary["certified_strategy_semantics"] = "economic_gap_adjustment_for_gap_momentum"
 
     summary.update(
@@ -154,6 +151,9 @@ def main(argv: list[str] | None = None) -> int:
         summary.get("full_multiple_testing_scope") is True
         and summary.get("selection_uses_test_data") is False
         and summary.get("survivorship_safe_universe") is True
+        and summary.get("continuous_oos_account") is True
+        and summary.get("test_accounts_are_independent") is False
+        and summary.get("continuous_tax_account_claim") is True
     )
     summary["research_claim_allowed"] = research_claim_allowed
     # Fail closed: until a formal multiple-testing significance correction is present,
@@ -166,6 +166,9 @@ def main(argv: list[str] | None = None) -> int:
             "full_multiple_testing_scope": True,
             "selection_uses_test_data": False,
             "survivorship_safe_universe": True,
+            "continuous_oos_account": True,
+            "test_accounts_are_independent": False,
+            "continuous_tax_account_claim": True,
             "research_claim_allowed": True,
             "ex_ante_selection_claim_allowed": False,
             "formal_multiple_testing_significance_correction": False,
@@ -179,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(
                 "Walk-forward research gate failed: " + ", ".join(failures)
             )
-        summary["selection_gate"] = "FULL_CATALOG_OUT_OF_SAMPLE_RESEARCH_ONLY"
+        summary["selection_gate"] = "FULL_CATALOG_CONTINUOUS_OOS_RESEARCH_ONLY"
     summary_path.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
