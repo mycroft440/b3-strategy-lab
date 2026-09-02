@@ -1,0 +1,122 @@
+name: Stage validated integrity hardening
+
+on:
+  push:
+    branches:
+      - fix/recovery-realistic-integrity
+
+permissions:
+  contents: write
+
+jobs:
+  stage-and-publish-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tighten recovery import replacement target
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/apply_integrity_hardening.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''path = ".github/workflows/recover-backtest-merge-hardened.yml"
+          old = \'\'\'          import json
+                    from pathlib import Path
+          \'\'\'
+          new = \'\'\'          import json, os
+                    from pathlib import Path
+          \'\'\'
+          replace_once(path, old, new)
+          '''
+          new = '''path = ".github/workflows/recover-backtest-merge-hardened.yml"
+          old = \'\'\'      - name: Validar conjunto de shards
+                  run: |
+                    python - <<\'PY\'
+                    import json
+                    from pathlib import Path
+          \'\'\'
+          new = \'\'\'      - name: Validar conjunto de shards
+                  run: |
+                    python - <<\'PY\'
+                    import json, os
+                    from pathlib import Path
+          \'\'\'
+          replace_once(path, old, new)
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'helper recovery import block count={text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Apply deterministic hardening edits
+        run: python .github/apply_integrity_hardening.py
+
+      - name: Preserve legacy internal helper calls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/validate_matrix_top_realistic.py')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  '    tax_path: Path,\n) -> list[str]:\n',
+                  '    tax_path: Path | None = None,\n) -> list[str]:\n',
+              ),
+              (
+                  '        tax = _csv_rows(tax_path)\n',
+                  '        tax = _csv_rows(tax_path) if tax_path is not None else []\n',
+              ),
+              (
+                  '    try:\n        recomputed = _curve_recalculated_metrics(\n',
+                  '    if tax_path is None:\n        return sorted(set(issues))\n\n    try:\n        recomputed = _curve_recalculated_metrics(\n',
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'compatibility target count={text.count(old)} for {old!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Revalidate implementation
+        run: |
+          python -m py_compile scripts/validate_matrix_top_realistic.py
+          python -m unittest \
+            tests.test_realistic_artifact_reconciliation \
+            tests.test_workflow_integrity_contracts \
+            tests.test_realistic_ranking_gate -v
+          python -m unittest discover -s tests -v
+
+      - name: Stage workflow blobs outside workflow directory
+        run: |
+          set -euo pipefail
+          mkdir -p .github/staged-integrity-hardening
+          cp .github/workflows/full-matrix-backtest-hardened.yml \
+            .github/staged-integrity-hardening/full-matrix-backtest-hardened.yml
+          cp .github/workflows/recover-backtest-merge-hardened.yml \
+            .github/staged-integrity-hardening/recover-backtest-merge-hardened.yml
+          git restore --source=HEAD -- \
+            .github/workflows/full-matrix-backtest-hardened.yml \
+            .github/workflows/recover-backtest-merge-hardened.yml
+          rm .github/apply_integrity_hardening.py
+
+      - name: Publish validated code and staging blobs
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/validate_matrix_top_realistic.py \
+            tests/test_realistic_artifact_reconciliation.py \
+            tests/test_workflow_integrity_contracts.py \
+            .github/staged-integrity-hardening \
+            .github/apply_integrity_hardening.py
+          git diff --cached --check
+          git commit -m "Stage validated recovery and realistic gate hardening"
+          git push origin HEAD:fix/recovery-realistic-integrity
