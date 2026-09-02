@@ -9,7 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from b3_strategy_lab.realistic import cash_coverage_certification_issues  # noqa: E402
+from b3_strategy_lab.realistic import (  # noqa: E402
+    RealCashAccount,
+    cash_coverage_certification_issues,
+)
 from b3_strategy_lab.statistical_validation import oos_evidence_summary  # noqa: E402
 from scripts.backtest_strategy_management_realistic import (  # noqa: E402
     DEFAULT_CASH_CERTIFICATION,
@@ -48,7 +51,18 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_CASH_CERTIFICATION,
     )
     parser.add_argument("--require-full-scope", action="store_true")
+    parser.add_argument(
+        "--max-causal-adv-participation",
+        type=float,
+        default=0.01,
+        help=(
+            "Fail-closed maximum share of trailing causal financial-volume ADV used "
+            "by any opening execution leg. Default: 0.01 (1%)."
+        ),
+    )
     known, forwarded = parser.parse_known_args(raw)
+    if not 0 < known.max_causal_adv_participation <= 1:
+        parser.error("--max-causal-adv-participation must be in (0, 1].")
     forwarded = _force_certified_semantics(forwarded)
 
     universe_path = Path(
@@ -103,6 +117,13 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     original_run = _walk.run_realistic
+    sentinel = object()
+    original_capacity = getattr(
+        RealCashAccount, "_max_causal_adv_participation", sentinel
+    )
+    RealCashAccount._max_causal_adv_participation = float(  # type: ignore[attr-defined]
+        known.max_causal_adv_participation
+    )
 
     def certified_run(*args, **kwargs):
         kwargs["cash_events_complete"] = True
@@ -114,6 +135,10 @@ def main(argv: list[str] | None = None) -> int:
         return_code = _walk.main(forwarded)
     finally:
         _walk.run_realistic = original_run
+        if original_capacity is sentinel:
+            delattr(RealCashAccount, "_max_causal_adv_participation")
+        else:
+            RealCashAccount._max_causal_adv_participation = original_capacity  # type: ignore[attr-defined]
 
     summary_path = Path(
         _value_after(
@@ -130,6 +155,17 @@ def main(argv: list[str] | None = None) -> int:
     summary["economic_gap_adjustment_required"] = True
     summary["continuous_oos_account_required"] = True
     summary["certified_strategy_semantics"] = "economic_gap_adjustment_for_gap_momentum"
+    summary["execution_capacity_gate_required"] = True
+    summary["execution_capacity_gate"] = "reject_above_causal_adv_participation"
+    summary["max_causal_adv_participation"] = float(
+        known.max_causal_adv_participation
+    )
+    summary["partial_fill_model"] = False
+    summary["capacity_interpretation"] = (
+        "Certified execution rejects any leg above the configured fraction of trailing "
+        "causal financial-volume ADV. It intentionally does not invent an order-book or "
+        "partial-fill reconstruction that the daily source data cannot support."
+    )
 
     summary.update(
         oos_evidence_summary(
@@ -154,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
         and summary.get("continuous_oos_account") is True
         and summary.get("test_accounts_are_independent") is False
         and summary.get("continuous_tax_account_claim") is True
+        and summary.get("execution_capacity_gate_required") is True
     )
     summary["research_claim_allowed"] = research_claim_allowed
     # Fail closed: until a formal multiple-testing significance correction is present,
@@ -169,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
             "continuous_oos_account": True,
             "test_accounts_are_independent": False,
             "continuous_tax_account_claim": True,
+            "execution_capacity_gate_required": True,
             "research_claim_allowed": True,
             "ex_ante_selection_claim_allowed": False,
             "formal_multiple_testing_significance_correction": False,
