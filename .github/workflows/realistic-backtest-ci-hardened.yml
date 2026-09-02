@@ -5,6 +5,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/walk_forward*.py"
       - "scripts/backtest_strategy_management_strict.py"
       - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
@@ -20,6 +21,7 @@ on:
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
       - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - ".github/workflows/full-catalog-walk-forward-certified.yml"
       - ".github/workflows/recover-backtest-merge-hardened.yml"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   push:
@@ -28,6 +30,7 @@ on:
     paths:
       - "b3_strategy_lab/**"
       - "scripts/*realistic*.py"
+      - "scripts/walk_forward*.py"
       - "scripts/backtest_strategy_management_strict.py"
       - "scripts/reconcile_actual_personal_account.py"
       - "scripts/audit_backtest_integrity.py"
@@ -43,6 +46,7 @@ on:
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
       - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - ".github/workflows/full-catalog-walk-forward-certified.yml"
       - ".github/workflows/recover-backtest-merge-hardened.yml"
       - ".github/workflows/realistic-backtest-ci-hardened.yml"
   workflow_dispatch:
@@ -69,12 +73,14 @@ jobs:
       - name: Compile realistic and matrix modules
         run: |
           python -m py_compile \
+            b3_strategy_lab/audit_hardening.py \
             b3_strategy_lab/causal_liquidity.py \
             b3_strategy_lab/realistic.py \
             b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
             b3_strategy_lab/realistic_portfolio_core.py \
             b3_strategy_lab/realistic_certification.py \
+            b3_strategy_lab/statistical_validation.py \
             b3_strategy_lab/portfolio_risk.py \
             b3_strategy_lab/point_in_time.py \
             b3_strategy_lab/cash_distributions.py \
