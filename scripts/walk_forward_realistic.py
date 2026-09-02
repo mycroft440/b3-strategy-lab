@@ -39,6 +39,7 @@ from scripts.research_portfolio_allocation import MarketData, _configs  # noqa: 
 
 DEFAULT_OUTPUT = Path("reports/realistic_walk_forward.csv")
 DEFAULT_SUMMARY = Path("reports/realistic_walk_forward_summary.json")
+DEFAULT_CONTINUOUS_CURVE = Path("reports/realistic_walk_forward_continuous_curve.csv")
 
 
 def _year_bounds(data_dates: list[str], year: int) -> tuple[str, str] | None:
@@ -118,8 +119,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--participation-bps-at-1pct", type=float, default=5.0)
     parser.add_argument("--max-slippage-bps", type=float, default=100.0)
     parser.add_argument("--economic-gap-adjustment", action="store_true")
+    parser.add_argument(
+        "--continuous-oos-account",
+        action="store_true",
+        help=(
+            "Carry the exact OOS account state across test years, including positions, "
+            "tax-loss carry, IRRF credit, DARF escrow and distribution receivables."
+        ),
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--summary-output", type=Path, default=DEFAULT_SUMMARY)
+    parser.add_argument(
+        "--continuous-curve-output",
+        type=Path,
+        default=DEFAULT_CONTINUOUS_CURVE,
+    )
     args = parser.parse_args(argv)
 
     manifest = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
@@ -214,11 +228,25 @@ def main(argv: list[str] | None = None) -> int:
     last_available_year = int(max(evaluation_dates)[:4])
     last_test_year = args.last_test_year or last_available_year
     rows: list[dict[str, object]] = []
+    continuous_account = None
+    continuous_curve_rows: list[dict[str, object]] = []
+    previous_continuous_year: int | None = None
 
     for test_year in range(args.first_test_year, last_test_year + 1):
         bounds = _year_bounds(evaluation_dates, test_year)
         if bounds is None:
+            if args.continuous_oos_account and previous_continuous_year is not None:
+                raise ValueError(
+                    f"Continuous OOS account cannot skip missing test year {test_year}."
+                )
             continue
+        if (
+            args.continuous_oos_account
+            and previous_continuous_year is not None
+            and test_year != previous_continuous_year + 1
+        ):
+            raise ValueError("Continuous OOS account requires consecutive test years.")
+
         test_start, test_end = bounds
         prior_dates = [value for value in evaluation_dates if value < test_start]
         if not prior_dates:
@@ -251,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         ranked.sort(key=lambda item: item[0], reverse=True)
         _score, winner_strategy, winner_config, train_summary = ranked[0]
 
-        test_summary, _curve, _account = run_realistic(
+        test_summary, test_curve, test_account = run_realistic(
             data=data,
             universe=universe,
             pricebook=pricebook,
@@ -269,7 +297,28 @@ def main(argv: list[str] | None = None) -> int:
             economic_gap_adjustment=args.economic_gap_adjustment,
             selection_status="walk_forward_out_of_sample",
             survivorship_safe=survivorship_safe,
+            existing_account=continuous_account if args.continuous_oos_account else None,
+            force_initial_decision=args.continuous_oos_account,
         )
+        if args.continuous_oos_account:
+            continuous_account = test_account
+            previous_continuous_year = test_year
+            for point in test_curve:
+                continuous_curve_rows.append(
+                    {
+                        "test_year": test_year,
+                        "trading_strategy": winner_strategy,
+                        "management_strategy": winner_config.name,
+                        "date": point.date,
+                        "equity": point.equity,
+                        "cash": point.cash,
+                        "selected": point.selected,
+                        "positions": point.positions,
+                        "tax_paid_cumulative": point.tax_paid,
+                        "fees_paid_cumulative": point.fees_paid,
+                    }
+                )
+
         rows.append(
             {
                 "test_year": test_year,
@@ -280,6 +329,11 @@ def main(argv: list[str] | None = None) -> int:
                 "objective": args.objective,
                 "selection_scope": selection_scope,
                 "full_multiple_testing_scope": full_multiple_testing_scope,
+                "account_mode": (
+                    "continuous_oos_account"
+                    if args.continuous_oos_account
+                    else "independent_standardized_fold"
+                ),
                 "strategy_count": len(strategies),
                 "management_count": len(configs),
                 "candidate_count": len(ranked),
@@ -312,11 +366,24 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     _write_csv(args.output, rows)
+    if args.continuous_oos_account:
+        _write_csv(args.continuous_curve_output, continuous_curve_rows)
+
     positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
     evidence = oos_evidence_summary(positive_folds=positive, folds=len(rows))
-    research_claim_allowed = survivorship_safe and not False
+    research_claim_allowed = survivorship_safe
+    continuous_final_equity = (
+        float(rows[-1]["test_final_equity"])
+        if args.continuous_oos_account and rows
+        else None
+    )
+    continuous_total_return = (
+        continuous_final_equity / float(args.initial_cash) - 1.0
+        if continuous_final_equity is not None
+        else None
+    )
     summary = {
-        "schema_version": 6,
+        "schema_version": 7,
         "method": "expanding_window_walk_forward",
         "selection_scope": selection_scope,
         "strategy_count": len(strategies),
@@ -335,8 +402,30 @@ def main(argv: list[str] | None = None) -> int:
         "ticker_transition_file": str(args.ticker_transitions),
         "ticker_transition_manifest": str(args.ticker_transition_manifest),
         "ticker_transition_binding_verified": True,
-        "test_accounts_are_independent": True,
-        "continuous_tax_account_claim": False,
+        "test_accounts_are_independent": not args.continuous_oos_account,
+        "continuous_tax_account_claim": args.continuous_oos_account,
+        "continuous_oos_account": args.continuous_oos_account,
+        "continuous_account_state_fields": (
+            [
+                "positions",
+                "average_cost",
+                "tax_loss_carry",
+                "irrf_credit",
+                "tax_escrow",
+                "scheduled_darf",
+                "distribution_receivables",
+            ]
+            if args.continuous_oos_account
+            else []
+        ),
+        "continuous_curve_output": (
+            str(args.continuous_curve_output) if args.continuous_oos_account else None
+        ),
+        "continuous_initial_cash": (
+            float(args.initial_cash) if args.continuous_oos_account else None
+        ),
+        "continuous_final_equity": continuous_final_equity,
+        "continuous_total_return": continuous_total_return,
         "folds": len(rows),
         "positive_test_folds": positive,
         "positive_test_fraction": positive / len(rows) if rows else 0.0,
@@ -353,10 +442,10 @@ def main(argv: list[str] | None = None) -> int:
             "evidence, not proof that the selected strategy is an ex-ante statistical winner."
         ),
         "note": (
-            "Each fold starts from the same standardized initial cash because integer "
-            "shares, the R$20k monthly sales threshold and tax-loss carry make a simple "
-            "multiplication of yearly returns an invalid reconstruction of one live account. "
-            "A continuous OOS account is a separate validation requirement."
+            "With continuous_oos_account=true, one brokerage/tax state is carried through "
+            "consecutive OOS years and each newly selected annual model is deployed causally "
+            "at that fold's first session. Without it, folds are standardized independent "
+            "diagnostics and must not be compounded into a live-account return."
         ),
     }
     args.summary_output.parent.mkdir(parents=True, exist_ok=True)
