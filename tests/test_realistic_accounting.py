@@ -230,23 +230,23 @@ class TaxTests(unittest.TestCase):
         self.assertAlmostEqual(feb.irrf_credit_used, 3.0)
         self.assertAlmostEqual(feb.tax_due, 297.0)
 
-    def test_provisional_tax_reserves_cash_after_taxable_sales(self) -> None:
+    def test_provisional_tax_reserves_net_cash_after_current_irrf_credit(self) -> None:
         account = self._account()
         account.tax.record_sale("2024-03-05", 30_000.0, 10_000.0)
-        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-05"), 1_500.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-05"), 1_498.5)
 
-    def test_later_same_month_loss_reduces_provisional_reserve(self) -> None:
+    def test_later_same_month_loss_reduces_net_provisional_reserve(self) -> None:
         account = self._account()
         account.tax.record_sale("2024-03-05", 30_000.0, 10_000.0)
         account.tax.record_sale("2024-03-20", 10_000.0, -4_000.0)
-        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-20"), 900.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-03-20"), 898.0)
 
-    def test_prior_loss_carry_reduces_provisional_reserve(self) -> None:
+    def test_prior_loss_and_irrf_credit_reduce_provisional_reserve(self) -> None:
         account = self._account()
         account.tax.record_sale("2024-01-10", 30_000.0, -1_000.0)
         account.tax.finalize("2024-01")
         account.tax.record_sale("2024-02-10", 30_000.0, 3_000.0)
-        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-02-10"), 300.0)
+        self.assertAlmostEqual(_provisional_ordinary_tax(account, "2024-02-10"), 297.0)
 
     def test_provisional_tax_is_zero_below_sales_exemption_limit(self) -> None:
         account = self._account()
