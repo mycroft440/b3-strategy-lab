@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -40,6 +41,16 @@ def _force_certified_semantics(argv: list[str]) -> list[str]:
         if required_flag not in result:
             result.append(required_flag)
     return result
+
+
+def _is_complete_calendar_year_fold(row: dict[str, str]) -> bool:
+    try:
+        year = int(str(row["test_year"]))
+        start = str(row["test_start"])
+        end = str(row["test_end"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return start.startswith(f"{year:04d}-01-") and end.startswith(f"{year:04d}-12-")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -147,6 +158,13 @@ def main(argv: list[str] | None = None) -> int:
             str(_walk.DEFAULT_SUMMARY),
         )
     )
+    output_path = Path(
+        _value_after(
+            forwarded,
+            "--output",
+            str(_walk.DEFAULT_OUTPUT),
+        )
+    )
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     summary["cash_events_complete"] = True
     summary["cash_certification_verified"] = True
@@ -188,12 +206,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     summary["average_annual_return_may_include_partial_years"] = True
 
+    with output_path.open(newline="", encoding="utf-8") as file:
+        fold_rows = list(csv.DictReader(file))
+    complete_rows = [row for row in fold_rows if _is_complete_calendar_year_fold(row)]
+    positive_complete = sum(
+        1 for row in complete_rows if float(row["test_total_return"]) > 0
+    )
+    summary["complete_test_folds"] = len(complete_rows)
+    summary["positive_complete_test_folds"] = positive_complete
+    summary["incomplete_test_folds"] = len(fold_rows) - len(complete_rows)
+    summary["oos_sign_test_basis"] = "complete_calendar_year_test_folds_only"
     summary.update(
         oos_evidence_summary(
-            positive_folds=int(summary.get("positive_test_folds", 0)),
-            folds=int(summary.get("folds", 0)),
+            positive_folds=positive_complete,
+            folds=len(complete_rows),
         )
     )
+
     summary["formal_multiple_testing_significance_correction"] = False
     summary["formal_multiple_testing_correction_required_for_ex_ante_claim"] = True
     summary["matrix_role"] = "retrospective_hypothesis_generation_only"
