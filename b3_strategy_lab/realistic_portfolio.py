@@ -223,6 +223,53 @@ def _receivable_value(account) -> float:
     return max(0.0, float(getter())) if getter is not None else 0.0
 
 
+def _restore_distribution_entitlements(account, cash_events) -> dict[object, int]:
+    """Rebuild pending share entitlements when a live account crosses a fold boundary."""
+
+    pending = getattr(account, "_distribution_receivables", {})
+    if not pending:
+        return {}
+    by_key = {_core._event_key(event): event for event in cash_events}
+    result: dict[object, int] = {}
+    for key, item in pending.items():
+        event = by_key.get(key)
+        if event is None:
+            raise ValueError(
+                "Carried distribution receivable has no matching certified event: "
+                + repr(key)
+            )
+        gross = float(item[1])
+        per_share = float(event.gross_per_share)
+        if per_share <= 0:
+            if gross > 1e-12:
+                raise ValueError(f"{event.ticker}: invalid carried distribution per-share value.")
+            result[key] = 0
+            continue
+        shares = int(round(gross / per_share))
+        if not math.isclose(shares * per_share, gross, rel_tol=1e-9, abs_tol=1e-7):
+            raise ValueError(
+                f"{event.ticker}: carried distribution receivable cannot be reconciled to shares."
+            )
+        result[key] = shares
+    return result
+
+
+def _account_close_equity(account, data, value_date: str) -> float:
+    equity = float(account.cash) + _receivable_value(account)
+    for ticker, position in account.positions.items():
+        if position.shares <= 0:
+            continue
+        candle = data.by_date.get(ticker, {}).get(value_date)
+        if candle is None or candle.raw_close <= 0:
+            raise ValueError(
+                f"{value_date}/{ticker}: carried position lacks a fresh official close."
+            )
+        equity += position.shares * float(candle.raw_close)
+    if equity <= 0 or not math.isfinite(equity):
+        raise ValueError(f"{value_date}: invalid carried account equity.")
+    return equity
+
+
 def run_realistic(
     *,
     data,
@@ -244,8 +291,15 @@ def run_realistic(
     survivorship_safe: bool = False,
     cash_events_complete: bool = False,
     progress_callback=None,
+    existing_account=None,
+    force_initial_decision: bool = False,
 ):
-    """Realistic replay with non-spendable distribution receivables in equity."""
+    """Realistic replay with optional continuous account state across OOS folds.
+
+    When ``existing_account`` is supplied, positions, tax-loss carry, IRRF credit,
+    scheduled DARFs and distribution receivables continue unchanged. The summary
+    reports fold deltas while the returned account remains cumulative.
+    """
 
     from scripts.backtest_strategy_management_combinations import _build_eligibility
     from scripts.research_portfolio_allocation import (
@@ -260,15 +314,31 @@ def run_realistic(
     if len(dates) < 2:
         raise ValueError("Insufficient sessions for realistic backtest.")
 
-    account = RealCashAccount(
-        initial_cash,
-        fee_schedule,
-        SlippageModel(
-            base_bps=base_slippage_bps,
-            participation_bps_at_1pct=participation_bps_at_1pct,
-            max_bps=max_slippage_bps,
-        ),
-    )
+    prior_dates = [value for value in data.dates if value < dates[0]]
+    prior_date = prior_dates[-1] if prior_dates else None
+
+    if existing_account is None:
+        account = RealCashAccount(
+            initial_cash,
+            fee_schedule,
+            SlippageModel(
+                base_bps=base_slippage_bps,
+                participation_bps_at_1pct=participation_bps_at_1pct,
+                max_bps=max_slippage_bps,
+            ),
+        )
+        metric_initial_equity = float(initial_cash)
+    else:
+        account = copy.deepcopy(existing_account)
+        if prior_date is None:
+            raise ValueError("A continuous account requires a prior market session.")
+        metric_initial_equity = _account_close_equity(account, data, prior_date)
+
+    starting_trades = len(account.trade_ledger)
+    starting_fees = float(account.fees_paid)
+    starting_ordinary_tax = float(account.tax_paid)
+    starting_distribution_tax = float(account.dividend_jcp_tax_paid)
+
     signal_start = min(
         candle.date for ticker in data.tickers for candle in data.candles[ticker]
     )
@@ -283,7 +353,7 @@ def run_realistic(
         )[strategy]
     )
     entitlement_map, payment_map = _cash_event_maps(cash_events, dates)
-    entitlements: dict[tuple[str, str, str, str, float], int] = {}
+    entitlements = _restore_distribution_entitlements(account, cash_events)
     pending_targets: dict[str, float] | None = None
     designated_targets: dict[str, float] = {}
     active_targets: dict[str, float] = {}
@@ -294,10 +364,8 @@ def run_realistic(
     if progress_callback is not None:
         progress_callback(0, len(dates), dates[0])
 
-    prior_dates = [value for value in data.dates if value < dates[0]]
-    prior_date = prior_dates[-1] if prior_dates else None
-    if prior_date is not None and _core._is_rebalance(
-        prior_date, dates[0], config.rebalance
+    if prior_date is not None and (
+        force_initial_decision or _core._is_rebalance(prior_date, dates[0], config.rebalance)
     ):
         try:
             prior_investable = universe.tickers_on(prior_date)
@@ -308,13 +376,17 @@ def run_realistic(
             prior_investable = set()
         prior_eligible = _eligible_tickers(data, prior_date, eligibility) or set()
         allowed = prior_eligible.intersection(prior_investable)
-        if allowed:
-            designated_targets = _target_weights(
+        designated_targets = (
+            _target_weights(
                 data,
                 prior_date,
                 config,
                 eligible_tickers=allowed,
             )
+            if allowed
+            else {}
+        )
+        if allowed or force_initial_decision:
             pending_targets = dict(designated_targets)
 
     for index, current in enumerate(dates):
@@ -329,7 +401,8 @@ def run_realistic(
             designated_targets = _remap_target_weights(
                 designated_targets, transitions[current]
             )
-            active_targets = _remap_target_weights(active_targets, transitions[current])
+            active_targets = _remap_target_weights(active_targets, transitions[current]
+            )
             if pending_targets is not None:
                 pending_targets = _remap_target_weights(
                     pending_targets, transitions[current]
@@ -418,8 +491,8 @@ def run_realistic(
         ):
             progress_callback(completed, len(dates), current)
 
-    metrics = _portfolio_metrics(equities, dates, initial_cash)
-    yearly = _yearly_returns(equities, dates, initial_cash)
+    metrics = _portfolio_metrics(equities, dates, metric_initial_equity)
+    yearly = _yearly_returns(equities, dates, metric_initial_equity)
     fee_qualities = {fee_schedule.quality_on(value) for value in dates}
     fee_quality = ",".join(sorted(fee_qualities))
     validity = "REALISTIC_POINT_IN_TIME"
@@ -441,7 +514,7 @@ def run_realistic(
         management=config.name,
         start=dates[0],
         end=dates[-1],
-        initial_cash=initial_cash,
+        initial_cash=metric_initial_equity,
         final_equity=equities[-1],
         total_return=metrics["total_return"],
         cagr=metrics["cagr"],
@@ -449,10 +522,10 @@ def run_realistic(
         annual_volatility=metrics["annual_volatility"],
         sharpe=metrics["sharpe"],
         average_annual_return=statistics.mean(yearly.values()) if yearly else 0.0,
-        trades=len(account.trade_ledger),
-        fees_paid=account.fees_paid,
-        ordinary_income_tax_paid=account.tax_paid,
-        distribution_tax_paid=account.dividend_jcp_tax_paid,
+        trades=len(account.trade_ledger) - starting_trades,
+        fees_paid=account.fees_paid - starting_fees,
+        ordinary_income_tax_paid=account.tax_paid - starting_ordinary_tax,
+        distribution_tax_paid=account.dividend_jcp_tax_paid - starting_distribution_tax,
         distributions_net=distributions_net,
         validity=validity,
         point_in_time_universe=True,
