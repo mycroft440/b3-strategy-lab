@@ -75,13 +75,64 @@ jobs:
           print(f"shards={len(csvs)} calculation_sha={calculation_sha}")
           PY
 
+      - name: Validar identidade do run de origem
+        uses: actions/github-script@v7
+        env:
+          CALCULATION_SHA: ${{ env.CALCULATION_SHA }}
+          SOURCE_RUN_ID: ${{ env.SOURCE_RUN_ID }}
+        with:
+          script: |
+            const sourceRun = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: Number(process.env.SOURCE_RUN_ID),
+            });
+            if (sourceRun.data.head_sha !== process.env.CALCULATION_SHA) {
+              core.setFailed(`source run head_sha ${sourceRun.data.head_sha} != shard calculation SHA ${process.env.CALCULATION_SHA}`);
+              return;
+            }
+            if (sourceRun.data.path !== '.github/workflows/full-matrix-backtest-hardened.yml') {
+              core.setFailed(`unexpected source workflow: ${sourceRun.data.path}`);
+            }
+
+      - name: Baixar dados verificados do run informado
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ env.SOURCE_RUN_ID }}
+          path: recovery-source-data
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
       - name: Fixar ambiente no commit original dos shards
         run: |
           set -euo pipefail
           SOURCE_DIR="$RUNNER_TEMP/recovery-source"
+          SOURCE_DATA="$GITHUB_WORKSPACE/recovery-source-data"
           rm -rf "$SOURCE_DIR"
           git cat-file -e "${CALCULATION_SHA}^{commit}"
           git worktree add --detach "$SOURCE_DIR" "$CALCULATION_SHA"
+          for required in \
+            candles \
+            manifests \
+            corporate_actions \
+            universes/fixed_40_2018.json \
+            quality_reviews.json; do
+            if [ ! -e "$SOURCE_DATA/$required" ]; then
+              echo "::error::artefato de dados do run original incompleto: $required"
+              exit 1
+            fi
+          done
+          rm -rf \
+            "$SOURCE_DIR/data/candles" \
+            "$SOURCE_DIR/data/manifests" \
+            "$SOURCE_DIR/data/corporate_actions"
+          mkdir -p "$SOURCE_DIR/data/universes"
+          cp -a "$SOURCE_DATA/candles" "$SOURCE_DIR/data/candles"
+          cp -a "$SOURCE_DATA/manifests" "$SOURCE_DIR/data/manifests"
+          cp -a "$SOURCE_DATA/corporate_actions" "$SOURCE_DIR/data/corporate_actions"
+          cp "$SOURCE_DATA/universes/fixed_40_2018.json" "$SOURCE_DIR/data/universes/fixed_40_2018.json"
+          cp "$SOURCE_DATA/quality_reviews.json" "$SOURCE_DIR/data/quality_reviews.json"
           mkdir -p "$SOURCE_DIR/reports/shards"
           cp -a reports/shards/. "$SOURCE_DIR/reports/shards/"
           (

@@ -97,5 +97,58 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
             )
 
 
+    def test_empty_tax_ledger_is_blocking_even_when_summary_tax_is_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            payload, curve, trades, cash, tax = self._fixture(Path(temporary))
+            tax.write_text("month,tax_due,irrf_withheld_month\n", encoding="utf-8")
+            payload["ordinary_income_tax_paid"] = 0.0
+            payload["ordinary_irrf_withheld"] = 0.0
+            payload["outstanding_accrued_tax_liability"] = 0.0
+            issues = _artifact_binding_issues(
+                payload,
+                curve_path=curve,
+                trades_path=trades,
+                cash_path=cash,
+                tax_path=tax,
+            )
+            self.assertIn("empty_tax_ledger", issues)
+
+    def test_missing_irrf_column_is_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            payload, curve, trades, cash, tax = self._fixture(Path(temporary))
+            tax.write_text(
+                "month,tax_due\n2023-12,10\n2024-01,5\n",
+                encoding="utf-8",
+            )
+            issues = _artifact_binding_issues(
+                payload,
+                curve_path=curve,
+                trades_path=trades,
+                cash_path=cash,
+                tax_path=tax,
+            )
+            self.assertIn("tax_ledger_missing_columns", issues)
+            self.assertIn("invalid_tax_ledger", issues)
+
+    def test_tax_ledger_must_cover_each_curve_month_exactly_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            payload, curve, trades, cash, tax = self._fixture(Path(temporary))
+            tax.write_text(
+                "month,tax_due,irrf_withheld_month\n"
+                "2023-12,10,1\n"
+                "2023-12,5,0\n",
+                encoding="utf-8",
+            )
+            issues = _artifact_binding_issues(
+                payload,
+                curve_path=curve,
+                trades_path=trades,
+                cash_path=cash,
+                tax_path=tax,
+            )
+            self.assertIn("tax_ledger_duplicate_month", issues)
+            self.assertIn("tax_ledger_month_coverage_mismatch", issues)
+
+
 if __name__ == "__main__":
     unittest.main()

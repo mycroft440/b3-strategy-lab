@@ -190,6 +190,25 @@ def _artifact_binding_issues(
     if tax_path is None:
         return sorted(set(issues))
 
+    required_tax_columns = {"month", "tax_due", "irrf_withheld_month"}
+    if not tax:
+        issues.append("empty_tax_ledger")
+    else:
+        missing_tax_columns = required_tax_columns.difference(tax[0])
+        if missing_tax_columns:
+            issues.append("tax_ledger_missing_columns")
+        try:
+            tax_months = [str(row["month"]) for row in tax]
+            curve_months = sorted({str(row["date"])[:7] for row in curve})
+            if len(tax_months) != len(set(tax_months)):
+                issues.append("tax_ledger_duplicate_month")
+            if tax_months != sorted(tax_months):
+                issues.append("tax_ledger_month_order_mismatch")
+            if sorted(tax_months) != curve_months:
+                issues.append("tax_ledger_month_coverage_mismatch")
+        except (KeyError, TypeError, ValueError):
+            issues.append("invalid_tax_ledger_months")
+
     try:
         recomputed = _curve_recalculated_metrics(
             curve,
@@ -213,7 +232,7 @@ def _artifact_binding_issues(
         issues.append("invalid_curve_metrics")
 
     try:
-        ledger_irrf = sum(float(row.get("irrf_withheld_month", 0.0) or 0.0) for row in tax)
+        ledger_irrf = sum(float(row["irrf_withheld_month"]) for row in tax)
         ledger_tax_due = sum(float(row["tax_due"]) for row in tax)
         outstanding = float(payload["outstanding_accrued_tax_liability"])
         ordinary_paid = float(payload["ordinary_income_tax_paid"])
