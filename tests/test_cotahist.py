@@ -32,6 +32,7 @@ def cotahist_line(
     *,
     ticker: str = "TEST3",
     quote_date: str = "20240102",
+    bdi_code: str = "02",
     open_: float = 10.0,
     high: float = 12.0,
     low: float = 9.0,
@@ -53,7 +54,7 @@ def cotahist_line(
 
     put(0, 2, "01")
     put(2, 10, quote_date)
-    put(10, 12, "02")
+    put(10, 12, bdi_code)
     put(12, 24, ticker.ljust(12))
     put(24, 27, "010")
     put(27, 39, "EMPRESA TEST".ljust(12))
@@ -110,6 +111,24 @@ def quote(
 
 
 class CotahistParsingTests(unittest.TestCase):
+    def test_default_parser_keeps_equity_special_situation_bdi_codes(self) -> None:
+        codes = ("02", "05", "06", "07", "08", "09", "11")
+        details = [
+            cotahist_line(
+                quote_date=f"202401{index + 2:02d}",
+                bdi_code=code,
+            )
+            for index, code in enumerate(codes)
+        ]
+        details.append(cotahist_line(quote_date="20240109", bdi_code="10"))
+
+        quotes = parse_cotahist_lines(
+            cotahist_envelope(details),
+            require_envelope=True,
+        )
+
+        self.assertEqual([item.bdi_code for item in quotes], list(codes))
+
     def test_download_retries_an_invalid_zip_without_publishing_partial_file(self) -> None:
         valid = io.BytesIO()
         with zipfile.ZipFile(valid, "w") as archive:

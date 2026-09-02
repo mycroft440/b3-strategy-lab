@@ -110,6 +110,26 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
 
         self.assertEqual([quote.ticker for quote in quotes], ["PETR4"])
 
+    def test_standard_reader_keeps_recovery_extrajudicial_equity(self) -> None:
+        recovered = cotahist_line(
+            ticker="BRKM5",
+            specification="PNA N1",
+            bdi_code="07",
+            market_type="010",
+            open_=4.56,
+            high=4.70,
+            low=4.10,
+            close=4.11,
+        )
+
+        quotes = read_standard_company_equity_cotahist(
+            self._write(envelope([recovered]))
+        )
+
+        self.assertEqual(len(quotes), 1)
+        self.assertEqual(quotes[0].ticker, "BRKM5")
+        self.assertEqual(quotes[0].bdi_code, "07")
+
     def test_unknown_positive_company_equity_bad_ohlc_still_fails_closed(self) -> None:
         bad_equity = cotahist_line(
             ticker="PETR4",

@@ -8,13 +8,13 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
-from .cotahist import parse_cotahist_lines
+from .cotahist import STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines
 
 
 TICKER_RE = re.compile(r"^[A-Z]{4}\d{1,2}$")
 STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
-STANDARD_BDI = "02"
+STANDARD_BDI_CODES = STANDARD_EQUITY_BDI_CODES
 FRACTIONAL_BDI = "96"
 # The R$20k small-account tax guard is documented by Receita for shares (ações).
 # B3 classifies UNITS separately as certificates of deposit of securities. Until a
@@ -108,7 +108,7 @@ def _repair_known_ohlc_envelope(line: str) -> str:
 def _mask_non_company_equity_records(
     lines,
     *,
-    bdi_code: str,
+    bdi_codes: tuple[str, ...],
     market_type: str,
 ):
     """Keep the COTAHIST envelope/count intact while sanitizing share inputs.
@@ -128,7 +128,7 @@ def _mask_non_company_equity_records(
         if len(line.rstrip("\r\n")) < 49 or line[:2] != "01":
             yield line
             continue
-        if line[10:12] != bdi_code or line[24:27] != market_type:
+        if line[10:12] not in bdi_codes or line[24:27] != market_type:
             yield line
             continue
 
@@ -148,12 +148,12 @@ def _mask_non_company_equity_records(
 def _read_company_equity_cotahist(
     path: Path | str,
     *,
-    bdi_code: str,
+    bdi_codes: tuple[str, ...],
     market_type: str,
 ) -> list:
     source = Path(path)
     kwargs = {
-        "bdi_codes": (bdi_code,),
+        "bdi_codes": bdi_codes,
         "market_types": (market_type,),
         "require_envelope": True,
     }
@@ -162,7 +162,7 @@ def _read_company_equity_cotahist(
         return parse_cotahist_lines(
             _mask_non_company_equity_records(
                 lines,
-                bdi_code=bdi_code,
+                bdi_codes=bdi_codes,
                 market_type=market_type,
             ),
             **kwargs,
@@ -180,10 +180,10 @@ def _read_company_equity_cotahist(
 
 
 def read_standard_company_equity_cotahist(path: Path | str) -> list:
-    """Read only standard-lot ON/PN company shares used by the certified universe."""
+    """Read standard-lot ON/PN shares across all B3 equity status BDI codes."""
     return _read_company_equity_cotahist(
         path,
-        bdi_code=STANDARD_BDI,
+        bdi_codes=STANDARD_BDI_CODES,
         market_type=STANDARD_MARKET,
     )
 
@@ -197,7 +197,7 @@ def read_fractional_cotahist(path: Path | str) -> list:
     """
     return _read_company_equity_cotahist(
         path,
-        bdi_code=FRACTIONAL_BDI,
+        bdi_codes=(FRACTIONAL_BDI,),
         market_type=FRACTIONAL_MARKET,
     )
 

@@ -37,6 +37,10 @@ USER_AGENT = "Mozilla/5.0 (compatible; b3-strategy-lab/0.2)"
 PRICE_VERIFIED_STATUS = "price_verified"
 VERIFIED_ACTION_STATUS = "verified"
 UNVERIFIED_ACTION_STATUS = "unverified"
+# B3 CODBDI equity status codes for standard-lot shares. Codes 05/06/07/08/09/11
+# are still company equities, but indicate special regulatory/restructuring status.
+# Excluding them silently truncates a ticker exactly when its BDI status changes.
+STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")
 
 
 class CotahistError(ValueError):
@@ -119,7 +123,7 @@ def parse_cotahist_lines(
     lines: Iterable[bytes | str],
     *,
     tickers: Iterable[str] | None = None,
-    bdi_codes: Iterable[str] = ("02",),
+    bdi_codes: Iterable[str] = STANDARD_EQUITY_BDI_CODES,
     market_types: Iterable[str] = ("010",),
     require_envelope: bool = False,
 ) -> list[OfficialQuote]:
@@ -497,10 +501,12 @@ def create_manifest(
             "normalized for splits; cash distributions excluded"
         ),
         volume_source=(
-            "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; market 010 BDI 02 plus market "
-            "020 BDI 96 when fractional records are available"
+            "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; market 010 equity BDI "
+            "02/05/06/07/08/09/11 plus market 020 BDI 96 when fractional "
+            "records are available"
             if has_fractional_activity
-            else "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; standard market 010 BDI 02 only"
+            else "B3 COTAHIST QUATOT/TOTNEG/VOLTOT; standard market 010 equity "
+            "BDI 02/05/06/07/08/09/11"
         ),
         volume_basis=(
             "raw_volume/trades/financial_volume consolidate standard and fractional "
