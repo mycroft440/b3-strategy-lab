@@ -254,8 +254,31 @@ def _restore_distribution_entitlements(account, cash_events) -> dict[object, int
     return result
 
 
-def _account_close_equity(account, data, value_date: str) -> float:
-    equity = float(account.cash) + _receivable_value(account)
+def _account_close_equity(account, data, value_date: str, cash_events) -> float:
+    """Economic equity at a carried fold boundary without double-counting cum-right value.
+
+    Receivables registered immediately *after* ``value_date`` close are intentionally
+    absent from that day's curve because the cum-right closing price still embeds the
+    distribution right. They live on the account only so they can survive into the next
+    fold. Excluding exactly those newly registered rights reconstructs the same close
+    equity used by the preceding fold while preserving older unpaid receivables.
+    """
+
+    pending = getattr(account, "_distribution_receivables", {})
+    by_key = {_core._event_key(event): event for event in cash_events}
+    receivables = 0.0
+    for key, item in pending.items():
+        event = by_key.get(key)
+        if event is None:
+            raise ValueError(
+                "Carried distribution receivable has no matching certified event: "
+                + repr(key)
+            )
+        if event.last_date_prior == value_date:
+            continue
+        receivables += max(0.0, float(item[0]))
+
+    equity = float(account.cash) + receivables
     for ticker, position in account.positions.items():
         if position.shares <= 0:
             continue
@@ -332,7 +355,9 @@ def run_realistic(
         account = copy.deepcopy(existing_account)
         if prior_date is None:
             raise ValueError("A continuous account requires a prior market session.")
-        metric_initial_equity = _account_close_equity(account, data, prior_date)
+        metric_initial_equity = _account_close_equity(
+            account, data, prior_date, cash_events
+        )
 
     starting_trades = len(account.trade_ledger)
     starting_fees = float(account.fees_paid)
@@ -401,8 +426,7 @@ def run_realistic(
             designated_targets = _remap_target_weights(
                 designated_targets, transitions[current]
             )
-            active_targets = _remap_target_weights(active_targets, transitions[current]
-            )
+            active_targets = _remap_target_weights(active_targets, transitions[current])
             if pending_targets is not None:
                 pending_targets = _remap_target_weights(
                     pending_targets, transitions[current]
