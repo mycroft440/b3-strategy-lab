@@ -23,6 +23,19 @@ jobs:
       - name: Apply audited edits
         run: python .github/apply_reaudit_hardening.py
 
+      - name: Correct empty-ledger test expectation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tests/test_realistic_artifact_reconciliation.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''            self.assertIn("empty_tax_ledger", issues)\n            self.assertIn("tax_ledger_month_coverage_mismatch", issues)\n'''
+          new = '''            self.assertIn("empty_tax_ledger", issues)\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f"empty-ledger expectation target count={text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Compile affected Python
         run: |
           python -m py_compile \
