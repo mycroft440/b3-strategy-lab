@@ -28,6 +28,14 @@ def _market_dates(book: _core.ExecutionPriceBook) -> list[str]:
     return cached
 
 
+def _reference_cache(book: _core.ExecutionPriceBook) -> dict[tuple[str, str, str, int], float]:
+    cached = getattr(book, "_causal_liquidity_reference_cache", None)
+    if cached is None:
+        cached = {}
+        setattr(book, "_causal_liquidity_reference_cache", cached)
+    return cached
+
+
 def prior_liquidity_reference(
     book: _core.ExecutionPriceBook,
     value_date: str,
@@ -47,6 +55,12 @@ def prior_liquidity_reference(
     if lookback_sessions <= 0:
         raise ValueError("lookback_sessions must be positive.")
 
+    normalized = _normalized_ticker(ticker, market_type)
+    cache = _reference_cache(book)
+    cache_key = (value_date, normalized, market_type, int(lookback_sessions))
+    if cache_key in cache:
+        return cache[cache_key]
+
     dates = _market_dates(book)
     end = bisect_left(dates, value_date)
     prior_dates = dates[max(0, end - lookback_sessions) : end]
@@ -56,7 +70,6 @@ def prior_liquidity_reference(
             "for causal liquidity-aware slippage."
         )
 
-    normalized = _normalized_ticker(ticker, market_type)
     total = 0.0
     for prior_date in prior_dates:
         quote = book._quotes.get((prior_date, normalized, market_type))
@@ -75,6 +88,7 @@ def prior_liquidity_reference(
             f"{value_date}/{normalized}/{market_type}: trailing causal financial volume is zero; "
             "refusing to price an opening fill from same-day/future liquidity."
         )
+    cache[cache_key] = reference
     return reference
 
 
@@ -87,6 +101,7 @@ def enable_causal_liquidity(
         raise ValueError("lookback_sessions must be positive.")
     setattr(book, "_causal_liquidity_enabled", True)
     setattr(book, "_causal_liquidity_lookback_sessions", int(lookback_sessions))
+    _reference_cache(book)
     return book
 
 
