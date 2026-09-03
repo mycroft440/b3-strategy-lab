@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -13,6 +12,29 @@ from b3_strategy_lab.candles import cache_path, load_candles
 from b3_strategy_lab.cotahist import load_verified_candles
 from b3_strategy_lab.portfolio_risk import covariance_target_weights
 from scripts import research_portfolio_allocation_core as _core
+
+
+_original_date_window = _core._date_window
+_original_is_rebalance_date = _core._is_rebalance_date
+_DATE_WINDOW_CACHE: dict[tuple[int, str | None, str | None], tuple[list[str], list[str]]] = {}
+
+
+def _date_window(values: list[str], start: str | None, end: str | None) -> list[str]:
+    """Reuse immutable market-session slices while retaining canonical list semantics."""
+
+    key = (id(values), start, end)
+    cached = _DATE_WINDOW_CACHE.get(key)
+    if cached is not None and cached[0] is values:
+        return cached[1]
+    result = _original_date_window(values, start, end)
+    # Retaining the source list prevents Python id reuse from aliasing a stale entry.
+    _DATE_WINDOW_CACHE[key] = (values, result)
+    return result
+
+
+@lru_cache(maxsize=None)
+def _is_rebalance_date(current_date: str, next_date: str, frequency: str) -> bool:
+    return _original_is_rebalance_date(current_date, next_date, frequency)
 
 
 def _install_performance_caches(data) -> None:
@@ -234,6 +256,8 @@ def _eligible_tickers(data, current_date: str, eligibility):
     return eligible
 
 
+_core._date_window = _date_window
+_core._is_rebalance_date = _is_rebalance_date
 _core._candidate_profile = _candidate_profile
 _core._eligible_tickers = _eligible_tickers
 _core._target_weights = covariance_target_weights
