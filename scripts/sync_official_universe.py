@@ -60,6 +60,7 @@ DEFAULT_SELECTION_REPORT = Path("reports/universe_40_selection_2018.csv")
 DEFAULT_SUPPLEMENTAL_SPLITS = Path(
     "data/corporate_actions/supplemental_split_events.json"
 )
+SPLIT_NEUTRAL_OPEN_GAP_LIMIT = 0.35
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -76,21 +77,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--actions-dir", type=Path, default=Path("data/corporate_actions"))
     parser.add_argument("--manifests-dir", type=Path, default=DEFAULT_MANIFESTS_DIR)
     parser.add_argument("--split-evidence", type=Path, default=DEFAULT_SPLIT_EVIDENCE_PATH)
-    parser.add_argument(
-        "--supplemental-splits",
-        type=Path,
-        default=DEFAULT_SUPPLEMENTAL_SPLITS,
-    )
+    parser.add_argument("--supplemental-splits", type=Path, default=DEFAULT_SUPPLEMENTAL_SPLITS)
     parser.add_argument("--quality-reviews", type=Path, default=DEFAULT_QUALITY_REVIEWS)
     parser.add_argument("--selection-report", type=Path, default=DEFAULT_SELECTION_REPORT)
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
-    parser.add_argument(
-        "--end",
-        help=(
-            "Ultima data oficial a incluir (YYYY-MM-DD). Registros posteriores "
-            "sao ignorados antes das validacoes de integridade."
-        ),
-    )
+    parser.add_argument("--end")
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--refresh-current", action="store_true")
     parser.add_argument("--refresh-actions", action="store_true")
@@ -113,55 +104,25 @@ def main(argv: list[str] | None = None) -> int:
     if min(years) > int(coverage_start[:4]):
         parser.error("Os anos precisam incluir o inicio do warm-up do universo.")
 
-    archives = _prepare_archives(
-        years,
-        args.archives_dir,
-        download=args.download,
-        refresh_current=args.refresh_current,
-    )
-    quotes_by_ticker, sources = _read_official_quotes(
-        archives,
-        tickers,
-        exclude_date=date.today().isoformat(),
-        end_date=end_date,
-    )
+    archives = _prepare_archives(years, args.archives_dir, download=args.download, refresh_current=args.refresh_current)
+    quotes_by_ticker, sources = _read_official_quotes(archives, tickers, exclude_date=date.today().isoformat(), end_date=end_date)
     if args.selection_report:
         if args.selection_report.exists() and not args.refresh_selection:
             selected = _selected_from_report(args.selection_report)
         else:
-            selected = _write_selection_report(
-                universe,
-                archives,
-                args.selection_report,
-            )
+            selected = _write_selection_report(universe, archives, args.selection_report)
         expected_added = [str(ticker).upper() for ticker in universe["added_tickers"]]
         if selected != expected_added:
-            raise ValueError(
-                "As 30 adicoes do manifesto nao reproduzem o ranking oficial: "
-                f"esperado={expected_added}, calculado={selected}."
-            )
+            raise ValueError(f"As 30 adicoes do manifesto nao reproduzem o ranking oficial: esperado={expected_added}, calculado={selected}.")
 
-    issuer_by_ticker = {
-        str(ticker).upper(): str(issuer).upper()
-        for ticker, issuer in universe["issuing_company_by_ticker"].items()
-    }
-    payloads = _load_supplements(
-        sorted(set(issuer_by_ticker.values())),
-        args.supplements_dir,
-        refresh=args.refresh_actions,
-        workers=args.action_workers,
-    )
+    issuer_by_ticker = {str(ticker).upper(): str(issuer).upper() for ticker, issuer in universe["issuing_company_by_ticker"].items()}
+    payloads = _load_supplements(sorted(set(issuer_by_ticker.values())), args.supplements_dir, refresh=args.refresh_actions, workers=args.action_workers)
 
-    supplemental_payload = json.loads(
-        args.supplemental_splits.read_text(encoding="utf-8")
-    )
+    supplemental_payload = json.loads(args.supplemental_splits.read_text(encoding="utf-8"))
     supplemental_events = parse_supplemental_split_events(
         supplemental_payload,
         tickers=tickers,
-        quote_dates_by_ticker={
-            ticker: (quote.date for quote in quotes_by_ticker[ticker])
-            for ticker in tickers
-        },
+        quote_dates_by_ticker={ticker: (quote.date for quote in quotes_by_ticker[ticker]) for ticker in tickers},
         coverage_start=coverage_start,
     )
     supplemental_by_ticker = defaultdict(list)
@@ -188,29 +149,17 @@ def main(argv: list[str] | None = None) -> int:
         historical_events = supplemental_by_ticker[ticker]
         events = merge_official_split_events(b3_events, historical_events)
         events_by_ticker[ticker] = events
-        markers = audit_share_count_markers(
-            quotes,
-            events,
-            coverage_start=coverage_start,
-        )
+        markers = audit_share_count_markers(quotes, events, coverage_start=coverage_start)
         uncovered_markers = [marker for marker in markers if not marker["covered"]]
         if uncovered_markers:
-            raise ValueError(
-                f"{ticker}: marcador(es) EB/EG sem evento oficial: "
-                f"{uncovered_markers}."
-            )
+            raise ValueError(f"{ticker}: marcador(es) EB/EG sem evento oficial: {uncovered_markers}.")
         marker_audit.extend({"ticker": ticker, **marker} for marker in markers)
         continuity = _event_continuity_audit(quotes, events)
         continuity_audit.extend(continuity)
-        excessive = [
-            item
-            for item in continuity
-            if abs(float(item["split_neutral_raw_close_return"])) > 0.35
-        ]
+        excessive = _excessive_event_continuity(continuity)
         if excessive:
             raise ValueError(
-                f"{ticker}: descontinuidade superior a 35% apos aplicar evento "
-                f"oficial: {excessive}."
+                f"{ticker}: descontinuidade de abertura superior a 35% apos aplicar evento oficial: {excessive}."
             )
         evidence_reviews.append(
             {
@@ -220,10 +169,9 @@ def main(argv: list[str] | None = None) -> int:
                 "source_url": b3_supplement_url(issuer),
                 "source_payload_sha256": payload_sha256(payload),
                 "result": (
-                    f"{len(events)} evento(s) de quantidade de acoes desde "
-                    f"{coverage_start}: {len(b3_events)} na consulta corrente da "
-                    f"B3 e {len(historical_events)} no registro historico oficial; "
-                    "eventos em dinheiro ignorados."
+                    f"{len(events)} evento(s) de quantidade de acoes desde {coverage_start}: "
+                    f"{len(b3_events)} na consulta corrente da B3 e {len(historical_events)} "
+                    "no registro historico oficial; eventos em dinheiro ignorados."
                 ),
             }
         )
@@ -233,17 +181,11 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": 1,
         "coverage_start": coverage_start,
         "retrieved_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-        "scope": (
-            "Grupamentos, desdobramentos e bonificacoes que alteram a quantidade "
-            "de acoes. Dividendos e JCP sao excluidos do backtest."
-        ),
+        "scope": "Grupamentos, desdobramentos e bonificacoes que alteram a quantidade de acoes. Dividendos e JCP sao excluidos do backtest.",
         "method": (
             "Eventos consultados no cadastro oficial de companhias listadas da B3. "
-            "Omissoes historicas da resposta corrente foram preenchidas somente "
-            "com documentos primarios dos emissores ou da CVM. "
-            "O ex_date e o primeiro pregao COTAHIST do ativo posterior a ultima "
-            "data com direito. ISINs foram cruzados com o COTAHIST do ticker e "
-            "todos os inicios de marcador EB/EG foram reconciliados."
+            "Omissoes historicas da resposta corrente foram preenchidas somente com documentos primarios dos emissores ou da CVM. "
+            "O ex_date e o primeiro pregao COTAHIST do ativo posterior a ultima data com direito. ISINs foram cruzados com o COTAHIST do ticker e todos os inicios de marcador EB/EG foram reconciliados."
         ),
         "supplemental_registry": {
             "path": str(args.supplemental_splits),
@@ -255,24 +197,20 @@ def main(argv: list[str] | None = None) -> int:
             "marker_count": len(marker_audit),
             "uncovered_count": 0,
             "maximum_lag_calendar_days": 10,
-            "markers": sorted(
-                marker_audit,
-                key=lambda row: (row["marker_date"], row["ticker"]),
-            ),
+            "markers": sorted(marker_audit, key=lambda row: (row["marker_date"], row["ticker"])),
         },
         "event_continuity_audit": {
             "event_count": len(continuity_audit),
-            "maximum_absolute_split_neutral_raw_close_return": max(
-                (
-                    abs(float(item["split_neutral_raw_close_return"]))
-                    for item in continuity_audit
-                ),
+            "maximum_absolute_split_neutral_raw_open_gap": max(
+                (abs(float(item["split_neutral_raw_open_gap"])) for item in continuity_audit),
                 default=0.0,
             ),
-            "events": sorted(
-                continuity_audit,
-                key=lambda row: (row["ex_date"], row["ticker"]),
+            "maximum_absolute_split_neutral_raw_close_return": max(
+                (abs(float(item["split_neutral_raw_close_return"])) for item in continuity_audit),
+                default=0.0,
             ),
+            "gate_limit_absolute_open_gap": SPLIT_NEUTRAL_OPEN_GAP_LIMIT,
+            "events": sorted(continuity_audit, key=lambda row: (row["ex_date"], row["ticker"])),
         },
         "ticker_reviews": sorted(evidence_reviews, key=lambda row: row["ticker"]),
         "events": sorted(evidence_events, key=lambda row: (row["ex_date"], row["ticker"])),
@@ -282,12 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     built = {}
     for ticker in tickers:
         action_file = actions_path(ticker, args.actions_dir)
-        actions = _merge_official_splits(
-            load_actions(action_file),
-            [event.action() for event in events_by_ticker[ticker]],
-            ticker=ticker,
-            coverage_start=coverage_start,
-        )
+        actions = _merge_official_splits(load_actions(action_file), [event.action() for event in events_by_ticker[ticker]], ticker=ticker, coverage_start=coverage_start)
         existing_file = cache_path(ticker, "1d", args.data_dir)
         historical_quotes = _historical_quotes(existing_file, coverage_start)
         quotes = historical_quotes + quotes_by_ticker[ticker]
@@ -295,13 +228,7 @@ def main(argv: list[str] | None = None) -> int:
         weekly = resample_daily_to_weekly(daily)
         prior_sources = _prior_sources(ticker, args.manifests_dir, before_year=min(years))
         all_sources = _merge_sources(prior_sources, sources)
-        built[ticker] = {
-            "actions": actions,
-            "daily": daily,
-            "weekly": weekly,
-            "warnings": warnings,
-            "sources": all_sources,
-        }
+        built[ticker] = {"actions": actions, "daily": daily, "weekly": weekly, "warnings": warnings, "sources": all_sources}
 
     quality_reviews = _load_quality_reviews(args.quality_reviews)
     archive_by_year = {archive.year: archive for archive in sources}
@@ -314,22 +241,13 @@ def main(argv: list[str] | None = None) -> int:
             current = candles[index]
             previous = candles[index - 1]
             archive = archive_by_year.get(int(warning_date[:4]))
-            archive_note = (
-                f"{archive.filename} (SHA-256 {archive.sha256})"
-                if archive is not None
-                else "arquivo COTAHIST oficial registrado no manifesto"
-            )
+            archive_note = f"{archive.filename} (SHA-256 {archive.sha256})" if archive is not None else "arquivo COTAHIST oficial registrado no manifesto"
             quality_reviews[warning] = (
-                f"Confirmado em {archive_note}: fechamento bruto anterior "
-                f"R$ {previous.raw_close:.8g}, fechamento bruto atual "
-                f"R$ {current.raw_close:.8g}, {current.trades} negocios e volume "
-                f"financeiro R$ {current.financial_volume:.2f}. Registro oficial "
-                "mantido sem reparo sintetico."
+                f"Confirmado em {archive_note}: fechamento bruto anterior R$ {previous.raw_close:.8g}, "
+                f"fechamento bruto atual R$ {current.raw_close:.8g}, {current.trades} negocios e volume financeiro R$ {current.financial_volume:.2f}. "
+                "Registro oficial mantido sem reparo sintetico."
             )
-    _write_json_atomic(
-        args.quality_reviews,
-        {"schema_version": 1, "warning_reviews": dict(sorted(quality_reviews.items()))},
-    )
+    _write_json_atomic(args.quality_reviews, {"schema_version": 1, "warning_reviews": dict(sorted(quality_reviews.items()))})
 
     for ticker in tickers:
         values = built[ticker]
@@ -344,11 +262,7 @@ def main(argv: list[str] | None = None) -> int:
                 candles_path=candle_file,
                 actions_path=action_file,
                 source_archives=values["sources"],
-                corporate_action_source=(
-                    "B3 Listed Companies plus issuer/CVM historical share-count "
-                    "events; cash distributions excluded or retained only as "
-                    "unverified legacy evidence"
-                ),
+                corporate_action_source="B3 Listed Companies plus issuer/CVM historical share-count events; cash distributions excluded or retained only as unverified legacy evidence",
                 split_evidence_path=args.split_evidence,
                 warnings=values["warnings"],
                 warning_reviews=quality_reviews,
@@ -365,32 +279,19 @@ def main(argv: list[str] | None = None) -> int:
                 split_evidence_path=args.split_evidence,
             )
         print(
-            f"{ticker}: {len(values['daily'])} diarios, "
-            f"{values['daily'][0].date} a {values['daily'][-1].date}, "
-            f"splits={len(events_by_ticker[ticker])}, "
-            f"historicos={len(supplemental_by_ticker[ticker])}, "
-            f"avisos={len(values['warnings'])}",
+            f"{ticker}: {len(values['daily'])} diarios, {values['daily'][0].date} a {values['daily'][-1].date}, "
+            f"splits={len(events_by_ticker[ticker])}, historicos={len(supplemental_by_ticker[ticker])}, avisos={len(values['warnings'])}",
             flush=True,
         )
     return 0
 
 
-def _prepare_archives(
-    years: list[int],
-    directory: Path,
-    *,
-    download: bool,
-    refresh_current: bool,
-) -> list[tuple[int, Path]]:
+def _prepare_archives(years: list[int], directory: Path, *, download: bool, refresh_current: bool) -> list[tuple[int, Path]]:
     result = []
     for year in years:
         archive = directory / f"COTAHIST_A{year}.ZIP"
         if download:
-            archive = download_cotahist(
-                year,
-                directory,
-                refresh=refresh_current and year == date.today().year,
-            )
+            archive = download_cotahist(year, directory, refresh=refresh_current and year == date.today().year)
         elif not archive.exists():
             raise FileNotFoundError(f"{archive} ausente; use --download.")
         result.append((year, archive))
@@ -398,73 +299,35 @@ def _prepare_archives(
 
 
 def _read_official_quotes(
-    archives: list[tuple[int, Path]],
-    tickers: list[str],
-    *,
-    exclude_date: str,
-    end_date: str | None = None,
+    archives: list[tuple[int, Path]], tickers: list[str], *, exclude_date: str, end_date: str | None = None
 ) -> tuple[dict[str, list[OfficialQuote]], list[SourceArchive]]:
     by_ticker: dict[str, list[OfficialQuote]] = defaultdict(list)
     sources = []
     for year, archive in archives:
-        quotes = [
-            quote
-            for quote in read_cotahist(archive, tickers=tickers)
-            if quote.date < exclude_date
-            and (end_date is None or quote.date <= end_date)
-        ]
-        fractional = [
-            quote
-            for quote in read_fractional_cotahist(archive)
-            if base_fractional_ticker(quote.ticker) in tickers
-            and quote.date < exclude_date
-            and (end_date is None or quote.date <= end_date)
-        ]
-        fractional_by_base_date = {
-            (base_fractional_ticker(quote.ticker), quote.date): quote
-            for quote in fractional
-        }
+        quotes = [quote for quote in read_cotahist(archive, tickers=tickers) if quote.date < exclude_date and (end_date is None or quote.date <= end_date)]
+        fractional = [quote for quote in read_fractional_cotahist(archive) if base_fractional_ticker(quote.ticker) in tickers and quote.date < exclude_date and (end_date is None or quote.date <= end_date)]
+        fractional_by_base_date = {(base_fractional_ticker(quote.ticker), quote.date): quote for quote in fractional}
         if len(fractional_by_base_date) != len(fractional):
             raise ValueError(f"{year}: cotacoes fracionarias duplicadas por ativo/data.")
         standard_keys = {(quote.ticker, quote.date) for quote in quotes}
         fractional_only = sorted(set(fractional_by_base_date) - standard_keys)
         if fractional_only:
-            print(
-                f"{year}: {len(fractional_only)} registro(s) fracionario(s) sem "
-                "OHLC padrao; nao foi sintetizado candle",
-                flush=True,
-            )
-        quotes = [
-            _with_fractional_volume(
-                quote,
-                fractional_by_base_date.get((quote.ticker, quote.date)),
-            )
-            for quote in quotes
-        ]
+            print(f"{year}: {len(fractional_only)} registro(s) fracionario(s) sem OHLC padrao; nao foi sintetizado candle", flush=True)
+        quotes = [_with_fractional_volume(quote, fractional_by_base_date.get((quote.ticker, quote.date))) for quote in quotes]
         for quote in quotes:
             by_ticker[quote.ticker].append(quote)
         sources.append(source_archive(archive, year))
-        print(
-            f"{year}: {len(quotes)} cotacoes do universo; "
-            f"{len(fractional)} registros fracionarios consolidados",
-            flush=True,
-        )
+        print(f"{year}: {len(quotes)} cotacoes do universo; {len(fractional)} registros fracionarios consolidados", flush=True)
     missing = [ticker for ticker in tickers if not by_ticker[ticker]]
     if missing:
         raise ValueError(f"Tickers sem cotacao oficial: {missing}.")
     return {ticker: sorted(by_ticker[ticker], key=lambda quote: quote.date) for ticker in tickers}, sources
 
 
-def _with_fractional_volume(
-    standard: OfficialQuote,
-    fractional: OfficialQuote | None,
-) -> OfficialQuote:
-    """Preserva o OHLC 010 e soma somente atividade oficial do mercado 020."""
+def _with_fractional_volume(standard: OfficialQuote, fractional: OfficialQuote | None) -> OfficialQuote:
     fractional_volume = fractional.volume if fractional is not None else 0
     fractional_trades = fractional.trades if fractional is not None else 0
-    fractional_financial = (
-        fractional.financial_volume if fractional is not None else 0.0
-    )
+    fractional_financial = fractional.financial_volume if fractional is not None else 0.0
     return replace(
         standard,
         volume=standard.volume + fractional_volume,
@@ -477,13 +340,7 @@ def _with_fractional_volume(
     )
 
 
-def _load_supplements(
-    issuers: list[str],
-    directory: Path,
-    *,
-    refresh: bool,
-    workers: int,
-) -> dict[str, list[dict[str, object]]]:
+def _load_supplements(issuers: list[str], directory: Path, *, refresh: bool, workers: int) -> dict[str, list[dict[str, object]]]:
     directory.mkdir(parents=True, exist_ok=True)
     result = {}
     pending = []
@@ -496,10 +353,7 @@ def _load_supplements(
     if pending:
         failed = []
         with ThreadPoolExecutor(max_workers=min(workers, len(pending))) as executor:
-            futures = {
-                executor.submit(download_b3_supplement, issuer): issuer
-                for issuer in pending
-            }
+            futures = {executor.submit(download_b3_supplement, issuer): issuer for issuer in pending}
             for future in as_completed(futures):
                 issuer = futures[future]
                 try:
@@ -519,27 +373,13 @@ def _load_supplements(
     return result
 
 
-def _merge_official_splits(
-    legacy: list[CorporateAction],
-    official: list[CorporateAction],
-    *,
-    ticker: str,
-    coverage_start: str,
-) -> list[CorporateAction]:
+def _merge_official_splits(legacy: list[CorporateAction], official: list[CorporateAction], *, ticker: str, coverage_start: str) -> list[CorporateAction]:
     retained = []
     for action in legacy:
         if action.date < coverage_start:
             retained.append(action)
         elif action.dividend != 0.0:
-            retained.append(
-                CorporateAction(
-                    action.date,
-                    ticker,
-                    action.source_symbol,
-                    action.dividend,
-                    1.0,
-                )
-            )
+            retained.append(CorporateAction(action.date, ticker, action.source_symbol, action.dividend, 1.0))
     by_date: dict[str, CorporateAction] = {}
     for action in sorted([*retained, *official], key=lambda item: item.date):
         previous = by_date.get(action.date)
@@ -549,48 +389,48 @@ def _merge_official_splits(
             by_date[action.date] = CorporateAction(
                 action.date,
                 ticker,
-                (
-                    action.source_symbol
-                    if action.split_ratio != 1.0
-                    else previous.source_symbol
-                ),
+                action.source_symbol if action.split_ratio != 1.0 else previous.source_symbol,
                 previous.dividend + action.dividend,
                 previous.split_ratio * action.split_ratio,
             )
     return [by_date[value] for value in sorted(by_date)]
 
 
-def _event_continuity_audit(
-    quotes: list[OfficialQuote],
-    events: list,
-) -> list[dict[str, object]]:
+def _event_continuity_audit(quotes: list[OfficialQuote], events: list) -> list[dict[str, object]]:
     by_date = {quote.date: index for index, quote in enumerate(quotes)}
     result = []
     for event in events:
         index = by_date.get(event.ex_date)
         if index is None or index == 0:
-            raise ValueError(
-                f"{event.ticker} {event.ex_date}: evento sem par COTAHIST anterior."
-            )
+            raise ValueError(f"{event.ticker} {event.ex_date}: evento sem par COTAHIST anterior.")
         previous = quotes[index - 1]
         current = quotes[index]
-        neutral_return = (
-            current.close * event.split_ratio / previous.close - 1.0
-        )
+        open_gap = current.open * event.split_ratio / previous.close - 1.0
+        close_return = current.close * event.split_ratio / previous.close - 1.0
         result.append(
             {
                 "ticker": event.ticker,
                 "ex_date": event.ex_date,
                 "last_quote_date_prior": previous.date,
                 "raw_close_prior": previous.close,
+                "raw_open_ex_date": current.open,
                 "raw_close_ex_date": current.close,
                 "split_ratio": event.split_ratio,
-                "split_neutral_raw_close_return": neutral_return,
+                "split_neutral_raw_open_gap": open_gap,
+                "split_neutral_raw_close_return": close_return,
                 "source_authority": event.source_authority,
                 "source_url": event.source_url,
             }
         )
     return result
+
+
+def _excessive_event_continuity(continuity: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        item
+        for item in continuity
+        if abs(float(item["split_neutral_raw_open_gap"])) > SPLIT_NEUTRAL_OPEN_GAP_LIMIT
+    ]
 
 
 def _historical_quotes(path: Path, coverage_start: str) -> list[OfficialQuote]:
@@ -634,10 +474,7 @@ def _prior_sources(ticker: str, manifests_dir: Path, *, before_year: int) -> lis
     return [source for source in load_manifest(path).source_archives if source.year < before_year]
 
 
-def _merge_sources(
-    prior: list[SourceArchive],
-    refreshed: list[SourceArchive],
-) -> list[SourceArchive]:
+def _merge_sources(prior: list[SourceArchive], refreshed: list[SourceArchive]) -> list[SourceArchive]:
     by_year = {source.year: source for source in [*prior, *refreshed]}
     return [by_year[year] for year in sorted(by_year)]
 
@@ -646,17 +483,10 @@ def _load_quality_reviews(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return {
-        str(warning): str(evidence)
-        for warning, evidence in (payload.get("warning_reviews") or {}).items()
-    }
+    return {str(warning): str(evidence) for warning, evidence in (payload.get("warning_reviews") or {}).items()}
 
 
-def _write_selection_report(
-    universe: dict[str, object],
-    archives: list[tuple[int, Path]],
-    output: Path,
-) -> list[str]:
+def _write_selection_report(universe: dict[str, object], archives: list[tuple[int, Path]], output: Path) -> list[str]:
     archive_by_year = {year: path for year, path in archives}
     if 2018 not in archive_by_year:
         raise ValueError("O relatorio de selecao exige COTAHIST_A2018.ZIP.")
@@ -666,15 +496,7 @@ def _write_selection_report(
         by_ticker[quote.ticker].append(quote)
     original = {str(ticker).upper() for ticker in universe["original_tickers"]}
     original_issuers = {ticker[:4] for ticker in original}
-    ranked = [
-        ticker
-        for ticker, _quotes in sorted(
-            by_ticker.items(),
-            key=lambda item: sum(quote.financial_volume for quote in item[1]),
-            reverse=True,
-        )
-        if ticker not in original
-    ]
+    ranked = [ticker for ticker, _quotes in sorted(by_ticker.items(), key=lambda item: sum(quote.financial_volume for quote in item[1]), reverse=True) if ticker not in original]
     candidates = ranked[:140]
     presence = {ticker: {} for ticker in candidates}
     for year, archive in archives:
@@ -706,18 +528,14 @@ def _write_selection_report(
                 "ticker": ticker,
                 "liquidity_rank_2018": liquidity_rank,
                 "eligible_rank": eligible_rank if eligible else "",
-                "financial_volume_2018": sum(
-                    quote.financial_volume for quote in by_ticker[ticker]
-                ),
+                "financial_volume_2018": sum(quote.financial_volume for quote in by_ticker[ticker]),
                 "minimum_annual_presence_2018_latest": minimum_presence,
                 "same_issuing_company_as_original": int(same_issuer),
                 "eligible": int(eligible),
                 "selected": int(ticker in selected),
             }
         )
-        if len(selected) >= 30 and liquidity_rank >= max(
-            row["liquidity_rank_2018"] for row in rows if row["selected"]
-        ):
+        if len(selected) >= 30 and liquidity_rank >= max(row["liquidity_rank_2018"] for row in rows if row["selected"]):
             break
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + ".tmp")
@@ -731,11 +549,7 @@ def _write_selection_report(
 
 def _selected_from_report(path: Path) -> list[str]:
     with path.open("r", newline="", encoding="utf-8") as file:
-        return [
-            str(row["ticker"]).upper()
-            for row in csv.DictReader(file)
-            if int(row["selected"]) == 1
-        ]
+        return [str(row["ticker"]).upper() for row in csv.DictReader(file) if int(row["selected"]) == 1]
 
 
 def _parse_years(values: list[str]) -> list[int]:
@@ -754,10 +568,7 @@ def _parse_years(values: list[str]) -> list[int]:
 def _write_json_atomic(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)
 
 

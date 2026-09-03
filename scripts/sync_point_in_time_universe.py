@@ -33,6 +33,7 @@ from b3_strategy_lab.cotahist import (  # noqa: E402
 )
 from scripts.sync_official_universe import (  # noqa: E402
     _event_continuity_audit,
+    _excessive_event_continuity,
     _historical_quotes,
     _load_quality_reviews,
     _load_supplements,
@@ -184,12 +185,6 @@ def main(argv: list[str] | None = None) -> int:
             f"is {replay_end}; refusing a partially covered replay."
         )
 
-    # A consulta Listed Companies da B3 representa o cadastro corrente e pode
-    # deixar de responder para emissores historicos/delistados. Para esses
-    # emissores, a evidência de eventos de quantidade vem exclusivamente do
-    # registro histórico certificado (CVM/emissor) validado abaixo. Emissores
-    # que ainda possuem cotacao no cutoff continuam obrigatoriamente sujeitos
-    # à consulta corrente da B3 e falham fechado se ela estiver indisponível.
     last_quote_by_ticker = {
         ticker: max(quote.date for quote in quotes_by_ticker[ticker])
         for ticker in tickers
@@ -208,12 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         refresh=args.refresh_actions,
         workers=args.action_workers,
     )
-    # Shape minimo compatível com extract_official_split_events. Não representa
-    # uma resposta B3; apenas indica que não há consulta corrente aplicável.
     for issuer in historical_issuers:
-        # This placeholder is valid only for the share-count/split extractor. It is
-        # deliberately marked unusable for cash distributions: absence of a current
-        # B3 payload is not evidence that a historical issuer paid zero dividends/JCP.
         payloads[issuer] = [{
             "code": issuer,
             "stockDividends": [],
@@ -292,13 +282,11 @@ def main(argv: list[str] | None = None) -> int:
             if not marker["covered"]:
                 missing_markers.append(row)
         continuity = _event_continuity_audit(quotes, events)
-        excessive = [
-            item
-            for item in continuity
-            if abs(float(item["split_neutral_raw_close_return"])) > 0.35
-        ]
+        excessive = _excessive_event_continuity(continuity)
         if excessive:
-            raise ValueError(f"{ticker}: split-neutral discontinuity exceeds 35%: {excessive}")
+            raise ValueError(
+                f"{ticker}: split-neutral opening discontinuity exceeds 35%: {excessive}"
+            )
         evidence_events.extend(event.evidence() for event in events)
 
     if missing_markers:
@@ -316,9 +304,6 @@ def main(argv: list[str] | None = None) -> int:
             f"See {args.missing_splits_report}; realistic build stopped."
         )
 
-    # Schema 3 is the latest evidence contract accepted by cotahist.verify_split_evidence.
-    # The point-in-time fields below are additive scope metadata and remain fully checked
-    # by the realistic input auditor.
     evidence_payload = {
         "schema_version": 3,
         "coverage_start": coverage_start,
