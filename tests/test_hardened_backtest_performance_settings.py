@@ -21,6 +21,16 @@ class HardenedBacktestPerformanceSettingsTests(unittest.TestCase):
         self.assertIn('if [ "$WORKERS" -gt 4 ]; then WORKERS=4; fi', self.text)
         self.assertNotIn('if [ "$WORKERS" -gt 2 ]; then WORKERS=2; fi', self.text)
 
+    def test_shard_artifact_paths_are_bound_to_matrix_index(self) -> None:
+        required_paths = (
+            'reports/shards/shard_${{ matrix.index }}.csv.gz',
+            'reports/shards/shard_${{ matrix.index }}.manifest.json',
+            'reports/shards/shard_${{ matrix.index }}_top10_annual.md',
+        )
+        for path in required_paths:
+            with self.subTest(path=path):
+                self.assertIn(path, self.text)
+
     def test_realistic_finalists_use_bounded_parallelism(self) -> None:
         self.assertIn("scripts/validate_matrix_top_realistic.py", self.text)
         self.assertIn("--workers 2", self.text)
