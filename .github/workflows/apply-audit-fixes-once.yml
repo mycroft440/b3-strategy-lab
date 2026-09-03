@@ -67,6 +67,27 @@ jobs:
               1,
           )
           path.write_text(text, encoding='utf-8')
+
+          path = Path('tests/test_realistic_ranking_gate.py')
+          text = path.read_text(encoding='utf-8')
+          old = (
+              '            trades.write_text(\n'
+              '                "date,fee\\n2018-01-02,1\\n2018-01-03,2\\n",\n'
+              '                encoding="utf-8",\n'
+              '            )\n'
+          )
+          new = (
+              '            trades.write_text(\n'
+              '                "date,side,ticker,shares,market_type,raw_open,execution_price,notional,fee,slippage_bps\\n"\n'
+              '                "2018-01-02,BUY,AAA3,10,020,10,10.01,100.1,1,10\\n"\n'
+              '                "2018-01-03,SELL,AAA3,10,020,11,10.989,109.89,2,10\\n",\n'
+              '                encoding="utf-8",\n'
+              '            )\n'
+          )
+          if old not in text:
+              raise SystemExit('realistic ranking trade fixture anchor missing')
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
           PY
 
       - name: Compile critical modules
