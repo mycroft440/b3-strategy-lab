@@ -7,6 +7,7 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 from scripts import validate_matrix_top_realistic_core as _base
@@ -21,6 +22,55 @@ for _name in dir(_base):
 
 
 DEFAULT_CANDIDATE_WORKERS = max(1, min(2, os.cpu_count() or 1))
+
+
+# These certified inputs are immutable during a finalist-validation process. The
+# original validator reparsed the execution CSV and fee JSON once per candidate;
+# sharing the exact parsed objects avoids repeated I/O without changing a single
+# validation equation.
+_original_execution_source = _base._execution_source
+_original_fee_rules = _base._fee_rules
+_original_expected_fee = _base._expected_fee
+
+
+@lru_cache(maxsize=4)
+def _execution_source(path: Path):
+    return _original_execution_source(path)
+
+
+@lru_cache(maxsize=4)
+def _fee_rules(path: Path):
+    return _original_fee_rules(path)
+
+
+_fee_rule_by_date_cache: dict[tuple[int, str], dict[str, object]] = {}
+
+
+def _expected_fee(rules: list[dict[str, object]], value_date: str, notional: float):
+    key = (id(rules), value_date)
+    rule = _fee_rule_by_date_cache.get(key)
+    if rule is None:
+        matches = [
+            candidate
+            for candidate in rules
+            if str(candidate["start"]) <= value_date <= str(candidate["end"])
+        ]
+        if len(matches) != 1:
+            # Delegate the exceptional path to the frozen canonical implementation
+            # so its exact error semantics remain authoritative.
+            return _original_expected_fee(rules, value_date, notional)
+        rule = matches[0]
+        _fee_rule_by_date_cache[key] = rule
+    return (
+        notional * float(rule["b3_bps"]) / 10_000
+        + float(rule["brokerage_fixed"]),
+        str(rule["quality"]),
+    )
+
+
+_base._execution_source = _execution_source
+_base._fee_rules = _fee_rules
+_base._expected_fee = _expected_fee
 
 
 def _split_worker_args(argv: list[str] | None) -> tuple[int, list[str]]:
@@ -126,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     workers, base_argv = _split_worker_args(argv)
     if "-h" in base_argv or "--help" in base_argv:
         # Keep the canonical CLI help and validation behavior. The extra option is
-        # documented separately below because the frozen core parser does not know it.
+        # intentionally operational rather than part of result semantics.
         return _base.main(base_argv)
 
     args = _preparse_context(base_argv)
