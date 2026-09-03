@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATES = Path("reports/TOP_10.json")
 DEFAULT_OUTPUT = Path("reports/REALISTIC_TOP_10.json")
 DEFAULT_MARKDOWN = Path("reports/REALISTIC_TOP_10.md")
+DEFAULT_EXECUTION_PRICES = ROOT / "data/execution/b3_standard_fractional_open.csv"
+DEFAULT_FEE_SCHEDULE = ROOT / "data/fees/b3_equity_fee_schedule.json"
+DEFAULT_BASE_SLIPPAGE_BPS = 10.0
+DEFAULT_PARTICIPATION_BPS_AT_1PCT = 5.0
+DEFAULT_MAX_SLIPPAGE_BPS = 100.0
 
 
 BLOCKING_VALIDITY_TAGS = (
@@ -50,6 +55,102 @@ NONNEGATIVE_METRICS = (
 def _csv_rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as file:
         return list(csv.DictReader(file))
+
+
+def _base_execution_ticker(ticker: str, market_type: str) -> str:
+    value = ticker.strip().upper()
+    if (
+        market_type == "020"
+        and value.endswith("F")
+        and len(value) >= 3
+        and value[-2].isdigit()
+    ):
+        return value[:-1]
+    return value
+
+
+def _execution_source(
+    path: Path,
+) -> dict[tuple[str, str, str], tuple[float, float]]:
+    result: dict[tuple[str, str, str], tuple[float, float]] = {}
+    for row in _csv_rows(path):
+        value_date = str(row.get("date", ""))[:10]
+        market_type = str(row.get("market_type", ""))
+        ticker = _base_execution_ticker(str(row.get("ticker", "")), market_type)
+        source_open = float(row.get("open", "nan"))
+        financial_volume = float(row.get("financial_volume", "nan"))
+        if (
+            not value_date
+            or not ticker
+            or market_type not in {"010", "020"}
+            or not math.isfinite(source_open)
+            or source_open <= 0
+            or not math.isfinite(financial_volume)
+            or financial_volume <= 0
+        ):
+            raise ValueError("invalid certified execution-price row")
+        key = (value_date, ticker, market_type)
+        if key in result:
+            raise ValueError(f"duplicate certified execution-price row: {key}")
+        result[key] = (source_open, financial_volume)
+    if not result:
+        raise ValueError("certified execution-price source is empty")
+    return result
+
+
+def _fee_rules(path: Path) -> list[dict[str, object]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw_rules = payload.get("rules")
+    if not isinstance(raw_rules, list) or not raw_rules:
+        raise ValueError("fee schedule must contain non-empty rules")
+    result: list[dict[str, object]] = []
+    for raw in raw_rules:
+        if not isinstance(raw, dict):
+            raise ValueError("invalid fee rule")
+        start = str(raw.get("start", ""))[:10]
+        end = str(raw.get("end", ""))[:10]
+        datetime.fromisoformat(start)
+        datetime.fromisoformat(end)
+        b3_bps = float(raw.get("b3_bps", "nan"))
+        brokerage_fixed = float(raw.get("brokerage_fixed", 0.0))
+        if (
+            start > end
+            or not math.isfinite(b3_bps)
+            or b3_bps < 0
+            or not math.isfinite(brokerage_fixed)
+            or brokerage_fixed < 0
+        ):
+            raise ValueError("invalid fee rule economics")
+        result.append(
+            {
+                "start": start,
+                "end": end,
+                "b3_bps": b3_bps,
+                "brokerage_fixed": brokerage_fixed,
+                "quality": str(raw.get("quality", "")),
+            }
+        )
+    return result
+
+
+def _expected_fee(
+    rules: list[dict[str, object]], value_date: str, notional: float
+) -> tuple[float, str]:
+    matches = [
+        rule
+        for rule in rules
+        if str(rule["start"]) <= value_date <= str(rule["end"])
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected exactly one fee rule for {value_date}; found {len(matches)}"
+        )
+    rule = matches[0]
+    return (
+        notional * float(rule["b3_bps"]) / 10_000
+        + float(rule["brokerage_fixed"]),
+        str(rule["quality"]),
+    )
 
 
 def _curve_recalculated_metrics(
@@ -130,6 +231,11 @@ def _artifact_binding_issues(
     trades_path: Path,
     cash_path: Path,
     tax_path: Path | None = None,
+    execution_prices_path: Path | None = None,
+    fee_schedule_path: Path | None = None,
+    base_slippage_bps: float = DEFAULT_BASE_SLIPPAGE_BPS,
+    participation_bps_at_1pct: float = DEFAULT_PARTICIPATION_BPS_AT_1PCT,
+    max_slippage_bps: float = DEFAULT_MAX_SLIPPAGE_BPS,
 ) -> list[str]:
     issues: list[str] = []
     try:
@@ -155,31 +261,164 @@ def _artifact_binding_issues(
             issues.append("curve_final_equity_mismatch")
     except (KeyError, TypeError, ValueError):
         issues.append("invalid_curve_final_equity")
+    execution_source: dict[tuple[str, str, str], tuple[float, float]] = {}
+    if execution_prices_path is not None:
+        try:
+            execution_source = _execution_source(execution_prices_path)
+        except (OSError, csv.Error, UnicodeError, ValueError, json.JSONDecodeError):
+            issues.append("invalid_execution_price_source")
+
+    fee_rules: list[dict[str, object]] = []
+    if fee_schedule_path is not None:
+        try:
+            fee_rules = _fee_rules(fee_schedule_path)
+        except (OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError):
+            issues.append("invalid_fee_schedule_source")
+
     try:
         if len(trades) != int(payload["trades"]):
             issues.append("trade_ledger_count_mismatch")
+        trade_start_date = datetime.fromisoformat(str(payload["start"])[:10]).date()
+        trade_end_date = datetime.fromisoformat(str(payload["end"])[:10]).date()
+        previous_trade_date = None
         for row in trades:
+            ticker = str(row.get("ticker", "")).strip().upper()
             side = str(row.get("side", "")).upper()
             market_type = str(row.get("market_type", ""))
-            shares = int(row.get("shares", "0"))
-            raw_open = float(row.get("raw_open", "nan"))
-            execution_price = float(row.get("execution_price", "nan"))
-            notional = float(row.get("notional", "nan"))
-            fee = float(row.get("fee", "nan"))
-            slippage = float(row.get("slippage_bps", "nan"))
+            try:
+                value_date = datetime.fromisoformat(
+                    str(row.get("date", ""))[:10]
+                ).date()
+                raw_shares = float(row.get("shares", "nan"))
+                if not math.isfinite(raw_shares) or not raw_shares.is_integer():
+                    raise ValueError("shares must be an integer")
+                shares = int(raw_shares)
+                raw_open = float(row.get("raw_open", "nan"))
+                execution_price = float(row.get("execution_price", "nan"))
+                notional = float(row.get("notional", "nan"))
+                fee = float(row.get("fee", "nan"))
+                slippage = float(row.get("slippage_bps", "nan"))
+                realized_gain = float(row.get("realized_gain", "nan"))
+            except (TypeError, ValueError, OverflowError):
+                issues.append("invalid_trade_execution_leg")
+                continue
+
+            if not ticker:
+                issues.append("trade_ticker_missing")
+            if value_date < trade_start_date or value_date > trade_end_date:
+                issues.append("trade_date_outside_candidate_period")
+            if previous_trade_date is not None and value_date < previous_trade_date:
+                issues.append("trade_ledger_date_order_mismatch")
+            previous_trade_date = value_date
+
             if (
                 side not in {"BUY", "SELL"}
                 or market_type not in {"010", "020"}
                 or shares <= 0
-                or not all(math.isfinite(value) for value in (raw_open, execution_price, notional, fee, slippage))
+                or not all(
+                    math.isfinite(value)
+                    for value in (
+                        raw_open,
+                        execution_price,
+                        notional,
+                        fee,
+                        slippage,
+                        realized_gain,
+                    )
+                )
                 or raw_open <= 0
                 or execution_price <= 0
                 or notional <= 0
                 or fee < 0
-                or slippage < 0
+                or not (0 <= slippage < 10_000)
             ):
                 issues.append("invalid_trade_execution_leg")
-                break
+                continue
+
+            if market_type == "010" and shares % 100 != 0:
+                issues.append("invalid_standard_market_lot")
+            if market_type == "020" and not 1 <= shares < 100:
+                issues.append("invalid_fractional_market_lot")
+            if side == "BUY" and not math.isclose(
+                realized_gain, 0.0, rel_tol=0.0, abs_tol=1e-10
+            ):
+                issues.append("buy_realized_gain_nonzero")
+
+            recorded_expected_execution = raw_open * (
+                1.0 + slippage / 10_000
+                if side == "BUY"
+                else 1.0 - slippage / 10_000
+            )
+            if not math.isclose(
+                execution_price,
+                recorded_expected_execution,
+                rel_tol=1e-9,
+                abs_tol=1e-8,
+            ):
+                issues.append("trade_slippage_execution_price_mismatch")
+            if not math.isclose(
+                notional,
+                shares * execution_price,
+                rel_tol=1e-9,
+                abs_tol=1e-6,
+            ):
+                issues.append("trade_notional_mismatch")
+
+            if execution_prices_path is not None and execution_source:
+                key = (value_date.isoformat(), ticker, market_type)
+                source_quote = execution_source.get(key)
+                if source_quote is None:
+                    issues.append("trade_execution_source_missing")
+                else:
+                    source_open, financial_volume = source_quote
+                    if not math.isclose(
+                        raw_open, source_open, rel_tol=1e-10, abs_tol=1e-8
+                    ):
+                        issues.append("trade_raw_open_source_mismatch")
+                    raw_notional = shares * source_open
+                    participation = raw_notional / financial_volume
+                    expected_slippage = min(
+                        max_slippage_bps,
+                        base_slippage_bps
+                        + max(
+                            0.0,
+                            participation_bps_at_1pct * (participation / 0.01),
+                        ),
+                    )
+                    if not math.isclose(
+                        slippage,
+                        expected_slippage,
+                        rel_tol=1e-9,
+                        abs_tol=1e-8,
+                    ):
+                        issues.append("trade_slippage_model_mismatch")
+                    source_expected_execution = source_open * (
+                        1.0 + expected_slippage / 10_000
+                        if side == "BUY"
+                        else 1.0 - expected_slippage / 10_000
+                    )
+                    if not math.isclose(
+                        execution_price,
+                        source_expected_execution,
+                        rel_tol=1e-9,
+                        abs_tol=1e-8,
+                    ):
+                        issues.append("trade_execution_source_model_mismatch")
+
+            if fee_schedule_path is not None and fee_rules:
+                try:
+                    expected_fee, fee_quality = _expected_fee(
+                        fee_rules, value_date.isoformat(), notional
+                    )
+                    if fee_quality != "official":
+                        issues.append("trade_fee_rule_not_official")
+                    if not math.isclose(
+                        fee, expected_fee, rel_tol=1e-9, abs_tol=1e-8
+                    ):
+                        issues.append("trade_fee_schedule_mismatch")
+                except (KeyError, TypeError, ValueError):
+                    issues.append("trade_fee_rule_missing_or_ambiguous")
+
         ledger_fees = sum(float(row["fee"]) for row in trades)
         if not (
             math.isfinite(ledger_fees)
@@ -191,9 +430,52 @@ def _artifact_binding_issues(
             )
         ):
             issues.append("trade_ledger_fee_mismatch")
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, OverflowError):
         issues.append("invalid_trade_ledger")
     try:
+        cash_start_date = datetime.fromisoformat(str(payload["start"])[:10]).date()
+        cash_end_date = datetime.fromisoformat(str(payload["end"])[:10]).date()
+        previous_cash_date = None
+        for row in cash:
+            value_date = datetime.fromisoformat(str(row.get("date", ""))[:10]).date()
+            ticker = str(row.get("ticker", "")).strip().upper()
+            label = str(row.get("label", "")).strip().upper()
+            raw_shares = float(row.get("shares_entitled", "nan"))
+            gross = float(row.get("gross", "nan"))
+            tax_value = float(row.get("tax", "nan"))
+            net = float(row.get("net", "nan"))
+            if (
+                not math.isfinite(raw_shares)
+                or not raw_shares.is_integer()
+                or raw_shares <= 0
+                or not ticker
+                or label not in {"DIVIDENDO", "DIVIDEND", "JCP", "JSCP"}
+                or not all(math.isfinite(value) for value in (gross, tax_value, net))
+                or gross < 0
+                or tax_value < 0
+                or net < 0
+            ):
+                issues.append("invalid_cash_ledger_row")
+                continue
+            if value_date < cash_start_date or value_date > cash_end_date:
+                issues.append("cash_ledger_date_outside_candidate_period")
+            if previous_cash_date is not None and value_date < previous_cash_date:
+                issues.append("cash_ledger_date_order_mismatch")
+            previous_cash_date = value_date
+            if not math.isclose(
+                net, gross - tax_value, rel_tol=1e-9, abs_tol=1e-8
+            ):
+                issues.append("cash_ledger_net_identity_mismatch")
+            expected_tax = 0.0
+            if label in {"JCP", "JSCP"}:
+                expected_tax = gross * (
+                    0.175 if value_date.isoformat() >= "2026-01-01" else 0.15
+                )
+            if not math.isclose(
+                tax_value, expected_tax, rel_tol=1e-9, abs_tol=1e-8
+            ):
+                issues.append("cash_ledger_withholding_mismatch")
+
         ledger_distributions = sum(float(row["net"]) for row in cash)
         ledger_distribution_tax = sum(float(row["tax"]) for row in cash)
         if not (
@@ -216,19 +498,74 @@ def _artifact_binding_issues(
             )
         ):
             issues.append("cash_ledger_tax_mismatch")
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError, OverflowError):
         issues.append("invalid_cash_ledger")
 
     if tax_path is None:
         return sorted(set(issues))
 
-    required_tax_columns = {"month", "tax_due", "irrf_withheld_month"}
+    required_tax_columns = {
+        "month",
+        "sales",
+        "realized_gain",
+        "tax_due",
+        "irrf_withheld_month",
+    }
     if not tax:
         issues.append("empty_tax_ledger")
     else:
         missing_tax_columns = required_tax_columns.difference(tax[0])
         if missing_tax_columns:
             issues.append("tax_ledger_missing_columns")
+        try:
+            sell_sales_by_month: dict[str, float] = {}
+            sell_gain_by_month: dict[str, float] = {}
+            for row in trades:
+                if str(row.get("side", "")).upper() != "SELL":
+                    continue
+                month = str(row.get("date", ""))[:7]
+                sell_sales_by_month[month] = sell_sales_by_month.get(month, 0.0) + float(
+                    row["notional"]
+                )
+                sell_gain_by_month[month] = sell_gain_by_month.get(month, 0.0) + float(
+                    row["realized_gain"]
+                )
+            for row in tax:
+                month = str(row["month"])
+                sales = float(row["sales"])
+                realized_gain = float(row["realized_gain"])
+                tax_due = float(row["tax_due"])
+                irrf = float(row["irrf_withheld_month"])
+                if (
+                    len(month) != 7
+                    or month[4:5] != "-"
+                    or not all(
+                        math.isfinite(value)
+                        for value in (sales, realized_gain, tax_due, irrf)
+                    )
+                    or sales < 0
+                    or tax_due < 0
+                    or irrf < 0
+                ):
+                    issues.append("invalid_tax_ledger_values")
+                    continue
+                if not math.isclose(
+                    sales,
+                    sell_sales_by_month.get(month, 0.0),
+                    rel_tol=1e-9,
+                    abs_tol=1e-8,
+                ):
+                    issues.append("tax_ledger_sales_trade_mismatch")
+                if not math.isclose(
+                    realized_gain,
+                    sell_gain_by_month.get(month, 0.0),
+                    rel_tol=1e-9,
+                    abs_tol=1e-8,
+                ):
+                    issues.append("tax_ledger_realized_gain_trade_mismatch")
+        except (KeyError, TypeError, ValueError, OverflowError):
+            issues.append("invalid_tax_ledger_values")
+
         try:
             tax_months = [str(row["month"]) for row in tax]
             curve_months = sorted({str(row["date"])[:7] for row in curve})
@@ -315,12 +652,16 @@ def _run_candidate(
     output_dir: Path,
 ) -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"candidate_{rank:02d}_{strategy}_{management}"
+    # Rank is already required to be unique. Keeping untrusted strategy/management
+    # strings out of the filesystem prevents candidate metadata from becoming a path.
+    stem = f"candidate_{rank:02d}"
     summary = output_dir / f"{stem}.json"
     curve = output_dir / f"{stem}_curve.csv"
     trades = output_dir / f"{stem}_trades.csv"
     cash = output_dir / f"{stem}_cash.csv"
     tax = output_dir / f"{stem}_tax.csv"
+    for artifact in (summary, curve, trades, cash, tax):
+        artifact.unlink(missing_ok=True)
     command = [
         sys.executable,
         "scripts/backtest_strategy_management_realistic.py",
@@ -334,6 +675,16 @@ def _run_candidate(
         end,
         "--initial-cash",
         str(initial_cash),
+        "--base-slippage-bps",
+        str(DEFAULT_BASE_SLIPPAGE_BPS),
+        "--participation-bps-at-1pct",
+        str(DEFAULT_PARTICIPATION_BPS_AT_1PCT),
+        "--max-slippage-bps",
+        str(DEFAULT_MAX_SLIPPAGE_BPS),
+        "--execution-prices",
+        str(DEFAULT_EXECUTION_PRICES),
+        "--fee-schedule",
+        str(DEFAULT_FEE_SCHEDULE),
         "--selection-status",
         "retrospective_hypothesis_replay",
         "--output",
@@ -358,19 +709,38 @@ def _run_candidate(
             "research_strategy": strategy,
             "research_management": management,
         }
-    payload = json.loads(summary.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(summary.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        return {
+            "_candidate_artifact_error": error.__class__.__name__,
+            "research_rank": rank,
+            "research_strategy": strategy,
+            "research_management": management,
+        }
+    if not isinstance(payload, dict):
+        return {
+            "_candidate_artifact_error": "summary_not_object",
+            "research_rank": rank,
+            "research_strategy": strategy,
+            "research_management": management,
+        }
     payload["_artifact_binding_issues"] = _artifact_binding_issues(
         payload,
         curve_path=curve,
         trades_path=trades,
         cash_path=cash,
         tax_path=tax,
+        execution_prices_path=DEFAULT_EXECUTION_PRICES,
+        fee_schedule_path=DEFAULT_FEE_SCHEDULE,
+        base_slippage_bps=DEFAULT_BASE_SLIPPAGE_BPS,
+        participation_bps_at_1pct=DEFAULT_PARTICIPATION_BPS_AT_1PCT,
+        max_slippage_bps=DEFAULT_MAX_SLIPPAGE_BPS,
     )
     payload["research_rank"] = rank
     payload["research_strategy"] = strategy
     payload["research_management"] = management
     return payload
-
 
 def _validation_issues(
     payload: dict[str, object],
@@ -384,6 +754,8 @@ def _validation_issues(
     issues: list[str] = []
     if payload.get("_candidate_execution_error"):
         return ["candidate_execution_failed:" + str(payload["_candidate_execution_error"])]
+    if payload.get("_candidate_artifact_error"):
+        return ["candidate_artifact_invalid:" + str(payload["_candidate_artifact_error"])]
     validity = str(payload.get("validity", ""))
     for tag in BLOCKING_VALIDITY_TAGS:
         if tag in validity:
@@ -547,6 +919,65 @@ def _required_valid_count(limit: int, declared_minimum: int) -> int:
     return limit
 
 
+def _validated_finalists(
+    candidates: object, limit: int
+) -> list[tuple[int, str, str]]:
+    if not isinstance(candidates, list):
+        raise ValueError("Candidate file top_10 must be a list.")
+    if len(candidates) < limit:
+        raise ValueError(
+            f"Candidate file contains only {len(candidates)} finalists; requested {limit}."
+        )
+    result: list[tuple[int, str, str]] = []
+    pairs: set[tuple[str, str]] = set()
+    for expected_rank, raw in enumerate(candidates[:limit], start=1):
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid candidate row.")
+        raw_rank = raw.get("rank")
+        if isinstance(raw_rank, bool):
+            raise ValueError("Candidate rank must be a positive integer.")
+        try:
+            rank_value = float(raw_rank)
+        except (TypeError, ValueError):
+            raise ValueError("Candidate rank must be a positive integer.") from None
+        if not math.isfinite(rank_value) or not rank_value.is_integer():
+            raise ValueError("Candidate rank must be a positive integer.")
+        rank = int(rank_value)
+        if rank != expected_rank:
+            raise ValueError(
+                f"Finalist ranks must be exactly 1..{limit} in order; "
+                f"expected {expected_rank}, found {rank}."
+            )
+        strategy = str(raw.get("trading_strategy", "")).strip()
+        management = str(raw.get("management_strategy", "")).strip()
+        if not strategy or not management:
+            raise ValueError("Candidate strategy and management must be non-empty.")
+        pair = (strategy.casefold(), management.casefold())
+        if pair in pairs:
+            raise ValueError(
+                f"Duplicate finalist strategy/management pair: {strategy} + {management}"
+            )
+        pairs.add(pair)
+        result.append((rank, strategy, management))
+    return result
+
+
+def _clear_previous_validation_outputs(
+    output: Path, markdown_output: Path, work_dir: Path
+) -> tuple[Path, Path]:
+    rejected_output = output.with_name(f"{output.stem}_REJECTED{output.suffix}")
+    rejected_markdown = markdown_output.with_name(
+        f"{markdown_output.stem}_REJECTED{markdown_output.suffix}"
+    )
+    for artifact in (output, markdown_output, rejected_output, rejected_markdown):
+        artifact.unlink(missing_ok=True)
+    if work_dir.exists():
+        for artifact in work_dir.iterdir():
+            if artifact.is_file() and artifact.name.startswith("candidate_"):
+                artifact.unlink()
+    return rejected_output, rejected_markdown
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -566,29 +997,32 @@ def main(argv: list[str] | None = None) -> int:
     if args.require_valid > args.limit:
         parser.error("--require-valid cannot exceed --limit.")
 
+    rejected_output, rejected_markdown = _clear_previous_validation_outputs(
+        args.output, args.markdown_output, args.work_dir
+    )
     source = json.loads(args.candidates.read_text(encoding="utf-8"))
     period = source.get("period") or {}
     start = str(period.get("start", ""))
     end = str(period.get("end", ""))
-    initial_cash = float(source.get("initial_cash", 0.0))
+    try:
+        initial_cash = float(source.get("initial_cash", 0.0))
+        start_date = datetime.fromisoformat(start)
+        end_date = datetime.fromisoformat(end)
+    except (TypeError, ValueError):
+        raise ValueError("Candidate file has an invalid period or initial_cash.") from None
     candidates = source.get("top_10")
     if (
-        not start
-        or not end
-        or not math.isfinite(initial_cash)
+        not math.isfinite(initial_cash)
         or initial_cash <= 0
-        or not isinstance(candidates, list)
+        or end_date < start_date
     ):
-        raise ValueError("Candidate file is missing period, initial_cash or top_10.")
+        raise ValueError("Candidate file has an invalid period or initial_cash.")
+    required_valid = _required_valid_count(args.limit, args.require_valid)
+    finalists = _validated_finalists(candidates, required_valid)
 
     validated: list[dict[str, object]] = []
     excluded: list[dict[str, object]] = []
-    for raw in candidates[: args.limit]:
-        if not isinstance(raw, dict):
-            raise ValueError("Invalid candidate row.")
-        rank = int(raw["rank"])
-        strategy = str(raw["trading_strategy"])
-        management = str(raw["management_strategy"])
+    for rank, strategy, management in finalists:
         payload = _run_candidate(
             rank=rank,
             strategy=strategy,
@@ -672,21 +1106,9 @@ def main(argv: list[str] | None = None) -> int:
         "realistic_ranking": ranking,
         "excluded_candidates": excluded,
     }
-    required_valid = _required_valid_count(args.limit, args.require_valid)
-    if len(candidates) < required_valid:
-        raise ValueError(
-            f"Candidate file contains only {len(candidates)} finalists; "
-            f"requested {required_valid}."
-        )
     if len(ranking) < required_valid:
         result["result_classification"] = "REALISTIC_FINALIST_VALIDATION_REJECTED"
         result["validation_passed"] = False
-        rejected_output = args.output.with_name(
-            f"{args.output.stem}_REJECTED{args.output.suffix}"
-        )
-        rejected_markdown = args.markdown_output.with_name(
-            f"{args.markdown_output.stem}_REJECTED{args.markdown_output.suffix}"
-        )
         rejected_output.parent.mkdir(parents=True, exist_ok=True)
         rejected_output.write_text(
             json.dumps(result, indent=2, ensure_ascii=False) + "\n",

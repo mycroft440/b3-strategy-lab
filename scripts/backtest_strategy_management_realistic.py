@@ -238,10 +238,18 @@ def main(argv: list[str] | None = None) -> int:
     payload["bonus_tax_basis_policy"] = (
         "Receita Federal distinguishes stock bonuses from ordinary splits for acquisition "
         "cost. The current engine does not yet apply issuer-specific bonus cost to weighted "
-        "average tax basis. Therefore any sale on/after a bonus date, including after a "
-        "source-backed ticker rename, is tax-basis-uncertain and cannot support a certified "
-        "deterministic replay."
+        "average tax basis. Certification is therefore blocked only when the simulated "
+        "account actually held the affected position across the bonus date and later sells "
+        "those shares, following source-backed 1:1 ticker renames. A bonus before the replay "
+        "or before the first simulated purchase does not taint later-acquired shares."
     )
+    payload["execution_model"] = {
+        "execution_prices": str(args.execution_prices),
+        "fee_schedule": str(args.fee_schedule),
+        "base_slippage_bps": float(args.base_slippage_bps),
+        "participation_bps_at_1pct": float(args.participation_bps_at_1pct),
+        "max_slippage_bps": float(args.max_slippage_bps),
+    }
     if bonus_dependencies and "__BONUS_TAX_BASIS_UNCERTIFIED" not in str(payload["validity"]):
         payload["validity"] = str(payload["validity"]) + "__BONUS_TAX_BASIS_UNCERTIFIED"
 

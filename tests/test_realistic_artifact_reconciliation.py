@@ -19,12 +19,16 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
             "2024-01-02,1000,1\n",
             encoding="utf-8",
         )
-        trades.write_text("date,fee\n", encoding="utf-8")
+        trades.write_text(
+            "date,side,ticker,shares,market_type,raw_open,execution_price,"
+            "notional,fee,slippage_bps,realized_gain\n",
+            encoding="utf-8",
+        )
         cash.write_text("date,net,tax\n", encoding="utf-8")
         tax.write_text(
-            "month,tax_due,irrf_withheld_month\n"
-            "2023-12,10,1\n"
-            "2024-01,5,0\n",
+            "month,sales,realized_gain,tax_due,irrf_withheld_month\n"
+            "2023-12,0,0,10,1\n"
+            "2024-01,0,0,5,0\n",
             encoding="utf-8",
         )
         payload = {
@@ -102,7 +106,10 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
     def test_empty_tax_ledger_is_blocking_even_when_summary_tax_is_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             payload, curve, trades, cash, tax = self._fixture(Path(temporary))
-            tax.write_text("month,tax_due,irrf_withheld_month\n", encoding="utf-8")
+            tax.write_text(
+                "month,sales,realized_gain,tax_due,irrf_withheld_month\n",
+                encoding="utf-8",
+            )
             payload["ordinary_income_tax_paid"] = 0.0
             payload["ordinary_irrf_withheld"] = 0.0
             payload["outstanding_accrued_tax_liability"] = 0.0
@@ -119,7 +126,8 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             payload, curve, trades, cash, tax = self._fixture(Path(temporary))
             tax.write_text(
-                "month,tax_due\n2023-12,10\n2024-01,5\n",
+                "month,sales,realized_gain,tax_due\n"
+                "2023-12,0,0,10\n2024-01,0,0,5\n",
                 encoding="utf-8",
             )
             issues = _artifact_binding_issues(
@@ -136,9 +144,9 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             payload, curve, trades, cash, tax = self._fixture(Path(temporary))
             tax.write_text(
-                "month,tax_due,irrf_withheld_month\n"
-                "2023-12,10,1\n"
-                "2023-12,5,0\n",
+                "month,sales,realized_gain,tax_due,irrf_withheld_month\n"
+                "2023-12,0,0,10,1\n"
+                "2023-12,0,0,5,0\n",
                 encoding="utf-8",
             )
             issues = _artifact_binding_issues(

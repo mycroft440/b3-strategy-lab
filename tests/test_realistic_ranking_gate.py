@@ -244,7 +244,7 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "trades": 2,
             "fees_paid": 3.0,
             "distributions_net": 5.0,
-            "distribution_tax_paid": 1.0,
+            "distribution_tax_paid": 0.0,
         }
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -256,12 +256,16 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
                 encoding="utf-8",
             )
             trades.write_text(
-                "date,side,ticker,shares,market_type,raw_open,execution_price,notional,fee,slippage_bps\n"
-                "2018-01-02,BUY,AAA3,10,020,10,10.01,100.1,1,10\n"
-                "2018-01-03,SELL,AAA3,10,020,11,10.989,109.89,2,10\n",
+                "date,side,ticker,shares,market_type,raw_open,execution_price,notional,fee,slippage_bps,realized_gain\n"
+                "2018-01-02,BUY,AAA3,10,020,10,10.01,100.1,1,10,0\n"
+                "2018-01-03,SELL,AAA3,10,020,11,10.989,109.89,2,10,7.89\n",
                 encoding="utf-8",
             )
-            cash.write_text("date,net,tax\n2018-01-03,5,1\n", encoding="utf-8")
+            cash.write_text(
+                "date,ticker,label,shares_entitled,gross,tax,net\n"
+                "2018-01-03,AAA3,DIVIDENDO,10,5,0,5\n",
+                encoding="utf-8",
+            )
             self.assertEqual(
                 _artifact_binding_issues(
                     payload,
