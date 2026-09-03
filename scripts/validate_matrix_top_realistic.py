@@ -74,15 +74,24 @@ def _curve_recalculated_metrics(
         dates.append(current)
         equities.append(equity)
 
-    returns = [
+    returns = [equities[0] / initial_cash - 1.0]
+    returns.extend(
         equities[index] / equities[index - 1] - 1.0
         for index in range(1, len(equities))
-    ]
+    )
     years = max(
         (dates[-1] - dates[0]).total_seconds() / 31_557_600.0,
         1 / 365.25,
     )
-    periods_per_year = (len(equities) - 1) / years
+    risk_years = years + 1 / 365.25
+    periods_per_year = len(returns) / risk_years
+    peak = initial_cash
+    max_drawdown = 0.0
+    for equity in equities:
+        peak = max(peak, equity)
+        if peak > 0:
+            max_drawdown = min(max_drawdown, equity / peak - 1.0)
+
     if len(returns) >= 2:
         return_std = statistics.stdev(returns)
         annual_volatility = return_std * math.sqrt(periods_per_year)
@@ -107,6 +116,7 @@ def _curve_recalculated_metrics(
     return {
         "annual_volatility": annual_volatility,
         "sharpe": sharpe,
+        "max_drawdown": max_drawdown,
         "average_annual_return": (
             statistics.mean(yearly_returns) if yearly_returns else 0.0
         ),
@@ -148,6 +158,28 @@ def _artifact_binding_issues(
     try:
         if len(trades) != int(payload["trades"]):
             issues.append("trade_ledger_count_mismatch")
+        for row in trades:
+            side = str(row.get("side", "")).upper()
+            market_type = str(row.get("market_type", ""))
+            shares = int(row.get("shares", "0"))
+            raw_open = float(row.get("raw_open", "nan"))
+            execution_price = float(row.get("execution_price", "nan"))
+            notional = float(row.get("notional", "nan"))
+            fee = float(row.get("fee", "nan"))
+            slippage = float(row.get("slippage_bps", "nan"))
+            if (
+                side not in {"BUY", "SELL"}
+                or market_type not in {"010", "020"}
+                or shares <= 0
+                or not all(math.isfinite(value) for value in (raw_open, execution_price, notional, fee, slippage))
+                or raw_open <= 0
+                or execution_price <= 0
+                or notional <= 0
+                or fee < 0
+                or slippage < 0
+            ):
+                issues.append("invalid_trade_execution_leg")
+                break
         ledger_fees = sum(float(row["fee"]) for row in trades)
         if not (
             math.isfinite(ledger_fees)
@@ -217,6 +249,7 @@ def _artifact_binding_issues(
         metric_issue_names = {
             "annual_volatility": "curve_annual_volatility_mismatch",
             "sharpe": "curve_sharpe_mismatch",
+            "max_drawdown": "curve_max_drawdown_mismatch",
             "average_annual_return": "curve_average_annual_return_mismatch",
         }
         for field, issue_name in metric_issue_names.items():
@@ -316,7 +349,15 @@ def _run_candidate(
     ]
     if strategy == "gap_momentum":
         command.append("--economic-gap-adjustment")
-    subprocess.run(command, cwd=ROOT, check=True)
+    try:
+        subprocess.run(command, cwd=ROOT, check=True)
+    except subprocess.CalledProcessError as error:
+        return {
+            "_candidate_execution_error": f"exit_code={error.returncode}",
+            "research_rank": rank,
+            "research_strategy": strategy,
+            "research_management": management,
+        }
     payload = json.loads(summary.read_text(encoding="utf-8"))
     payload["_artifact_binding_issues"] = _artifact_binding_issues(
         payload,
@@ -341,6 +382,8 @@ def _validation_issues(
     expected_initial_cash: float | None = None,
 ) -> list[str]:
     issues: list[str] = []
+    if payload.get("_candidate_execution_error"):
+        return ["candidate_execution_failed:" + str(payload["_candidate_execution_error"])]
     validity = str(payload.get("validity", ""))
     for tag in BLOCKING_VALIDITY_TAGS:
         if tag in validity:
@@ -491,6 +534,19 @@ def _write_markdown(result: dict[str, object], path: Path) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _required_valid_count(limit: int, declared_minimum: int) -> int:
+    """A Top-N certification is complete only when every requested finalist passes.
+
+    ``declared_minimum`` remains accepted for CLI compatibility with older workflows,
+    but it can never weaken the all-finalists certification invariant.
+    """
+    if limit <= 0 or declared_minimum <= 0:
+        raise ValueError("limit and declared minimum must be positive")
+    if declared_minimum > limit:
+        raise ValueError("declared minimum cannot exceed limit")
+    return limit
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -507,6 +563,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.limit <= 0 or args.require_valid <= 0:
         parser.error("--limit and --require-valid must be positive.")
+    if args.require_valid > args.limit:
+        parser.error("--require-valid cannot exceed --limit.")
 
     source = json.loads(args.candidates.read_text(encoding="utf-8"))
     period = source.get("period") or {}
@@ -614,17 +672,38 @@ def main(argv: list[str] | None = None) -> int:
         "realistic_ranking": ranking,
         "excluded_candidates": excluded,
     }
+    required_valid = _required_valid_count(args.limit, args.require_valid)
+    if len(candidates) < required_valid:
+        raise ValueError(
+            f"Candidate file contains only {len(candidates)} finalists; "
+            f"requested {required_valid}."
+        )
+    if len(ranking) < required_valid:
+        result["result_classification"] = "REALISTIC_FINALIST_VALIDATION_REJECTED"
+        result["validation_passed"] = False
+        rejected_output = args.output.with_name(
+            f"{args.output.stem}_REJECTED{args.output.suffix}"
+        )
+        rejected_markdown = args.markdown_output.with_name(
+            f"{args.markdown_output.stem}_REJECTED{args.markdown_output.suffix}"
+        )
+        rejected_output.parent.mkdir(parents=True, exist_ok=True)
+        rejected_output.write_text(
+            json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        _write_markdown(result, rejected_markdown)
+        raise SystemExit(
+            f"Only {len(ranking)} candidates passed realistic certification; "
+            f"required {required_valid}."
+        )
+    result["validation_passed"] = True
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     _write_markdown(result, args.markdown_output)
-    if len(ranking) < args.require_valid:
-        raise SystemExit(
-            f"Only {len(ranking)} candidates passed realistic certification; "
-            f"required {args.require_valid}."
-        )
     print(
         f"Realistic finalist validation: valid={len(ranking)}, excluded={len(excluded)}, "
         f"output={args.output}"

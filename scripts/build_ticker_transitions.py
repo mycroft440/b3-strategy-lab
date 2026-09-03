@@ -49,6 +49,57 @@ def _stale_category(last_quote_date: str, coverage_end: str, *, transitioned: bo
     return "recent_stale_symbol" if age <= RECENT_STALE_DAYS else "unresolved_disappearance"
 
 
+
+def _same_isin_transition_rows(items: list, isin: str) -> list[dict[str, object]]:
+    """Return unambiguous 1:1 ticker renames for one ISIN.
+
+    Two different symbols carrying the same ISIN on the same session are not enough
+    evidence to order a rename. The previous implementation depended on input ordering
+    and could manufacture A->B->A transitions. Such overlap now fails closed.
+    """
+    ordered = sorted(items, key=lambda item: (item.date, item.ticker.upper()))
+    if not ordered:
+        return []
+    tickers_by_date: dict[str, set[str]] = defaultdict(set)
+    for item in ordered:
+        tickers_by_date[item.date].add(item.ticker.upper())
+    simultaneous = {
+        day: sorted(names) for day, names in tickers_by_date.items() if len(names) > 1
+    }
+    if simultaneous:
+        raise ValueError(
+            f"{isin}: simultaneous same-ISIN symbols make automatic rename ambiguous: "
+            f"{simultaneous}"
+        )
+
+    rows: list[dict[str, object]] = []
+    previous_ticker = ordered[0].ticker.upper()
+    previous_date = ordered[0].date
+    for item in ordered[1:]:
+        ticker = item.ticker.upper()
+        if ticker != previous_ticker:
+            if not previous_date < item.date:
+                raise ValueError(
+                    f"{isin}: rename boundary is not strictly chronological: "
+                    f"{previous_ticker}@{previous_date} -> {ticker}@{item.date}"
+                )
+            rows.append(
+                {
+                    "effective_date": item.date,
+                    "old_ticker": previous_ticker,
+                    "new_ticker": ticker,
+                    "share_ratio": "1",
+                    "cash_per_old_share": "0",
+                    "evidence": "same_isin_continuity",
+                    "isin": isin,
+                    "last_old_quote": previous_date,
+                    "first_new_quote": item.date,
+                }
+            )
+        previous_ticker = ticker
+        previous_date = item.date
+    return rows
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -125,32 +176,19 @@ def main(argv: list[str] | None = None) -> int:
     transitions: list[dict[str, object]] = []
     seen: set[tuple[str, str, str]] = set()
     for isin in sorted(relevant_isins):
-        ordered = sorted(by_isin[isin], key=lambda item: item.date)
-        previous_ticker = ordered[0].ticker.upper()
-        previous_date = ordered[0].date
-        for item in ordered[1:]:
-            ticker = item.ticker.upper()
-            if ticker in EXCLUDED_TICKERS:
+        eligible_items = [
+            item for item in by_isin[isin] if item.ticker.upper() not in EXCLUDED_TICKERS
+        ]
+        for row in _same_isin_transition_rows(eligible_items, isin):
+            key = (
+                str(row["effective_date"]),
+                str(row["old_ticker"]),
+                str(row["new_ticker"]),
+            )
+            if key in seen:
                 continue
-            if ticker != previous_ticker:
-                key = (item.date, previous_ticker, ticker)
-                if key not in seen:
-                    transitions.append(
-                        {
-                            "effective_date": item.date,
-                            "old_ticker": previous_ticker,
-                            "new_ticker": ticker,
-                            "share_ratio": "1",
-                            "cash_per_old_share": "0",
-                            "evidence": "same_isin_continuity",
-                            "isin": isin,
-                            "last_old_quote": previous_date,
-                            "first_new_quote": item.date,
-                        }
-                    )
-                    seen.add(key)
-            previous_ticker = ticker
-            previous_date = item.date
+            seen.add(key)
+            transitions.append(row)
 
     transitions.sort(
         key=lambda row: (

@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         "selection_rules": {
             "source": "B3_COTAHIST_full_historical_ON_PN_share_market",
             "instrument_filter": (
-                "company shares only; BDI02 market010 ON/PN classes. UNITS are excluded "
+                "company shares only; equity-status BDI 02/05/06/07/08/09/11 in market010 ON/PN classes. UNITS are excluded "
                 "from the certified R$20k tax scope because B3 classifies them as "
                 "deposit certificates and no Receita source is assumed to extend the "
                 "share-only exemption automatically"
@@ -211,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
             "replacement_policy": "full historical eligible-share market re-ranked from trailing data only",
         },
         "execution_sources": {
-            "standard": {"market_type": "010", "bdi_code": "02"},
+            "standard": {"market_type": "010", "bdi_codes": ["02", "05", "06", "07", "08", "09", "11"]},
             "fractional": {"market_type": "020", "bdi_code": "96"},
         },
         "tickers": selected_union,

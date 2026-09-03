@@ -402,6 +402,11 @@ def main(argv: list[str] | None = None) -> int:
     details["invalid_execution_row_count"] = len(invalid_execution_rows)
     details["missing_snapshot_next_open_count"] = len(missing_next_open)
     details["missing_snapshot_next_open_examples"] = missing_next_open[:50]
+    details["execution_coverage_scope"] = "snapshot_next_open_preflight_only"
+    details["actual_trade_execution_validation"] = (
+        "candidate replay fails closed on every required 010/020 leg and the final "
+        "artifact gate independently validates every recorded execution leg"
+    )
 
     structural_account = [
         "universe_is_point_in_time",
@@ -485,7 +490,7 @@ def main(argv: list[str] | None = None) -> int:
         "ready_for_exact_historical_account_claim": False,
         "counterfactual_execution_exact": False,
         "selection_validity": selection_validity,
-        "ex_ante_selection_claim_allowed": survivorship_safe,
+        "ex_ante_selection_claim_allowed": False,
         "estimate_blockers": estimate_blockers,
         "certified_market_input_blockers": certified_market_blockers,
         "exact_brokerage_account_requirements": brokerage_account_requirements,

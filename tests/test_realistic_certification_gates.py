@@ -82,7 +82,10 @@ class RealisticCertificationGateTests(unittest.TestCase):
             )
             dependencies = bonus_tax_basis_dependencies(
                 evidence,
-                [{"date": "2021-04-06", "side": "SELL", "ticker": "AAA3"}],
+                [
+                    {"date": "2021-03-01", "side": "BUY", "ticker": "AAA3", "shares": 10},
+                    {"date": "2021-04-06", "side": "SELL", "ticker": "AAA3", "shares": 10},
+                ],
                 start="2021-01-01",
                 end="2021-12-30",
             )
@@ -112,7 +115,10 @@ class RealisticCertificationGateTests(unittest.TestCase):
             )
             dependencies = bonus_tax_basis_dependencies(
                 evidence,
-                [{"date": "2021-04-06", "side": "SELL", "ticker": "AAA3"}],
+                [
+                    {"date": "2021-03-01", "side": "BUY", "ticker": "AAA3", "shares": 10},
+                    {"date": "2021-04-06", "side": "SELL", "ticker": "AAA3", "shares": 10},
+                ],
                 start="2021-01-01",
                 end="2021-12-30",
             )
@@ -157,7 +163,10 @@ class RealisticCertificationGateTests(unittest.TestCase):
                 )
             dependencies = bonus_tax_basis_dependencies(
                 evidence,
-                [{"date": "2021-07-01", "side": "SELL", "ticker": "BBB3"}],
+                [
+                    {"date": "2021-03-01", "side": "BUY", "ticker": "AAA3", "shares": 10},
+                    {"date": "2021-07-01", "side": "SELL", "ticker": "BBB3", "shares": 10},
+                ],
                 start="2021-01-01",
                 end="2021-12-30",
                 transition_csv_path=transitions,

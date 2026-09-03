@@ -60,6 +60,13 @@ def build_cash_events(
         if company is None:
             issues.append({"ticker": ticker, "issuer": issuer, "issue": "issuer_missing_in_b3_payload"})
             continue
+        if company.get("_cash_dividends_source_available") is False:
+            issues.append({
+                "ticker": ticker,
+                "issuer": issuer,
+                "issue": "historical_cash_dividend_source_unavailable",
+            })
+            continue
 
         quotes = sorted(quotes_by_ticker[ticker], key=lambda quote: quote.date)
         quote_dates = [quote.date for quote in quotes]

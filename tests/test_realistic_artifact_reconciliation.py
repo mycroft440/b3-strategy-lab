@@ -32,6 +32,7 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
             "end": "2024-01-02",
             "initial_cash": 1000.0,
             "final_equity": 1000.0,
+            "max_drawdown": 0.0,
             "annual_volatility": 0.0,
             "sharpe": 0.0,
             "average_annual_return": 0.0,
@@ -64,6 +65,7 @@ class RealisticArtifactReconciliationTests(unittest.TestCase):
         cases = {
             "annual_volatility": "curve_annual_volatility_mismatch",
             "sharpe": "curve_sharpe_mismatch",
+            "max_drawdown": "curve_max_drawdown_mismatch",
             "average_annual_return": "curve_average_annual_return_mismatch",
         }
         with tempfile.TemporaryDirectory() as temporary:

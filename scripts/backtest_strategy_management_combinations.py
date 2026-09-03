@@ -684,6 +684,11 @@ def _write_manifest(
         "management_count": len(configs),
         "management_configs": [asdict(config) for config in configs],
         "combinations": combinations,
+        "combination_identity": (
+            "unique strategy-name x management-parameterization pairs; "
+            "behavioral uniqueness is not claimed"
+        ),
+        "behavioral_uniqueness_claimed": False,
         "catalog_complete": catalog_complete,
         "catalog_strategy_count": len(catalog_strategies),
         "catalog_management_count": len(catalog_configs),

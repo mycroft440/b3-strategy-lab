@@ -842,19 +842,29 @@ def _portfolio_metrics(
     dates: list[str],
     initial_cash: float,
 ) -> dict[str, float]:
-    returns = [
-        equities[index] / equities[index - 1] - 1
+    if not equities or not dates or len(equities) != len(dates):
+        raise ValueError("equities/dates must be non-empty and aligned")
+    if initial_cash <= 0 or not math.isfinite(initial_cash):
+        raise ValueError("initial_cash must be finite and positive")
+    # Include capital-at-risk -> first close. Entry costs/slippage and first-session
+    # P&L are economically real and must contribute to Sharpe/volatility.
+    returns = [equities[0] / initial_cash - 1.0]
+    returns.extend(
+        equities[index] / equities[index - 1] - 1.0
         for index in range(1, len(equities))
         if equities[index - 1] > 0
-    ]
+    )
     total_return = equities[-1] / initial_cash - 1
     years = max(
         (_point_datetime(dates[-1]) - _point_datetime(dates[0])).total_seconds()
         / (365.25 * 24 * 60 * 60),
         1 / 365.25,
     )
-    periods_per_year = (len(equities) - 1) / years if years > 0 else 252.0
-    peak = equities[0]
+    # dates[0] is the first close while initial_cash is capital immediately before
+    # that first session. Add one calendar day only for risk-period annualization.
+    risk_years = years + 1 / 365.25
+    periods_per_year = len(returns) / risk_years if risk_years > 0 else 252.0
+    peak = initial_cash
     max_drawdown = 0.0
     for equity in equities:
         peak = max(peak, equity)

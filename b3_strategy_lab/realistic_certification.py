@@ -111,12 +111,7 @@ def bonus_tax_basis_dependencies(
 
     source = Path(split_evidence_path)
     if not source.exists():
-        return [
-            {
-                "reason": "split_evidence_missing",
-                "split_evidence": str(source),
-            }
-        ]
+        return [{"reason": "split_evidence_missing", "split_evidence": str(source)}]
     payload = json.loads(source.read_text(encoding="utf-8"))
     bonuses: list[dict[str, object]] = []
     for event in payload.get("events") or []:
@@ -125,7 +120,9 @@ def bonus_tax_basis_dependencies(
         ticker = str(event.get("ticker", "")).strip().upper()
         if "BONIFICACAO" not in label or not ticker or not ex_date:
             continue
-        if ex_date > end:
+        # The simulated account starts in cash at `start`; pre-start bonuses cannot
+        # alter the basis of shares bought later by this replay.
+        if ex_date < start or ex_date > end:
             continue
         bonuses.append(
             {
@@ -135,48 +132,110 @@ def bonus_tax_basis_dependencies(
                 "affected_tickers": {ticker},
             }
         )
-
     if not bonuses:
         return []
 
     transitions = sorted(
         _transition_rows(transition_csv_path),
-        key=lambda row: str(row.get("effective_date", "")),
+        key=lambda row: str(row.get("effective_date", ""))[:10],
     )
+    # Propagate the uncertainty identity through 1:1 source-backed renames.
     for bonus in bonuses:
         affected = bonus["affected_tickers"]
         assert isinstance(affected, set)
         for transition in transitions:
             effective = str(transition.get("effective_date", ""))[:10]
-            if not effective or effective < str(bonus["ex_date"]) or effective > end:
+            if effective < str(bonus["ex_date"]) or effective > end:
                 continue
             old = str(transition.get("old_ticker", "")).strip().upper()
             new = str(transition.get("new_ticker", "")).strip().upper()
             if old in affected and new:
                 affected.add(new)
 
+    trades = sorted(
+        [
+            row
+            for row in trade_rows
+            if start <= str(_row_value(row, "date", ""))[:10] <= end
+        ],
+        key=lambda row: (
+            str(_row_value(row, "date", ""))[:10],
+            0 if str(_row_value(row, "side", "")).upper() == "BUY" else 1,
+        ),
+    )
+    transitions_by_date: dict[str, list[dict[str, str]]] = {}
+    for transition in transitions:
+        effective = str(transition.get("effective_date", ""))[:10]
+        if start <= effective <= end:
+            transitions_by_date.setdefault(effective, []).append(transition)
+    bonuses_by_date: dict[str, list[dict[str, object]]] = {}
+    for bonus in bonuses:
+        bonuses_by_date.setdefault(str(bonus["ex_date"]), []).append(bonus)
+
+    holdings: dict[str, int] = {}
+    tainted: set[str] = set()
     dependencies: list[dict[str, object]] = []
-    for row in trade_rows:
-        if str(_row_value(row, "side", "")).upper() != "SELL":
-            continue
+    processed_dates: set[str] = set()
+
+    def apply_events_through(value_date: str) -> None:
+        due = sorted(
+            {
+                *[d for d in transitions_by_date if d <= value_date],
+                *[d for d in bonuses_by_date if d <= value_date],
+            }
+            - processed_dates
+        )
+        for event_date in due:
+            processed_dates.add(event_date)
+            # Rename before evaluating same-day bonus entitlement.
+            for transition in transitions_by_date.get(event_date, []):
+                old = str(transition.get("old_ticker", "")).strip().upper()
+                new = str(transition.get("new_ticker", "")).strip().upper()
+                if not old or not new:
+                    continue
+                quantity = holdings.pop(old, 0)
+                if quantity:
+                    holdings[new] = holdings.get(new, 0) + quantity
+                if old in tainted:
+                    tainted.discard(old)
+                    tainted.add(new)
+            for bonus in bonuses_by_date.get(event_date, []):
+                affected = bonus["affected_tickers"]
+                assert isinstance(affected, set)
+                if any(holdings.get(name, 0) > 0 for name in affected):
+                    tainted.update(affected)
+
+    for row in trades:
+        value_date = str(_row_value(row, "date", ""))[:10]
+        apply_events_through(value_date)
         ticker = str(_row_value(row, "ticker", "")).strip().upper()
-        sale_date = str(_row_value(row, "date", ""))[:10]
-        if not ticker or not sale_date or sale_date < start or sale_date > end:
+        side = str(_row_value(row, "side", "")).upper()
+        quantity = int(float(_row_value(row, "shares", _row_value(row, "quantity", 0)) or 0))
+        if not ticker or quantity <= 0:
             continue
-        for bonus in bonuses:
-            affected = bonus["affected_tickers"]
-            assert isinstance(affected, set)
-            if ticker in affected and sale_date >= str(bonus["ex_date"]):
-                dependencies.append(
-                    {
-                        "ticker": ticker,
-                        "original_bonus_ticker": bonus["ticker"],
-                        "bonus_ex_date": bonus["ex_date"],
-                        "sale_date": sale_date,
-                        "event": bonus["event"],
-                        "reason": "stock_bonus_tax_basis_not_applied_by_engine",
-                    }
-                )
+        if side == "BUY":
+            holdings[ticker] = holdings.get(ticker, 0) + quantity
+            continue
+        if side != "SELL":
+            continue
+        if ticker in tainted:
+            candidates = [bonus for bonus in bonuses if ticker in bonus["affected_tickers"]]
+            for bonus in candidates:
+                if value_date >= str(bonus["ex_date"]):
+                    dependencies.append(
+                        {
+                            "ticker": ticker,
+                            "original_bonus_ticker": bonus["ticker"],
+                            "bonus_ex_date": bonus["ex_date"],
+                            "sale_date": value_date,
+                            "event": bonus["event"],
+                            "reason": "stock_bonus_tax_basis_not_applied_by_engine",
+                        }
+                    )
+        holdings[ticker] = max(0, holdings.get(ticker, 0) - quantity)
+        if holdings[ticker] == 0:
+            tainted.discard(ticker)
+
     unique = {
         (
             item["ticker"],
@@ -188,7 +247,6 @@ def bonus_tax_basis_dependencies(
         for item in dependencies
     }
     return [unique[key] for key in sorted(unique)]
-
 
 def terminal_month_tax_policy(end: str) -> dict[str, object]:
     """Describe the terminal-month assumption without pretending the month is complete."""

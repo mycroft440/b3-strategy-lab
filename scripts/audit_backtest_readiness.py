@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +12,25 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402
 
+
+
+def _weekday_gap(last_session: date, reference: date) -> int:
+    """Count weekdays strictly after the last session and before the reference date.
+
+    This intentionally does not pretend to be a full B3 holiday calendar. Combined
+    with the existing calendar-day cap, a two-weekday tolerance prevents weekends and
+    common long-holiday closures from being mislabeled stale while still rejecting a
+    genuinely old snapshot quickly.
+    """
+    if last_session > reference:
+        return -1
+    current = last_session + timedelta(days=1)
+    total = 0
+    while current < reference:
+        if current.weekday() < 5:
+            total += 1
+        current += timedelta(days=1)
+    return total
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -101,7 +120,13 @@ def main(argv: list[str] | None = None) -> int:
     evaluation_end_date = date.fromisoformat(evaluation_end)
     freshness_reference = date.today()
     age_calendar_days = (freshness_reference - evaluation_end_date).days
-    data_is_recent = 0 <= age_calendar_days <= args.max_age_calendar_days
+    age_weekdays_without_new_session = _weekday_gap(
+        evaluation_end_date, freshness_reference
+    )
+    data_is_recent = (
+        0 <= age_calendar_days <= args.max_age_calendar_days
+        or 0 <= age_weekdays_without_new_session <= 2
+    )
     historical_cutoff_accepted = bool(
         args.allow_historical_cutoff
         and expected_end is not None
@@ -138,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         "data_is_recent": data_is_recent,
         "historical_cutoff_accepted": historical_cutoff_accepted,
         "age_calendar_days": age_calendar_days,
+        "age_weekdays_without_new_session": age_weekdays_without_new_session,
         "maximum_age_calendar_days": args.max_age_calendar_days,
         "common_sessions": len(common_dates),
         "union_sessions": len(union_dates),

@@ -211,7 +211,15 @@ def main(argv: list[str] | None = None) -> int:
     # Shape minimo compatível com extract_official_split_events. Não representa
     # uma resposta B3; apenas indica que não há consulta corrente aplicável.
     for issuer in historical_issuers:
-        payloads[issuer] = [{"code": issuer, "stockDividends": []}]
+        # This placeholder is valid only for the share-count/split extractor. It is
+        # deliberately marked unusable for cash distributions: absence of a current
+        # B3 payload is not evidence that a historical issuer paid zero dividends/JCP.
+        payloads[issuer] = [{
+            "code": issuer,
+            "stockDividends": [],
+            "_historical_split_placeholder": True,
+            "_cash_dividends_source_available": False,
+        }]
 
     supplemental_by_ticker: dict[str, list] = defaultdict(list)
     if args.supplemental_splits.exists():
