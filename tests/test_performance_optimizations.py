@@ -126,6 +126,25 @@ class PortfolioPerformanceCacheTests(unittest.TestCase):
         self.assertIs(first, second)
         self.assertEqual(first, frozenset({"AAA3"}))
 
+    def test_market_date_window_is_reused_with_identical_semantics(self) -> None:
+        values = ["2026-01-02", "2026-01-05", "2026-01-06"]
+        expected = public._original_date_window(values, "2026-01-05", "2026-01-06")
+        first = public._date_window(values, "2026-01-05", "2026-01-06")
+        second = public._date_window(values, "2026-01-05", "2026-01-06")
+        self.assertEqual(first, expected)
+        self.assertIs(first, second)
+
+    def test_rebalance_decision_cache_returns_canonical_result(self) -> None:
+        public._is_rebalance_date.cache_clear()
+        expected = public._original_is_rebalance_date(
+            "2026-01-30", "2026-02-02", "monthly"
+        )
+        first = public._is_rebalance_date("2026-01-30", "2026-02-02", "monthly")
+        second = public._is_rebalance_date("2026-01-30", "2026-02-02", "monthly")
+        self.assertEqual(first, expected)
+        self.assertEqual(second, expected)
+        self.assertGreaterEqual(public._is_rebalance_date.cache_info().hits, 1)
+
 
 class CausalLiquidityCacheTests(unittest.TestCase):
     def _book(self) -> ExecutionPriceBook:
