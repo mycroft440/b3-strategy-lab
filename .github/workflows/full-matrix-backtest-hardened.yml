@@ -572,7 +572,7 @@ jobs:
             --candidates reports/TOP_10.json \
             --output reports/REALISTIC_TOP_10.json \
             --markdown-output reports/REALISTIC_TOP_10.md \
-            --require-valid 1
+            --require-valid "$TOP_N"
           cat reports/REALISTIC_TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publicar validação realista
@@ -583,6 +583,8 @@ jobs:
           path: |
             reports/REALISTIC_TOP_10.md
             reports/REALISTIC_TOP_10.json
+            reports/REALISTIC_TOP_10_REJECTED.md
+            reports/REALISTIC_TOP_10_REJECTED.json
             reports/realistic_candidates/**
             reports/realistic_input_audit.json
             reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
