@@ -100,9 +100,6 @@ def _preparse_context(argv: list[str]):
 
 
 def _load_parallel_context(args):
-    if args.limit <= 0 or args.require_valid <= 0 or args.require_valid > args.limit:
-        return None
-
     source = json.loads(args.candidates.read_text(encoding="utf-8"))
     period = source.get("period") or {}
     start = str(period.get("start", ""))
@@ -180,17 +177,20 @@ def main(argv: list[str] | None = None) -> int:
         return _base.main(base_argv)
 
     args = _preparse_context(base_argv)
-    context = _load_parallel_context(args)
-    if context is None:
+    if args.limit <= 0 or args.require_valid <= 0 or args.require_valid > args.limit:
         # Delegate invalid argument combinations to the canonical parser so error
-        # semantics remain unchanged.
+        # semantics remain unchanged. The canonical parser rejects them before any
+        # output cleanup, so do the same.
         return _base.main(base_argv)
-    start, end, initial_cash, finalists = context
 
-    # Clear stale candidate artifacts exactly once before concurrent execution.
+    # The frozen validator clears stale outputs before reading/parsing candidates.
+    # Preserve that fail-closed ordering exactly: a corrupt candidate file must not
+    # leave a prior successful report in place.
     rejected_output, rejected_markdown = _clear_previous_validation_outputs(
         args.output, args.markdown_output, args.work_dir
     )
+    start, end, initial_cash, finalists = _load_parallel_context(args)
+
     payload_by_rank = _run_finalists_parallel(
         finalists,
         start=start,
