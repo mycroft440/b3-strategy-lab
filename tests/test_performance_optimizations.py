@@ -178,6 +178,16 @@ class CausalLiquidityCacheTests(unittest.TestCase):
         self.assertEqual(second, first)
         self.assertEqual(len(cache), 1)
 
+    def test_causal_execution_legs_are_reused_without_mutating_results(self) -> None:
+        book = self._book()
+        first = book.legs("2024-01-04", "AAA3", 100)
+        cache = getattr(book, "_causal_liquidity_legs_cache")
+        self.assertEqual(len(cache), 1)
+        second = book.legs("2024-01-04", "AAA3", 100)
+        self.assertEqual(first, second)
+        self.assertIsNot(first, second)
+        self.assertEqual(len(cache), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
