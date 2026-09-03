@@ -1,0 +1,88 @@
+name: Apply second critical review fixes once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-second-review-fixes-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: second-critical-review-fixes
+  cancel-in-progress: false
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate patch payload
+        run: python -m py_compile .github/patches/apply_second_review_fixes.py
+
+      - name: Apply second-review fixes
+        run: python .github/patches/apply_second_review_fixes.py
+
+      - name: Compile changed production modules
+        run: |
+          python -m py_compile \
+            scripts/validate_matrix_top_realistic.py \
+            scripts/backtest_strategy_management_realistic.py
+
+      - name: Run second-review regression tests
+        run: python -m unittest discover -s tests -p 'test_second_review_hardening.py' -v
+
+      - name: Run directly related suites
+        run: |
+          python -m unittest discover -s tests -p 'test_realistic_ranking_gate.py' -v
+          python -m unittest discover -s tests -p 'test_realistic_artifact_reconciliation.py' -v
+          python -m unittest discover -s tests -p 'test_comprehensive_audit_fixes.py' -v
+          python -m unittest discover -s tests -p 'test_realistic_certification_gates.py' -v
+
+      - name: Run full repository suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Verify reviewed invariants
+        run: |
+          grep -F 'trade_notional_mismatch' scripts/validate_matrix_top_realistic.py
+          grep -F 'trade_raw_open_source_mismatch' scripts/validate_matrix_top_realistic.py
+          grep -F 'trade_slippage_model_mismatch' scripts/validate_matrix_top_realistic.py
+          grep -F 'trade_fee_schedule_mismatch' scripts/validate_matrix_top_realistic.py
+          grep -F 'tax_ledger_sales_trade_mismatch' scripts/validate_matrix_top_realistic.py
+          grep -F 'candidate_artifact_invalid:' scripts/validate_matrix_top_realistic.py
+          grep -F -- '--require-valid "$TOP_N"' .github/workflows/full-matrix-backtest-hardened.yml
+          grep -F 'reports/REALISTIC_TOP_10_REJECTED.json' .github/workflows/full-matrix-backtest-hardened.yml
+          test ! -e .github/workflows/fix-historical-issuer-refresh-once.yml
+          test ! -e .github/workflows/patch-freeze-preflight-once.yml
+          test ! -e .github/workflows/patch-pine-warmup-once.yml
+
+      - name: Commit tested code and reviewed workflow blob to main
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # Preserve the exact workflow bytes that were tested under a non-workflow path.
+          cp .github/workflows/full-matrix-backtest-hardened.yml \
+             .github/patches/full-matrix-backtest-hardened.reviewed.yml
+
+          # GITHUB_TOKEN cannot mutate workflow paths; restore them before this push.
+          git checkout -- .github/workflows/full-matrix-backtest-hardened.yml
+          git checkout -- .github/workflows/fix-historical-issuer-refresh-once.yml
+          git checkout -- .github/workflows/patch-freeze-preflight-once.yml
+          git checkout -- .github/workflows/patch-pine-warmup-once.yml
+
+          git add scripts tests .github/patches/full-matrix-backtest-hardened.reviewed.yml
+          git diff --cached --check
+          git commit -m 'fix: close second-review backtest integrity gaps [skip ci]'
+          git push origin HEAD:main
