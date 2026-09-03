@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import unittest
 from types import SimpleNamespace
-
-import pytest
 
 from scripts.sync_official_universe import (
     SPLIT_NEUTRAL_OPEN_GAP_LIMIT,
@@ -25,32 +24,36 @@ def _event(*, ratio: float = 0.01):
     )
 
 
-def test_continuity_gate_uses_event_boundary_open_not_full_session_close() -> None:
-    rows = _event_continuity_audit(
-        [
-            _quote("2024-08-26", open_=0.05, close=0.05),
-            _quote("2024-08-27", open_=5.20, close=7.00),
-        ],
-        [_event()],
-    )
+class SplitContinuityOpeningGateTests(unittest.TestCase):
+    def test_continuity_gate_uses_event_boundary_open_not_full_session_close(self) -> None:
+        rows = _event_continuity_audit(
+            [
+                _quote("2024-08-26", open_=0.05, close=0.05),
+                _quote("2024-08-27", open_=5.20, close=7.00),
+            ],
+            [_event()],
+        )
 
-    assert len(rows) == 1
-    row = rows[0]
-    assert row["split_neutral_raw_open_gap"] == pytest.approx(0.04)
-    assert row["split_neutral_raw_close_return"] == pytest.approx(0.40)
-    assert _excessive_event_continuity(rows) == []
-    assert SPLIT_NEUTRAL_OPEN_GAP_LIMIT == 0.35
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertAlmostEqual(row["split_neutral_raw_open_gap"], 0.04, places=12)
+        self.assertAlmostEqual(row["split_neutral_raw_close_return"], 0.40, places=12)
+        self.assertEqual(_excessive_event_continuity(rows), [])
+        self.assertEqual(SPLIT_NEUTRAL_OPEN_GAP_LIMIT, 0.35)
+
+    def test_continuity_gate_remains_fail_closed_for_bad_adjusted_opening_gap(self) -> None:
+        rows = _event_continuity_audit(
+            [
+                _quote("2024-08-26", open_=0.05, close=0.05),
+                _quote("2024-08-27", open_=7.00, close=5.00),
+            ],
+            [_event()],
+        )
+
+        self.assertAlmostEqual(rows[0]["split_neutral_raw_open_gap"], 0.40, places=12)
+        self.assertAlmostEqual(rows[0]["split_neutral_raw_close_return"], 0.0, places=12)
+        self.assertEqual(_excessive_event_continuity(rows), rows)
 
 
-def test_continuity_gate_remains_fail_closed_for_bad_adjusted_opening_gap() -> None:
-    rows = _event_continuity_audit(
-        [
-            _quote("2024-08-26", open_=0.05, close=0.05),
-            _quote("2024-08-27", open_=7.00, close=5.00),
-        ],
-        [_event()],
-    )
-
-    assert rows[0]["split_neutral_raw_open_gap"] == pytest.approx(0.40)
-    assert rows[0]["split_neutral_raw_close_return"] == pytest.approx(0.0)
-    assert _excessive_event_continuity(rows) == rows
+if __name__ == "__main__":
+    unittest.main()
