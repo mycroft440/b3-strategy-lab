@@ -35,6 +35,8 @@ DEFAULT_REALISTIC_EVIDENCE_ADDENDUM = Path(
 DEFAULT_ACTION_WORKERS = 1
 SYNC_ATTEMPTS = 3
 SYNC_RETRY_DELAYS_SECONDS = (20, 60)
+_BASE_PARSE_SUPPLEMENTAL_SPLITS = base.parse_supplemental_split_events
+_BASE_AUDIT_SHARE_MARKERS = base.audit_share_count_markers
 
 
 def _option_value(arguments: list[str], option: str) -> str | None:
@@ -109,8 +111,6 @@ def _validated_marker_evidence(payload: dict) -> dict[tuple[str, str, str], dict
 
 
 def _install_evidence_addendum(payload: dict) -> None:
-    original_parse = base.parse_supplemental_split_events
-    original_audit = base.audit_share_count_markers
     marker_evidence = _validated_marker_evidence(payload)
 
     def parse_with_addendum(
@@ -120,7 +120,7 @@ def _install_evidence_addendum(payload: dict) -> None:
         quote_dates_by_ticker,
         coverage_start: str,
     ):
-        primary = original_parse(
+        primary = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             source_payload,
             tickers=tickers,
             quote_dates_by_ticker=quote_dates_by_ticker,
@@ -133,7 +133,7 @@ def _install_evidence_addendum(payload: dict) -> None:
             for event in payload.get("events", [])
             if str(event.get("ticker", "")).strip().upper() in allowed
         ]
-        extra = original_parse(
+        extra = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             addendum,
             tickers=allowed,
             quote_dates_by_ticker=quote_dates_by_ticker,
@@ -148,7 +148,7 @@ def _install_evidence_addendum(payload: dict) -> None:
         coverage_start: str,
         maximum_marker_lag_days: int = 10,
     ):
-        rows = original_audit(
+        rows = _BASE_AUDIT_SHARE_MARKERS(
             quotes,
             events,
             coverage_start=coverage_start,
@@ -176,6 +176,8 @@ def _install_evidence_addendum(payload: dict) -> None:
             row["primary_source_url"] = evidence["source_url"]
         return rows
 
+    # Always install directly over the immutable base functions. Repeated calls in
+    # tests/retries therefore replace the wrapper instead of recursively stacking it.
     base.parse_supplemental_split_events = parse_with_addendum
     base.audit_share_count_markers = audit_with_explicit_primary_evidence
 
