@@ -1,0 +1,77 @@
+name: Fix historical issuer refresh once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-historical-issuer-refresh-once.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch-test-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Corrigir refresh de emissores historicos
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/sync_point_in_time_universe.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    payloads = _load_supplements(\n        sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),\n        args.supplements_dir,\n        refresh=args.refresh_actions,\n        workers=args.action_workers,\n    )\n'''
+          new = '''    # A consulta Listed Companies da B3 representa o cadastro corrente e pode\n    # deixar de responder para emissores historicos/delistados. Para esses\n    # emissores, a evidência de eventos de quantidade vem exclusivamente do\n    # registro histórico certificado (CVM/emissor) validado abaixo. Emissores\n    # que ainda possuem cotacao no cutoff continuam obrigatoriamente sujeitos\n    # à consulta corrente da B3 e falham fechado se ela estiver indisponível.\n    last_quote_by_ticker = {\n        ticker: max(quote.date for quote in quotes_by_ticker[ticker])\n        for ticker in tickers\n    }\n    current_issuers = sorted({\n        issuer_by_ticker[ticker]\n        for ticker in tickers\n        if last_quote_by_ticker[ticker] == replay_end\n    })\n    historical_issuers = sorted(\n        set(issuer_by_ticker[ticker] for ticker in tickers) - set(current_issuers)\n    )\n    payloads = _load_supplements(\n        current_issuers,\n        args.supplements_dir,\n        refresh=args.refresh_actions,\n        workers=args.action_workers,\n    )\n    # Shape minimo compatível com extract_official_split_events. Não representa\n    # uma resposta B3; apenas indica que não há consulta corrente aplicável.\n    for issuer in historical_issuers:\n        payloads[issuer] = [{"code": issuer, "stockDividends": []}]\n'''
+          if old not in text:
+              raise SystemExit('bloco alvo nao encontrado')
+          text = text.replace(old, new, 1)
+          old_ev = '''        evidence_reviews.append(\n            {\n                "ticker": ticker,\n                "issuing_company": issuer,\n                "source_authority": "B3",\n                "source_url": b3_supplement_url(issuer),\n                "source_payload_sha256": payload_sha256(payloads[issuer]),\n                "result": (\n                    f"{len(events)} evento(s) de quantidade desde {coverage_start}; "\n                    f"{len(current)} na consulta B3 corrente e "\n                    f"{len(supplemental_by_ticker[ticker])} em fontes históricas."\n                ),\n            }\n        )\n'''
+          new_ev = '''        issuer_is_current = issuer in set(current_issuers)\n        evidence_reviews.append(\n            {\n                "ticker": ticker,\n                "issuing_company": issuer,\n                "source_authority": "B3" if issuer_is_current else "historical_primary_registry",\n                "source_url": b3_supplement_url(issuer) if issuer_is_current else None,\n                "source_payload_sha256": (\n                    payload_sha256(payloads[issuer]) if issuer_is_current else None\n                ),\n                "result": (\n                    f"{len(events)} evento(s) de quantidade desde {coverage_start}; "\n                    + (\n                        f"{len(current)} na consulta B3 corrente e "\n                        if issuer_is_current\n                        else "emissor historico sem consulta corrente aplicavel; "\n                    )\n                    + f"{len(supplemental_by_ticker[ticker])} em fontes históricas."\n                ),\n            }\n        )\n'''
+          if old_ev not in text:
+              raise SystemExit('bloco de evidencia alvo nao encontrado')
+          text = text.replace(old_ev, new_ev, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          cat >> tests/test_point_in_time_historical_issuers.py <<'PY'
+          import unittest
+
+
+          class HistoricalIssuerRefreshPolicyTests(unittest.TestCase):
+              def test_historical_issuer_policy_is_present(self):
+                  from pathlib import Path
+                  text = Path('scripts/sync_point_in_time_universe.py').read_text(encoding='utf-8')
+                  self.assertIn('last_quote_by_ticker', text)
+                  self.assertIn('historical_issuers', text)
+                  self.assertIn('historical_primary_registry', text)
+                  self.assertIn('if last_quote_by_ticker[ticker] == replay_end', text)
+
+
+          if __name__ == '__main__':
+              unittest.main()
+          PY
+
+      - name: Compilar e testar tudo
+        run: |
+          python -m compileall -q b3_strategy_lab scripts tests
+          python -m unittest discover -s tests -v
+
+      - name: Commitar na main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/sync_point_in_time_universe.py tests/test_point_in_time_historical_issuers.py
+          git commit -m 'fix(realistic): avoid current B3 lookup for historical issuers [skip ci]'
+          git push origin HEAD:main
+
+      - name: Executar backtest completo atualizado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run full-matrix-backtest-hardened.yml --ref main -f refresh_data=true
