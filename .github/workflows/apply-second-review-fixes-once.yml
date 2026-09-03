@@ -1,4 +1,4 @@
-# second-review-trigger: 2026-09-03
+# second-review-trigger: 2
 name: Apply second critical review fixes once
 
 on:
@@ -32,7 +32,46 @@ jobs:
         run: python -m py_compile .github/patches/apply_second_review_fixes.py
 
       - name: Apply second-review fixes
-        run: python .github/patches/apply_second_review_fixes.py
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          patch_path = Path('.github/patches/apply_second_review_fixes.py')
+          spec = importlib.util.spec_from_file_location('second_review_patch', patch_path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          module.patch_validator()
+          module.patch_realistic_runner_policy()
+          module.patch_existing_test_fixtures()
+          module.write_second_review_tests()
+
+          workflow = Path('.github/workflows/full-matrix-backtest-hardened.yml')
+          text = workflow.read_text(encoding='utf-8')
+          old = '            --require-valid 1\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'require-valid anchor count={text.count(old)}')
+          text = text.replace(old, '            --require-valid "$TOP_N"\n', 1)
+          marker = '            reports/REALISTIC_TOP_10.json\n'
+          if text.count(marker) != 1:
+              raise SystemExit(f'realistic upload anchor count={text.count(marker)}')
+          text = text.replace(
+              marker,
+              marker
+              + '            reports/REALISTIC_TOP_10_REJECTED.md\n'
+              + '            reports/REALISTIC_TOP_10_REJECTED.json\n',
+              1,
+          )
+          workflow.write_text(text, encoding='utf-8')
+
+          for obsolete in (
+              '.github/workflows/fix-historical-issuer-refresh-once.yml',
+              '.github/workflows/patch-freeze-preflight-once.yml',
+              '.github/workflows/patch-pine-warmup-once.yml',
+          ):
+              Path(obsolete).unlink(missing_ok=True)
+          PY
 
       - name: Compile changed production modules
         run: |
@@ -73,11 +112,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          # Preserve the exact workflow bytes that were tested under a non-workflow path.
           cp .github/workflows/full-matrix-backtest-hardened.yml \
              .github/patches/full-matrix-backtest-hardened.reviewed.yml
 
-          # GITHUB_TOKEN cannot mutate workflow paths; restore them before this push.
           git checkout -- .github/workflows/full-matrix-backtest-hardened.yml
           git checkout -- .github/workflows/fix-historical-issuer-refresh-once.yml
           git checkout -- .github/workflows/patch-freeze-preflight-once.yml
