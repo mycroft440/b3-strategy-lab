@@ -36,6 +36,14 @@ def _reference_cache(book: _core.ExecutionPriceBook) -> dict[tuple[str, str, str
     return cached
 
 
+def _legs_cache(book: _core.ExecutionPriceBook) -> dict[tuple[str, str, int, int], tuple]:
+    cached = getattr(book, "_causal_liquidity_legs_cache", None)
+    if cached is None:
+        cached = {}
+        setattr(book, "_causal_liquidity_legs_cache", cached)
+    return cached
+
+
 def prior_liquidity_reference(
     book: _core.ExecutionPriceBook,
     value_date: str,
@@ -102,6 +110,7 @@ def enable_causal_liquidity(
     setattr(book, "_causal_liquidity_enabled", True)
     setattr(book, "_causal_liquidity_lookback_sessions", int(lookback_sessions))
     _reference_cache(book)
+    _legs_cache(book)
     return book
 
 
@@ -111,9 +120,8 @@ def _causal_legs(
     ticker: str,
     quantity: int,
 ):
-    legs = _original_legs(self, value_date, ticker, quantity)
     if not getattr(self, "_causal_liquidity_enabled", False):
-        return legs
+        return _original_legs(self, value_date, ticker, quantity)
 
     lookback = int(
         getattr(
@@ -122,6 +130,12 @@ def _causal_legs(
             DEFAULT_LIQUIDITY_LOOKBACK_SESSIONS,
         )
     )
+    cache = _legs_cache(self)
+    cache_key = (value_date, ticker.strip().upper(), int(quantity), lookback)
+    if cache_key in cache:
+        return list(cache[cache_key])
+
+    legs = _original_legs(self, value_date, ticker, quantity)
     result = []
     for qty, quote in legs:
         reference = prior_liquidity_reference(
@@ -144,7 +158,8 @@ def _causal_legs(
                 ),
             )
         )
-    return result
+    cache[cache_key] = tuple(result)
+    return list(result)
 
 
 def _causal_from_csv(cls, path, standard_lot: int = _core.STANDARD_LOT):
