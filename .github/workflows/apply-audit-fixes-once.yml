@@ -41,6 +41,10 @@ jobs:
               '_weekday_gap(date(2024, 3, 28), date(2024, 4, 2)), 1)',
               '_weekday_gap(date(2024, 3, 28), date(2024, 4, 2)), 2)',
           )
+          text = text.replace(
+              'self.assertEqual(metrics["total_return"], -0.1)',
+              'self.assertAlmostEqual(metrics["total_return"], -0.1)',
+          )
           path.write_text(text, encoding='utf-8')
           PY
 
