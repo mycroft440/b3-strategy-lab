@@ -370,9 +370,9 @@ jobs:
         with:
           name: matrix-shard-${{ matrix.index }}
           path: |
-            reports/shards/shard_${SHARD_INDEX}.csv.gz
-            reports/shards/shard_${SHARD_INDEX}.manifest.json
-            reports/shards/shard_${SHARD_INDEX}_top10_annual.md
+            reports/shards/shard_${{ matrix.index }}.csv.gz
+            reports/shards/shard_${{ matrix.index }}.manifest.json
+            reports/shards/shard_${{ matrix.index }}_top10_annual.md
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
