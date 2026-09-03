@@ -1,0 +1,43 @@
+name: Diagnose PIT split evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/diagnose-pit-split-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reproduce realistic PIT split gate and expose exact missing markers
+        run: |
+          set -uo pipefail
+          START="2018-01-02"
+          END="2026-08-19"
+          YEARS="2017:2026"
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start "$START" --end "$END" --years "$YEARS" --download || exit $?
+          python scripts/build_ticker_transitions.py --years "$YEARS" --download || exit $?
+          set +e
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$YEARS" --download --refresh-actions
+          status=$?
+          set -e
+          if [ -f reports/point_in_time_missing_split_evidence.json ]; then
+            echo "=== POINT_IN_TIME_MISSING_SPLIT_EVIDENCE ==="
+            cat reports/point_in_time_missing_split_evidence.json
+            echo "=== END_POINT_IN_TIME_MISSING_SPLIT_EVIDENCE ==="
+          fi
+          exit "$status"
