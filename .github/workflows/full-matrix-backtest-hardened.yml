@@ -484,29 +484,32 @@ jobs:
           echo "REAL_START=$REAL_START" >> "$GITHUB_ENV"
           echo "REAL_END=$REAL_END" >> "$GITHUB_ENV"
           echo "SOURCE_YEARS=$SOURCE_YEARS" >> "$GITHUB_ENV"
-          if [ "$REFRESH_DATA" = "true" ]; then
-            python scripts/build_survivorship_safe_realistic_universe.py \
-              --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
-            python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
-            python scripts/sync_point_in_time_universe_realistic.py \
-              --years "$SOURCE_YEARS" --download --refresh-actions
-          else
+          BUILD_REALISTIC_DATA="$REFRESH_DATA"
+          if [ "$REFRESH_DATA" != "true" ]; then
             git fetch origin backtest-results:refs/remotes/origin/backtest-results
             SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
             CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
-            if ! git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null; then
-              echo "::error::Snapshot point-in-time certificado ausente. Execute manualmente com refresh_data=true."
+            snapshot_exists=false
+            checksum_exists=false
+            git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null && snapshot_exists=true
+            git cat-file -e "origin/backtest-results:${CHECKSUM}" 2>/dev/null && checksum_exists=true
+            if [ "$snapshot_exists" != "$checksum_exists" ]; then
+              echo "::error::snapshot/checksum realista assimétricos em backtest-results"
               exit 1
             fi
-            mkdir -p reports
-            git show "origin/backtest-results:${SNAPSHOT}" > reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            git show "origin/backtest-results:${CHECKSUM}" > reports/REALISTIC_INPUT_SNAPSHOT.sha256
-            (
-              cd reports
-              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
-            )
-            tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            python - "$REAL_END" <<'PY'
+            if [ "$snapshot_exists" = "false" ]; then
+              echo "Snapshot PIT certificado ausente; inicializando pelas fontes oficiais e mantendo todos os gates."
+              BUILD_REALISTIC_DATA=true
+            else
+              mkdir -p reports
+              git show "origin/backtest-results:${SNAPSHOT}" > reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+              git show "origin/backtest-results:${CHECKSUM}" > reports/REALISTIC_INPUT_SNAPSHOT.sha256
+              (
+                cd reports
+                sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+              )
+              tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+              python - "$REAL_END" <<'PY'
           import json, sys
           from pathlib import Path
           universe = json.loads(Path("data/universes/point_in_time_union.json").read_text())
@@ -516,6 +519,14 @@ jobs:
                   f"{universe.get('selection_end')} != {sys.argv[1]}"
               )
           PY
+            fi
+          fi
+          if [ "$BUILD_REALISTIC_DATA" = "true" ]; then
+            python scripts/build_survivorship_safe_realistic_universe.py \
+              --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
+            python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
+            python scripts/sync_point_in_time_universe_realistic.py \
+              --years "$SOURCE_YEARS" --download --refresh-actions
           fi
 
       - name: Exigir insumos realistas certificados
