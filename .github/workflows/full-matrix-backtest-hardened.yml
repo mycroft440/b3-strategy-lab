@@ -14,6 +14,7 @@ on:
         default: ""
         type: string
       refresh_data:
+        # Explicit manual refresh remains available as refresh_data=true.
         description: Tentar atualizar fontes B3 antes da execução
         required: false
         default: false
