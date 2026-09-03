@@ -106,6 +106,7 @@ jobs:
             scripts/sync_official_universe.py \
             scripts/backtest_strategy_management_realistic.py \
             scripts/validate_matrix_top_realistic.py \
+            scripts/validate_matrix_top_realistic_core.py \
             scripts/walk_forward_realistic.py \
             scripts/walk_forward_certified.py \
             scripts/run_realistic_pipeline.py
@@ -317,7 +318,7 @@ jobs:
     timeout-minutes: 360
     strategy:
       fail-fast: false
-      max-parallel: 16
+      max-parallel: 32
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
@@ -348,7 +349,7 @@ jobs:
           mkdir -p reports/shards
           read -r -a STRATEGY_ARGS <<< "$STRATEGIES"
           WORKERS="$(nproc)"
-          if [ "$WORKERS" -gt 2 ]; then WORKERS=2; fi
+          if [ "$WORKERS" -gt 4 ]; then WORKERS=4; fi
           CMD=(
             python scripts/backtest_strategy_management_combinations.py
             --strategies "${STRATEGY_ARGS[@]}"
@@ -369,9 +370,9 @@ jobs:
         with:
           name: matrix-shard-${{ matrix.index }}
           path: |
-            reports/shards/shard_${{ matrix.index }}.csv.gz
-            reports/shards/shard_${{ matrix.index }}.manifest.json
-            reports/shards/shard_${{ matrix.index }}_top10_annual.md
+            reports/shards/shard_${SHARD_INDEX}.csv.gz
+            reports/shards/shard_${SHARD_INDEX}.manifest.json
+            reports/shards/shard_${SHARD_INDEX}_top10_annual.md
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -584,6 +585,7 @@ jobs:
             --candidates reports/TOP_10.json \
             --output reports/REALISTIC_TOP_10.json \
             --markdown-output reports/REALISTIC_TOP_10.md \
+            --workers 2 \
             --require-valid "$TOP_N"
           cat reports/REALISTIC_TOP_10.md >> "$GITHUB_STEP_SUMMARY"
 
