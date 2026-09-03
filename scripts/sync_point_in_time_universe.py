@@ -184,12 +184,34 @@ def main(argv: list[str] | None = None) -> int:
             f"is {replay_end}; refusing a partially covered replay."
         )
 
+    # A consulta Listed Companies da B3 representa o cadastro corrente e pode
+    # deixar de responder para emissores historicos/delistados. Para esses
+    # emissores, a evidência de eventos de quantidade vem exclusivamente do
+    # registro histórico certificado (CVM/emissor) validado abaixo. Emissores
+    # que ainda possuem cotacao no cutoff continuam obrigatoriamente sujeitos
+    # à consulta corrente da B3 e falham fechado se ela estiver indisponível.
+    last_quote_by_ticker = {
+        ticker: max(quote.date for quote in quotes_by_ticker[ticker])
+        for ticker in tickers
+    }
+    current_issuers = sorted({
+        issuer_by_ticker[ticker]
+        for ticker in tickers
+        if last_quote_by_ticker[ticker] == replay_end
+    })
+    historical_issuers = sorted(
+        set(issuer_by_ticker[ticker] for ticker in tickers) - set(current_issuers)
+    )
     payloads = _load_supplements(
-        sorted(set(issuer_by_ticker[ticker] for ticker in tickers)),
+        current_issuers,
         args.supplements_dir,
         refresh=args.refresh_actions,
         workers=args.action_workers,
     )
+    # Shape minimo compatível com extract_official_split_events. Não representa
+    # uma resposta B3; apenas indica que não há consulta corrente aplicável.
+    for issuer in historical_issuers:
+        payloads[issuer] = [{"code": issuer, "stockDividends": []}]
 
     supplemental_by_ticker: dict[str, list] = defaultdict(list)
     if args.supplemental_splits.exists():
@@ -230,17 +252,24 @@ def main(argv: list[str] | None = None) -> int:
         )
         events = merge_official_split_events(current, supplemental_by_ticker[ticker])
         events_by_ticker[ticker] = events
+        issuer_is_current = issuer in set(current_issuers)
         evidence_reviews.append(
             {
                 "ticker": ticker,
                 "issuing_company": issuer,
-                "source_authority": "B3",
-                "source_url": b3_supplement_url(issuer),
-                "source_payload_sha256": payload_sha256(payloads[issuer]),
+                "source_authority": "B3" if issuer_is_current else "historical_primary_registry",
+                "source_url": b3_supplement_url(issuer) if issuer_is_current else None,
+                "source_payload_sha256": (
+                    payload_sha256(payloads[issuer]) if issuer_is_current else None
+                ),
                 "result": (
                     f"{len(events)} evento(s) de quantidade desde {coverage_start}; "
-                    f"{len(current)} na consulta B3 corrente e "
-                    f"{len(supplemental_by_ticker[ticker])} em fontes históricas."
+                    + (
+                        f"{len(current)} na consulta B3 corrente e "
+                        if issuer_is_current
+                        else "emissor historico sem consulta corrente aplicavel; "
+                    )
+                    + f"{len(supplemental_by_ticker[ticker])} em fontes históricas."
                 ),
             }
         )
