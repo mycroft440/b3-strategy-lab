@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "coverage_start": "2017-01-01",
+  "scope": "Primary-source addendum for historical point-in-time share-count events and exact COTAHIST marker bindings that are absent from the current B3 issuer supplement.",
+  "events": [
+    {
+      "ticker": "BRML3",
+      "ex_date": "2017-05-02",
+      "last_date_prior": "2017-04-28",
+      "split_ratio": 1.15,
+      "event": "BONIFICACAO 15%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.allos.co/informacoes-financeiras/central-de-resultados-brmalls/"
+    },
+    {
+      "ticker": "CASH3",
+      "ex_date": "2021-09-10",
+      "last_date_prior": "2021-09-09",
+      "split_ratio": 6.0,
+      "event": "DESDOBRAMENTO 1 PARA 6",
+      "source_authority": "issuer",
+      "source_url": "https://ri.meliuz.com.br/Download.aspx?Arquivo=kxioya9gtDxgaM2AdUcbjg%3D%3D"
+    },
+    {
+      "ticker": "CIEL3",
+      "ex_date": "2017-04-18",
+      "last_date_prior": "2017-04-17",
+      "split_ratio": 1.2,
+      "event": "BONIFICACAO 20%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cielo.com.br/mercado-de-capitais/bonificacao/"
+    },
+    {
+      "ticker": "OIBR3",
+      "ex_date": "2023-01-09",
+      "last_date_prior": "2023-01-06",
+      "split_ratio": 0.1,
+      "event": "GRUPAMENTO 10 PARA 1",
+      "source_authority": "issuer",
+      "source_url": "https://ri.oi.com.br/arquivos/aviso-aos-acionistas-grupamento-de-acoes/"
+    },
+    {
+      "ticker": "POMO4",
+      "ex_date": "2024-03-08",
+      "last_date_prior": "2024-03-07",
+      "split_ratio": 1.2,
+      "event": "BONIFICACAO 20%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.marcopolo.com.br/divulgacao-e-resultados/aviso-aos-acionistas/"
+    },
+    {
+      "ticker": "PRIO3",
+      "ex_date": "2019-03-06",
+      "last_date_prior": "2019-03-01",
+      "split_ratio": 10.0,
+      "event": "DESDOBRAMENTO 1 PARA 10",
+      "source_authority": "issuer",
+      "source_url": "https://ri.prio3.com.br/noticia/comunicado-ao-mercado-desdobramento-de-acoes/"
+    },
+    {
+      "ticker": "VIVT3",
+      "ex_date": "2025-04-15",
+      "last_date_prior": "2025-04-14",
+      "split_ratio": 2.0,
+      "event": "GRUPAMENTO 40 PARA 1 E DESDOBRAMENTO 1 PARA 80",
+      "source_authority": "issuer",
+      "source_url": "https://ri.telefonica.com.br/servicos/faq-grupamento-desdobramento/"
+    }
+  ],
+  "marker_evidence": [
+    {
+      "ticker": "BRML3",
+      "marker_date": "2017-05-02",
+      "specification": "ON EDB NM",
+      "event": "BONIFICACAO 15% APROVADA NA AGO/E DE 28/04/2017",
+      "source_authority": "issuer",
+      "source_url": "https://ri.allos.co/informacoes-financeiras/central-de-resultados-brmalls/"
+    },
+    {
+      "ticker": "CASH3",
+      "marker_date": "2021-09-10",
+      "specification": "ON EB NM",
+      "event": "DESDOBRAMENTO 1 PARA 6, NEGOCIACAO EX A PARTIR DE 10/09/2021",
+      "source_authority": "issuer",
+      "source_url": "https://ri.meliuz.com.br/Download.aspx?Arquivo=kxioya9gtDxgaM2AdUcbjg%3D%3D"
+    },
+    {
+      "ticker": "CIEL3",
+      "marker_date": "2017-04-13",
+      "specification": "ON EB NM",
+      "event": "BONIFICACAO 20% APROVADA EM 12/04/2017, POSICAO-BASE 17/04/2017",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cielo.com.br/mercado-de-capitais/bonificacao/"
+    },
+    {
+      "ticker": "OIBR3",
+      "marker_date": "2023-01-09",
+      "specification": "ON EG N1",
+      "event": "GRUPAMENTO 10 PARA 1",
+      "source_authority": "issuer",
+      "source_url": "https://ri.oi.com.br/arquivos/aviso-aos-acionistas-grupamento-de-acoes/"
+    },
+    {
+      "ticker": "POMO4",
+      "marker_date": "2024-03-08",
+      "specification": "PN EJB N2",
+      "event": "BONIFICACAO 20%",
+      "source_authority": "issuer",
+      "source_url": "https://ri.marcopolo.com.br/divulgacao-e-resultados/aviso-aos-acionistas/"
+    },
+    {
+      "ticker": "PRIO3",
+      "marker_date": "2019-03-06",
+      "specification": "ON EB NM",
+      "event": "DESDOBRAMENTO 1 PARA 10",
+      "source_authority": "issuer",
+      "source_url": "https://ri.prio3.com.br/noticia/comunicado-ao-mercado-desdobramento-de-acoes/"
+    },
+    {
+      "ticker": "TIMS3",
+      "marker_date": "2025-07-03",
+      "specification": "ON EBG NM",
+      "event": "GRUPAMENTO 100 PARA 1 E SUBSEQUENTE DESDOBRAMENTO 1 PARA 100, SEM ALTERACAO DA QUANTIDADE TOTAL DE ACOES",
+      "source_authority": "issuer",
+      "source_url": "https://ri.tim.com.br/informacoes-ao-mercado/grupamento-e-desdobramento-de-acoes/"
+    },
+    {
+      "ticker": "VIVT3",
+      "marker_date": "2025-04-28",
+      "specification": "ON EBG",
+      "event": "GRUPAMENTO 40 PARA 1 E DESDOBRAMENTO 1 PARA 80, EFETIVADO EM 15/04/2025",
+      "source_authority": "issuer",
+      "source_url": "https://ri.telefonica.com.br/servicos/faq-grupamento-desdobramento/"
+    }
+  ]
+}
