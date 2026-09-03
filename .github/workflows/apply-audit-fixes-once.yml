@@ -35,6 +35,7 @@ jobs:
           python .github/patches/apply_audit_fixes.py
           python - <<'PY'
           from pathlib import Path
+
           path = Path('tests/test_comprehensive_audit_fixes.py')
           text = path.read_text(encoding='utf-8')
           text = text.replace(
@@ -44,6 +45,26 @@ jobs:
           text = text.replace(
               'self.assertEqual(metrics["total_return"], -0.1)',
               'self.assertAlmostEqual(metrics["total_return"], -0.1)',
+          )
+          path.write_text(text, encoding='utf-8')
+
+          path = Path('tests/test_realistic_artifact_reconciliation.py')
+          text = path.read_text(encoding='utf-8')
+          anchor = '            "final_equity": 1000.0,\n            "annual_volatility": 0.0,\n'
+          if anchor not in text:
+              raise SystemExit('artifact fixture anchor missing')
+          text = text.replace(
+              anchor,
+              '            "final_equity": 1000.0,\n            "max_drawdown": 0.0,\n            "annual_volatility": 0.0,\n',
+              1,
+          )
+          cases = '            "sharpe": "curve_sharpe_mismatch",\n            "average_annual_return": "curve_average_annual_return_mismatch",\n'
+          if cases not in text:
+              raise SystemExit('artifact metric cases anchor missing')
+          text = text.replace(
+              cases,
+              '            "sharpe": "curve_sharpe_mismatch",\n            "max_drawdown": "curve_max_drawdown_mismatch",\n            "average_annual_return": "curve_average_annual_return_mismatch",\n',
+              1,
           )
           path.write_text(text, encoding='utf-8')
           PY
