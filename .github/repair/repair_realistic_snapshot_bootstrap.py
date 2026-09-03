@@ -74,3 +74,16 @@ workflow.write_text(text.replace(old, new), encoding='utf-8')
 
 test = Path('tests/test_full_matrix_workflow_bootstrap.py')
 test.write_text('''from pathlib import Path\nimport unittest\n\n\nclass FullMatrixWorkflowBootstrapTests(unittest.TestCase):\n    @classmethod\n    def setUpClass(cls):\n        cls.text = Path(\".github/workflows/full-matrix-backtest-hardened.yml\").read_text(encoding=\"utf-8\")\n\n    def test_missing_snapshot_bootstraps_from_official_sources(self):\n        marker = \"Snapshot PIT certificado ainda não existe; bootstrap por fontes oficiais.\"\n        self.assertIn(marker, self.text)\n        section = self.text[self.text.index(marker):]\n        self.assertIn(\"scripts/build_survivorship_safe_realistic_universe.py\", section)\n        self.assertIn(\"scripts/build_ticker_transitions.py\", section)\n        self.assertIn(\"scripts/sync_point_in_time_universe_realistic.py\", section)\n        self.assertNotIn(\"Snapshot point-in-time certificado ausente. Execute manualmente com refresh_data=true.\", section[:1200])\n\n    def test_snapshot_checksum_pair_remains_fail_closed(self):\n        self.assertIn(\"snapshot_exists=false\", self.text)\n        self.assertIn(\"checksum_exists=false\", self.text)\n        self.assertIn('if [ \"$snapshot_exists\" != \"$checksum_exists\" ]; then', self.text)\n        self.assertIn(\"snapshot/checksum realista assimétricos em backtest-results\", self.text)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n''', encoding='utf-8')
+
+legacy_test = Path('tests/test_execution_hardening.py')
+legacy = legacy_test.read_text(encoding='utf-8')
+old_assert = "        self.assertIn('refresh_data=true', workflow)\n"
+new_assert = (
+    "        self.assertIn(\n"
+    "            'Snapshot PIT certificado ainda não existe; bootstrap por fontes oficiais.',\n"
+    "            workflow,\n"
+    "        )\n"
+)
+if legacy.count(old_assert) != 1:
+    raise SystemExit(f'expected one legacy refresh assertion, found {legacy.count(old_assert)}')
+legacy_test.write_text(legacy.replace(old_assert, new_assert), encoding='utf-8')
