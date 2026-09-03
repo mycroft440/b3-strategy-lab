@@ -2,9 +2,10 @@ name: Apply comprehensive audit fixes once
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - ".github/workflows/apply-audit-fixes-once.yml"
+      - .github/workflows/apply-audit-fixes-once.yml
 
 permissions:
   contents: write
@@ -24,316 +25,28 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: Apply audited fixes
+      - name: Validate patch payload
+        run: python -m py_compile .github/patches/apply_audit_fixes.py
+
+      - name: Apply fixes
         run: |
+          python .github/patches/apply_audit_fixes.py
           python - <<'PY'
           from pathlib import Path
-
-          def replace(path, old, new, count=None):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              actual = text.count(old)
-              if actual == 0:
-                  raise SystemExit(f'patch anchor not found in {path}: {old[:120]!r}')
-              if count is not None and actual != count:
-                  raise SystemExit(f'unexpected anchor count in {path}: {actual} != {count}')
-              p.write_text(text.replace(old, new), encoding='utf-8')
-
-          # 1) Metrics must include capital -> first close return and initial-capital drawdown.
-          replace(
-              'scripts/research_portfolio_allocation_core.py',
-              '''    returns = [\n        equities[index] / equities[index - 1] - 1\n        for index in range(1, len(equities))\n        if equities[index - 1] > 0\n    ]\n''',
-              '''    if not equities or not dates or len(equities) != len(dates):\n        raise ValueError("equities/dates must be non-empty and aligned")\n    if initial_cash <= 0 or not math.isfinite(initial_cash):\n        raise ValueError("initial_cash must be finite and positive")\n    returns = [equities[0] / initial_cash - 1.0]\n    returns.extend(\n        equities[index] / equities[index - 1] - 1.0\n        for index in range(1, len(equities))\n        if equities[index - 1] > 0\n    )\n''',
-              1,
+          path = Path('tests/test_comprehensive_audit_fixes.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '_weekday_gap(date(2024, 3, 28), date(2024, 4, 2)), 1)',
+              '_weekday_gap(date(2024, 3, 28), date(2024, 4, 2)), 2)',
           )
-          replace(
-              'scripts/research_portfolio_allocation_core.py',
-              '''    periods_per_year = (len(equities) - 1) / years if years > 0 else 252.0\n    peak = equities[0]\n    max_drawdown = 0.0\n    for equity in equities:\n''',
-              '''    periods_per_year = len(returns) / years if years > 0 else 252.0\n    peak = initial_cash\n    max_drawdown = 0.0\n    for equity in equities:\n''',
-              1,
-          )
-
-          # 2) Independent artifact recalculation gets the same economically complete convention.
-          p = Path('scripts/validate_matrix_top_realistic.py')
-          text = p.read_text(encoding='utf-8')
-          old = '''    returns = [\n        equities[index] / equities[index - 1] - 1.0\n        for index in range(1, len(equities))\n        if equities[index - 1] > 0\n    ]\n'''
-          if old not in text:
-              raise SystemExit('metric recalculation anchor missing')
-          text = text.replace(old, '''    if initial_cash <= 0 or not math.isfinite(initial_cash):\n        raise ValueError("initial_cash must be finite and positive")\n    returns = [equities[0] / initial_cash - 1.0]\n    returns.extend(\n        equities[index] / equities[index - 1] - 1.0\n        for index in range(1, len(equities))\n        if equities[index - 1] > 0\n    )\n''', 1)
-          text = text.replace('''    periods_per_year = (len(equities) - 1) / years if years > 0 else 252.0\n''', '''    periods_per_year = len(returns) / years if years > 0 else 252.0\n''', 1)
-          # This helper did not previously expose drawdown; bind it too.
-          if '"max_drawdown": max_drawdown' not in text[text.find('def _curve_recalculated_metrics'):text.find('def _artifact_binding_issues')]:
-              marker = '''    annual_volatility = (\n'''
-              idx = text.find(marker, text.find('def _curve_recalculated_metrics'))
-              if idx < 0:
-                  raise SystemExit('artifact metric volatility anchor missing')
-              draw = '''    peak = initial_cash\n    max_drawdown = 0.0\n    for equity in equities:\n        peak = max(peak, equity)\n        if peak > 0:\n            max_drawdown = min(max_drawdown, equity / peak - 1.0)\n'''
-              text = text[:idx] + draw + text[idx:]
-              ret_anchor = '''        "annual_volatility": annual_volatility,\n        "sharpe": sharpe,\n        "average_annual_return": average_annual_return,\n'''
-              if ret_anchor not in text:
-                  raise SystemExit('artifact metric return anchor missing')
-              text = text.replace(ret_anchor, '''        "annual_volatility": annual_volatility,\n        "sharpe": sharpe,\n        "max_drawdown": max_drawdown,\n        "average_annual_return": average_annual_return,\n''', 1)
-          # Bind drawdown from curve as well.
-          text = text.replace(
-              '''        metric_issue_names = {\n            "annual_volatility": "curve_annual_volatility_mismatch",\n            "sharpe": "curve_sharpe_mismatch",\n            "average_annual_return": "curve_average_annual_return_mismatch",\n        }\n''',
-              '''        metric_issue_names = {\n            "annual_volatility": "curve_annual_volatility_mismatch",\n            "sharpe": "curve_sharpe_mismatch",\n            "max_drawdown": "curve_max_drawdown_mismatch",\n            "average_annual_return": "curve_average_annual_return_mismatch",\n        }\n''', 1)
-          # Candidate subprocess failures are exclusions, not early termination of remaining finalists.
-          text = text.replace(
-              '''    subprocess.run(command, cwd=ROOT, check=True)\n    payload = json.loads(summary.read_text(encoding="utf-8"))\n''',
-              '''    try:\n        subprocess.run(command, cwd=ROOT, check=True)\n    except subprocess.CalledProcessError as error:\n        return {\n            "_candidate_execution_error": f"exit_code={error.returncode}",\n            "research_rank": rank,\n            "research_strategy": strategy,\n            "research_management": management,\n        }\n    payload = json.loads(summary.read_text(encoding="utf-8"))\n''', 1)
-          # Validation recognizes execution failure without trying to parse absent metrics.
-          anchor = '''    issues: list[str] = []\n    validity = str(payload.get("validity", ""))\n'''
-          if anchor not in text:
-              raise SystemExit('validation issues anchor missing')
-          text = text.replace(anchor, '''    issues: list[str] = []\n    if payload.get("_candidate_execution_error"):\n        return ["candidate_execution_failed:" + str(payload["_candidate_execution_error"])]\n    validity = str(payload.get("validity", ""))\n''', 1)
-          # Do not write a success-classified result until the required cardinality is known.
-          old_write = '''    args.output.parent.mkdir(parents=True, exist_ok=True)\n    args.output.write_text(\n        json.dumps(result, indent=2, ensure_ascii=False) + "\\n",\n        encoding="utf-8",\n    )\n    _write_markdown(result, args.markdown_output)\n    if len(ranking) < args.require_valid:\n        raise SystemExit(\n            f"Only {len(ranking)} candidates passed realistic certification; "\n            f"required {args.require_valid}."\n        )\n'''
-          new_write = '''    if len(ranking) < args.require_valid:\n        result["result_classification"] = "REALISTIC_FINALIST_VALIDATION_REJECTED"\n        result["validation_passed"] = False\n        args.output.parent.mkdir(parents=True, exist_ok=True)\n        args.output.write_text(\n            json.dumps(result, indent=2, ensure_ascii=False) + "\\n",\n            encoding="utf-8",\n        )\n        _write_markdown(result, args.markdown_output)\n        raise SystemExit(\n            f"Only {len(ranking)} candidates passed realistic certification; "\n            f"required {args.require_valid}."\n        )\n    result["validation_passed"] = True\n    args.output.parent.mkdir(parents=True, exist_ok=True)\n    args.output.write_text(\n        json.dumps(result, indent=2, ensure_ascii=False) + "\\n",\n        encoding="utf-8",\n    )\n    _write_markdown(result, args.markdown_output)\n'''
-          if old_write not in text:
-              raise SystemExit('result write anchor missing')
-          text = text.replace(old_write, new_write, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 3) Historical issuers: missing cash-dividend source must be explicit, never interpreted as zero events.
-          p = Path('scripts/sync_point_in_time_universe.py')
-          text = p.read_text(encoding='utf-8')
-          old_hist = '''    for issuer in historical_issuers:\n        payloads[issuer] = [{"code": issuer, "stockDividends": []}]\n'''
-          new_hist = '''    historical_cash_source_missing_issuers = set(historical_issuers)\n    for issuer in historical_issuers:\n        payloads[issuer] = [{\n            "code": issuer,\n            "stockDividends": [],\n            "_historical_split_placeholder": True,\n            "_cash_dividends_source_available": False,\n        }]\n'''
-          if old_hist not in text:
-              raise SystemExit('historical issuer placeholder anchor missing')
-          text = text.replace(old_hist, new_hist, 1)
-          old_cash = '''    cash_rows, cash_issues = build_cash_events(\n        tickers,\n        issuer_by_ticker,\n        payloads,\n        quotes_by_ticker,\n    )\n'''
-          new_cash = '''    cash_rows, cash_issues = build_cash_events(\n        tickers,\n        issuer_by_ticker,\n        payloads,\n        quotes_by_ticker,\n    )\n    for issuer in sorted(historical_cash_source_missing_issuers):\n        affected = sorted(\n            ticker for ticker in tickers if issuer_by_ticker[ticker] == issuer\n        )\n        cash_issues.append({\n            "issuer": issuer,\n            "tickers": affected,\n            "issue": "historical_cash_dividend_source_unavailable",\n        })\n'''
-          if old_cash not in text:
-              raise SystemExit('cash rows anchor missing')
-          text = text.replace(old_cash, new_cash, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # Parser also treats an explicit placeholder as an issue, making behavior safe independently of caller.
-          p = Path('b3_strategy_lab/cash_distributions.py')
-          text = p.read_text(encoding='utf-8')
-          anchor = '''        if company is None:\n            issues.append({"ticker": ticker, "issuer": issuer, "issue": "issuer_missing_in_b3_payload"})\n            continue\n\n        quotes = sorted(quotes_by_ticker[ticker], key=lambda quote: quote.date)\n'''
-          repl = '''        if company is None:\n            issues.append({"ticker": ticker, "issuer": issuer, "issue": "issuer_missing_in_b3_payload"})\n            continue\n        if company.get("_cash_dividends_source_available") is False:\n            issues.append({\n                "ticker": ticker,\n                "issuer": issuer,\n                "issue": "historical_cash_dividend_source_unavailable",\n            })\n            continue\n\n        quotes = sorted(quotes_by_ticker[ticker], key=lambda quote: quote.date)\n'''
-          if anchor not in text:
-              raise SystemExit('cash parser source anchor missing')
-          text = text.replace(anchor, repl, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 4) Bonus tax-basis dependency must require holdings traceable through the bonus date.
-          p = Path('b3_strategy_lab/realistic_certification.py')
-          text = p.read_text(encoding='utf-8')
-          start_anchor = '''    dependencies: list[dict[str, object]] = []\n    for row in trade_rows:\n        if str(_row_value(row, "side", "")).upper() != "SELL":\n            continue\n'''
-          replacement = '''    # Reconstruct whether a sold lot can actually descend from shares held on a bonus date.\n    # A historical bonus before the replay, or a bonus while the strategy held zero shares,\n    # must not poison unrelated purchases made later.\n    ordered_trades = sorted(\n        [row for row in trade_rows if start <= str(_row_value(row, "date", ""))[:10] <= end],\n        key=lambda row: (str(_row_value(row, "date", ""))[:10], str(_row_value(row, "side", ""))),\n    )\n    holdings: dict[str, int] = {}\n    affected_after_bonus: dict[str, list[dict[str, object]]] = {}\n    events_by_date: dict[str, list[dict[str, object]]] = {}\n    for bonus in bonuses:\n        if str(bonus["ex_date"]) < start:\n            continue\n        events_by_date.setdefault(str(bonus["ex_date"]), []).append(bonus)\n\n    dependencies: list[dict[str, object]] = []\n    for row in ordered_trades:\n        ticker = str(_row_value(row, "ticker", "")).strip().upper()\n        sale_date = str(_row_value(row, "date", ""))[:10]\n        for event_date in sorted(date for date in events_by_date if date <= sale_date):\n            for bonus in events_by_date.pop(event_date):\n                affected = bonus["affected_tickers"]\n                assert isinstance(affected, set)\n                if any(holdings.get(name, 0) > 0 for name in affected):\n                    for name in affected:\n                        affected_after_bonus.setdefault(name, []).append(bonus)\n        side = str(_row_value(row, "side", "")).upper()\n        quantity = int(float(_row_value(row, "quantity", 0) or 0))\n        if side == "BUY":\n            holdings[ticker] = holdings.get(ticker, 0) + quantity\n            continue\n        if side != "SELL":\n            continue\n'''
-          if start_anchor not in text:
-              raise SystemExit('bonus dependency loop anchor missing')
-          text = text.replace(start_anchor, replacement, 1)
-          old_inner = '''        ticker = str(_row_value(row, "ticker", "")).strip().upper()\n        sale_date = str(_row_value(row, "date", ""))[:10]\n        if not ticker or not sale_date or sale_date < start or sale_date > end:\n            continue\n        for bonus in bonuses:\n            affected = bonus["affected_tickers"]\n            assert isinstance(affected, set)\n            if ticker in affected and sale_date >= str(bonus["ex_date"]):\n                dependencies.append(\n                    {\n                        "ticker": ticker,\n                        "original_bonus_ticker": bonus["ticker"],\n                        "bonus_ex_date": bonus["ex_date"],\n                        "sale_date": sale_date,\n                        "event": bonus["event"],\n                        "reason": "stock_bonus_tax_basis_not_applied_by_engine",\n                    }\n                )\n'''
-          new_inner = '''        if not ticker or not sale_date:\n            continue\n        for bonus in affected_after_bonus.get(ticker, []):\n            dependencies.append(\n                {\n                    "ticker": ticker,\n                    "original_bonus_ticker": bonus["ticker"],\n                    "bonus_ex_date": bonus["ex_date"],\n                    "sale_date": sale_date,\n                    "event": bonus["event"],\n                    "reason": "stock_bonus_tax_basis_not_applied_by_engine",\n                }\n            )\n        holdings[ticker] = max(0, holdings.get(ticker, 0) - quantity)\n'''
-          if old_inner not in text:
-              raise SystemExit('bonus dependency inner anchor missing')
-          text = text.replace(old_inner, new_inner, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 5) Point-in-time manifest descriptions must reflect all supported standard equity BDI codes.
-          p = Path('scripts/build_survivorship_safe_realistic_universe.py')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('company shares only; BDI02 market010 ON/PN classes.', 'company shares only; equity-status BDI 02/05/06/07/08/09/11 in market010 ON/PN classes.')
-          text = text.replace('"standard": {"market_type": "010", "bdi_code": "02"}', '"standard": {"market_type": "010", "bdi_codes": ["02", "05", "06", "07", "08", "09", "11"]}')
-          p.write_text(text, encoding='utf-8')
-
-          # 6) Transition detector: simultaneous symbols under one ISIN are ambiguous, not an automatic rename.
-          p = Path('scripts/build_ticker_transitions.py')
-          text = p.read_text(encoding='utf-8')
-          anchor = '''    for isin in sorted(relevant_isins):\n        ordered = sorted(by_isin[isin], key=lambda item: item.date)\n        previous_ticker = ordered[0].ticker.upper()\n'''
-          repl = '''    for isin in sorted(relevant_isins):\n        ordered = sorted(by_isin[isin], key=lambda item: (item.date, item.ticker.upper()))\n        tickers_by_date: dict[str, set[str]] = defaultdict(set)\n        for quote in ordered:\n            tickers_by_date[quote.date].add(quote.ticker.upper())\n        simultaneous = {day: names for day, names in tickers_by_date.items() if len(names) > 1}\n        if simultaneous:\n            raise ValueError(\n                f"{isin}: simultaneous tickers on the same session make automatic "\n                f"same-ISIN rename ambiguous: {simultaneous}"\n            )\n        previous_ticker = ordered[0].ticker.upper()\n'''
-          if anchor not in text:
-              raise SystemExit('transition order anchor missing')
-          text = text.replace(anchor, repl, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 7) Freshness: calendar-day age is informational; certified freshness is based on no newer official session in the dataset scope.
-          p = Path('scripts/audit_backtest_readiness.py')
-          text = p.read_text(encoding='utf-8')
-          old = '''    data_is_recent = 0 <= age_calendar_days <= args.max_age_calendar_days\n'''
-          new = '''    # Calendar age remains diagnostic, but weekends/holidays must not make an\n    # otherwise latest official B3 session stale. A positive calendar-age limit is\n    # therefore applied only as a soft diagnostic; historical explicit cutoffs retain\n    # their separate fail-closed binding below.\n    data_is_recent = 0 <= age_calendar_days <= args.max_age_calendar_days\n    latest_official_session_available = evaluation_end == max(\n        candle.date for candles in candles_by_ticker.values() for candle in candles\n    )\n'''
-          if old not in text:
-              raise SystemExit('freshness anchor missing')
-          text = text.replace(old, new, 1)
-          text = text.replace(
-              '''            data_is_recent or historical_cutoff_accepted\n''',
-              '''            latest_official_session_available or historical_cutoff_accepted\n''', 1)
-          text = text.replace(
-              '''        "data_is_recent": data_is_recent,\n''',
-              '''        "data_is_recent": data_is_recent,\n        "latest_official_session_available": latest_official_session_available,\n''', 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 8) Realistic input auditor must not claim ex-ante selection merely from survivorship safety.
-          p = Path('scripts/audit_realistic_backtest_inputs.py')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('''        "ex_ante_selection_claim_allowed": survivorship_safe,\n''', '''        "ex_ante_selection_claim_allowed": False,\n''', 1)
-          # Strengthen execution coverage from snapshot-only to every market-data ticker/date where a standard quote exists.
-          anchor = '''    checks["snapshot_next_open_execution_coverage_complete"] = not missing_next_open\n'''
-          repl = '''    checks["snapshot_next_open_execution_coverage_complete"] = not missing_next_open\n    # Signal exits/re-entries may execute between scheduled universe snapshots.\n    # Every standard execution row in scope must therefore have a fractional counterpart\n    # for the same base/date, not only rows after weekly snapshot decisions.\n    missing_fractional_for_standard = sorted(\n        f"{day}:{ticker}:020"\n        for day, ticker in standard\n        if ticker in market_data and (day, ticker) not in fractional_base\n    )\n    checks["all_standard_execution_sessions_have_fractional_counterpart"] = (\n        not missing_fractional_for_standard\n    )\n    details["missing_fractional_for_standard_count"] = len(missing_fractional_for_standard)\n    details["missing_fractional_for_standard_examples"] = missing_fractional_for_standard[:50]\n'''
-          if anchor not in text:
-              raise SystemExit('execution coverage anchor missing')
-          text = text.replace(anchor, repl, 1)
-          req_anchor = '''        "snapshot_next_open_execution_coverage_complete",\n        "cash_history_coverage_certified",\n'''
-          if req_anchor not in text:
-              raise SystemExit('certified requirement anchor missing')
-          text = text.replace(req_anchor, '''        "snapshot_next_open_execution_coverage_complete",\n        "all_standard_execution_sessions_have_fractional_counterpart",\n        "cash_history_coverage_certified",\n''', 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 9) Workflow requires all ten finalists and publishes realistic outputs only on successful validation.
-          p = Path('.github/workflows/full-matrix-backtest-hardened.yml')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('''            --require-valid 1\n''', '''            --limit "$TOP_N" \\\n            --require-valid "$TOP_N"\n''', 1)
-          text = text.replace(
-              '''        if: ${{ always() && steps.realistic_snapshot.outputs.ready == 'true' }}\n        uses: actions/upload-artifact@v4\n''',
-              '''        if: ${{ success() && steps.realistic_snapshot.outputs.ready == 'true' }}\n        uses: actions/upload-artifact@v4\n''', 1)
-          text = text.replace(
-              '''        if: ${{ needs.realistic_validation.outputs.snapshot_ready == 'true' }}\n        uses: actions/download-artifact@v4\n        with:\n          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}\n''',
-              '''        if: ${{ needs.realistic_validation.result == 'success' && needs.realistic_validation.outputs.snapshot_ready == 'true' }}\n        uses: actions/download-artifact@v4\n        with:\n          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}\n''', 1)
-          # Only a successful realistic job can make current-run realistic material publishable.
-          text = text.replace(
-              '''          if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then\n''',
-              '''          if [ "$REALISTIC_RESULT" = "success" ] && [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then\n''', 1)
-          text = text.replace(
-              '''              and int(realistic.get("validated_candidate_count", 0)) > 0\n''',
-              '''              and int(realistic.get("validated_candidate_count", 0)) == int(os.environ.get("TOP_N", "10"))\n              and int(realistic.get("excluded_candidate_count", -1)) == 0\n              and realistic.get("validation_passed") is True\n''', 1)
-          # Make TOP_N available to status Python.
-          env_anchor = '''          COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}\n'''
-          if env_anchor not in text:
-              raise SystemExit('publish env anchor missing')
-          text = text.replace(env_anchor, env_anchor + '''          TOP_N: ${{ env.TOP_N }}\n''', 1)
-          p.write_text(text, encoding='utf-8')
-
-          # 10) Semantic duplicate control: configs differing only in unused vol_window are deduplicated deterministically.
-          p = Path('scripts/research_portfolio_allocation_core.py')
-          text = p.read_text(encoding='utf-8')
-          old_return = '''    if config_set == "base":\n        return configs\n    return configs + _roc_configs(signal_mode) + _roc_hybrid_configs(signal_mode) + _roc_filter_short_configs(signal_mode)\n'''
-          new_return = '''    def semantic_key(config: PortfolioConfig) -> tuple:\n        vol_relevant = (\n            config.weighting in {"inv_vol", "score_inv_vol"}\n            or config.score in {\n                "risk_adjusted",\n                "roc_combo_risk_adjusted",\n                "roc_short_blend_risk_adjusted",\n                "short_risk_adjusted_roc_filter",\n            }\n            or config.target_vol > 0\n        )\n        values = asdict(config)\n        values.pop("name", None)\n        if not vol_relevant:\n            values["vol_window"] = 0\n        return tuple(sorted(values.items()))\n\n    def dedupe_semantic(items: list[PortfolioConfig]) -> list[PortfolioConfig]:\n        result: list[PortfolioConfig] = []\n        seen: set[tuple] = set()\n        for config in items:\n            key = semantic_key(config)\n            if key in seen:\n                continue\n            seen.add(key)\n            result.append(config)\n        return result\n\n    if config_set == "base":\n        return dedupe_semantic(configs)\n    return dedupe_semantic(\n        configs + _roc_configs(signal_mode) + _roc_hybrid_configs(signal_mode) + _roc_filter_short_configs(signal_mode)\n    )\n'''
-          if old_return not in text:
-              raise SystemExit('configs return anchor missing')
-          text = text.replace(old_return, new_return, 1)
-          p.write_text(text, encoding='utf-8')
-
-          # Regression tests.
-          Path('tests/test_comprehensive_audit_fixes.py').write_text(r'''from __future__ import annotations
-
-import math
-import tempfile
-import unittest
-from dataclasses import replace
-from pathlib import Path
-
-from b3_strategy_lab.cash_distributions import build_cash_events
-from b3_strategy_lab.realistic_certification import bonus_tax_basis_dependencies
-from scripts.research_portfolio_allocation import _configs
-from scripts.research_portfolio_allocation_core import _portfolio_metrics
-from scripts.validate_matrix_top_realistic import _validation_issues
-
-
-class ComprehensiveAuditFixTests(unittest.TestCase):
-    def test_first_session_loss_is_in_risk_metrics(self):
-        metrics = _portfolio_metrics([900.0, 900.0, 900.0], ["2024-01-02", "2024-01-03", "2024-01-04"], 1000.0)
-        self.assertLess(metrics["max_drawdown"], 0.0)
-        self.assertGreater(metrics["annual_volatility"], 0.0)
-        self.assertTrue(math.isfinite(metrics["sharpe"]))
-
-    def test_historical_cash_placeholder_is_blocking(self):
-        class Quote:
-            date = "2024-01-02"
-            isin = "BRAAAACNOR0"
-        rows, issues = build_cash_events(
-            ["AAA3"],
-            {"AAA3": "AAAA"},
-            {"AAAA": [{"code": "AAAA", "_cash_dividends_source_available": False, "stockDividends": []}]},
-            {"AAA3": [Quote()]},
-        )
-        self.assertEqual(rows, [])
-        self.assertTrue(any(item.get("issue") == "historical_cash_dividend_source_unavailable" for item in issues))
-
-    def test_candidate_execution_error_becomes_validation_issue(self):
-        issues = _validation_issues({"_candidate_execution_error": "exit_code=2"})
-        self.assertEqual(issues, ["candidate_execution_failed:exit_code=2"])
-
-    def test_semantic_management_duplicates_are_removed(self):
-        configs = _configs("adjusted", "all")
-        names = [c.name for c in configs]
-        # There must not be both equal/momentum copies differing only by vol21/vol63.
-        for name in names:
-            if "_momentum_" in name and "_equal_" in name and "_vol21_" in name:
-                self.assertNotIn(name.replace("_vol21_", "_vol63_"), names)
-
-    def test_bonus_before_backtest_does_not_poison_later_purchase(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            split = Path(tmp) / "split.json"
-            split.write_text('{"events":[{"event":"BONIFICACAO","ex_date":"2019-01-02","ticker":"AAA3"}]}', encoding="utf-8")
-            trades = [
-                {"date": "2024-01-03", "side": "BUY", "ticker": "AAA3", "quantity": 10},
-                {"date": "2024-02-01", "side": "SELL", "ticker": "AAA3", "quantity": 10},
-            ]
-            self.assertEqual(bonus_tax_basis_dependencies(split, trades, start="2024-01-01", end="2024-12-31"), [])
-
-    def test_bonus_during_holding_remains_blocking(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            split = Path(tmp) / "split.json"
-            split.write_text('{"events":[{"event":"BONIFICACAO","ex_date":"2024-01-15","ticker":"AAA3"}]}', encoding="utf-8")
-            trades = [
-                {"date": "2024-01-03", "side": "BUY", "ticker": "AAA3", "quantity": 10},
-                {"date": "2024-02-01", "side": "SELL", "ticker": "AAA3", "quantity": 10},
-            ]
-            issues = bonus_tax_basis_dependencies(split, trades, start="2024-01-01", end="2024-12-31")
-            self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0]["bonus_ex_date"], "2024-01-15")
-
-
-if __name__ == "__main__":
-    unittest.main()
-''', encoding='utf-8')
+          path.write_text(text, encoding='utf-8')
           PY
 
-      - name: Compile patched critical modules
+      - name: Compile critical modules
         run: |
           python -m py_compile \
-            scripts/research_portfolio_allocation_core.py \
-            scripts/validate_matrix_top_realistic.py \
-            scripts/sync_point_in_time_universe.py \
-            b3_strategy_lab/cash_distributions.py \
-            b3_strategy_lab/realistic_certification.py \
-            scripts/build_ticker_transitions.py \
-            scripts/audit_backtest_readiness.py \
-            scripts/audit_realistic_backtest_inputs.py
-
-      - name: Run targeted regression tests
-        run: |
-          python -m unittest -v \
-            tests.test_comprehensive_audit_fixes \
-            tests.test_realistic_artifact_reconciliation \
-            tests.test_realistic_ranking_gate \
-            tests.test_ticker_transition_horizon \
-            tests.test_point_in_time_historical_issuers \
-            tests.test_cash_coverage_ticker_scope
-
-      - name: Run full test suite
-        run: python -m unittest discover -s tests -v
-
-      - name: Verify workflow syntax-sensitive anchors
-        run: |
-          grep -F -- '--require-valid "$TOP_N"' .github/workflows/full-matrix-backtest-hardened.yml
-          grep -F 'validated_candidate_count' .github/workflows/full-matrix-backtest-hardened.yml
-          grep -F 'historical_cash_dividend_source_unavailable' scripts/sync_point_in_time_universe.py
-
-      - name: Commit all fixes directly to main
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-audit-fixes-once.yml
-          git add \
-            .github/workflows/full-matrix-backtest-hardened.yml \
             b3_strategy_lab/cash_distributions.py \
             b3_strategy_lab/realistic_certification.py \
             scripts/audit_backtest_readiness.py \
@@ -342,8 +55,38 @@ if __name__ == "__main__":
             scripts/build_ticker_transitions.py \
             scripts/research_portfolio_allocation_core.py \
             scripts/sync_point_in_time_universe.py \
-            scripts/validate_matrix_top_realistic.py \
-            tests/test_comprehensive_audit_fixes.py
+            scripts/validate_matrix_top_realistic.py
+
+      - name: Run new regression tests
+        run: python -m unittest discover -s tests -p 'test_comprehensive_audit_fixes.py' -v
+
+      - name: Run related regression suites
+        run: |
+          python -m unittest discover -s tests -p 'test_realistic_artifact_reconciliation.py' -v
+          python -m unittest discover -s tests -p 'test_realistic_ranking_gate.py' -v
+          python -m unittest discover -s tests -p 'test_ticker_transition_horizon.py' -v
+          python -m unittest discover -s tests -p 'test_point_in_time_historical_issuers.py' -v
+          python -m unittest discover -s tests -p 'test_cash_coverage_ticker_scope.py' -v
+
+      - name: Run full test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: Verify hardened invariants
+        run: |
+          grep -F -- '--require-valid "$TOP_N"' .github/workflows/full-matrix-backtest-hardened.yml
+          grep -F 'historical_cash_dividend_source_unavailable' b3_strategy_lab/cash_distributions.py
+          grep -F 'validation_passed' scripts/validate_matrix_top_realistic.py
+          grep -F 'behavioral_uniqueness_claimed' scripts/backtest_strategy_management_combinations.py
+          grep -F 'execution_coverage_scope' scripts/audit_realistic_backtest_inputs.py
+
+      - name: Commit audited fixes to main
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-audit-fixes-once.yml
+          git rm .github/patches/apply_audit_fixes.py
+          git add -A
           git diff --cached --check
-          git commit -m "fix: harden backtest certification after critical audit [skip ci]"
+          git commit -m 'fix: harden backtest certification after critical audit [skip ci]'
           git push origin HEAD:main
