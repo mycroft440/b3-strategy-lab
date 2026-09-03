@@ -78,6 +78,45 @@ class ParallelRealisticValidationTests(unittest.TestCase):
                 workers=0,
             )
 
+    def test_invalid_candidate_file_clears_stale_success_outputs_first(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidates = root / "TOP_10.json"
+            output = root / "REALISTIC_TOP_10.json"
+            markdown = root / "REALISTIC_TOP_10.md"
+            work_dir = root / "realistic_candidates"
+            work_dir.mkdir()
+            candidates.write_text("{}\n", encoding="utf-8")
+            output.write_text("stale success\n", encoding="utf-8")
+            markdown.write_text("stale success\n", encoding="utf-8")
+            (work_dir / "candidate_01_summary.json").write_text(
+                "stale candidate\n", encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "invalid period or initial_cash"):
+                validator.main(
+                    [
+                        "--candidates",
+                        str(candidates),
+                        "--output",
+                        str(output),
+                        "--markdown-output",
+                        str(markdown),
+                        "--work-dir",
+                        str(work_dir),
+                        "--limit",
+                        "1",
+                        "--require-valid",
+                        "1",
+                        "--workers",
+                        "1",
+                    ]
+                )
+
+            self.assertFalse(output.exists())
+            self.assertFalse(markdown.exists())
+            self.assertFalse((work_dir / "candidate_01_summary.json").exists())
+
     def test_core_validator_helpers_remain_publicly_available(self) -> None:
         self.assertIs(validator._validation_issues, validator._base._validation_issues)
         self.assertIs(validator._artifact_binding_issues, validator._base._artifact_binding_issues)
