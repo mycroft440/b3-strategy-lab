@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import tempfile
 import time
 import urllib.request
@@ -41,6 +42,13 @@ UNVERIFIED_ACTION_STATUS = "unverified"
 # are still company equities, but indicate special regulatory/restructuring status.
 # Excluding them silently truncates a ticker exactly when its BDI status changes.
 STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")
+# BDI 58 (OUTROS) can still carry the same listed ON/PN share while B3 places
+# the instrument under special trading conditions. It is deliberately kept
+# separate so its acceptance remains conditional on share metadata below.
+SPECIAL_COMPANY_EQUITY_BDI_CODES = ("58",)
+COMPANY_EQUITY_BDI_CODES = STANDARD_EQUITY_BDI_CODES + SPECIAL_COMPANY_EQUITY_BDI_CODES
+_COMPANY_SHARE_TICKER_RE = re.compile(r"^[A-Z]{4}\d{1,2}$")
+_COMPANY_SHARE_SPECIFICATIONS = ("ON", "PN")
 
 
 class CotahistError(ValueError):
@@ -123,7 +131,7 @@ def parse_cotahist_lines(
     lines: Iterable[bytes | str],
     *,
     tickers: Iterable[str] | None = None,
-    bdi_codes: Iterable[str] = STANDARD_EQUITY_BDI_CODES,
+    bdi_codes: Iterable[str] = COMPANY_EQUITY_BDI_CODES,
     market_types: Iterable[str] = ("010",),
     require_envelope: bool = False,
 ) -> list[OfficialQuote]:
@@ -164,7 +172,18 @@ def parse_cotahist_lines(
         bdi_code = line[10:12]
         ticker = line[12:24].strip().upper()
         market_type = line[24:27]
+        specification = line[39:49].strip().upper()
         if bdi_code not in selected_bdi or market_type not in selected_markets:
+            continue
+        # CODBDI 58 is not a blanket equity code. Keep it only when the raw B3
+        # record is still a standard cash-market ON/PN share with a normal listed
+        # share ticker. This preserves GOLL4/AZUL4 continuity without admitting
+        # unrelated instruments that also happen to use the generic BDI 58.
+        if bdi_code in SPECIAL_COMPANY_EQUITY_BDI_CODES and (
+            market_type != "010"
+            or not _COMPANY_SHARE_TICKER_RE.fullmatch(ticker)
+            or not specification.startswith(_COMPANY_SHARE_SPECIFICATIONS)
+        ):
             continue
         if selected_tickers and ticker not in selected_tickers:
             continue

@@ -8,13 +8,15 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
-from .cotahist import STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines
+from .cotahist import COMPANY_EQUITY_BDI_CODES, STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines
 
 
 TICKER_RE = re.compile(r"^[A-Z]{4}\d{1,2}$")
 STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
-STANDARD_BDI_CODES = STANDARD_EQUITY_BDI_CODES
+# Candidate BDI codes for company shares. BDI 58 is still filtered through
+# _mask_non_company_equity_records, so only market-010 ON/PN shares survive.
+STANDARD_BDI_CODES = COMPANY_EQUITY_BDI_CODES
 FRACTIONAL_BDI = "96"
 # The R$20k small-account tax guard is documented by Receita for shares (ações).
 # B3 classifies UNITS separately as certificates of deposit of securities. Until a
