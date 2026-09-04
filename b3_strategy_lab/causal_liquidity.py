@@ -9,8 +9,29 @@ from . import realistic_core as _core
 DEFAULT_LIQUIDITY_LOOKBACK_SESSIONS = 20
 
 
-_original_legs = _core.ExecutionPriceBook.legs
-_original_from_csv = _core.ExecutionPriceBook.from_csv
+# Persist immutable canonical methods on the patched target itself. importlib.reload()
+# reuses this module dictionary, so recapturing class methods in module globals could
+# otherwise turn the old wrapper's `_original_*` reference into the wrapper itself.
+_ORIGINAL_LEGS_ATTR = "_causal_liquidity_original_legs"
+_ORIGINAL_FROM_CSV_FUNC_ATTR = "_causal_liquidity_original_from_csv_func"
+if not hasattr(_core.ExecutionPriceBook, _ORIGINAL_LEGS_ATTR):
+    setattr(
+        _core.ExecutionPriceBook,
+        _ORIGINAL_LEGS_ATTR,
+        _core.ExecutionPriceBook.__dict__["legs"],
+    )
+if not hasattr(_core.ExecutionPriceBook, _ORIGINAL_FROM_CSV_FUNC_ATTR):
+    from_csv_descriptor = _core.ExecutionPriceBook.__dict__["from_csv"]
+    setattr(
+        _core.ExecutionPriceBook,
+        _ORIGINAL_FROM_CSV_FUNC_ATTR,
+        from_csv_descriptor.__func__,
+    )
+_original_legs = getattr(_core.ExecutionPriceBook, _ORIGINAL_LEGS_ATTR)
+_original_from_csv_func = getattr(
+    _core.ExecutionPriceBook,
+    _ORIGINAL_FROM_CSV_FUNC_ATTR,
+)
 
 
 def _normalized_ticker(ticker: str, market_type: str) -> str:
@@ -163,7 +184,7 @@ def _causal_legs(
 
 
 def _causal_from_csv(cls, path, standard_lot: int = _core.STANDARD_LOT):
-    book = _original_from_csv(path, standard_lot=standard_lot)
+    book = _original_from_csv_func(cls, path, standard_lot=standard_lot)
     return enable_causal_liquidity(book)
 
 
