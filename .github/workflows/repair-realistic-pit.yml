@@ -1,0 +1,36 @@
+name: Temporary PIT repair diagnostics
+
+on:
+  push:
+    branches:
+      - fix/realistic-pit-integrity-20260904
+    paths:
+      - '.github/workflows/repair-realistic-pit.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect BDI and transition call sites
+        run: |
+          set -euo pipefail
+          echo '=== STANDARD_EQUITY_BDI_CODES ==='
+          grep -RIn --exclude-dir=.git 'STANDARD_EQUITY_BDI_CODES' b3_strategy_lab scripts tests || true
+          echo '=== transition loaders/apply ==='
+          grep -RIn --exclude-dir=.git -E 'load_transitions|TickerTransition|ticker_transitions|share_ratio|cash_per_old_share' b3_strategy_lab scripts tests || true
+          echo '=== certification schema/version ==='
+          grep -RIn --exclude-dir=.git -E 'cash_distribution_coverage_certification|schema_version.*cash|schema_version.*[!=]=.*1' b3_strategy_lab scripts tests data/corporate_actions || true
+          echo '=== latest_backtest ==='
+          grep -RIn --exclude-dir=.git 'latest_backtest' .github scripts b3_strategy_lab tests || true
