@@ -77,6 +77,38 @@ def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
         writer.writerows(rows)
 
 
+def _scope_supplemental_payload(payload: object, tickers: list[str]) -> object:
+    """Drop only well-classified events outside the selected ticker universe.
+
+    Malformed or unclassifiable records are deliberately preserved so the canonical
+    supplemental parser can reject them fail-closed. Pre-filtering must never turn
+    corrupt registry input into an apparently clean in-scope payload.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    raw_events = payload.get("events")
+    if not isinstance(raw_events, list):
+        return payload
+
+    allowed = {str(ticker).strip().upper() for ticker in tickers}
+    scoped_events: list[object] = []
+    for raw_event in raw_events:
+        if not isinstance(raw_event, dict):
+            scoped_events.append(raw_event)
+            continue
+        raw_ticker = raw_event.get("ticker")
+        if not isinstance(raw_ticker, str):
+            scoped_events.append(raw_event)
+            continue
+        ticker = raw_ticker.strip().upper()
+        if not ticker or ticker in allowed:
+            scoped_events.append(raw_event)
+
+    scoped = dict(payload)
+    scoped["events"] = scoped_events
+    return scoped
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -214,12 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     supplemental_by_ticker: dict[str, list] = defaultdict(list)
     if args.supplemental_splits.exists():
         payload = json.loads(args.supplemental_splits.read_text(encoding="utf-8"))
-        filtered = dict(payload)
-        filtered["events"] = [
-            event
-            for event in payload.get("events", [])
-            if str(event.get("ticker", "")).upper() in set(tickers)
-        ]
+        filtered = _scope_supplemental_payload(payload, tickers)
         parsed = parse_supplemental_split_events(
             filtered,
             tickers=tickers,
