@@ -18,7 +18,45 @@
       "source_authority": "B3",
       "source_url": "https://www.b3.com.br/lumis/portal/file/fileDownload.jsp?fileId=8AA8D097622A092D0162534E78E61B4A",
       "source_reference": "B3 Comunicado Externo 028/2018-VOP, 23/03/2018",
-      "evidence_summary": "A B3 determinou que, a partir de 26/03/2018, as mesmas ações ordinárias da B3 S.A. passariam a negociar sob B3SA3 em substituição a BVMF3. Não há conversão de quantidade nem componente em dinheiro."
+      "evidence_summary": "A B3 determinou que, a partir de 26/03/2018, as ações ordinárias da própria B3 passariam a negociar sob B3SA3 em substituição a BVMF3. Não há conversão de quantidade nem componente em dinheiro."
+    },
+    {
+      "effective_date": "2019-07-23",
+      "cutoff_date": "2019-07-22",
+      "first_successor_trade_date": "2019-07-23",
+      "old_ticker": "ESTC3",
+      "new_ticker": "YDUQ3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "issuer",
+      "source_url": "https://www.yduqs.com.br/Download.aspx?Arquivo=siPFAodNXecT8zfnp1JoqQ%3D%3D",
+      "source_reference": "Estácio Participações Aviso ao Mercado, 17/07/2019",
+      "evidence_summary": "A companhia informou que a partir de 23/07/2019 suas mesmas ações passariam a negociar como YDUQ3 em substituição a ESTC3. É alteração de código/nome de pregão, sem conversão econômica."
+    },
+    {
+      "effective_date": "2020-03-02",
+      "cutoff_date": "2020-02-28",
+      "first_successor_trade_date": "2020-03-02",
+      "old_ticker": "PCAR4",
+      "new_ticker": "PCAR3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "class_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/20/A1/B9/57/EE8807104F6DA507AC094EA8/OC%20020-2020%20PRE%20Cia%20Brasileira%20de%20Distribui%C3%A7%C3%A3o%20P%C3%A3o%20de%20A%C3%A7%C3%BAcar-CBD%20%28PCAR4%29%20nas%20Carteiras%20dos%20%C3%8Dndices%20da%20B3.pdf",
+      "source_reference": "B3 Ofício Circular 020/2020-PRE, 27/02/2020",
+      "evidence_summary": "A B3 documenta a conversão da totalidade de PCAR4 em PCAR3 na proporção de uma preferencial para uma ordinária, com exclusão de PCAR4 após 28/02/2020 e início de PCAR3 em 02/03/2020."
     },
     {
       "effective_date": "2020-11-23",
@@ -36,13 +74,32 @@
       "certification_status": "certified",
       "source_authority": "issuer",
       "source_url": "https://ri.telefonica.com.br/servicos/faq-e-acoes-do-plano-de-expansao/",
-      "source_reference": "Telefônica Brasil RI FAQ, pergunta 'O que aconteceu com o ticker VIVT4?'",
-      "evidence_summary": "A emissora informa que VIVT4 deixou de negociar em 23/11/2020 e que a conversão das preferenciais VIVT4 em ordinárias VIVT3 ocorreu na razão 1:1, preservando a participação econômica."
+      "source_reference": "Telefônica Brasil RI FAQ, 'O que aconteceu com o ticker VIVT4?'",
+      "evidence_summary": "A emissora informa a conversão das preferenciais VIVT4 em ordinárias VIVT3 na razão 1:1, preservando a participação econômica."
     },
     {
-      "effective_date": "2021-08-05",
-      "cutoff_date": "2021-08-04",
-      "first_successor_trade_date": "2021-08-05",
+      "effective_date": "2021-07-19",
+      "cutoff_date": "2021-07-16",
+      "first_successor_trade_date": "2021-07-19",
+      "old_ticker": "BTOW3",
+      "new_ticker": "AMER3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/B2/A2/3E/8E/A78AB710D30FE9B7AC094EA8/Regras%20de%20Atuacao%20do%20Formador%20de%20Mercado%20de%20Acoes%20BDRs%20e%20ETFs_02_09_2021.pdf",
+      "source_reference": "B3 histórico de alterações, 19/07/2021: BTOW3 alteração de ticker para AMER3",
+      "evidence_summary": "A B3 registra expressamente a alteração de ticker BTOW3 para AMER3 em 19/07/2021. O evento é mudança de código das ações, não conversão de quantidade."
+    },
+    {
+      "effective_date": "2021-08-16",
+      "cutoff_date": "2021-08-13",
+      "first_successor_trade_date": "2021-08-16",
       "old_ticker": "VVAR3",
       "new_ticker": "VIIA3",
       "share_ratio": 1.0,
@@ -53,10 +110,10 @@
       "fractional_treatment": "preserve_units",
       "tax_basis_treatment": "carry_total_basis",
       "certification_status": "certified",
-      "source_authority": "issuer",
-      "source_url": "https://ri.grupocasasbahia.com.br/governanca-corporativa/composicao-acionaria/",
-      "source_reference": "Grupo Casas Bahia RI, Composição Acionária",
-      "evidence_summary": "A emissora informa que em 05/08/2021 suas ações passaram a negociar como VIIA3 em substituição a VVAR3 por alteração de denominação social; trata-se de mudança de código, sem conversão de quantidade."
+      "source_authority": "B3",
+      "source_url": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_A2021.ZIP",
+      "source_reference": "B3 COTAHIST_A2021: último VVAR3 em 13/08/2021 e primeira série sucessora VIIA3 no pregão seguinte; identidade da mudança confirmada pelo RI da companhia",
+      "evidence_summary": "A fronteira econômica usa os pregões oficiais COTAHIST, evitando antecipar a transição para 05/08 enquanto VVAR3 ainda negociava. A denominação/ticker sucessor VIIA3 é documentada pela emissora."
     },
     {
       "effective_date": "2021-10-22",
@@ -75,7 +132,7 @@
       "source_authority": "issuer",
       "source_url": "https://ri.vibraenergia.com.br/servicos-aos-investidores/perguntas-frequentes/",
       "source_reference": "Vibra Energia RI FAQ; mudança BRDT3 para VBBR3",
-      "evidence_summary": "A emissora declara explicitamente que, junto à alteração da razão social, o ticker foi mudado de BRDT3 para VBBR3. A B3 registra a mudança em 22/10/2021."
+      "evidence_summary": "A emissora declara explicitamente que, junto à alteração da razão social, o ticker foi mudado de BRDT3 para VBBR3."
     },
     {
       "effective_date": "2023-09-20",
@@ -94,7 +151,26 @@
       "source_authority": "issuer",
       "source_url": "https://ri.grupocasasbahia.com.br/governanca-corporativa/composicao-acionaria/",
       "source_reference": "Grupo Casas Bahia RI, Composição Acionária",
-      "evidence_summary": "A emissora informa que em 20/09/2023 suas ações passaram a negociar como BHIA3 em substituição a VIIA3 após a mudança de nome para Grupo Casas Bahia; não houve conversão de quantidade."
+      "evidence_summary": "A emissora informa que em 20/09/2023 suas ações passaram a negociar como BHIA3 em substituição a VIIA3 após a mudança de nome; não houve conversão de quantidade."
+    },
+    {
+      "effective_date": "2024-08-01",
+      "cutoff_date": "2024-07-31",
+      "first_successor_trade_date": "2024-08-01",
+      "old_ticker": "ARZZ3",
+      "new_ticker": "AZZA3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/FE/11/55/95/09BE09105FE89209AC094EA8/OC%20012-2024-VNC%20Tratamento%20Carteiras%20de%20%C3%8Dndices%20da%20B3%20-%20Evento%20de%20Incorpora%C3%A7%C3%A3o%20do%20Grupo%20de%20Moda%20Soma%20pela%20Arezzo_PT.pdf",
+      "source_reference": "B3 Ofício Circular 012/2024-VNC",
+      "evidence_summary": "Na combinação que originou AZZA3, a B3 registra que a quantidade teórica de ARZZ3 não é alterada, enquanto o novo código passa a negociar em 01/08/2024. A conversão adicional documentada é de SOMA3, não das ações ARZZ3 já existentes."
     },
     {
       "effective_date": "2025-05-02",
@@ -112,8 +188,8 @@
       "certification_status": "certified",
       "source_authority": "B3",
       "source_url": "https://borainvestir.b3.com.br/noticias/empresas/ccr-muda-de-ticker-na-b3-a-partir-de-maio-e-anuncia-pagamento-de-dividendos/",
-      "source_reference": "B3 Bora Investir, 24/04/2025; novo ticker MOTV3 a partir de 02/05/2025",
-      "evidence_summary": "A B3 informa que a CCR passaria a negociar como MOTV3 em substituição a CCRO3 a partir de 02/05/2025, em decorrência da mudança de denominação para Motiva. Não é evento de quantidade."
+      "source_reference": "B3 Bora Investir, 24/04/2025; MOTV3 a partir de 02/05/2025",
+      "evidence_summary": "A B3 informa que a CCR passaria a negociar como MOTV3 em substituição a CCRO3 em decorrência da mudança de denominação para Motiva. Não é evento de quantidade."
     },
     {
       "effective_date": "2025-06-12",
@@ -134,7 +210,83 @@
       "source_authority": "B3",
       "source_url": "https://www.b3.com.br/data/files/50/20/EB/C5/357479106B8BCB69AC094EA8/OC%20005-2025-VPE%20TRATAMENTO%20EM%20DECORRENCIA%20DA%20SUBSCRICAO%20DA%20GOL%20LINHAS%20AEREAS%20INTELIGENTES%20SA_PT.pdf",
       "source_reference": "B3 Ofício Circular 005/2025-VPE, 06/06/2025, itens 1 e 3",
-      "evidence_summary": "B3 determina alteração automática de GOLL4 para GOLL54 a partir de 12/06/2025, novo ISIN BRGOLLA01PR5, fator de cotação 1.000 e atualização de 100% na Central Depositária. A quantidade econômica não é multiplicada pelo fator de cotação."
+      "evidence_summary": "B3 determina alteração automática de GOLL4 para GOLL54 a partir de 12/06/2025, novo ISIN, fator de cotação 1.000 e atualização de 100% na Central Depositária. A quantidade econômica não é multiplicada pelo fator de cotação."
+    },
+    {
+      "effective_date": "2025-09-23",
+      "cutoff_date": "2025-09-22",
+      "first_successor_trade_date": "2025-09-23",
+      "old_ticker": "BRFS3",
+      "new_ticker": "MBRF3",
+      "share_ratio": 0.8521,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "incorporation",
+      "fractional_treatment": "require_integer",
+      "tax_basis_treatment": "source_specific",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://sistemasweb.b3.com.br/PlantaoNoticias/Noticias/Detail?agencia=15&dataNoticia=2025-09-18+05%3A27%3A40&idNoticia=3073281",
+      "source_reference": "B3 Plantão de Notícias, 18/09/2025; incorporação BRF pela Marfrig",
+      "evidence_summary": "A B3 fixa 22/09/2025 como último pregão de BRFS3 e fator de troca 0,8521 para MBRF3 na abertura de 23/09/2025. A classificação é certificada, mas a execução continua fail-closed para frações/base fiscal até regra específica."
+    },
+    {
+      "effective_date": "2025-09-23",
+      "cutoff_date": "2025-09-22",
+      "first_successor_trade_date": "2025-09-23",
+      "old_ticker": "MRFG3",
+      "new_ticker": "MBRF3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/56/E6/BD/DC/304599100A29E189AC094EA8/OC%20035-2025-VNC%20TRATAMENTO%20DAS%20CARTEIRAS%20DE%20%C3%8DNDICES%20DA%20B3%20E%20DAS%20OPCOES%20FLEXIVEIS%20DE%20BALCAO_PT.pdf",
+      "source_reference": "B3 Ofício Circular 035/2025-VNC",
+      "evidence_summary": "A B3 informa que em 23/09/2025 as ações da Marfrig passam a negociar como MBRF3 devido à alteração da denominação social. Para o acionista MRFG3 existente é mudança de código, sem fator de conversão de quantidade."
+    },
+    {
+      "effective_date": "2025-11-03",
+      "cutoff_date": "2025-10-31",
+      "first_successor_trade_date": "2025-11-03",
+      "old_ticker": "EMBR3",
+      "new_ticker": "EMBJ3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://sistemasweb.b3.com.br/PlantaoNoticias/Noticias/Detail?agencia=15&dataNoticia=2025-11-03+05%3A25%3A53&idNoticia=3119113",
+      "source_reference": "B3 Plantão de Notícias, alterações válidas para abertura de 03/11/2025",
+      "evidence_summary": "A B3 exclui EMBR3 e inclui EMBJ3 na abertura de 03/11/2025 mantendo a mesma quantidade teórica, evidenciando troca de código 1:1."
+    },
+    {
+      "effective_date": "2025-11-10",
+      "cutoff_date": "2025-11-07",
+      "first_successor_trade_date": "2025-11-10",
+      "old_ticker": "ELET3",
+      "new_ticker": "AXIA3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "ticker_change",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/pt_br/noticias/toque-de-campainha-8AA8D0CD9A376029019A6E14F5555FAA.htm",
+      "source_reference": "B3, Axia Energia celebra nova marca, 10/11/2025",
+      "evidence_summary": "A B3 informa que as ações ordinárias passam a negociar como AXIA3 em substituição a ELET3 a partir de 10/11/2025; trata-se de mudança de marca/ticker, sem conversão de quantidade."
     }
   ]
 }
