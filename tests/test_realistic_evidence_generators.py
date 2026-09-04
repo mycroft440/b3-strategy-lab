@@ -54,6 +54,24 @@ class RealisticEvidenceGeneratorTests(unittest.TestCase):
         self.assertEqual(events[0].ex_date, "2017-05-02")
         self.assertAlmostEqual(events[0].split_ratio, 1.15)
 
+    def test_one_shot_ticker_scope_is_reused_for_primary_and_addendum(self) -> None:
+        realistic._install_evidence_addendum(self._payload())
+        base_registry = {
+            "schema_version": 1,
+            "coverage_start": "2017-01-01",
+            "events": [],
+        }
+        tickers = (ticker for ticker in ("BRML3",))
+
+        events = realistic.base.parse_supplemental_split_events(
+            base_registry,
+            tickers=tickers,
+            quote_dates_by_ticker={"BRML3": ["2017-04-28", "2017-05-02"]},
+            coverage_start="2017-01-01",
+        )
+
+        self.assertEqual([(event.ticker, event.ex_date) for event in events], [("BRML3", "2017-05-02")])
+
     def test_materialization_does_not_weaken_calendar_reconciliation(self) -> None:
         realistic._install_evidence_addendum(self._payload(ex_date="2017-05-03"))
         base_registry = {
@@ -71,6 +89,23 @@ class RealisticEvidenceGeneratorTests(unittest.TestCase):
                 base_registry,
                 tickers=["BRML3"],
                 quote_dates_by_ticker={"BRML3": dates},
+                coverage_start="2017-01-01",
+            )
+
+    def test_corrupt_addendum_event_is_preserved_for_canonical_rejection(self) -> None:
+        payload = self._payload()
+        payload["events"] = ["corrupt-event"]
+        realistic._install_evidence_addendum(payload)
+        base_registry = {
+            "schema_version": 1,
+            "coverage_start": "2017-01-01",
+            "events": [],
+        }
+        with self.assertRaisesRegex(B3CorporateActionError, "Evento suplementar invalido"):
+            realistic.base.parse_supplemental_split_events(
+                base_registry,
+                tickers=["BRML3"],
+                quote_dates_by_ticker={"BRML3": ["2017-04-28", "2017-05-02"]},
                 coverage_start="2017-01-01",
             )
 
