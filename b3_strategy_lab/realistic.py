@@ -11,6 +11,78 @@ IRRF_RETENTION_MINIMUM = 1.0
 DARF_MINIMUM_PAYMENT = 10.0
 
 
+def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path,
+    cash_manifest_path,
+    tickers,
+    start: str,
+    end: str,
+) -> list[str]:
+    """Validate a cash-coverage certificate without trusting its generator.
+
+    The frozen core verifies the certificate period, ticker set and hashes of the
+    cash ledger/manifest. This hardening layer additionally revalidates every
+    primary-source evidence record so a hand-edited or otherwise corrupted
+    certificate cannot satisfy the gate merely by keeping ``evidence`` non-empty.
+    """
+
+    issues = list(
+        _core.cash_coverage_certification_issues(
+            certification,
+            cash_events_path=cash_events_path,
+            cash_manifest_path=cash_manifest_path,
+            tickers=tickers,
+            start=start,
+            end=end,
+        )
+    )
+    evidence = certification.get("evidence")
+    accepted_authorities = {"B3", "CVM", "issuer"}
+    observed_authorities: set[str] = set()
+    if isinstance(evidence, list):
+        for index, item in enumerate(evidence):
+            prefix = f"evidence[{index}]"
+            if not isinstance(item, dict):
+                issues.append(f"{prefix} must be an object")
+                continue
+            authority = str(item.get("source_authority", "")).strip()
+            url = str(item.get("source_url", "")).strip()
+            scope = str(item.get("scope", "")).strip()
+            conclusion = str(item.get("conclusion", "")).strip()
+            if authority not in accepted_authorities:
+                issues.append(f"{prefix} source authority is not accepted")
+            else:
+                observed_authorities.add(authority)
+            if not url.startswith("https://"):
+                issues.append(f"{prefix} requires an https source_url")
+            if not scope:
+                issues.append(f"{prefix} scope is missing")
+            if not conclusion:
+                issues.append(f"{prefix} conclusion is missing")
+            digest = str(item.get("source_payload_sha256", "")).strip().lower()
+            if digest and (
+                len(digest) != 64
+                or any(character not in "0123456789abcdef" for character in digest)
+            ):
+                issues.append(f"{prefix} source_payload_sha256 is invalid")
+
+    summary_authority = str(certification.get("source_authority", "")).strip()
+    if summary_authority == "B3" and "B3" not in observed_authorities:
+        issues.append("summary B3 authority is not backed by B3 evidence")
+    elif summary_authority == "CVM" and "CVM" not in observed_authorities:
+        issues.append("summary CVM authority is not backed by CVM evidence")
+    elif summary_authority == "B3+CVM+issuer" and not {
+        "B3",
+        "CVM",
+        "issuer",
+    }.issubset(observed_authorities):
+        issues.append("summary mixed authority is not backed by all declared evidence classes")
+
+    return sorted(set(issues))
+
+
 def _next_month(month: str) -> str:
     year, number = (int(item) for item in month.split("-"))
     if number == 12:
