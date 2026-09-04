@@ -120,10 +120,18 @@ def _install_evidence_addendum(payload: dict) -> None:
         quote_dates_by_ticker,
         coverage_start: str,
     ):
+        # The base synchronizer deliberately supplies one-shot generators here.
+        # Both the repository supplement and the primary-source addendum must be
+        # reconciled against the exact same observed COTAHIST calendar, so freeze
+        # those iterables once before either strict parser consumes them.
+        materialized_quote_dates = {
+            str(ticker).strip().upper(): tuple(values)
+            for ticker, values in quote_dates_by_ticker.items()
+        }
         primary = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             source_payload,
             tickers=tickers,
-            quote_dates_by_ticker=quote_dates_by_ticker,
+            quote_dates_by_ticker=materialized_quote_dates,
             coverage_start=coverage_start,
         )
         allowed = {str(ticker).strip().upper() for ticker in tickers}
@@ -136,7 +144,7 @@ def _install_evidence_addendum(payload: dict) -> None:
         extra = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             addendum,
             tickers=allowed,
-            quote_dates_by_ticker=quote_dates_by_ticker,
+            quote_dates_by_ticker=materialized_quote_dates,
             coverage_start=coverage_start,
         )
         return base.merge_official_split_events(primary, extra)
