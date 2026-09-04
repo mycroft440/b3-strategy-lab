@@ -37,6 +37,7 @@ SYNC_ATTEMPTS = 3
 SYNC_RETRY_DELAYS_SECONDS = (20, 60)
 _BASE_PARSE_SUPPLEMENTAL_SPLITS = base.parse_supplemental_split_events
 _BASE_AUDIT_SHARE_MARKERS = base.audit_share_count_markers
+_BASE_WRITE_JSON_ATOMIC = base._write_json_atomic
 
 
 def _option_value(arguments: list[str], option: str) -> str | None:
@@ -51,7 +52,13 @@ def _option_value(arguments: list[str], option: str) -> str | None:
 
 def _load_evidence_addendum(path: Path = DEFAULT_REALISTIC_EVIDENCE_ADDENDUM) -> dict:
     if not path.exists():
-        return {"schema_version": 1, "coverage_start": "2017-01-01", "events": [], "marker_evidence": []}
+        return {
+            "schema_version": 1,
+            "coverage_start": "2017-01-01",
+            "events": [],
+            "marker_evidence": [],
+            "ticker_reviews": [],
+        }
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise B3CorporateActionError("Schema do addendum de evidencia realista invalido.")
@@ -59,7 +66,62 @@ def _load_evidence_addendum(path: Path = DEFAULT_REALISTIC_EVIDENCE_ADDENDUM) ->
         raise B3CorporateActionError("Lista de eventos do addendum realista invalida.")
     if not isinstance(payload.get("marker_evidence", []), list):
         raise B3CorporateActionError("Lista de marcadores do addendum realista invalida.")
+    if not isinstance(payload.get("ticker_reviews", []), list):
+        raise B3CorporateActionError("Lista de revisoes historicas do addendum realista invalida.")
     return payload
+
+
+def _validated_primary_source(
+    *,
+    ticker: str,
+    authority: str,
+    source_url: str,
+    context: str,
+) -> None:
+    if authority not in {"issuer", "CVM"}:
+        raise B3CorporateActionError(
+            f"{ticker}: fonte {context} precisa ser issuer ou CVM."
+        )
+    parsed = urlparse(source_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise B3CorporateActionError(
+            f"{ticker}: URL primaria de {context} invalida."
+        )
+    if authority == "CVM" and not (
+        parsed.hostname == "cvm.gov.br" or parsed.hostname.endswith(".cvm.gov.br")
+    ):
+        raise B3CorporateActionError(
+            f"{ticker}: evidencia CVM de {context} fora de dominio cvm.gov.br."
+        )
+
+
+def _validated_ticker_reviews(payload: dict) -> dict[str, dict[str, str]]:
+    result: dict[str, dict[str, str]] = {}
+    for raw in payload.get("ticker_reviews", []):
+        if not isinstance(raw, dict):
+            raise B3CorporateActionError("Revisao historica explicita invalida.")
+        ticker = str(raw.get("ticker", "")).strip().upper()
+        authority = str(raw.get("source_authority", "")).strip()
+        source_url = str(raw.get("source_url", "")).strip()
+        review = str(raw.get("review", "")).strip()
+        if not ticker or not review:
+            raise B3CorporateActionError("Revisao historica sem ticker/review.")
+        _validated_primary_source(
+            ticker=ticker,
+            authority=authority,
+            source_url=source_url,
+            context="revisao historica",
+        )
+        if ticker in result:
+            raise B3CorporateActionError(
+                f"Revisao historica explicita duplicada para {ticker}."
+            )
+        result[ticker] = {
+            "source_authority": authority,
+            "source_url": source_url,
+            "review": review,
+        }
+    return result
 
 
 def _validated_marker_evidence(payload: dict) -> dict[tuple[str, str, str], dict[str, str]]:
@@ -82,21 +144,12 @@ def _validated_marker_evidence(payload: dict) -> dict[tuple[str, str, str], dict
             raise B3CorporateActionError(
                 f"{ticker}: marker_date explicita invalida: {marker_date!r}."
             ) from error
-        if authority not in {"issuer", "CVM"}:
-            raise B3CorporateActionError(
-                f"{ticker} {marker_date}: fonte de marcador precisa ser issuer ou CVM."
-            )
-        parsed = urlparse(source_url)
-        if parsed.scheme != "https" or not parsed.hostname:
-            raise B3CorporateActionError(
-                f"{ticker} {marker_date}: URL primaria de marcador invalida."
-            )
-        if authority == "CVM" and not (
-            parsed.hostname == "cvm.gov.br" or parsed.hostname.endswith(".cvm.gov.br")
-        ):
-            raise B3CorporateActionError(
-                f"{ticker} {marker_date}: evidencia CVM fora de dominio cvm.gov.br."
-            )
+        _validated_primary_source(
+            ticker=ticker,
+            authority=authority,
+            source_url=source_url,
+            context=f"marcador {marker_date}",
+        )
         key = (ticker, marker_date, specification)
         if key in result:
             raise B3CorporateActionError(
@@ -112,6 +165,7 @@ def _validated_marker_evidence(payload: dict) -> dict[tuple[str, str, str], dict
 
 def _install_evidence_addendum(payload: dict) -> None:
     marker_evidence = _validated_marker_evidence(payload)
+    ticker_reviews = _validated_ticker_reviews(payload)
 
     def parse_with_addendum(
         source_payload: object,
@@ -184,10 +238,44 @@ def _install_evidence_addendum(payload: dict) -> None:
             row["primary_source_url"] = evidence["source_url"]
         return rows
 
+    def write_json_with_primary_ticker_reviews(path: Path, value: object) -> None:
+        # The base synchronizer deliberately keeps historical issuers fail-closed:
+        # without an explicit primary source their generated ticker review has no
+        # source URL and cannot sign a manifest. The realistic addendum may bind
+        # such historical tickers to an issuer/CVM source, but it may not create or
+        # alter economic split events. COTAHIST marker coverage remains audited by
+        # the independent marker/event gates above.
+        if isinstance(value, dict) and value.get("schema_version") == 3:
+            raw_reviews = value.get("ticker_reviews")
+            if isinstance(raw_reviews, list):
+                reviews = []
+                for raw in raw_reviews:
+                    if not isinstance(raw, dict):
+                        reviews.append(raw)
+                        continue
+                    ticker = str(raw.get("ticker", "")).strip().upper()
+                    primary_review = ticker_reviews.get(ticker)
+                    if primary_review is None:
+                        reviews.append(raw)
+                        continue
+                    row = dict(raw)
+                    row["source_authority"] = primary_review["source_authority"]
+                    row["source_url"] = primary_review["source_url"]
+                    row["result"] = (
+                        str(row.get("result", "")).rstrip()
+                        + " Revisao primaria historica: "
+                        + primary_review["review"]
+                    ).strip()
+                    reviews.append(row)
+                value = dict(value)
+                value["ticker_reviews"] = reviews
+        _BASE_WRITE_JSON_ATOMIC(path, value)
+
     # Always install directly over the immutable base functions. Repeated calls in
     # tests/retries therefore replace the wrapper instead of recursively stacking it.
     base.parse_supplemental_split_events = parse_with_addendum
     base.audit_share_count_markers = audit_with_explicit_primary_evidence
+    base._write_json_atomic = write_json_with_primary_ticker_reviews
 
 
 def main(argv: list[str] | None = None) -> int:
