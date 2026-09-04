@@ -510,17 +510,24 @@ jobs:
                 cd reports
                 sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
               )
-              tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
-              python - "$REAL_END" <<'PY'
+              if tar -xOf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz \
+                  data/universes/point_in_time_union.json \
+                  | python - "$REAL_START" "$REAL_END" <<'PY'
           import json, sys
-          from pathlib import Path
-          universe = json.loads(Path("data/universes/point_in_time_union.json").read_text())
-          if str(universe.get("selection_end")) != sys.argv[1]:
-              raise SystemExit(
-                  "snapshot PIT diverge do cutoff da matriz: "
-                  f"{universe.get('selection_end')} != {sys.argv[1]}"
-              )
+          payload = json.load(sys.stdin)
+          expected_start, expected_end = sys.argv[1], sys.argv[2]
+          if str(payload.get("selected_as_of")) != expected_start:
+              raise SystemExit(1)
+          if str(payload.get("selection_end")) != expected_end:
+              raise SystemExit(1)
           PY
+              then
+                echo "Snapshot PIT corresponde exatamente ao período $REAL_START..$REAL_END; reutilizando."
+                tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+              else
+                echo "Snapshot PIT certificado pertence a outra janela; reconstruindo pelas fontes oficiais."
+                BUILD_REALISTIC_DATA=true
+              fi
             fi
           fi
           if [ "$BUILD_REALISTIC_DATA" = "true" ]; then
