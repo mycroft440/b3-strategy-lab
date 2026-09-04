@@ -23,6 +23,7 @@ from b3_strategy_lab.b3_official import (  # noqa: E402
 from b3_strategy_lab.cash_distributions import build_cash_events  # noqa: E402
 from b3_strategy_lab.candles import actions_path, cache_path, load_actions, save_actions  # noqa: E402
 from b3_strategy_lab.cotahist import (  # noqa: E402
+    DataVerificationError,
     build_verified_daily_candles,
     create_manifest,
     manifest_path,
@@ -56,6 +57,7 @@ DEFAULT_CASH = Path("data/corporate_actions/point_in_time_cash_distributions.csv
 DEFAULT_CASH_MANIFEST = Path("data/corporate_actions/point_in_time_cash_distributions.manifest.json")
 DEFAULT_MISSING_SPLITS = Path("reports/point_in_time_missing_split_evidence.json")
 DEFAULT_SUPPLEMENTAL_SPLITS = Path("data/corporate_actions/supplemental_split_events.json")
+DEFAULT_DATA_VERIFICATION_REPORT = Path("reports/point_in_time_data_verification.json")
 
 
 def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
@@ -139,6 +141,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument("--missing-splits-report", type=Path, default=DEFAULT_MISSING_SPLITS)
     parser.add_argument("--supplemental-splits", type=Path, default=DEFAULT_SUPPLEMENTAL_SPLITS)
+    parser.add_argument("--audit-all-errors", action="store_true")
+    parser.add_argument("--data-verification-report", type=Path, default=DEFAULT_DATA_VERIFICATION_REPORT)
     parser.add_argument("--quality-reviews", type=Path, default=Path("data/quality_reviews.json"))
     parser.add_argument("--years", nargs="+", default=[f"2017:{date.today().year}"])
     parser.add_argument("--download", action="store_true")
@@ -356,6 +360,7 @@ def main(argv: list[str] | None = None) -> int:
     _write_json_atomic(args.split_evidence, evidence_payload)
 
     quality_reviews = _load_quality_reviews(args.quality_reviews)
+    verification_failures: list[dict[str, str]] = []
     for ticker in tickers:
         action_file = actions_path(ticker, args.actions_dir)
         actions = _merge_official_splits(
@@ -390,16 +395,42 @@ def main(argv: list[str] | None = None) -> int:
             )
             manifest_file = manifest_path(ticker, interval, args.manifests_dir)
             write_manifest(manifest, manifest_file)
-            verify_dataset(
-                candle_file,
-                action_file,
-                manifest_file,
-                ticker=ticker,
-                interval=interval,
-                require_verified_splits_from=coverage_start,
-                split_evidence_path=args.dataset_split_evidence,
+            try:
+                verify_dataset(
+                    candle_file,
+                    action_file,
+                    manifest_file,
+                    ticker=ticker,
+                    interval=interval,
+                    require_verified_splits_from=coverage_start,
+                    split_evidence_path=args.dataset_split_evidence,
+                )
+            except DataVerificationError as error:
+                if not args.audit_all_errors:
+                    raise
+                verification_failures.append(
+                    {"ticker": ticker, "interval": interval, "error": str(error)}
+                )
+                print(f"AUDIT {ticker}/{interval}: {error}", flush=True)
+        if not any(row["ticker"] == ticker for row in verification_failures):
+            print(f"{ticker}: verified through {daily[-1].date}", flush=True)
+
+    if args.audit_all_errors:
+        _write_json_atomic(
+            args.data_verification_report,
+            {
+                "schema_version": 1,
+                "mode": "audit_only_no_publication",
+                "ready": not verification_failures,
+                "failure_count": len(verification_failures),
+                "failures": verification_failures,
+            },
+        )
+        if verification_failures:
+            raise ValueError(
+                f"{len(verification_failures)} point-in-time dataset verification failure(s); "
+                f"all independent ticker datasets were audited. See {args.data_verification_report}."
             )
-        print(f"{ticker}: verified through {daily[-1].date}", flush=True)
 
     cash_rows, cash_issues = build_cash_events(
         tickers,

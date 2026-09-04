@@ -41,10 +41,30 @@ def cash_coverage_certification_issues(
         issues.append("certification dates must be valid ISO dates")
         required_start = required_end = certified_start = certified_end = ""
 
-    if certification.get("schema_version") != 1:
+    if certification.get("schema_version") != 2:
         issues.append("unsupported certification schema")
     if certification.get("coverage_certified") is not True:
         issues.append("coverage is not certified")
+    if certification.get("announcement_timing_certified") is not True:
+        issues.append("announcement timing is not certified")
+    timing_evidence = certification.get("announcement_timing_evidence")
+    if not isinstance(timing_evidence, list) or not timing_evidence:
+        issues.append("announcement timing evidence is missing")
+    else:
+        for raw in timing_evidence:
+            if not isinstance(raw, dict):
+                issues.append("announcement timing evidence record is malformed")
+                continue
+            authority = str(raw.get("source_authority", "")).strip()
+            url = str(raw.get("source_url", "")).strip()
+            scope = str(raw.get("scope", "")).strip()
+            conclusion = str(raw.get("conclusion", "")).strip()
+            if authority not in {"B3", "CVM", "issuer"}:
+                issues.append("announcement timing evidence authority is not accepted")
+            if not url.startswith("https://"):
+                issues.append("announcement timing evidence requires https source_url")
+            if not scope or not conclusion:
+                issues.append("announcement timing evidence requires scope and conclusion")
     if required_start and (
         certified_start > required_start or certified_end < required_end
     ):

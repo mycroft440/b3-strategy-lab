@@ -17,8 +17,17 @@ class CashCoverageEvidenceValidationTests(unittest.TestCase):
         events.write_text("ticker,label\nAAAA3,DIVIDENDO\n", encoding="utf-8")
         manifest.write_text("{}\n", encoding="utf-8")
         payload = {
-            "schema_version": 1,
+            "schema_version": 2,
             "coverage_certified": True,
+            "announcement_timing_certified": True,
+            "announcement_timing_evidence": [
+                {
+                    "source_authority": "B3",
+                    "source_url": "https://example.test/b3/timing",
+                    "scope": "AAAA3 announcement timing",
+                    "conclusion": "Announcement timing reviewed for the certified period.",
+                }
+            ],
             "start": "2024-01-01",
             "end": "2024-12-31",
             "tickers": ["AAAA3"],

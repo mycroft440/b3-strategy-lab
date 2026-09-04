@@ -52,8 +52,17 @@ class CashCoverageCertificationTests(unittest.TestCase):
             events.write_text("ticker,amount\nAAA3,1.00\n", encoding="utf-8")
             manifest.write_text('{"complete": true}\n', encoding="utf-8")
             certification = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "coverage_certified": True,
+                "announcement_timing_certified": True,
+                "announcement_timing_evidence": [
+                    {
+                        "source_authority": "B3",
+                        "source_url": "https://example.test/b3/timing",
+                        "scope": "AAA3 announcement timing",
+                        "conclusion": "Announcement timing reviewed for the certified period.",
+                    }
+                ],
                 "start": "2018-01-01",
                 "end": "2024-12-31",
                 "source_authority": "B3",

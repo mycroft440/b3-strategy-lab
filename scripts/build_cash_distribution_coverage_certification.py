@@ -64,6 +64,40 @@ def _load_evidence(path: Path) -> list[dict[str, object]]:
     return normalized
 
 
+def _load_announcement_timing_evidence(path: Path) -> list[dict[str, object]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    items = payload.get("announcement_timing_evidence") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not items:
+        raise ValueError(
+            "Evidence file must contain a non-empty announcement_timing_evidence list."
+        )
+    normalized: list[dict[str, object]] = []
+    accepted = {"B3", "CVM", "issuer"}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("Each announcement timing evidence item must be an object.")
+        authority = str(item.get("source_authority", "")).strip()
+        url = str(item.get("source_url", "")).strip()
+        scope = str(item.get("scope", "")).strip()
+        conclusion = str(item.get("conclusion", "")).strip()
+        if authority not in accepted:
+            raise ValueError(f"Unsupported announcement evidence authority: {authority}")
+        if not url.startswith("https://"):
+            raise ValueError("Every announcement evidence item requires an https source_url.")
+        if not scope or not conclusion:
+            raise ValueError("Every announcement evidence item requires scope and conclusion.")
+        normalized.append(
+            {
+                "source_authority": authority,
+                "source_url": url,
+                "scope": scope,
+                "conclusion": conclusion,
+                "source_payload_sha256": str(item.get("source_payload_sha256", "")).strip(),
+            }
+        )
+    return normalized
+
+
 def _required_cash_tickers(universe_payload: dict[str, object], selectable: set[str]) -> set[str]:
     values = universe_payload.get("market_data_tickers", sorted(selectable))
     if not isinstance(values, list):
@@ -92,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evidence-file", type=Path, required=True)
     parser.add_argument("--reviewed-by", required=True)
     parser.add_argument("--confirm-complete-coverage", action="store_true")
+    parser.add_argument("--confirm-announcement-timing", action="store_true")
     parser.add_argument("--events", type=Path, default=DEFAULT_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--universe", type=Path, default=DEFAULT_UNIVERSE)
@@ -105,6 +140,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(
             "Refusing to certify completeness without --confirm-complete-coverage after "
             "a real primary-source review."
+        )
+    if not args.confirm_announcement_timing:
+        parser.error(
+            "Refusing schema-v2 certification without --confirm-announcement-timing "
+            "after reviewing when each event/rate became publicly knowable."
         )
     for path in (args.events, args.cash_manifest, args.universe, args.snapshots, args.evidence_file):
         if not path.exists():
@@ -165,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     evidence = _load_evidence(args.evidence_file)
+    announcement_timing_evidence = _load_announcement_timing_evidence(args.evidence_file)
     authorities = {str(item["source_authority"]) for item in evidence}
     # Keep the summary authority truthful without claiming sources that were not
     # reviewed. Mixed evidence remains fully visible in the evidence list; the
@@ -181,8 +222,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "coverage_certified": True,
+        "announcement_timing_certified": True,
+        "announcement_timing_evidence": announcement_timing_evidence,
         "start": start,
         "end": end,
         "tickers": sorted(required_cash_tickers),
