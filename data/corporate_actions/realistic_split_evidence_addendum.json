@@ -32,6 +32,12 @@
       "source_authority": "issuer",
       "source_url": "https://ri.allos.co/informacoes-financeiras/central-de-resultados-brmalls/",
       "review": "A central historica oficial de RI da brMalls/ALLOS preserva a documentacao corporativa do antigo emissor BRML3, incluindo a bonificacao de 15% ja registrada neste addendum com fonte primaria. Esta revisao apenas vincula o ticker historico BRML3 a essa fonte primaria; o evento economico, o marcador COTAHIST, a razao e a data continuam sendo validados separadamente pelos gates fail-closed."
+    },
+    {
+      "ticker": "CIEL3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cielo.com.br/mercado-de-capitais/bonificacao/",
+      "review": "A pagina oficial de RI da Cielo documenta diretamente a bonificacao vinculada a CIEL3 e constitui fonte primaria da emissora para o ticker. Esta revisao apenas fornece o vinculo documental exigido para o ticker historico; nao cria evento, marcador ou ajuste sintetico, e a verificacao economica do COTAHIST continua independente."
     }
   ],
   "events": [
