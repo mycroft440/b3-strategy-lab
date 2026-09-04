@@ -20,6 +20,12 @@
       "source_authority": "issuer",
       "source_url": "https://ri.vibraenergia.com.br/servicos-aos-investidores/perguntas-frequentes/",
       "review": "A pagina oficial de RI da Vibra informa explicitamente que, junto com a alteracao da razao social, o ticker foi alterado de BRDT3 para VBBR3. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador ou evento economico; esta revisao apenas vincula o ticker historico BRDT3 a uma fonte primaria da emissora e nao cria split, bonificacao ou ajuste sintetico."
+    },
+    {
+      "ticker": "BRFS3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.brf-global.com/governanca-corporativa/visao-geral/",
+      "review": "A pagina oficial de RI da BRF identifica explicitamente as acoes ordinarias negociadas na B3 sob o codigo BRFS3. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador ou evento economico; esta revisao apenas vincula BRFS3 a uma fonte primaria da emissora e nao cria split, bonificacao, mudanca de ticker ou ajuste sintetico."
     }
   ],
   "events": [
