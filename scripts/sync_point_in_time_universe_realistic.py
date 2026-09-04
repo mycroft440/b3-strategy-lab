@@ -40,6 +40,10 @@ _BASE_AUDIT_SHARE_MARKERS = base.audit_share_count_markers
 _BASE_WRITE_JSON_ATOMIC = base._write_json_atomic
 
 
+class HistoricalTickerReviewCoverageError(RuntimeError):
+    """Deterministic evidence gap; unlike a B3 transport error it must not retry."""
+
+
 def _option_value(arguments: list[str], option: str) -> str | None:
     for index, value in enumerate(arguments):
         if value == option and index + 1 < len(arguments):
@@ -122,6 +126,24 @@ def _validated_ticker_reviews(payload: dict) -> dict[str, dict[str, str]]:
             "review": review,
         }
     return result
+
+
+def _unresolved_historical_review_tickers(reviews: object) -> tuple[str, ...]:
+    """Return every generated historical review that still lacks primary binding."""
+    if not isinstance(reviews, list):
+        return ()
+    unresolved: set[str] = set()
+    for raw in reviews:
+        if not isinstance(raw, dict):
+            continue
+        authority = str(raw.get("source_authority", "")).strip()
+        source_url = str(raw.get("source_url", "")).strip()
+        if authority != "historical_primary_registry" or source_url:
+            continue
+        ticker = str(raw.get("ticker", "")).strip().upper()
+        if ticker:
+            unresolved.add(ticker)
+    return tuple(sorted(unresolved))
 
 
 def _validated_marker_evidence(payload: dict) -> dict[tuple[str, str, str], dict[str, str]]:
@@ -267,6 +289,14 @@ def _install_evidence_addendum(payload: dict) -> None:
                         + primary_review["review"]
                     ).strip()
                     reviews.append(row)
+                unresolved = _unresolved_historical_review_tickers(reviews)
+                if unresolved:
+                    raise HistoricalTickerReviewCoverageError(
+                        "Revisoes historicas sem fonte primaria explicita: "
+                        + ", ".join(unresolved)
+                        + ". Adicione issuer/CVM verificavel ao addendum; "
+                        "nenhum manifest foi assinado."
+                    )
                 value = dict(value)
                 value["ticker_reviews"] = reviews
         _BASE_WRITE_JSON_ATOMIC(path, value)
