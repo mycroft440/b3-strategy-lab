@@ -59,7 +59,14 @@ class CashCoverageCertificationTests(unittest.TestCase):
                 "source_authority": "B3",
                 "reviewed_by": "Independent reviewer",
                 "reviewed_at_utc": "2025-01-02T12:00:00+00:00",
-                "evidence": ["primary-source reconciliation"],
+                "evidence": [
+                    {
+                        "source_authority": "B3",
+                        "source_url": "https://example.test/b3",
+                        "scope": "AAA3 2018-2024",
+                        "conclusion": "Primary-source cash coverage reconciled for the certified period.",
+                    }
+                ],
                 "tickers": ["AAA3"],
                 "cash_events_sha256": hashlib.sha256(events.read_bytes()).hexdigest(),
                 "cash_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
@@ -167,7 +174,6 @@ class GapAdjustmentTests(unittest.TestCase):
         with patch("b3_strategy_lab.realistic_portfolio_core.build_signals", side_effect=fake_build):
             _gap_adjusted_eligibility(data, "gap_momentum", [event], "adjusted")
 
-        # Raw R$2/share must become R$1 on an adjustment_factor=0.5 series.
         self.assertAlmostEqual(captured["open"], 10.0)
 
     def test_distribution_identity_includes_payment_date(self) -> None:

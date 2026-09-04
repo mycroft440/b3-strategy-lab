@@ -25,8 +25,13 @@ class HardenedWorkflowSnapshotBootstrapTest(unittest.TestCase):
 
     def test_reuse_path_keeps_checksum_and_pit_cutoff_gates(self):
         self.assertIn('sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256', self.block)
-        self.assertIn('snapshot PIT diverge do cutoff da matriz', self.block)
+        self.assertIn('selected_as_of', self.block)
         self.assertIn('selection_end', self.block)
+        self.assertIn('SNAPSHOT_PERIOD_MATCH=false', self.block)
+        self.assertIn('if [ "$SNAPSHOT_PERIOD_MATCH" = "true" ]; then', self.block)
+        self.assertIn('Snapshot PIT corresponde exatamente ao período $REAL_START..$REAL_END; reutilizando.', self.block)
+        self.assertIn('Snapshot PIT certificado pertence a outra janela ou é estruturalmente incompatível; reconstruindo pelas fontes oficiais.', self.block)
+        self.assertIn('BUILD_REALISTIC_DATA=true', self.block)
 
     def test_bootstrap_does_not_bypass_certification_gate(self):
         following = self.text[self.text.index("- name: Exigir insumos realistas certificados"):]
