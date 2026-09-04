@@ -2,6 +2,14 @@
   "schema_version": 1,
   "coverage_start": "2017-01-01",
   "scope": "Primary-source addendum for historical point-in-time share-count events and exact COTAHIST marker bindings that are absent from the current B3 issuer supplement.",
+  "ticker_reviews": [
+    {
+      "ticker": "ARZZ3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.azzas2154.com.br/informacoes-aos-investidores/perguntas-frequentes/",
+      "review": "A pagina historica de RI da emissora identifica explicitamente as acoes ordinarias AREZZO&CO negociadas sob ARZZ3. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador de alteracao de quantidade; esta revisao apenas fornece a fonte primaria exigida para o ticker historico apos a migracao para AZZA3."
+    }
+  ],
   "events": [
     {
       "ticker": "BRML3",
