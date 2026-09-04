@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 from dataclasses import dataclass
 from datetime import date
@@ -133,7 +134,6 @@ class InstrumentTransition:
         return self.new_quotation_factor / self.old_quotation_factor
 
 
-# Backward-compatible public name used throughout the existing realistic engine.
 TickerTransition = InstrumentTransition
 
 
@@ -156,12 +156,14 @@ def instrument_transition_from_row(row: dict[str, str]) -> InstrumentTransition:
         new_ticker=str(row.get("new_ticker", "")),
         share_ratio=_float(row, "share_ratio", 1.0),
         cash_per_old_share=_float(row, "cash_per_old_share", 0.0),
-        old_isin=str(row.get("old_isin", "")),
-        new_isin=str(row.get("new_isin", "")),
+        old_isin=str(row.get("old_isin", row.get("isin", ""))),
+        new_isin=str(row.get("new_isin", row.get("isin", ""))),
         old_quotation_factor=_int(row, "old_quotation_factor", 1),
         new_quotation_factor=_int(row, "new_quotation_factor", 1),
-        cutoff_date=str(row.get("cutoff_date", "")),
-        first_successor_trade_date=str(row.get("first_successor_trade_date", "")),
+        cutoff_date=str(row.get("cutoff_date", row.get("last_old_quote", ""))),
+        first_successor_trade_date=str(
+            row.get("first_successor_trade_date", row.get("first_new_quote", ""))
+        ),
         event_type=str(row.get("event_type", "ticker_change") or "ticker_change"),
         fractional_treatment=str(
             row.get("fractional_treatment", "require_integer") or "require_integer"
@@ -170,12 +172,42 @@ def instrument_transition_from_row(row: dict[str, str]) -> InstrumentTransition:
             row.get("tax_basis_treatment", "carry_total_basis") or "carry_total_basis"
         ),
         source_authority=str(row.get("source_authority", "")),
-        source_url=str(row.get("source_url", row.get("source", ""))),
-        source_reference=str(row.get("source_reference", row.get("reference", ""))),
+        source_url=str(row.get("source_url", "")),
+        source_reference=str(row.get("source_reference", row.get("evidence", ""))),
         certification_status=str(
             row.get("certification_status", "unresolved") or "unresolved"
         ),
     )
+
+
+def instrument_transition_from_mapping(row: dict[str, object]) -> InstrumentTransition:
+    return instrument_transition_from_row(
+        {key: "" if value is None else str(value) for key, value in row.items()}
+    )
+
+
+def load_transition_reviews(path: Path | str) -> list[InstrumentTransition]:
+    source = Path(path)
+    if not source.exists():
+        return []
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise ValueError("instrument transition review registry requires schema_version 1")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        raise ValueError("instrument transition review registry requires a reviews list")
+    result: list[InstrumentTransition] = []
+    seen: set[tuple[str, str, str]] = set()
+    for raw in reviews:
+        if not isinstance(raw, dict):
+            raise ValueError("instrument transition review entries must be objects")
+        item = instrument_transition_from_mapping(raw)
+        key = (item.effective_date, item.old_ticker, item.new_ticker)
+        if key in seen:
+            raise ValueError(f"duplicate instrument transition review: {key}")
+        seen.add(key)
+        result.append(item)
+    return sorted(result, key=lambda item: (item.effective_date, item.old_ticker, item.new_ticker))
 
 
 def load_instrument_transitions(path: Path | str) -> dict[str, list[InstrumentTransition]]:
