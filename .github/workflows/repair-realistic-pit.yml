@@ -1,4 +1,4 @@
-name: Temporary raw COTAHIST disappearance audit
+name: Temporary PIT repair batch 3
 
 on:
   push:
@@ -8,73 +8,44 @@ on:
       - '.github/workflows/repair-realistic-pit.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  raw-cotahist-audit:
+  audit-and-cash-certification:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect every raw record for unresolved symbols
+      - name: Apply audit/certification patches and run full suite
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from collections import defaultdict
-          from pathlib import Path
-          import zipfile
-          from b3_strategy_lab.cotahist import download_cotahist
-
-          targets = {
-              'ARZZ3','AZUL4','BRDT3','BRFS3','BRML3','BTOW3','BVMF3','CCRO3','CIEL3',
-              'CPLE6','CRFB3','ELET3','EMBR3','ESTC3','FIBR3','GNDI3','GOLL54','JBSS3',
-              'KROT3','LAME4','MRFG3','NTCO3','PCAR4','PETZ3','RRRP3','SMLS3','VIIA3',
-              'VIVT4','VVAR3'
-          }
-          rows = defaultdict(list)
-          for year in range(2017, 2027):
-              path = download_cotahist(year, Path('.cache/cotahist'))
-              with zipfile.ZipFile(path) as archive:
-                  member = [n for n in archive.namelist() if not n.endswith('/')][0]
-                  with archive.open(member) as fh:
-                      for raw in fh:
-                          line = raw.decode('latin-1').rstrip('\r\n')
-                          if len(line) < 245 or line[:2] != '01':
-                              continue
-                          ticker = line[12:24].strip().upper()
-                          if ticker not in targets:
-                              continue
-                          rows[ticker].append({
-                              'date': line[2:10],
-                              'bdi': line[10:12],
-                              'market': line[24:27],
-                              'issuer': line[27:39].strip(),
-                              'spec': line[39:49].strip(),
-                              'fatcot': line[210:217].strip(),
-                              'isin': line[230:242].strip(),
-                          })
-          for ticker in sorted(targets):
-              values = sorted(rows[ticker], key=lambda r: r['date'])
-              print(f'=== {ticker} raw_rows={len(values)} ===')
-              if not values:
-                  print('NO_RAW_ROWS')
-                  continue
-              combos = defaultdict(lambda: {'first': None, 'last': None, 'count': 0})
-              for row in values:
-                  key = (row['bdi'], row['market'], row['spec'], row['fatcot'], row['isin'])
-                  item = combos[key]
-                  item['first'] = item['first'] or row['date']
-                  item['last'] = row['date']
-                  item['count'] += 1
-              for key, item in sorted(combos.items(), key=lambda kv: (kv[1]['last'], kv[0])):
-                  print('COMBO', *key, item['first'], item['last'], item['count'])
-              print('LAST10')
-              for row in values[-10:]:
-                  print(row)
-          PY
+          python scripts/_temporary_pit_repair_batch3.py
+          python -m py_compile \
+            b3_strategy_lab/realistic_core.py \
+            scripts/audit_realistic_backtest_inputs.py \
+            scripts/build_cash_distribution_coverage_certification.py \
+            scripts/sync_point_in_time_universe.py \
+            tests/test_pit_audit_and_cash_timing_certification.py
+          python -m unittest tests.test_pit_audit_and_cash_timing_certification -v
+          python -m unittest discover -s tests -v
+      - name: Commit verified production changes
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            b3_strategy_lab/realistic_core.py \
+            scripts/audit_realistic_backtest_inputs.py \
+            scripts/build_cash_distribution_coverage_certification.py \
+            scripts/sync_point_in_time_universe.py
+          git diff --cached --check
+          git commit -m 'feat: separate PIT audit and causal cash certification'
+          git push origin HEAD:fix/realistic-pit-integrity-20260904
