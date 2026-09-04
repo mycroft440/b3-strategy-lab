@@ -137,7 +137,8 @@ def _unresolved_historical_review_tickers(reviews: object) -> tuple[str, ...]:
         if not isinstance(raw, dict):
             continue
         authority = str(raw.get("source_authority", "")).strip()
-        source_url = str(raw.get("source_url", "")).strip()
+        raw_source_url = raw.get("source_url")
+        source_url = "" if raw_source_url is None else str(raw_source_url).strip()
         if authority != "historical_primary_registry" or source_url:
             continue
         ticker = str(raw.get("ticker", "")).strip().upper()
