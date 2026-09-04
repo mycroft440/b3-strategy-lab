@@ -1,4 +1,4 @@
-name: Temporary PIT repair batch 3
+name: Temporary PIT repair batch 3b
 
 on:
   push:
@@ -30,6 +30,7 @@ jobs:
           python scripts/_temporary_pit_repair_batch3.py
           python -m py_compile \
             b3_strategy_lab/realistic_core.py \
+            b3_strategy_lab/realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
             scripts/build_cash_distribution_coverage_certification.py \
             scripts/sync_point_in_time_universe.py \
@@ -43,6 +44,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             b3_strategy_lab/realistic_core.py \
+            b3_strategy_lab/realistic.py \
             scripts/audit_realistic_backtest_inputs.py \
             scripts/build_cash_distribution_coverage_certification.py \
             scripts/sync_point_in_time_universe.py
