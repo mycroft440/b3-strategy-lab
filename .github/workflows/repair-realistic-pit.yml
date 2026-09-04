@@ -1,4 +1,4 @@
-name: Temporary PIT repair batch 3c
+name: Temporary PIT repair batch 3d
 
 on:
   push:
@@ -30,12 +30,15 @@ jobs:
           python scripts/_temporary_pit_repair_batch3.py
           python -m py_compile \
             b3_strategy_lab/realistic_core.py \
-            b3_strategy_lab/realistic.py \
             scripts/build_cash_distribution_coverage_certification.py \
             scripts/sync_point_in_time_universe.py \
             tests/test_pit_audit_and_cash_timing_certification.py \
+            tests/test_cash_coverage_evidence_validation.py \
             tests/test_realistic_accounting.py
-          python -m unittest tests.test_cash_coverage_schema_v2 tests.test_pit_audit_and_cash_timing_certification -v
+          python -m unittest \
+            tests.test_cash_coverage_schema_v2 \
+            tests.test_cash_coverage_evidence_validation \
+            tests.test_pit_audit_and_cash_timing_certification -v
           python -m unittest discover -s tests -v
       - name: Commit verified production and contract changes
         run: |
@@ -46,6 +49,7 @@ jobs:
             b3_strategy_lab/realistic_core.py \
             scripts/build_cash_distribution_coverage_certification.py \
             scripts/sync_point_in_time_universe.py \
+            tests/test_cash_coverage_evidence_validation.py \
             tests/test_realistic_accounting.py
           git diff --cached --check
           git commit -m 'feat: require causal cash certification and add PIT audit mode'
