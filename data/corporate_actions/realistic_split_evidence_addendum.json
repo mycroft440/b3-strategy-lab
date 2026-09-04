@@ -26,6 +26,12 @@
       "source_authority": "issuer",
       "source_url": "https://ri.brf-global.com/governanca-corporativa/visao-geral/",
       "review": "A pagina oficial de RI da BRF identifica explicitamente as acoes ordinarias negociadas na B3 sob o codigo BRFS3. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador ou evento economico; esta revisao apenas vincula BRFS3 a uma fonte primaria da emissora e nao cria split, bonificacao, mudanca de ticker ou ajuste sintetico."
+    },
+    {
+      "ticker": "BRML3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.allos.co/informacoes-financeiras/central-de-resultados-brmalls/",
+      "review": "A central historica oficial de RI da brMalls/ALLOS preserva a documentacao corporativa do antigo emissor BRML3, incluindo a bonificacao de 15% ja registrada neste addendum com fonte primaria. Esta revisao apenas vincula o ticker historico BRML3 a essa fonte primaria; o evento economico, o marcador COTAHIST, a razao e a data continuam sendo validados separadamente pelos gates fail-closed."
     }
   ],
   "events": [
