@@ -39,12 +39,29 @@ class RealisticSyncRetryPolicyTests(unittest.TestCase):
             list(realistic.SYNC_RETRY_DELAYS_SECONDS),
         )
 
+    def test_legacy_temporary_response_contract_remains_retryable(self) -> None:
+        error = B3CorporateActionError("temporary invalid response from upstream")
+        with (
+            patch.object(realistic, "_load_evidence_addendum", return_value={}),
+            patch.object(realistic, "_install_evidence_addendum"),
+            patch.object(realistic.base, "main", side_effect=[error, 0]) as main,
+            patch.object(realistic.time, "sleep") as sleep,
+        ):
+            self.assertEqual(realistic.main([]), 0)
+        self.assertEqual(main.call_count, 2)
+        sleep.assert_called_once_with(realistic.SYNC_RETRY_DELAYS_SECONDS[0])
+
     def test_retry_classifier_is_fail_closed_for_unrecognized_errors(self) -> None:
         self.assertTrue(
             realistic._is_retryable_b3_transport_error(
                 B3CorporateActionError(
                     "Falha ao consultar eventos oficiais de ABCD: timeout"
                 )
+            )
+        )
+        self.assertTrue(
+            realistic._is_retryable_b3_transport_error(
+                B3CorporateActionError("temporary invalid response")
             )
         )
         self.assertFalse(
