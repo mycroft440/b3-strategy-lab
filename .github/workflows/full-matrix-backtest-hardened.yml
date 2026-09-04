@@ -510,22 +510,32 @@ jobs:
                 cd reports
                 sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
               )
+              SNAPSHOT_UNIVERSE=reports/snapshot_point_in_time_union.json
+              SNAPSHOT_PERIOD_MATCH=false
               if tar -xOf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz \
                   data/universes/point_in_time_union.json \
-                  | python - "$REAL_START" "$REAL_END" <<'PY'
+                  > "$SNAPSHOT_UNIVERSE" 2>/dev/null
+              then
+                if python - "$SNAPSHOT_UNIVERSE" "$REAL_START" "$REAL_END" <<'PY'
           import json, sys
-          payload = json.load(sys.stdin)
-          expected_start, expected_end = sys.argv[1], sys.argv[2]
+          from pathlib import Path
+          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          expected_start, expected_end = sys.argv[2], sys.argv[3]
           if str(payload.get("selected_as_of")) != expected_start:
               raise SystemExit(1)
           if str(payload.get("selection_end")) != expected_end:
               raise SystemExit(1)
           PY
-              then
+                then
+                  SNAPSHOT_PERIOD_MATCH=true
+                fi
+              fi
+              rm -f "$SNAPSHOT_UNIVERSE"
+              if [ "$SNAPSHOT_PERIOD_MATCH" = "true" ]; then
                 echo "Snapshot PIT corresponde exatamente ao período $REAL_START..$REAL_END; reutilizando."
                 tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
               else
-                echo "Snapshot PIT certificado pertence a outra janela; reconstruindo pelas fontes oficiais."
+                echo "Snapshot PIT certificado pertence a outra janela ou é estruturalmente incompatível; reconstruindo pelas fontes oficiais."
                 BUILD_REALISTIC_DATA=true
               fi
             fi
