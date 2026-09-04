@@ -45,14 +45,20 @@ class HistoricalTickerReviewCoverageError(RuntimeError):
 
 
 def _is_retryable_b3_transport_error(error: B3CorporateActionError) -> bool:
-    """Identify only the exhausted network/download failure emitted by B3 fetches.
+    """Recognize transient B3/source-response failures without retrying evidence bugs.
 
-    The B3 downloader already performs its own bounded retries. The outer realistic
-    sync retries the full operation only after that downloader exhausts, allowing
-    cached issuer successes to be reused. Deterministic validation/evidence errors
-    must propagate immediately instead of sleeping and repeating unchanged input.
+    The downloader can surface its final exhausted transport error with the
+    Portuguese ``Falha ao consultar...`` prefix. Existing callers/tests also use
+    ``temporary invalid response`` for the same transient-source contract. Both
+    remain bounded by ``SYNC_ATTEMPTS``. Deterministic validation/evidence errors
+    propagate immediately and remain fail-closed.
     """
-    return str(error).startswith("Falha ao consultar eventos oficiais de ")
+    message = str(error).strip()
+    lowered = message.lower()
+    return (
+        message.startswith("Falha ao consultar eventos oficiais de ")
+        or lowered.startswith("temporary invalid response")
+    )
 
 
 def _option_value(arguments: list[str], option: str) -> str | None:
@@ -377,10 +383,10 @@ def main(argv: list[str] | None = None) -> int:
     _install_evidence_addendum(_load_evidence_addendum())
 
     # Successful issuer supplements are written atomically by the base synchronizer.
-    # The B3 downloader already retries each request internally. Only its final
-    # transport-exhaustion error receives a bounded whole-sync retry so cached
-    # successes can be reused; deterministic evidence/integrity errors propagate
-    # immediately and remain fail-closed.
+    # The B3 downloader already retries each request internally. Only explicitly
+    # transient source/transport failures receive a bounded whole-sync retry so
+    # cached successes can be reused; deterministic evidence/integrity errors
+    # propagate immediately and remain fail-closed.
     for attempt in range(1, SYNC_ATTEMPTS + 1):
         try:
             return base.main(arguments)
