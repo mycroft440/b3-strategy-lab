@@ -1,0 +1,149 @@
+name: Exhaustive backtest diagnostics — one shot
+
+on:
+  push:
+    branches:
+      - debug/exhaustive-backtest-20260904
+    paths:
+      - ".github/workflows/debug-exhaustive-backtest-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and run existing tests
+        run: |
+          python -m compileall -q b3_strategy_lab scripts tests
+          python -m unittest discover -s tests -v
+
+      - name: Diagnose COTAHIST equity BDI coverage
+        run: |
+          python - <<'PY'
+          import collections
+          import json
+          import zipfile
+          from pathlib import Path
+          from b3_strategy_lab.cotahist import STANDARD_EQUITY_BDI_CODES, download_cotahist
+          from b3_strategy_lab.point_in_time import TICKER_RE, CERTIFIED_SHARE_SPECIFICATIONS
+
+          out = Path('reports/debug')
+          out.mkdir(parents=True, exist_ok=True)
+          archives = [download_cotahist(year, 'data/yearly') for year in (2024, 2025)]
+          missing = collections.defaultdict(lambda: {'count': 0, 'tickers': set(), 'first': None, 'last': None})
+          goll4 = []
+          allowed = set(STANDARD_EQUITY_BDI_CODES)
+
+          for source in archives:
+              with zipfile.ZipFile(source) as zf:
+                  members = [n for n in zf.namelist() if not n.endswith('/')]
+                  assert len(members) == 1
+                  with zf.open(members[0]) as fh:
+                      for raw in fh:
+                          line = raw.decode('latin-1').rstrip('\r\n')
+                          if len(line) < 245 or line[:2] != '01':
+                              continue
+                          date = line[2:10]
+                          bdi = line[10:12]
+                          ticker = line[12:24].strip().upper()
+                          market = line[24:27]
+                          spec = line[39:49].strip().upper()
+                          if market != '010':
+                              continue
+                          if not TICKER_RE.fullmatch(ticker) or not spec.startswith(CERTIFIED_SHARE_SPECIFICATIONS):
+                              continue
+                          factor = int(line[210:217] or '0') or 1
+                          close_raw = int(line[108:121] or '0')
+                          close = close_raw / 100 / factor
+                          if ticker == 'GOLL4' and date >= '20240120':
+                              goll4.append({
+                                  'date': date, 'bdi': bdi, 'spec': spec,
+                                  'close': close, 'factor': factor,
+                                  'isin': line[230:242].strip(),
+                              })
+                          if bdi not in allowed:
+                              row = missing[bdi]
+                              row['count'] += 1
+                              row['tickers'].add(ticker)
+                              row['first'] = date if row['first'] is None else min(row['first'], date)
+                              row['last'] = date if row['last'] is None else max(row['last'], date)
+
+          payload = {
+              'allowed_bdi_codes': sorted(allowed),
+              'uncovered_company_share_bdi': {
+                  code: {
+                      'count': row['count'],
+                      'ticker_count': len(row['tickers']),
+                      'tickers': sorted(row['tickers']),
+                      'first': row['first'], 'last': row['last'],
+                  }
+                  for code, row in sorted(missing.items())
+              },
+              'goll4': goll4,
+          }
+          Path('reports/debug/bdi_diagnostic.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+          print(json.dumps(payload['uncovered_company_share_bdi'], indent=2, ensure_ascii=False))
+          print('GOLL4 around 2024-2025:')
+          for row in goll4:
+              if row['date'] in {'20240129','20240130','20240131','20250605','20250606','20250609','20250610','20250611','20250612','20250613'}:
+                  print(row)
+          PY
+
+      - name: Rebuild exact PIT universe and enumerate transition blockers
+        run: |
+          set -euo pipefail
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
+          python scripts/build_ticker_transitions.py \
+            --years 2017:2026 --end 2026-08-19 --download
+          echo '--- unresolved ticker transitions ---'
+          cat data/corporate_actions/ticker_transition_unresolved.csv || true
+          cp data/corporate_actions/ticker_transition_unresolved.csv reports/debug/ 2>/dev/null || true
+          cp data/corporate_actions/ticker_transitions.manifest.json reports/debug/ 2>/dev/null || true
+          cp data/universes/point_in_time_union.json reports/debug/ 2>/dev/null || true
+
+      - name: Static fail-fast and exception inventory
+        run: |
+          python - <<'PY'
+          import ast
+          import json
+          from pathlib import Path
+          roots = [Path('b3_strategy_lab'), Path('scripts')]
+          rows = []
+          for root in roots:
+              for path in root.rglob('*.py'):
+                  try:
+                      tree = ast.parse(path.read_text(encoding='utf-8'))
+                  except Exception as exc:
+                      rows.append({'path': str(path), 'parse_error': repr(exc)})
+                      continue
+                  raises = sum(isinstance(node, ast.Raise) for node in ast.walk(tree))
+                  exits = sum(
+                      isinstance(node, ast.Call)
+                      and isinstance(node.func, ast.Name)
+                      and node.func.id == 'SystemExit'
+                      for node in ast.walk(tree)
+                  )
+                  if raises or exits:
+                      rows.append({'path': str(path), 'raise_nodes': raises, 'system_exit_calls': exits})
+          Path('reports/debug/fail_fast_inventory.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(f'files with explicit raises/SystemExit: {len(rows)}')
+          PY
+
+      - name: Upload diagnostic bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exhaustive-backtest-diagnostics
+          path: reports/debug
+          if-no-files-found: warn
+          retention-days: 7
