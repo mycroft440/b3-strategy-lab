@@ -12,14 +12,45 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 replace_once(
     "b3_strategy_lab/cotahist.py",
+    "import os\n",
+    "import os\nimport re\n",
+)
+replace_once(
+    "b3_strategy_lab/cotahist.py",
     'STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")\n',
     'STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")\n'
     '# BDI 58 (OUTROS) can still carry the same listed ON/PN share while B3 places\n'
     '# the instrument under special trading conditions. It is deliberately kept\n'
-    '# separate from the standard set so callers must opt into company-equity\n'
-    '# metadata filtering instead of accepting every BDI 58 record blindly.\n'
+    '# separate so its acceptance remains conditional on share metadata below.\n'
     'SPECIAL_COMPANY_EQUITY_BDI_CODES = ("58",)\n'
-    'COMPANY_EQUITY_BDI_CODES = STANDARD_EQUITY_BDI_CODES + SPECIAL_COMPANY_EQUITY_BDI_CODES\n',
+    'COMPANY_EQUITY_BDI_CODES = STANDARD_EQUITY_BDI_CODES + SPECIAL_COMPANY_EQUITY_BDI_CODES\n'
+    '_COMPANY_SHARE_TICKER_RE = re.compile(r"^[A-Z]{4}\\d{1,2}$")\n'
+    '_COMPANY_SHARE_SPECIFICATIONS = ("ON", "PN")\n',
+)
+replace_once(
+    "b3_strategy_lab/cotahist.py",
+    "    bdi_codes: Iterable[str] = STANDARD_EQUITY_BDI_CODES,\n",
+    "    bdi_codes: Iterable[str] = COMPANY_EQUITY_BDI_CODES,\n",
+)
+replace_once(
+    "b3_strategy_lab/cotahist.py",
+    "        bdi_code = line[10:12]\n        ticker = line[12:24].strip().upper()\n        market_type = line[24:27]\n        if bdi_code not in selected_bdi or market_type not in selected_markets:\n            continue\n",
+    "        bdi_code = line[10:12]\n"
+    "        ticker = line[12:24].strip().upper()\n"
+    "        market_type = line[24:27]\n"
+    "        specification = line[39:49].strip().upper()\n"
+    "        if bdi_code not in selected_bdi or market_type not in selected_markets:\n"
+    "            continue\n"
+    "        # CODBDI 58 is not a blanket equity code. Keep it only when the raw B3\n"
+    "        # record is still a standard cash-market ON/PN share with a normal listed\n"
+    "        # share ticker. This preserves GOLL4/AZUL4 continuity without admitting\n"
+    "        # unrelated instruments that also happen to use the generic BDI 58.\n"
+    "        if bdi_code in SPECIAL_COMPANY_EQUITY_BDI_CODES and (\n"
+    "            market_type != \"010\"\n"
+    "            or not _COMPANY_SHARE_TICKER_RE.fullmatch(ticker)\n"
+    "            or not specification.startswith(_COMPANY_SHARE_SPECIFICATIONS)\n"
+    "        ):\n"
+    "            continue\n",
 )
 replace_once(
     "b3_strategy_lab/point_in_time.py",
@@ -29,24 +60,7 @@ replace_once(
 replace_once(
     "b3_strategy_lab/point_in_time.py",
     "STANDARD_BDI_CODES = STANDARD_EQUITY_BDI_CODES\n",
-    "# Candidate BDI codes for company shares. BDI 58 is admitted only through\n"
-    "# _mask_non_company_equity_records, which still requires market 010, a valid\n"
-    "# listed-share ticker and ON/PN specification.\n"
+    "# Candidate BDI codes for company shares. BDI 58 is still filtered through\n"
+    "# _mask_non_company_equity_records, so only market-010 ON/PN shares survive.\n"
     "STANDARD_BDI_CODES = COMPANY_EQUITY_BDI_CODES\n",
-)
-replace_once(
-    "scripts/sync_official_universe.py",
-    "    base_fractional_ticker,\n    read_fractional_cotahist,\n",
-    "    base_fractional_ticker,\n    read_fractional_cotahist,\n    read_standard_company_equity_cotahist,\n",
-)
-replace_once(
-    "scripts/sync_official_universe.py",
-    '        quotes = [quote for quote in read_cotahist(archive, tickers=tickers) if quote.date < exclude_date and (end_date is None or quote.date <= end_date)]\n',
-    '        quotes = [\n'
-    '            quote\n'
-    '            for quote in read_standard_company_equity_cotahist(archive)\n'
-    '            if quote.ticker in tickers\n'
-    '            and quote.date < exclude_date\n'
-    '            and (end_date is None or quote.date <= end_date)\n'
-    '        ]\n',
 )
