@@ -1,4 +1,4 @@
-name: Temporary PIT repair batch 1b
+name: Temporary PIT repair batch 2
 
 on:
   push:
@@ -14,9 +14,9 @@ env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  repair-bdi58:
+  instrument-transitions:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,28 +24,58 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply scoped CODBDI 58 source fix
+      - name: Apply generic instrument-transition patches
         run: |
           set -euo pipefail
-          python scripts/_temporary_pit_repair_batch1.py
-          python -m py_compile b3_strategy_lab/cotahist.py b3_strategy_lab/point_in_time.py scripts/sync_official_universe.py tests/test_bdi58_goll4_regression.py
-          python -m unittest tests.test_bdi58_goll4_regression -v
+          python scripts/_temporary_pit_repair_batch2.py
+          python scripts/_temporary_pit_repair_batch2b.py
+          python -m py_compile \
+            b3_strategy_lab/instrument_transitions.py \
+            b3_strategy_lab/realistic_portfolio_core.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/build_survivorship_safe_realistic_universe.py \
+            scripts/build_ticker_transitions.py \
+            tests/test_instrument_transition_layer.py
+          python -m unittest tests.test_instrument_transition_layer tests.test_ticker_transition_policy -v
           python -m unittest discover -s tests -v
-      - name: Commit verified source changes
+      - name: Commit verified transition engine changes
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add b3_strategy_lab/cotahist.py b3_strategy_lab/point_in_time.py
+          git add \
+            b3_strategy_lab/realistic_portfolio_core.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            scripts/build_survivorship_safe_realistic_universe.py \
+            scripts/build_ticker_transitions.py
           git diff --cached --check
-          git commit -m 'fix: preserve BDI58 company-share continuity'
+          git commit -m 'feat: support source-bound instrument transitions'
           git push origin HEAD:fix/realistic-pit-integrity-20260904
-      - name: Rebuild PIT universe and enumerate all historical transition blockers
+      - name: Rebuild PIT scope with source-reviewed successors
         run: |
           set -euo pipefail
-          rm -rf reports/pit-batch1
-          mkdir -p reports/pit-batch1
-          python scripts/build_survivorship_safe_realistic_universe.py --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
-          python scripts/build_ticker_transitions.py --years 2017:2026 --end 2026-08-19 --download --unresolved-output reports/pit-batch1/unresolved_historical_delistings.csv
-          echo '=== ALL TRANSITION BLOCKERS ==='
-          cat reports/pit-batch1/unresolved_historical_delistings.csv
+          rm -rf reports/pit-batch2
+          mkdir -p reports/pit-batch2
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
+          python scripts/build_ticker_transitions.py \
+            --years 2017:2026 --end 2026-08-19 --download \
+            --unresolved-output reports/pit-batch2/unresolved_historical_delistings.csv
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          universe = json.loads(Path('data/universes/point_in_time_union.json').read_text())
+          manifest = json.loads(Path('data/corporate_actions/ticker_transitions.manifest.json').read_text())
+          rows = list(csv.DictReader(Path('data/corporate_actions/ticker_transitions.csv').open()))
+          goll = [row for row in rows if row['old_ticker'] == 'GOLL4']
+          if 'GOLL54' not in universe.get('market_data_tickers', []):
+              raise SystemExit('GOLL54 missing from continuity-only market-data scope')
+          if len(goll) != 1 or goll[0]['new_ticker'] != 'GOLL54':
+              raise SystemExit(f'GOLL4 transition missing/ambiguous: {goll!r}')
+          if goll[0]['share_ratio'] != '1' or goll[0]['new_quotation_factor'] != '1000':
+              raise SystemExit(f'GOLL4 transition economics wrong: {goll[0]!r}')
+          print('GOLL4_TRANSITION', json.dumps(goll[0], ensure_ascii=False, sort_keys=True))
+          print('UNRESOLVED', manifest.get('older_unresolved_disappearances'))
+          PY
+          echo '=== ALL TRANSITION BLOCKERS AFTER GOLL ==='
+          cat reports/pit-batch2/unresolved_historical_delistings.csv
