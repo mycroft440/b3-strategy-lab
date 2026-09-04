@@ -5,12 +5,18 @@ from typing import Iterable, Mapping
 from . import b3_official as _official
 
 
-# Keep the canonical parser on the target module itself so importlib.reload() of
-# this patch cannot accidentally capture the previous wrapper as the new
-# "original" and stack wrappers recursively.
+# Keep a canonical parser reference on the target module, but refresh it whenever
+# b3_official itself has been reloaded and therefore exposes its own implementation
+# again. A reload of this patch alone sees our wrapper and keeps the existing
+# canonical reference, avoiding wrapper stacking/recursion.
 _ORIGINAL_ATTR = "_supplemental_scope_patch_original_parse"
-if not hasattr(_official, _ORIGINAL_ATTR):
-    setattr(_official, _ORIGINAL_ATTR, _official.parse_supplemental_split_events)
+_current_parse = _official.parse_supplemental_split_events
+if getattr(_current_parse, "__module__", "") == _official.__name__:
+    setattr(_official, _ORIGINAL_ATTR, _current_parse)
+elif not hasattr(_official, _ORIGINAL_ATTR):
+    raise RuntimeError(
+        "Supplemental scope patch cannot identify the canonical B3 parser fail-closed."
+    )
 _ORIGINAL_PARSE_SUPPLEMENTAL = getattr(_official, _ORIGINAL_ATTR)
 
 
@@ -54,7 +60,6 @@ def _parse_supplemental_split_events_scoped(
     )
 
 
-# Installation remains a single global compatibility shim for existing callers,
-# but every installation points directly at the immutable canonical parser above
-# instead of at a previously installed wrapper.
+# Installation is idempotent because the wrapper always delegates directly to the
+# canonical parser selected above rather than to any previously installed wrapper.
 _official.parse_supplemental_split_events = _parse_supplemental_split_events_scoped
