@@ -1,4 +1,4 @@
-name: Temporary PIT repair diagnostics
+name: Temporary PIT repair batch 1
 
 on:
   push:
@@ -8,14 +8,15 @@ on:
       - '.github/workflows/repair-realistic-pit.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  inspect:
+  repair-bdi58:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,14 +24,179 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Inspect BDI and transition call sites
+      - name: Apply scoped CODBDI 58 fix and regressions
         run: |
           set -euo pipefail
-          echo '=== STANDARD_EQUITY_BDI_CODES ==='
-          grep -RIn --exclude-dir=.git 'STANDARD_EQUITY_BDI_CODES' b3_strategy_lab scripts tests || true
-          echo '=== transition loaders/apply ==='
-          grep -RIn --exclude-dir=.git -E 'load_transitions|TickerTransition|ticker_transitions|share_ratio|cash_per_old_share' b3_strategy_lab scripts tests || true
-          echo '=== certification schema/version ==='
-          grep -RIn --exclude-dir=.git -E 'cash_distribution_coverage_certification|schema_version.*cash|schema_version.*[!=]=.*1' b3_strategy_lab scripts tests data/corporate_actions || true
-          echo '=== latest_backtest ==='
-          grep -RIn --exclude-dir=.git 'latest_backtest' .github scripts b3_strategy_lab tests || true
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one replacement, found {count}: {old!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'b3_strategy_lab/cotahist.py',
+              'STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")\n',
+              'STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")\n'
+              '# BDI 58 (OUTROS) can still carry the same listed ON/PN share while B3 places\n'
+              '# the instrument under special trading conditions. It is deliberately kept\n'
+              '# separate from the standard set so callers must opt into company-equity\n'
+              '# metadata filtering instead of accepting every BDI 58 record blindly.\n'
+              'SPECIAL_COMPANY_EQUITY_BDI_CODES = ("58",)\n'
+              'COMPANY_EQUITY_BDI_CODES = STANDARD_EQUITY_BDI_CODES + SPECIAL_COMPANY_EQUITY_BDI_CODES\n'
+          )
+
+          replace_once(
+              'b3_strategy_lab/point_in_time.py',
+              'from .cotahist import STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines\n',
+              'from .cotahist import COMPANY_EQUITY_BDI_CODES, STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines\n'
+          )
+          replace_once(
+              'b3_strategy_lab/point_in_time.py',
+              'STANDARD_BDI_CODES = STANDARD_EQUITY_BDI_CODES\n',
+              '# Candidate BDI codes for company shares. BDI 58 is admitted only through\n'
+              '# _mask_non_company_equity_records, which still requires market 010, a valid\n'
+              '# listed-share ticker and ON/PN specification.\n'
+              'STANDARD_BDI_CODES = COMPANY_EQUITY_BDI_CODES\n'
+          )
+
+          replace_once(
+              'scripts/sync_official_universe.py',
+              '    base_fractional_ticker,\n    read_fractional_cotahist,\n',
+              '    base_fractional_ticker,\n    read_fractional_cotahist,\n    read_standard_company_equity_cotahist,\n'
+          )
+          replace_once(
+              'scripts/sync_official_universe.py',
+              '        quotes = [quote for quote in read_cotahist(archive, tickers=tickers) if quote.date < exclude_date and (end_date is None or quote.date <= end_date)]\n',
+              '        quotes = [\n'
+              '            quote\n'
+              '            for quote in read_standard_company_equity_cotahist(archive)\n'
+              '            if quote.ticker in tickers\n'
+              '            and quote.date < exclude_date\n'
+              '            and (end_date is None or quote.date <= end_date)\n'
+              '        ]\n'
+          )
+
+          test = r'''from __future__ import annotations
+
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+
+from b3_strategy_lab.cotahist import COMPANY_EQUITY_BDI_CODES
+from b3_strategy_lab.point_in_time import read_standard_company_equity_cotahist
+
+
+def _record(*, day: str, bdi: str, ticker: str, spec: str, close: float, isin: str, market: str = "010", factor: int = 1) -> str:
+    line = [" "] * 245
+    def put(start: int, end: int, value: str) -> None:
+        width = end - start
+        line[start:end] = list(value[:width].ljust(width))
+    def num(start: int, end: int, value: int) -> None:
+        width = end - start
+        line[start:end] = list(f"{value:0{width}d}")
+    put(0, 2, "01")
+    put(2, 10, day.replace("-", ""))
+    put(10, 12, bdi)
+    put(12, 24, ticker)
+    put(24, 27, market)
+    put(27, 39, "GOL")
+    put(39, 49, spec)
+    raw = int(round(close * 100 * factor))
+    for start, end in ((56, 69), (69, 82), (82, 95), (95, 108), (108, 121)):
+        num(start, end, raw)
+    num(147, 152, 10)
+    num(152, 170, 1000)
+    num(170, 188, raw * 1000)
+    num(210, 217, factor)
+    put(230, 242, isin)
+    num(242, 245, 1)
+    return "".join(line)
+
+
+def _archive(rows: list[str], root: Path) -> Path:
+    header = "00" + " " * 243
+    trailer = [" "] * 245
+    trailer[0:2] = list("99")
+    total = len(rows)
+    trailer[31:42] = list(f"{total:011d}")
+    payload = "\n".join([header, *rows, "".join(trailer)]) + "\n"
+    path = root / "COTAHIST_A2025.ZIP"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("COTAHIST_A2025.TXT", payload.encode("latin-1"))
+    return path
+
+
+class Bdi58Goll4RegressionTests(unittest.TestCase):
+    def test_company_equity_candidate_codes_include_58_explicitly(self) -> None:
+        self.assertIn("58", COMPANY_EQUITY_BDI_CODES)
+        self.assertNotIn("10", COMPANY_EQUITY_BDI_CODES)
+
+    def test_goll4_keeps_bdi58_history_between_standard_status_rows(self) -> None:
+        rows = [
+            _record(day="2024-01-29", bdi="02", ticker="GOLL4", spec="PN N2", close=3.93, isin="BRGOLLACNPR4"),
+            _record(day="2024-01-30", bdi="58", ticker="GOLL4", spec="PN N2", close=2.87, isin="BRGOLLACNPR4"),
+            _record(day="2024-06-07", bdi="58", ticker="GOLL4", spec="PN N2", close=1.10, isin="BRGOLLACNPR4"),
+            _record(day="2025-06-06", bdi="58", ticker="GOLL4", spec="PN N2", close=1.10, isin="BRGOLLACNPR4"),
+            _record(day="2025-06-09", bdi="02", ticker="GOLL4", spec="PN N2", close=1.23, isin="BRGOLLACNPR4"),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            quotes = read_standard_company_equity_cotahist(_archive(rows, Path(directory)))
+        self.assertEqual([q.bdi_code for q in quotes], ["02", "58", "58", "58", "02"])
+        self.assertEqual(quotes[-2].date, "2025-06-06")
+        self.assertAlmostEqual(quotes[-2].close, 1.10)
+        self.assertAlmostEqual(quotes[-1].close, 1.23)
+        self.assertGreater(quotes[-1].close / quotes[-2].close - 1.0, 0.0)
+        # The old parser dropped every BDI 58 row and fabricated 3.93 -> 1.23 (-68.70%).
+        adjacent = list(zip(quotes, quotes[1:]))
+        self.assertNotIn(("2024-01-29", "2025-06-09"), [(a.date, b.date) for a, b in adjacent])
+
+    def test_bdi58_is_not_a_blanket_acceptance_rule(self) -> None:
+        rows = [
+            _record(day="2025-01-02", bdi="58", ticker="GOOD4", spec="PN", close=10.0, isin="BRGOODACNPR4"),
+            _record(day="2025-01-02", bdi="58", ticker="UNIT11", spec="UNT", close=10.0, isin="BRUNITCDAM18"),
+            _record(day="2025-01-03", bdi="58", ticker="BADX", spec="PN", close=10.0, isin="BRBADXACNPR0"),
+            _record(day="2025-01-04", bdi="58", ticker="GOOD4", spec="PN", close=10.0, isin="BRGOODACNPR4", market="020"),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            quotes = read_standard_company_equity_cotahist(_archive(rows, Path(directory)))
+        self.assertEqual([(q.ticker, q.market_type, q.specification.strip()) for q in quotes], [("GOOD4", "010", "PN")])
+
+
+if __name__ == "__main__":
+    unittest.main()
+'''
+          Path('tests/test_bdi58_goll4_regression.py').write_text(test, encoding='utf-8')
+          PY
+
+          python -m py_compile b3_strategy_lab/cotahist.py b3_strategy_lab/point_in_time.py scripts/sync_official_universe.py tests/test_bdi58_goll4_regression.py
+          python -m unittest tests.test_bdi58_goll4_regression -v
+          python -m unittest discover -s tests -v
+
+      - name: Commit verified source changes
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add b3_strategy_lab/cotahist.py b3_strategy_lab/point_in_time.py scripts/sync_official_universe.py tests/test_bdi58_goll4_regression.py
+          git diff --cached --check
+          git commit -m 'fix: preserve BDI58 company-share continuity'
+          git push origin HEAD:fix/realistic-pit-integrity-20260904
+
+      - name: Rebuild PIT universe and enumerate all historical transition blockers
+        run: |
+          set -euo pipefail
+          rm -rf reports/pit-batch1
+          mkdir -p reports/pit-batch1
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
+          python scripts/build_ticker_transitions.py \
+            --years 2017:2026 --end 2026-08-19 --download \
+            --unresolved-output reports/pit-batch1/unresolved_historical_delistings.csv
+          echo '=== ALL TRANSITION BLOCKERS ==='
+          cat reports/pit-batch1/unresolved_historical_delistings.csv
