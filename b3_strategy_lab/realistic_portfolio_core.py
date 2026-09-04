@@ -17,16 +17,12 @@ from .realistic import (
     RealCashAccount,
     SlippageModel,
 )
+from .instrument_transitions import (
+    InstrumentTransition,
+    TickerTransition,
+    load_instrument_transitions,
+)
 from .strategies import build_signals, strategy_parameters
-
-
-@dataclass(frozen=True)
-class TickerTransition:
-    effective_date: str
-    old_ticker: str
-    new_ticker: str
-    share_ratio: float = 1.0
-    cash_per_old_share: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -71,21 +67,8 @@ class RealisticSummary:
 
 
 def load_transitions(path: Path | str) -> dict[str, list[TickerTransition]]:
-    source = Path(path)
-    if not source.exists():
-        return {}
-    result: dict[str, list[TickerTransition]] = {}
-    with source.open(newline="", encoding="utf-8") as file:
-        for row in csv.DictReader(file):
-            item = TickerTransition(
-                effective_date=str(row["effective_date"])[:10],
-                old_ticker=str(row["old_ticker"]).upper(),
-                new_ticker=str(row.get("new_ticker", "")).upper(),
-                share_ratio=float(row.get("share_ratio", 1.0) or 1.0),
-                cash_per_old_share=float(row.get("cash_per_old_share", 0.0) or 0.0),
-            )
-            result.setdefault(item.effective_date, []).append(item)
-    return result
+    """Backward-compatible loader for the extended instrument-transition schema."""
+    return load_instrument_transitions(path)
 
 
 def _gap_adjusted_eligibility(

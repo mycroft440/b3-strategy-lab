@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
+from b3_strategy_lab.instrument_transitions import load_transition_reviews  # noqa: E402
 from b3_strategy_lab.point_in_time import read_standard_company_equity_cotahist  # noqa: E402
 from b3_strategy_lab.realistic_certification import sha256_file  # noqa: E402
 from scripts.sync_official_universe import _parse_years  # noqa: E402
@@ -22,6 +23,7 @@ DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
 DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
+DEFAULT_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
 EXCLUDED_TICKERS = {"BOAC34"}
 RECENT_STALE_DAYS = 45
 
@@ -116,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--unresolved-output", type=Path, default=DEFAULT_UNRESOLVED)
+    parser.add_argument("--transition-reviews", type=Path, default=DEFAULT_REVIEWS)
     args = parser.parse_args(argv)
 
     universe = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
@@ -190,6 +193,48 @@ def main(argv: list[str] | None = None) -> int:
             seen.add(key)
             transitions.append(row)
 
+    manual_transitions = 0
+    for item in load_transition_reviews(args.transition_reviews):
+        if item.certification_status != "certified" or item.effective_date > coverage_end:
+            continue
+        if item.old_ticker not in relevant_tickers:
+            continue
+        if item.new_ticker and item.new_ticker not in relevant_tickers:
+            raise ValueError(
+                f"Certified transition successor {item.new_ticker} is absent from the market-data scope."
+            )
+        key = (item.effective_date, item.old_ticker, item.new_ticker)
+        if key in seen:
+            continue
+        seen.add(key)
+        transitions.append(
+            {
+                "effective_date": item.effective_date,
+                "old_ticker": item.old_ticker,
+                "new_ticker": item.new_ticker,
+                "share_ratio": f"{item.share_ratio:.15g}",
+                "cash_per_old_share": f"{item.cash_per_old_share:.15g}",
+                "old_isin": item.old_isin,
+                "new_isin": item.new_isin,
+                "old_quotation_factor": item.old_quotation_factor,
+                "new_quotation_factor": item.new_quotation_factor,
+                "cutoff_date": item.cutoff_date,
+                "first_successor_trade_date": item.first_successor_trade_date,
+                "event_type": item.event_type,
+                "fractional_treatment": item.fractional_treatment,
+                "tax_basis_treatment": item.tax_basis_treatment,
+                "source_authority": item.source_authority,
+                "source_url": item.source_url,
+                "source_reference": item.source_reference,
+                "certification_status": item.certification_status,
+                "evidence": "source_reviewed_instrument_transition",
+                "isin": item.old_isin,
+                "last_old_quote": item.cutoff_date,
+                "first_new_quote": item.first_successor_trade_date,
+            }
+        )
+        manual_transitions += 1
+
     transitions.sort(
         key=lambda row: (
             str(row["effective_date"]),
@@ -206,6 +251,19 @@ def main(argv: list[str] | None = None) -> int:
             "new_ticker",
             "share_ratio",
             "cash_per_old_share",
+            "old_isin",
+            "new_isin",
+            "old_quotation_factor",
+            "new_quotation_factor",
+            "cutoff_date",
+            "first_successor_trade_date",
+            "event_type",
+            "fractional_treatment",
+            "tax_basis_treatment",
+            "source_authority",
+            "source_url",
+            "source_reference",
+            "certification_status",
             "evidence",
             "isin",
             "last_old_quote",
@@ -277,8 +335,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     manifest = {
-        "schema_version": 5,
-        "method": "same_isin_continuity_only",
+        "schema_version": 6,
+        "method": "same_isin_continuity_plus_source_reviewed_instrument_transitions",
+        "instrument_transition_review_file": str(args.transition_reviews),
+        "instrument_transition_review_sha256": sha256_file(args.transition_reviews) if args.transition_reviews.exists() else "",
+        "source_reviewed_transitions": manual_transitions,
         "scope": "point_in_time_market_data_tickers",
         "universe_manifest": str(args.universe_manifest),
         "source_years": years,
@@ -314,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Transition coverage end: {coverage_end}")
     print(f"Scoped market-data tickers: {len(relevant_tickers)}")
     print(f"Explicitly excluded tickers: {', '.join(sorted(EXCLUDED_TICKERS))}")
-    print(f"Auto-approved ticker transitions: {len(transitions)}")
+    print(f"Transition rows: {len(transitions)} (source-reviewed={manual_transitions})")
     print(f"Transition CSV SHA256: {manifest['transition_csv_sha256']}")
     print(f"Recent unexplained stale symbols: {recent_stale}")
     print(f"Older unresolved disappearances: {old_unresolved}")

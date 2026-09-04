@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from b3_strategy_lab.cotahist import download_cotahist  # noqa: E402
+from b3_strategy_lab.instrument_transitions import load_transition_reviews  # noqa: E402
 from b3_strategy_lab.point_in_time import (  # noqa: E402
     base_fractional_ticker,
     execution_rows,
@@ -27,6 +28,7 @@ from b3_strategy_lab.point_in_time import (  # noqa: E402
 DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
+DEFAULT_TRANSITION_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -55,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--snapshots-output", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--manifest-output", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--execution-output", type=Path, default=DEFAULT_EXECUTION)
+    parser.add_argument("--transition-reviews", type=Path, default=DEFAULT_TRANSITION_REVIEWS)
     args = parser.parse_args(argv)
 
     if args.lookback_sessions <= 20 or args.top_n <= 0:
@@ -148,6 +151,29 @@ def main(argv: list[str] | None = None) -> int:
         and is_company_equity(quote)
     }
     market_data_set = selected_set | continuity_set
+    # A successor with a changed ISIN cannot be discovered by same-ISIN continuity.
+    # Add it only when a source-reviewed transition whose effective date is inside
+    # the replay horizon connects from an already-required symbol. This expands
+    # valuation/execution data only; it never grants historical selection eligibility.
+    transition_reviews = load_transition_reviews(args.transition_reviews)
+    quoted_tickers = {quote.ticker.upper() for quote in causal_standard_quotes}
+    reviewed_successors: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for transition in transition_reviews:
+            if transition.certification_status != "certified" or transition.effective_date > end:
+                continue
+            if transition.old_ticker not in market_data_set or not transition.new_ticker:
+                continue
+            if transition.new_ticker not in quoted_tickers:
+                raise ValueError(
+                    f"Certified successor {transition.new_ticker} has no COTAHIST quote through {end}."
+                )
+            if transition.new_ticker not in market_data_set:
+                market_data_set.add(transition.new_ticker)
+                reviewed_successors.add(transition.new_ticker)
+                changed = True
     market_data_tickers = sorted(market_data_set)
 
     issuer_by_ticker: dict[str, str] = {}
@@ -194,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
         "selection_rules": {
             "source": "B3_COTAHIST_full_historical_ON_PN_share_market",
             "instrument_filter": (
-                "company shares only; equity-status BDI 02/05/06/07/08/09/11 in market010 ON/PN classes. UNITS are excluded "
+                "company shares only; equity-status BDI 02/05/06/07/08/09/11 plus conditional BDI58 in market010 ON/PN classes. UNITS are excluded "
                 "from the certified R$20k tax scope because B3 classifies them as "
                 "deposit certificates and no Receita source is assumed to extend the "
                 "share-only exemption automatically"
@@ -211,14 +237,17 @@ def main(argv: list[str] | None = None) -> int:
             "replacement_policy": "full historical eligible-share market re-ranked from trailing data only",
         },
         "execution_sources": {
-            "standard": {"market_type": "010", "bdi_codes": ["02", "05", "06", "07", "08", "09", "11"]},
+            "standard": {"market_type": "010", "bdi_codes": ["02", "05", "06", "07", "08", "09", "11", "58"], "bdi58_policy": "ON_PN_valid_ticker_only"},
             "fractional": {"market_type": "020", "bdi_code": "96"},
         },
         "tickers": selected_union,
         "market_data_tickers": market_data_tickers,
         "continuity_only_tickers": sorted(market_data_set - selected_set),
+        "source_reviewed_successor_tickers": sorted(reviewed_successors),
+        "instrument_transition_review_file": str(args.transition_reviews),
         "continuity_rule": (
-            "same_isin_ON_PN_history_only_at_or_before_selection_end; never grants selection eligibility"
+            "same_isin_ON_PN_history plus certified source-reviewed instrument successors "
+            "effective at or before selection_end; continuity never grants selection eligibility"
         ),
         "issuing_company_by_ticker": issuer_by_ticker,
         "issuer_name_by_ticker": issuer_names,

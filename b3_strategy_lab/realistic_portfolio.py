@@ -18,11 +18,30 @@ def _apply_ticker_transitions(account, transitions) -> None:
                 f"{transition.old_ticker}->{transition.new_ticker}: cash component is not "
                 "supported without an explicit, source-tested tax-basis rule."
             )
-        if not math.isclose(float(transition.share_ratio), 1.0, rel_tol=1e-12, abs_tol=1e-12):
-            raise ValueError(
-                f"{transition.old_ticker}->{transition.new_ticker}: only 1:1 ticker "
-                "transitions are supported without an explicit, source-tested tax-basis rule."
-            )
+        ratio_is_one = math.isclose(
+            float(transition.share_ratio), 1.0, rel_tol=1e-12, abs_tol=1e-12
+        )
+        if not ratio_is_one:
+            if getattr(transition, "certification_status", "unresolved") != "certified":
+                raise ValueError(
+                    f"{transition.old_ticker}->{transition.new_ticker}: non-1:1 conversion "
+                    "requires a certified source-bound instrument transition."
+                )
+            if getattr(transition, "tax_basis_treatment", "") != "carry_total_basis":
+                raise ValueError(
+                    f"{transition.old_ticker}->{transition.new_ticker}: non-1:1 conversion "
+                    "requires explicit carry_total_basis treatment."
+                )
+        if not transition.new_ticker:
+            if (
+                getattr(transition, "certification_status", "unresolved") != "certified"
+                or getattr(transition, "event_type", "") != "economic_termination"
+                or getattr(transition, "tax_basis_treatment", "") != "terminal_worthless"
+            ):
+                raise ValueError(
+                    f"{transition.old_ticker}: terminal transition requires a certified "
+                    "economic_termination with terminal_worthless treatment."
+                )
     _original_apply_ticker_transitions(account, transitions)
 
 
