@@ -54,6 +54,8 @@ class Ciel3HistoricalTickerReviewTests(unittest.TestCase):
             ticker="CIEL3",
             ex_date=str(event_payload["ex_date"]),
             split_ratio=float(event_payload["split_ratio"]),
+            source_authority=str(event_payload["source_authority"]),
+            source_url=str(event_payload["source_url"]),
         )
         quotes = [
             SimpleNamespace(date="2017-04-12", open=29.16, close=29.16),
