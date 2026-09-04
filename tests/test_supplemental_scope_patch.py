@@ -60,6 +60,19 @@ class SupplementalScopePatchTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "Ticker suplementar fora do universo: <vazio>"):
             self._parse(payload)
 
+    def test_non_string_ticker_is_preserved_for_canonical_rejection(self) -> None:
+        for malformed_ticker in (None, 123):
+            with self.subTest(ticker=malformed_ticker):
+                broken = self._valid_event("AAAA3")
+                broken["ticker"] = malformed_ticker
+                payload = {
+                    "schema_version": 1,
+                    "coverage_start": "2017-01-01",
+                    "events": [broken],
+                }
+                with self.assertRaisesRegex(Exception, "Ticker suplementar fora do universo"):
+                    self._parse(payload)
+
     def test_non_mapping_registry_record_is_preserved_for_canonical_rejection(self) -> None:
         payload = {
             "schema_version": 1,
