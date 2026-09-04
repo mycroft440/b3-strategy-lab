@@ -11,8 +11,27 @@ import math
 from . import realistic_core as _realistic_core
 from . import realistic_portfolio_core as _portfolio_core
 
-_original_buy_leg = _realistic_core.RealCashAccount.buy_leg
-_original_sell_leg = _realistic_core.RealCashAccount.sell_leg
+
+# Store immutable canonical methods on the class itself. On importlib.reload(),
+# this module dictionary is reused while the class still contains the installed
+# wrappers; recapturing those wrappers as "originals" would make the old wrapper
+# recurse into itself on its next call.
+_ORIGINAL_BUY_ATTR = "_audit_hardening_original_buy_leg"
+_ORIGINAL_SELL_ATTR = "_audit_hardening_original_sell_leg"
+if not hasattr(_realistic_core.RealCashAccount, _ORIGINAL_BUY_ATTR):
+    setattr(
+        _realistic_core.RealCashAccount,
+        _ORIGINAL_BUY_ATTR,
+        _realistic_core.RealCashAccount.__dict__["buy_leg"],
+    )
+if not hasattr(_realistic_core.RealCashAccount, _ORIGINAL_SELL_ATTR):
+    setattr(
+        _realistic_core.RealCashAccount,
+        _ORIGINAL_SELL_ATTR,
+        _realistic_core.RealCashAccount.__dict__["sell_leg"],
+    )
+_original_buy_leg = getattr(_realistic_core.RealCashAccount, _ORIGINAL_BUY_ATTR)
+_original_sell_leg = getattr(_realistic_core.RealCashAccount, _ORIGINAL_SELL_ATTR)
 
 
 def _provisional_ordinary_tax_after_irrf(account, value_date: str) -> float:
