@@ -11,6 +11,7 @@ WARNING_2024_CRASH = "AMER3 2024-08-15: variacao de fechamento sem split de -57.
 WARNING_2024_GROUPING = (
     "AMER3 2024-08-27: variacao de fechamento apos normalizacao de split de 40.00%."
 )
+WARNING_2024_RALLY = "AMER3 2024-11-14: variacao de fechamento sem split de 180.06%."
 COTAHIST_2023_SHA256 = (
     "ad1603788d78aaa1de806498572277f1d9443f88ae116452751b5800cb23523e"
 )
@@ -25,6 +26,7 @@ class Amer3QualityReviewTests(unittest.TestCase):
         self.assertIn(WARNING_2023, reviews)
         self.assertIn(WARNING_2024_CRASH, reviews)
         self.assertIn(WARNING_2024_GROUPING, reviews)
+        self.assertIn(WARNING_2024_RALLY, reviews)
 
     def test_2023_review_is_bound_to_official_cotahist_and_raw_prices(self) -> None:
         evidence = self.payload["warning_reviews"][WARNING_2023]
@@ -51,15 +53,29 @@ class Amer3QualityReviewTests(unittest.TestCase):
         self.assertIn("sem alterar a razao de grupamento", evidence)
         self.assertIn("sem suprimir a variacao economica residual", evidence)
 
+    def test_2024_rally_review_is_bound_to_official_cotahist_and_raw_prices(self) -> None:
+        evidence = self.payload["warning_reviews"][WARNING_2024_RALLY]
+        self.assertIn("COTAHIST_A2024", evidence)
+        self.assertIn("13/11/2024", evidence)
+        self.assertIn("14/11/2024", evidence)
+        self.assertIn("R$ 3.36", evidence)
+        self.assertIn("R$ 9.41", evidence)
+        self.assertIn("180.06%", evidence)
+
     def test_reviews_do_not_replace_official_market_observations_with_synthetic_repairs(self) -> None:
         reviews = self.payload["warning_reviews"]
-        for warning in (WARNING_2023, WARNING_2024_CRASH, WARNING_2024_GROUPING):
+        for warning in (
+            WARNING_2023,
+            WARNING_2024_CRASH,
+            WARNING_2024_GROUPING,
+            WARNING_2024_RALLY,
+        ):
             with self.subTest(warning=warning):
                 self.assertIn("sem reparo sintetico", reviews[warning])
 
-    def test_non_grouping_crashes_are_not_reclassified_as_splits(self) -> None:
+    def test_non_grouping_moves_are_not_reclassified_as_splits(self) -> None:
         reviews = self.payload["warning_reviews"]
-        for warning in (WARNING_2023, WARNING_2024_CRASH):
+        for warning in (WARNING_2023, WARNING_2024_CRASH, WARNING_2024_RALLY):
             with self.subTest(warning=warning):
                 self.assertIn("sem reclassificacao como split", reviews[warning])
 
