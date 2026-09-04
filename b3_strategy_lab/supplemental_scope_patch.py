@@ -25,8 +25,8 @@ def _parse_supplemental_split_events_scoped(
 
     The supplemental registry is shared by multiple universes. A valid event for
     another ticker is therefore unrelated input, not a corruption of the current
-    universe. Malformed records are deliberately preserved so the canonical
-    parser still rejects them fail-closed.
+    universe. Records whose ticker cannot be safely classified are deliberately
+    preserved so the canonical parser still rejects them fail-closed.
     """
     allowed = {str(ticker).strip().upper() for ticker in tickers}
     scoped_payload = payload
@@ -36,7 +36,11 @@ def _parse_supplemental_split_events_scoped(
             if not isinstance(raw_event, dict):
                 scoped_events.append(raw_event)
                 continue
-            ticker = str(raw_event.get("ticker", "")).strip().upper()
+            raw_ticker = raw_event.get("ticker")
+            if not isinstance(raw_ticker, str):
+                scoped_events.append(raw_event)
+                continue
+            ticker = raw_ticker.strip().upper()
             if not ticker or ticker in allowed:
                 scoped_events.append(raw_event)
         scoped_payload = dict(payload)
