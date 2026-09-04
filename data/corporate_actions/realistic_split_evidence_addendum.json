@@ -14,6 +14,12 @@
       "source_authority": "issuer",
       "source_url": "https://ri.voeazul.com.br/acoes/historico/",
       "review": "A pagina historica de RI da Azul identifica explicitamente a serie AZUL4 e seu historico de negociacao. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador de alteracao de quantidade; esta revisao apenas fornece a fonte primaria exigida para o ticker historico AZUL4 apos a mudanca da classe/codigo negociado pela companhia."
+    },
+    {
+      "ticker": "BRDT3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.vibraenergia.com.br/servicos-aos-investidores/perguntas-frequentes/",
+      "review": "A pagina oficial de RI da Vibra informa explicitamente que, junto com a alteracao da razao social, o ticker foi alterado de BRDT3 para VBBR3. O auditor COTAHIST continua responsavel por exigir evidencia separada para qualquer marcador ou evento economico; esta revisao apenas vincula o ticker historico BRDT3 a uma fonte primaria da emissora e nao cria split, bonificacao ou ajuste sintetico."
     }
   ],
   "events": [
