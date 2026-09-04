@@ -181,8 +181,8 @@
     },
     {
       "ticker": "CIEL3",
-      "ex_date": "2017-04-18",
-      "last_date_prior": "2017-04-17",
+      "ex_date": "2017-04-13",
+      "last_date_prior": "2017-04-12",
       "split_ratio": 1.2,
       "event": "BONIFICACAO 20%",
       "source_authority": "issuer",
