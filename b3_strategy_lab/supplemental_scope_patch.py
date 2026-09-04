@@ -5,7 +5,13 @@ from typing import Iterable, Mapping
 from . import b3_official as _official
 
 
-_ORIGINAL_PARSE_SUPPLEMENTAL = _official.parse_supplemental_split_events
+# Keep the canonical parser on the target module itself so importlib.reload() of
+# this patch cannot accidentally capture the previous wrapper as the new
+# "original" and stack wrappers recursively.
+_ORIGINAL_ATTR = "_supplemental_scope_patch_original_parse"
+if not hasattr(_official, _ORIGINAL_ATTR):
+    setattr(_official, _ORIGINAL_ATTR, _official.parse_supplemental_split_events)
+_ORIGINAL_PARSE_SUPPLEMENTAL = getattr(_official, _ORIGINAL_ATTR)
 
 
 def _parse_supplemental_split_events_scoped(
@@ -44,4 +50,7 @@ def _parse_supplemental_split_events_scoped(
     )
 
 
+# Installation remains a single global compatibility shim for existing callers,
+# but every installation points directly at the immutable canonical parser above
+# instead of at a previously installed wrapper.
 _official.parse_supplemental_split_events = _parse_supplemental_split_events_scoped
