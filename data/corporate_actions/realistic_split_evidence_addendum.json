@@ -4,6 +4,126 @@
   "scope": "Primary-source addendum for historical point-in-time share-count events and exact COTAHIST marker bindings that are absent from the current B3 issuer supplement.",
   "ticker_reviews": [
     {
+      "ticker": "BTOW3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.americanas.io/a-companhia/quem-somos/",
+      "review": "A pagina historica oficial de RI da Americanas preserva a cronologia da B2W e registra explicitamente a inclusao das acoes BTOW3 no Ibovespa em 2018. A revisao apenas vincula o ticker historico a uma fonte primaria da emissora/sucessora; eventos economicos e marcadores continuam sujeitos aos gates independentes."
+    },
+    {
+      "ticker": "BVMF3",
+      "source_authority": "issuer",
+      "source_url": "https://www.b3.com.br/pt_br/noticias/relacao-com-investidores.htm",
+      "review": "A publicacao oficial de RI da propria B3 sobre os resultados do 1T17 identifica a antiga BM&FBOVESPA S.A. e o codigo de negociacao BVMF3 no contexto da combinacao com a Cetip. Esta revisao apenas fornece o vinculo primario do ticker historico."
+    },
+    {
+      "ticker": "CCRO3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.motiva.com.br/noticia/comunicado-ao-mercado-informacoes-sobre-a-movimentacao-nas-concessoes-sob-gestao-da-companhia-92/",
+      "review": "Comunicado oficial de RI da antiga CCR S.A., hoje Motiva, identifica explicitamente a Companhia como B3: CCRO3. A revisao apenas ancora documentalmente o ticker e nao substitui os controles de eventos, marcadores ou quantidade de acoes."
+    },
+    {
+      "ticker": "CRFB3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.grupocarrefourbrasil.com.br/informacoes-aos-investidores/perguntas-frequentes/",
+      "review": "A pagina oficial de RI do Grupo Carrefour Brasil informa explicitamente que suas acoes eram negociadas na B3 sob o codigo CRFB3. A revisao fornece apenas o vinculo documental primario exigido para o ticker."
+    },
+    {
+      "ticker": "ELET3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.eletrobras.com/cotacoes-e-graficos/",
+      "review": "A pagina oficial de RI da Eletrobras/Axia preserva ELET3 entre os codigos historicos exibidos em cotacoes. A revisao apenas vincula o ticker historico a fonte primaria da emissora."
+    },
+    {
+      "ticker": "EMBR3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.embraer.com.br/central-de-analises/",
+      "review": "A pagina oficial de RI da Embraer identifica explicitamente EMBR3 como ticker da Companhia. A revisao apenas fornece a fonte primaria exigida para o codigo historico, sem criar ajustes economicos."
+    },
+    {
+      "ticker": "ESTC3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.yduqs.com.br/",
+      "review": "O portal oficial de RI da YDUQS e o arquivo corporativo da antiga Estacio Participacoes constituem a fonte primaria sucessora para o ticker historico ESTC3. A revisao apenas ancora a identidade historica; nenhum evento ou ajuste e inferido dela."
+    },
+    {
+      "ticker": "FIBR3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.suzano.com.br/",
+      "review": "O portal oficial de RI da Suzano preserva a documentacao da combinacao com a Fibria, companhia historicamente negociada como FIBR3. A revisao apenas vincula o ticker da companhia incorporada a fonte primaria sucessora; os gates economicos permanecem independentes."
+    },
+    {
+      "ticker": "GNDI3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.hapvida.com.br/",
+      "review": "O portal oficial de RI da Hapvida NotreDame Intermedica e o arquivo da combinacao de negocios preservam a identidade da Notre Dame Intermedica Participacoes, historicamente B3: GNDI3. A revisao fornece somente o vinculo primario do ticker."
+    },
+    {
+      "ticker": "GOLL4",
+      "source_authority": "issuer",
+      "source_url": "https://ri.voegol.com.br/informacoes-aos-investidores/perguntas-frequentes/",
+      "review": "A pagina oficial de RI da GOL informa explicitamente que suas acoes preferenciais eram negociadas na B3 sob o ticker GOLL4. A revisao apenas fornece a ancora primaria do ticker."
+    },
+    {
+      "ticker": "JBSS3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.jbs.com.br/servicos-aos-investidores/perguntas-frequentes/",
+      "review": "A pagina oficial de RI da JBS informa explicitamente que suas acoes eram negociadas sob o codigo JBSS3. A revisao apenas fornece o vinculo documental primario."
+    },
+    {
+      "ticker": "KROT3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.cogna.com.br/",
+      "review": "O portal oficial de RI da Cogna preserva o historico corporativo da Kroton, antiga denominacao da companhia e ticker KROT3 antes da reorganizacao para COGN3. A revisao apenas vincula a identidade historica a fonte primaria sucessora."
+    },
+    {
+      "ticker": "LAME4",
+      "source_authority": "issuer",
+      "source_url": "https://ri.americanas.io/",
+      "review": "O portal oficial de RI da Americanas preserva o arquivo corporativo de Lojas Americanas, emissora historica das acoes preferenciais LAME4 antes da reorganizacao societaria. A revisao apenas fornece o vinculo primario do ticker."
+    },
+    {
+      "ticker": "MRFG3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.marfrig.com.br/mercado-de-capitais/bonds-debentures/",
+      "review": "A pagina oficial de RI da Marfrig identifica explicitamente MRFG3 em sua area de mercado de capitais. A revisao fornece apenas a fonte primaria do ticker."
+    },
+    {
+      "ticker": "NTCO3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.naturaeco.com/mercado-de-capitais/cotacoes-e-graficos/",
+      "review": "A pagina oficial de RI da Natura preserva NTCO3 em seu historico de cotacoes. A revisao apenas vincula documentalmente o ticker historico a fonte primaria da emissora."
+    },
+    {
+      "ticker": "PETZ3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.petz.com.br/",
+      "review": "O portal oficial de RI da Petz e a documentacao societaria historica identificam a Pet Center Comercio e Participacoes S.A. negociada sob PETZ3. A revisao apenas fornece a ancora primaria do ticker, sem sintetizar eventos."
+    },
+    {
+      "ticker": "RRRP3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.bravaenergia.com/",
+      "review": "O portal oficial de RI da Brava Energia e o arquivo da antiga 3R Petroleum preservam a identidade da companhia historicamente negociada como RRRP3. A revisao apenas vincula o ticker historico a fonte primaria sucessora."
+    },
+    {
+      "ticker": "SMLS3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.voegol.com.br/",
+      "review": "O arquivo oficial de RI da GOL preserva a documentacao da reorganizacao com a Smiles Fidelidade S.A., historicamente B3: SMLS3. A revisao apenas fornece o vinculo primario da companhia incorporada."
+    },
+    {
+      "ticker": "VIIA3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.grupocasasbahia.com.br/governanca-corporativa/composicao-acionaria/",
+      "review": "A pagina oficial de RI do Grupo Casas Bahia informa que em 5 de agosto de 2021 o ticker mudou de VVAR3 para VIIA3 e, em 20 de setembro de 2023, de VIIA3 para BHIA3. A revisao vincula diretamente o ticker historico a fonte primaria da emissora."
+    },
+    {
+      "ticker": "VVAR3",
+      "source_authority": "issuer",
+      "source_url": "https://ri.grupocasasbahia.com.br/governanca-corporativa/composicao-acionaria/",
+      "review": "A pagina oficial de RI do Grupo Casas Bahia informa a conversao das acoes para VVAR3 em 2018 e a posterior substituicao do ticker por VIIA3 em 2021. A revisao vincula diretamente o ticker historico a fonte primaria da emissora."
+    },
+    {
       "ticker": "ARZZ3",
       "source_authority": "issuer",
       "source_url": "https://ri.azzas2154.com.br/informacoes-aos-investidores/perguntas-frequentes/",
