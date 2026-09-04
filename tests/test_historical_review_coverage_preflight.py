@@ -89,6 +89,51 @@ class HistoricalReviewCoveragePreflightTests(unittest.TestCase):
             self.assertEqual(review["source_authority"], "issuer")
             self.assertEqual(review["source_url"], "https://ri.example.com/cover3")
 
+    def test_addendum_cannot_replace_current_b3_review(self) -> None:
+        addendum = {
+            "schema_version": 1,
+            "events": [],
+            "marker_evidence": [],
+            "ticker_reviews": [
+                {
+                    "ticker": "LIVE3",
+                    "source_authority": "issuer",
+                    "source_url": "https://ri.example.com/live3",
+                    "review": "historical-only text that must not replace B3",
+                }
+            ],
+        }
+        original = {
+            "ticker": "LIVE3",
+            "source_authority": "B3",
+            "source_url": "https://www.b3.com.br/live3",
+            "result": "current B3 review",
+        }
+        evidence = {"schema_version": 3, "ticker_reviews": [dict(original)]}
+        with patch.object(realistic, "_BASE_WRITE_JSON_ATOMIC") as writer:
+            realistic._install_evidence_addendum(addendum)
+            realistic.base._write_json_atomic(Path("unused.json"), evidence)
+            written = writer.call_args.args[1]
+            self.assertEqual(written["ticker_reviews"][0], original)
+
+    def test_malformed_schema_three_reviews_fail_before_write(self) -> None:
+        addendum = {
+            "schema_version": 1,
+            "events": [],
+            "marker_evidence": [],
+            "ticker_reviews": [],
+        }
+        with patch.object(realistic, "_BASE_WRITE_JSON_ATOMIC") as writer:
+            realistic._install_evidence_addendum(addendum)
+            for malformed in (None, ["corrupt-review"]):
+                with self.subTest(ticker_reviews=malformed):
+                    with self.assertRaises(realistic.HistoricalTickerReviewCoverageError):
+                        realistic.base._write_json_atomic(
+                            Path("unused.json"),
+                            {"schema_version": 3, "ticker_reviews": malformed},
+                        )
+            writer.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
