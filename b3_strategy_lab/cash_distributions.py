@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from bisect import bisect_right
 from datetime import date
 from typing import Mapping, Sequence
@@ -29,6 +30,10 @@ def build_cash_events(
     Event identity includes ticker, ISIN, entitlement date, payment date, label and
     rate. This deliberately preserves distinct installments that happen to share
     the same entitlement date/type/rate but settle on different payment dates.
+
+    Structural corruption in an official payload is returned as an explicit issue
+    instead of being normalized to an empty ledger. The realistic synchronizer
+    treats any issue as blocking unless an explicitly non-certified mode is used.
     """
     normalized_tickers = [str(ticker).strip().upper() for ticker in tickers]
     isins_by_ticker = {
@@ -49,6 +54,19 @@ def build_cash_events(
         if payload is None:
             issues.append({"ticker": ticker, "issuer": issuer, "issue": "issuer_payload_missing"})
             continue
+        if (
+            not isinstance(payload, list)
+            or not payload
+            or not all(isinstance(item, dict) for item in payload)
+        ):
+            issues.append(
+                {
+                    "ticker": ticker,
+                    "issuer": issuer,
+                    "issue": "issuer_payload_invalid",
+                }
+            )
+            continue
         company = next(
             (
                 item
@@ -68,10 +86,31 @@ def build_cash_events(
             })
             continue
 
+        raw_cash_dividends = company.get("cashDividends")
+        if raw_cash_dividends is None:
+            raw_cash_dividends = []
+        elif not isinstance(raw_cash_dividends, list):
+            issues.append(
+                {
+                    "ticker": ticker,
+                    "issuer": issuer,
+                    "issue": "cash_dividends_invalid_container",
+                }
+            )
+            continue
+
         quotes = sorted(quotes_by_ticker[ticker], key=lambda quote: quote.date)
         quote_dates = [quote.date for quote in quotes]
-        for event in company.get("cashDividends") or []:
+        for event_index, event in enumerate(raw_cash_dividends):
             if not isinstance(event, dict):
+                issues.append(
+                    {
+                        "ticker": ticker,
+                        "issuer": issuer,
+                        "event_index": event_index,
+                        "issue": "cash_dividend_invalid_record",
+                    }
+                )
                 continue
             label = str(event.get("label", "")).strip().upper()
             if label not in {"DIVIDENDO", "DIVIDEND", "JCP", "JSCP"}:
@@ -103,7 +142,7 @@ def build_cash_events(
                 continue
             try:
                 rate = float(str(event.get("rate", "0")).replace(",", "."))
-            except ValueError:
+            except (TypeError, ValueError):
                 issues.append(
                     {
                         "ticker": ticker,
@@ -115,7 +154,17 @@ def build_cash_events(
                     }
                 )
                 continue
-            if rate <= 0:
+            if not math.isfinite(rate) or rate <= 0:
+                issues.append(
+                    {
+                        "ticker": ticker,
+                        "label": label,
+                        "isin": isin,
+                        "last_date_prior": last_date_prior,
+                        "payment_date": payment_date,
+                        "issue": "invalid_rate",
+                    }
+                )
                 continue
             key = (ticker, isin, last_date_prior, payment_date, label, rate)
             if key in seen:
