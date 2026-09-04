@@ -1,0 +1,104 @@
+name: BDI continuity diagnosis — one shot
+
+on:
+  push:
+    branches:
+      - debug/exhaustive-backtest-20260904
+    paths:
+      - ".github/workflows/debug-bdi-only.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-bdi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inspect raw company-equity BDI codes and GOLL4 continuity
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import collections
+          import json
+          import zipfile
+          from pathlib import Path
+          from b3_strategy_lab.cotahist import STANDARD_EQUITY_BDI_CODES, download_cotahist
+          from b3_strategy_lab.point_in_time import TICKER_RE, CERTIFIED_SHARE_SPECIFICATIONS
+
+          out = Path('reports/debug-bdi')
+          out.mkdir(parents=True, exist_ok=True)
+          allowed = set(STANDARD_EQUITY_BDI_CODES)
+          by_bdi = collections.defaultdict(lambda: {'count': 0, 'tickers': set(), 'first': None, 'last': None})
+          goll4 = []
+          for year in (2024, 2025):
+              source = download_cotahist(year, '.cache/cotahist')
+              with zipfile.ZipFile(source) as zf:
+                  members = [name for name in zf.namelist() if not name.endswith('/')]
+                  assert len(members) == 1
+                  with zf.open(members[0]) as fh:
+                      for raw in fh:
+                          line = raw.decode('latin-1').rstrip('\r\n')
+                          if len(line) < 245 or line[:2] != '01':
+                              continue
+                          day = line[2:10]
+                          bdi = line[10:12]
+                          ticker = line[12:24].strip().upper()
+                          market = line[24:27]
+                          spec = ' '.join(line[39:49].strip().upper().split())
+                          if market != '010' or not TICKER_RE.fullmatch(ticker):
+                              continue
+                          if not spec.startswith(CERTIFIED_SHARE_SPECIFICATIONS):
+                              continue
+                          factor = int(line[210:217] or '0') or 1
+                          close = int(line[108:121] or '0') / 100 / factor
+                          row = by_bdi[bdi]
+                          row['count'] += 1
+                          row['tickers'].add(ticker)
+                          row['first'] = day if row['first'] is None else min(row['first'], day)
+                          row['last'] = day if row['last'] is None else max(row['last'], day)
+                          if ticker == 'GOLL4' and day >= '20240120':
+                              goll4.append({
+                                  'date': day,
+                                  'bdi': bdi,
+                                  'spec': spec,
+                                  'close': close,
+                                  'factor': factor,
+                                  'isin': line[230:242].strip(),
+                                  'accepted_now': bdi in allowed,
+                              })
+          payload = {
+              'accepted_now': sorted(allowed),
+              'company_share_bdi_codes': {
+                  code: {
+                      'count': value['count'],
+                      'ticker_count': len(value['tickers']),
+                      'tickers': sorted(value['tickers']),
+                      'first': value['first'],
+                      'last': value['last'],
+                      'accepted_now': code in allowed,
+                  }
+                  for code, value in sorted(by_bdi.items())
+              },
+              'goll4': goll4,
+          }
+          (out / 'bdi_diagnostic.json').write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+          print('CURRENT_ALLOWED', sorted(allowed))
+          print('COMPANY_SHARE_BDI_CODES')
+          for code, row in payload['company_share_bdi_codes'].items():
+              print(code, json.dumps(row, ensure_ascii=False))
+          print('GOLL4_ROWS')
+          for row in goll4:
+              print(json.dumps(row, ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bdi-continuity-diagnostic
+          path: reports/debug-bdi
+          if-no-files-found: error
+          retention-days: 7
