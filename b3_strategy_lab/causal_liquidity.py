@@ -189,8 +189,9 @@ def _causal_from_csv(cls, path, standard_lot: int = _core.STANDARD_LOT):
 
 
 def install() -> None:
-    if getattr(_core.ExecutionPriceBook, "_causal_liquidity_patch_installed", False):
-        return
+    # Stable canonical references make reassignment safe and idempotent. Always
+    # rebind so reloading either this module or realistic_core cannot leave stale
+    # wrapper bytecode or a newly-created unpatched target class behind.
     _core.ExecutionPriceBook.legs = _causal_legs
     _core.ExecutionPriceBook.from_csv = classmethod(_causal_from_csv)
     _core.ExecutionPriceBook.causal_liquidity_reference = prior_liquidity_reference
