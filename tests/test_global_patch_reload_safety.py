@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import csv
 import importlib
+import subprocess
+import sys
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -140,6 +143,37 @@ class GlobalPatchReloadSafetyTests(unittest.TestCase):
         account.buy_leg("2020-01-02", "TEST3", 10, quote)
         account.sell_leg("2020-01-02", "TEST3", 5, quote)
         self.assertEqual(account.shares("TEST3"), 5)
+
+    def test_target_core_reload_can_be_rehardened_in_fresh_process(self) -> None:
+        code = textwrap.dedent(
+            """
+            import importlib
+            from b3_strategy_lab import audit_hardening, causal_liquidity
+            from b3_strategy_lab import realistic_core, realistic_portfolio_core
+
+            old_book = realistic_core.ExecutionPriceBook
+            old_account = realistic_core.RealCashAccount
+            importlib.reload(realistic_core)
+            importlib.reload(realistic_portfolio_core)
+            assert realistic_core.ExecutionPriceBook is not old_book
+            assert realistic_core.RealCashAccount is not old_account
+
+            importlib.reload(causal_liquidity)
+            importlib.reload(audit_hardening)
+
+            assert realistic_core.ExecutionPriceBook.legs.__module__ == 'b3_strategy_lab.causal_liquidity'
+            assert realistic_core.RealCashAccount.buy_leg.__module__ == 'b3_strategy_lab.audit_hardening'
+            assert realistic_core.RealCashAccount.sell_leg.__module__ == 'b3_strategy_lab.audit_hardening'
+            assert realistic_portfolio_core._provisional_ordinary_tax.__module__ == 'b3_strategy_lab.audit_hardening'
+            """
+        )
+        completed = subprocess.run(
+            [sys.executable, "-c", code],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
 
 if __name__ == "__main__":
