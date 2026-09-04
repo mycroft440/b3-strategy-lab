@@ -1,4 +1,4 @@
-name: Temporary PIT repair batch 3d
+name: Temporary PIT transition rebuild batch
 
 on:
   push:
@@ -8,49 +8,55 @@ on:
       - '.github/workflows/repair-realistic-pit.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  audit-and-cash-certification:
+  rebuild-transitions:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply strict certification/audit patches and run full suite
+      - name: Validate transition registry and full suite
         run: |
           set -euo pipefail
-          python scripts/_temporary_pit_repair_batch3.py
-          python -m py_compile \
-            b3_strategy_lab/realistic_core.py \
-            scripts/build_cash_distribution_coverage_certification.py \
-            scripts/sync_point_in_time_universe.py \
-            tests/test_pit_audit_and_cash_timing_certification.py \
-            tests/test_cash_coverage_evidence_validation.py \
-            tests/test_realistic_accounting.py
-          python -m unittest \
-            tests.test_cash_coverage_schema_v2 \
-            tests.test_cash_coverage_evidence_validation \
-            tests.test_pit_audit_and_cash_timing_certification -v
+          python -m json.tool data/corporate_actions/instrument_transition_reviews.json >/dev/null
           python -m unittest discover -s tests -v
-      - name: Commit verified production and contract changes
+      - name: Rebuild point-in-time scope and transition classification
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            b3_strategy_lab/realistic_core.py \
-            scripts/build_cash_distribution_coverage_certification.py \
-            scripts/sync_point_in_time_universe.py \
-            tests/test_cash_coverage_evidence_validation.py \
-            tests/test_realistic_accounting.py
-          git diff --cached --check
-          git commit -m 'feat: require causal cash certification and add PIT audit mode'
-          git push origin HEAD:fix/realistic-pit-integrity-20260904
+          rm -rf reports/pit-transition-rebuild
+          mkdir -p reports/pit-transition-rebuild
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
+          python scripts/build_ticker_transitions.py \
+            --years 2017:2026 --end 2026-08-19 --download \
+            --unresolved-output reports/pit-transition-rebuild/unresolved.csv
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          registry = json.loads(Path('data/corporate_actions/instrument_transition_reviews.json').read_text())
+          by_old = {row['old_ticker']: row for row in registry['reviews']}
+          required = {
+              'BVMF3','ESTC3','PCAR4','VIVT4','BTOW3','VVAR3','BRDT3','VIIA3',
+              'ARZZ3','CCRO3','GOLL4','BRFS3','MRFG3','EMBR3','ELET3'
+          }
+          missing = sorted(required - set(by_old))
+          if missing:
+              raise SystemExit(f'missing reviewed transitions: {missing}')
+          vvar = by_old['VVAR3']
+          if (vvar['cutoff_date'], vvar['effective_date']) != ('2021-08-13','2021-08-16'):
+              raise SystemExit(f'wrong VVAR3 boundary: {vvar}')
+          manifest = json.loads(Path('data/corporate_actions/ticker_transitions.manifest.json').read_text())
+          rows = list(csv.DictReader(Path('reports/pit-transition-rebuild/unresolved.csv').open()))
+          print('OLDER_UNRESOLVED', manifest['older_unresolved_disappearances'])
+          print('TOTAL_UNRESOLVED', manifest['unresolved_disappearances'])
+          print('TRANSITION_ROWS', manifest['transition_row_count'])
+          print('MARKET_DATA_TICKERS', manifest['scoped_ticker_count'])
+          print('UNRESOLVED_TICKERS', ','.join(row['ticker'] for row in rows))
+          PY
