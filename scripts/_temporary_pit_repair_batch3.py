@@ -211,8 +211,8 @@ replace_once(
 ''',
 )
 
-# Update the one legacy unit fixture so it tests current schema-v2 hash binding rather
-# than relying on a certificate format the repository already declares obsolete.
+# Update legacy fixtures to the current schema-v2 contract while preserving what each
+# fixture is actually testing (hash binding and primary-evidence validation).
 replace_once(
     "tests/test_realistic_accounting.py",
     '''                "schema_version": 1,
@@ -229,5 +229,23 @@ replace_once(
                         "conclusion": "Announcement timing reviewed for the certified period.",
                     }
                 ],
+''',
+)
+replace_once(
+    "tests/test_cash_coverage_evidence_validation.py",
+    '''            "schema_version": 1,
+            "coverage_certified": True,
+''',
+    '''            "schema_version": 2,
+            "coverage_certified": True,
+            "announcement_timing_certified": True,
+            "announcement_timing_evidence": [
+                {
+                    "source_authority": "B3",
+                    "source_url": "https://example.test/b3/timing",
+                    "scope": "AAAA3 announcement timing",
+                    "conclusion": "Announcement timing reviewed for the certified period.",
+                }
+            ],
 ''',
 )
