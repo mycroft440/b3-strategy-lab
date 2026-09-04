@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "effective_date": "2025-06-12",
+      "cutoff_date": "2025-06-11",
+      "first_successor_trade_date": "2025-06-12",
+      "old_ticker": "GOLL4",
+      "new_ticker": "GOLL54",
+      "old_isin": "BRGOLLACNPR4",
+      "new_isin": "BRGOLLA01PR5",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1000,
+      "cash_per_old_share": 0.0,
+      "event_type": "reorganization",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/50/20/EB/C5/357479106B8BCB69AC094EA8/OC%20005-2025-VPE%20TRATAMENTO%20EM%20DECORRENCIA%20DA%20SUBSCRICAO%20DA%20GOL%20LINHAS%20AEREAS%20INTELIGENTES%20SA_PT.pdf",
+      "source_reference": "B3 Ofício Circular 005/2025-VPE, 06/06/2025, itens 1 e 3",
+      "evidence_summary": "B3 determina alteração automática de GOLL4 para GOLL54 a partir de 12/06/2025, novo ISIN BRGOLLA01PR5, fator de cotação 1.000 e atualização de 100% na Central Depositária. A quantidade econômica não é multiplicada pelo fator de cotação."
+    }
+  ]
+}
