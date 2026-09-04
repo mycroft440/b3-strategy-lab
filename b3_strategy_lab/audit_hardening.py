@@ -111,11 +111,13 @@ def _capacity_checked_sell_leg(self, value_date, ticker: str, quantity: int, quo
 
 
 def install() -> None:
-    if getattr(_portfolio_core, "_audit_hardening_installed", False):
-        return
+    # Stable canonical references make reassignment safe and idempotent. Always
+    # rebind all targets so reloads of this module or either core module cannot
+    # leave stale wrapper bytecode or an unpatched replacement class/function.
     _portfolio_core._provisional_ordinary_tax = _provisional_ordinary_tax_after_irrf
     _realistic_core.RealCashAccount.buy_leg = _capacity_checked_buy_leg
     _realistic_core.RealCashAccount.sell_leg = _capacity_checked_sell_leg
+    _realistic_core.RealCashAccount._audit_hardening_installed = True
     _portfolio_core._audit_hardening_installed = True
 
 
