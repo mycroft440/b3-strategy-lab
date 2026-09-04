@@ -74,6 +74,47 @@ replace_once(
                     issues.append("announcement timing evidence requires scope and conclusion")
 ''',
 )
+
+# The public hardening wrapper must expose and forward the new strictness option.
+replace_once(
+    "b3_strategy_lab/realistic.py",
+    '''def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path,
+    cash_manifest_path,
+    tickers,
+    start: str,
+    end: str,
+) -> list[str]:
+''',
+    '''def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path,
+    cash_manifest_path,
+    tickers,
+    start: str,
+    end: str,
+    require_announcement_timing: bool = False,
+) -> list[str]:
+''',
+)
+replace_once(
+    "b3_strategy_lab/realistic.py",
+    '''            tickers=tickers,
+            start=start,
+            end=end,
+        )
+''',
+    '''            tickers=tickers,
+            start=start,
+            end=end,
+            require_announcement_timing=require_announcement_timing,
+        )
+''',
+)
+
 replace_once(
     "scripts/audit_realistic_backtest_inputs.py",
     '''            tickers=market_data,
