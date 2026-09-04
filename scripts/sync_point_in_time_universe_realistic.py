@@ -197,30 +197,43 @@ def _install_evidence_addendum(payload: dict) -> None:
         quote_dates_by_ticker,
         coverage_start: str,
     ):
-        # The base synchronizer deliberately supplies one-shot generators here.
-        # Both the repository supplement and the primary-source addendum must be
-        # reconciled against the exact same observed COTAHIST calendar, so freeze
-        # those iterables once before either strict parser consumes them.
+        # Both tickers and calendars may be one-shot iterators. The repository
+        # supplement and primary-source addendum must see the exact same immutable
+        # scope, otherwise the second strict parser could silently receive an empty
+        # universe after the first parser consumes it.
+        materialized_tickers = tuple(
+            str(ticker).strip().upper() for ticker in tickers
+        )
         materialized_quote_dates = {
             str(ticker).strip().upper(): tuple(values)
             for ticker, values in quote_dates_by_ticker.items()
         }
         primary = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             source_payload,
-            tickers=tickers,
+            tickers=materialized_tickers,
             quote_dates_by_ticker=materialized_quote_dates,
             coverage_start=coverage_start,
         )
-        allowed = {str(ticker).strip().upper() for ticker in tickers}
+        allowed = set(materialized_tickers)
         addendum = dict(payload)
-        addendum["events"] = [
-            event
-            for event in payload.get("events", [])
-            if str(event.get("ticker", "")).strip().upper() in allowed
-        ]
+        scoped_events: list[object] = []
+        for event in payload.get("events", []):
+            # Preserve malformed/unclassifiable records for the canonical parser
+            # instead of hiding corruption behind universe scoping.
+            if not isinstance(event, dict):
+                scoped_events.append(event)
+                continue
+            raw_ticker = event.get("ticker")
+            if not isinstance(raw_ticker, str):
+                scoped_events.append(event)
+                continue
+            ticker = raw_ticker.strip().upper()
+            if not ticker or ticker in allowed:
+                scoped_events.append(event)
+        addendum["events"] = scoped_events
         extra = _BASE_PARSE_SUPPLEMENTAL_SPLITS(
             addendum,
-            tickers=allowed,
+            tickers=materialized_tickers,
             quote_dates_by_ticker=materialized_quote_dates,
             coverage_start=coverage_start,
         )
@@ -262,44 +275,53 @@ def _install_evidence_addendum(payload: dict) -> None:
         return rows
 
     def write_json_with_primary_ticker_reviews(path: Path, value: object) -> None:
-        # The base synchronizer deliberately keeps historical issuers fail-closed:
-        # without an explicit primary source their generated ticker review has no
-        # source URL and cannot sign a manifest. The realistic addendum may bind
-        # such historical tickers to an issuer/CVM source, but it may not create or
-        # alter economic split events. COTAHIST marker coverage remains audited by
-        # the independent marker/event gates above.
+        # The addendum may fill only unresolved historical rows. It must never
+        # replace a current B3 review or any already-sourced generated review.
         if isinstance(value, dict) and value.get("schema_version") == 3:
             raw_reviews = value.get("ticker_reviews")
-            if isinstance(raw_reviews, list):
-                reviews = []
-                for raw in raw_reviews:
-                    if not isinstance(raw, dict):
-                        reviews.append(raw)
-                        continue
-                    ticker = str(raw.get("ticker", "")).strip().upper()
-                    primary_review = ticker_reviews.get(ticker)
-                    if primary_review is None:
-                        reviews.append(raw)
-                        continue
-                    row = dict(raw)
-                    row["source_authority"] = primary_review["source_authority"]
-                    row["source_url"] = primary_review["source_url"]
-                    row["result"] = (
-                        str(row.get("result", "")).rstrip()
-                        + " Revisao primaria historica: "
-                        + primary_review["review"]
-                    ).strip()
-                    reviews.append(row)
-                unresolved = _unresolved_historical_review_tickers(reviews)
-                if unresolved:
+            if not isinstance(raw_reviews, list):
+                raise HistoricalTickerReviewCoverageError(
+                    "ticker_reviews schema 3 ausente/invalido; nenhum manifest foi assinado."
+                )
+            reviews = []
+            for raw in raw_reviews:
+                if not isinstance(raw, dict):
                     raise HistoricalTickerReviewCoverageError(
-                        "Revisoes historicas sem fonte primaria explicita: "
-                        + ", ".join(unresolved)
-                        + ". Adicione issuer/CVM verificavel ao addendum; "
-                        "nenhum manifest foi assinado."
+                        "ticker_reviews schema 3 contem registro invalido; nenhum manifest foi assinado."
                     )
-                value = dict(value)
-                value["ticker_reviews"] = reviews
+                ticker = str(raw.get("ticker", "")).strip().upper()
+                generated_authority = str(raw.get("source_authority", "")).strip()
+                raw_source_url = raw.get("source_url")
+                generated_source_url = (
+                    "" if raw_source_url is None else str(raw_source_url).strip()
+                )
+                primary_review = ticker_reviews.get(ticker)
+                if (
+                    primary_review is None
+                    or generated_authority != "historical_primary_registry"
+                    or generated_source_url
+                ):
+                    reviews.append(raw)
+                    continue
+                row = dict(raw)
+                row["source_authority"] = primary_review["source_authority"]
+                row["source_url"] = primary_review["source_url"]
+                row["result"] = (
+                    str(row.get("result", "")).rstrip()
+                    + " Revisao primaria historica: "
+                    + primary_review["review"]
+                ).strip()
+                reviews.append(row)
+            unresolved = _unresolved_historical_review_tickers(reviews)
+            if unresolved:
+                raise HistoricalTickerReviewCoverageError(
+                    "Revisoes historicas sem fonte primaria explicita: "
+                    + ", ".join(unresolved)
+                    + ". Adicione issuer/CVM verificavel ao addendum; "
+                    "nenhum manifest foi assinado."
+                )
+            value = dict(value)
+            value["ticker_reviews"] = reviews
         _BASE_WRITE_JSON_ATOMIC(path, value)
 
     # Always install directly over the immutable base functions. Repeated calls in
