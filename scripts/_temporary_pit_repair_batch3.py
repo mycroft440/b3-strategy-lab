@@ -10,33 +10,8 @@ def replace_once(path: str, old: str, new: str) -> None:
     p.write_text(text.replace(old, new), encoding="utf-8")
 
 
-# Cash-distribution certification schema v2 is required only for a causal/certified
-# replay. Legacy schema-v1 coverage validation remains readable for old artifacts and
-# unit tests, but cannot satisfy the production certified-input audit.
-replace_once(
-    "b3_strategy_lab/realistic_core.py",
-    '''def cash_coverage_certification_issues(
-    certification: dict[str, object],
-    *,
-    cash_events_path: Path | str,
-    cash_manifest_path: Path | str,
-    tickers: Iterable[str],
-    start: str,
-    end: str,
-) -> list[str]:
-''',
-    '''def cash_coverage_certification_issues(
-    certification: dict[str, object],
-    *,
-    cash_events_path: Path | str,
-    cash_manifest_path: Path | str,
-    tickers: Iterable[str],
-    start: str,
-    end: str,
-    require_announcement_timing: bool = False,
-) -> list[str]:
-''',
-)
+# Current certification is schema v2 only. A complete ledger is insufficient unless
+# the run also proves when the event/rate became publicly knowable.
 replace_once(
     "b3_strategy_lab/realistic_core.py",
     '''    if certification.get("schema_version") != 1:
@@ -44,94 +19,34 @@ replace_once(
     if certification.get("coverage_certified") is not True:
         issues.append("coverage is not certified")
 ''',
-    '''    schema_version = certification.get("schema_version")
-    if schema_version not in {1, 2}:
+    '''    if certification.get("schema_version") != 2:
         issues.append("unsupported certification schema")
     if certification.get("coverage_certified") is not True:
         issues.append("coverage is not certified")
-    if require_announcement_timing:
-        if schema_version != 2:
-            issues.append("certified causal replay requires cash certification schema 2")
-        if certification.get("announcement_timing_certified") is not True:
-            issues.append("announcement timing is not certified")
-        timing_evidence = certification.get("announcement_timing_evidence")
-        if not isinstance(timing_evidence, list) or not timing_evidence:
-            issues.append("announcement timing evidence is missing")
-        else:
-            for raw in timing_evidence:
-                if not isinstance(raw, dict):
-                    issues.append("announcement timing evidence record is malformed")
-                    continue
-                authority = str(raw.get("source_authority", "")).strip()
-                url = str(raw.get("source_url", "")).strip()
-                scope = str(raw.get("scope", "")).strip()
-                conclusion = str(raw.get("conclusion", "")).strip()
-                if authority not in {"B3", "CVM", "issuer"}:
-                    issues.append("announcement timing evidence authority is not accepted")
-                if not url.startswith("https://"):
-                    issues.append("announcement timing evidence requires https source_url")
-                if not scope or not conclusion:
-                    issues.append("announcement timing evidence requires scope and conclusion")
+    if certification.get("announcement_timing_certified") is not True:
+        issues.append("announcement timing is not certified")
+    timing_evidence = certification.get("announcement_timing_evidence")
+    if not isinstance(timing_evidence, list) or not timing_evidence:
+        issues.append("announcement timing evidence is missing")
+    else:
+        for raw in timing_evidence:
+            if not isinstance(raw, dict):
+                issues.append("announcement timing evidence record is malformed")
+                continue
+            authority = str(raw.get("source_authority", "")).strip()
+            url = str(raw.get("source_url", "")).strip()
+            scope = str(raw.get("scope", "")).strip()
+            conclusion = str(raw.get("conclusion", "")).strip()
+            if authority not in {"B3", "CVM", "issuer"}:
+                issues.append("announcement timing evidence authority is not accepted")
+            if not url.startswith("https://"):
+                issues.append("announcement timing evidence requires https source_url")
+            if not scope or not conclusion:
+                issues.append("announcement timing evidence requires scope and conclusion")
 ''',
 )
 
-# The public hardening wrapper must expose and forward the new strictness option.
-replace_once(
-    "b3_strategy_lab/realistic.py",
-    '''def cash_coverage_certification_issues(
-    certification: dict[str, object],
-    *,
-    cash_events_path,
-    cash_manifest_path,
-    tickers,
-    start: str,
-    end: str,
-) -> list[str]:
-''',
-    '''def cash_coverage_certification_issues(
-    certification: dict[str, object],
-    *,
-    cash_events_path,
-    cash_manifest_path,
-    tickers,
-    start: str,
-    end: str,
-    require_announcement_timing: bool = False,
-) -> list[str]:
-''',
-)
-replace_once(
-    "b3_strategy_lab/realistic.py",
-    '''            tickers=tickers,
-            start=start,
-            end=end,
-        )
-''',
-    '''            tickers=tickers,
-            start=start,
-            end=end,
-            require_announcement_timing=require_announcement_timing,
-        )
-''',
-)
-
-replace_once(
-    "scripts/audit_realistic_backtest_inputs.py",
-    '''            tickers=market_data,
-            start=start,
-            end=end,
-        )
-''',
-    '''            tickers=market_data,
-            start=start,
-            end=end,
-            require_announcement_timing=True,
-        )
-''',
-)
-
-# Generator always creates the stronger schema-v2 object and refuses to claim causal
-# knowledge unless the reviewer explicitly supplies and confirms timing evidence.
+# The generator can only emit schema v2 after two explicit review attestations.
 replace_once(
     "scripts/build_cash_distribution_coverage_certification.py",
     "def _required_cash_tickers(universe_payload: dict[str, object], selectable: set[str]) -> set[str]:\n",
@@ -213,9 +128,8 @@ replace_once(
     '        "announcement_timing_evidence": announcement_timing_evidence,\n',
 )
 
-# Optional audit mode: official/certified execution still raises on the first critical
-# dataset verifier error; --audit-all-errors catches independent ticker failures, writes
-# one complete report, and then exits non-zero so nothing can be certified/published.
+# Optional diagnostic mode. Default/certified mode remains fail-fast. Audit mode
+# collects independent per-ticker verifier failures, writes them all, then exits nonzero.
 replace_once(
     "scripts/sync_point_in_time_universe.py",
     "    build_verified_daily_candles,\n",
@@ -272,10 +186,7 @@ replace_once(
                 verification_failures.append(
                     {"ticker": ticker, "interval": interval, "error": str(error)}
                 )
-                print(
-                    f"AUDIT {ticker}/{interval}: {error}",
-                    flush=True,
-                )
+                print(f"AUDIT {ticker}/{interval}: {error}", flush=True)
         if not any(row["ticker"] == ticker for row in verification_failures):
             print(f"{ticker}: verified through {daily[-1].date}", flush=True)
 
@@ -297,5 +208,26 @@ replace_once(
             )
 
     cash_rows, cash_issues = build_cash_events(
+''',
+)
+
+# Update the one legacy unit fixture so it tests current schema-v2 hash binding rather
+# than relying on a certificate format the repository already declares obsolete.
+replace_once(
+    "tests/test_realistic_accounting.py",
+    '''                "schema_version": 1,
+                "coverage_certified": True,
+''',
+    '''                "schema_version": 2,
+                "coverage_certified": True,
+                "announcement_timing_certified": True,
+                "announcement_timing_evidence": [
+                    {
+                        "source_authority": "B3",
+                        "source_url": "https://example.test/b3/timing",
+                        "scope": "AAA3 announcement timing",
+                        "conclusion": "Announcement timing reviewed for the certified period.",
+                    }
+                ],
 ''',
 )
