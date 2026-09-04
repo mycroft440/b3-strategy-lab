@@ -10,20 +10,87 @@ def replace_once(path: str, old: str, new: str) -> None:
     p.write_text(text.replace(old, new), encoding="utf-8")
 
 
-# Cash-distribution certification schema v2: coverage + causal announcement timing.
+# Cash-distribution certification schema v2 is required only for a causal/certified
+# replay. Legacy schema-v1 coverage validation remains readable for old artifacts and
+# unit tests, but cannot satisfy the production certified-input audit.
 replace_once(
     "b3_strategy_lab/realistic_core.py",
-    '    if certification.get("schema_version") != 1:\n        issues.append("unsupported certification schema")\n    if certification.get("coverage_certified") is not True:\n        issues.append("coverage is not certified")\n',
-    '    if certification.get("schema_version") != 2:\n'
-    '        issues.append("unsupported certification schema")\n'
-    '    if certification.get("coverage_certified") is not True:\n'
-    '        issues.append("coverage is not certified")\n'
-    '    if certification.get("announcement_timing_certified") is not True:\n'
-    '        issues.append("announcement timing is not certified")\n'
-    '    announcement_evidence = certification.get("announcement_timing_evidence")\n'
-    '    if not isinstance(announcement_evidence, list) or not announcement_evidence:\n'
-    '        issues.append("announcement timing evidence is missing")\n',
+    '''def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path: Path | str,
+    cash_manifest_path: Path | str,
+    tickers: Iterable[str],
+    start: str,
+    end: str,
+) -> list[str]:
+''',
+    '''def cash_coverage_certification_issues(
+    certification: dict[str, object],
+    *,
+    cash_events_path: Path | str,
+    cash_manifest_path: Path | str,
+    tickers: Iterable[str],
+    start: str,
+    end: str,
+    require_announcement_timing: bool = False,
+) -> list[str]:
+''',
 )
+replace_once(
+    "b3_strategy_lab/realistic_core.py",
+    '''    if certification.get("schema_version") != 1:
+        issues.append("unsupported certification schema")
+    if certification.get("coverage_certified") is not True:
+        issues.append("coverage is not certified")
+''',
+    '''    schema_version = certification.get("schema_version")
+    if schema_version not in {1, 2}:
+        issues.append("unsupported certification schema")
+    if certification.get("coverage_certified") is not True:
+        issues.append("coverage is not certified")
+    if require_announcement_timing:
+        if schema_version != 2:
+            issues.append("certified causal replay requires cash certification schema 2")
+        if certification.get("announcement_timing_certified") is not True:
+            issues.append("announcement timing is not certified")
+        timing_evidence = certification.get("announcement_timing_evidence")
+        if not isinstance(timing_evidence, list) or not timing_evidence:
+            issues.append("announcement timing evidence is missing")
+        else:
+            for raw in timing_evidence:
+                if not isinstance(raw, dict):
+                    issues.append("announcement timing evidence record is malformed")
+                    continue
+                authority = str(raw.get("source_authority", "")).strip()
+                url = str(raw.get("source_url", "")).strip()
+                scope = str(raw.get("scope", "")).strip()
+                conclusion = str(raw.get("conclusion", "")).strip()
+                if authority not in {"B3", "CVM", "issuer"}:
+                    issues.append("announcement timing evidence authority is not accepted")
+                if not url.startswith("https://"):
+                    issues.append("announcement timing evidence requires https source_url")
+                if not scope or not conclusion:
+                    issues.append("announcement timing evidence requires scope and conclusion")
+''',
+)
+replace_once(
+    "scripts/audit_realistic_backtest_inputs.py",
+    '''            tickers=market_data,
+            start=start,
+            end=end,
+        )
+''',
+    '''            tickers=market_data,
+            start=start,
+            end=end,
+            require_announcement_timing=True,
+        )
+''',
+)
+
+# Generator always creates the stronger schema-v2 object and refuses to claim causal
+# knowledge unless the reviewer explicitly supplies and confirms timing evidence.
 replace_once(
     "scripts/build_cash_distribution_coverage_certification.py",
     "def _required_cash_tickers(universe_payload: dict[str, object], selectable: set[str]) -> set[str]:\n",
@@ -48,18 +115,14 @@ replace_once(
         if not url.startswith("https://"):
             raise ValueError("Every announcement evidence item requires an https source_url.")
         if not scope or not conclusion:
-            raise ValueError(
-                "Every announcement evidence item requires scope and conclusion."
-            )
+            raise ValueError("Every announcement evidence item requires scope and conclusion.")
         normalized.append(
             {
                 "source_authority": authority,
                 "source_url": url,
                 "scope": scope,
                 "conclusion": conclusion,
-                "source_payload_sha256": str(
-                    item.get("source_payload_sha256", "")
-                ).strip(),
+                "source_payload_sha256": str(item.get("source_payload_sha256", "")).strip(),
             }
         )
     return normalized
@@ -76,17 +139,23 @@ replace_once(
 )
 replace_once(
     "scripts/build_cash_distribution_coverage_certification.py",
-    '    if not args.confirm_complete_coverage:\n        parser.error(\n            "Refusing to certify completeness without --confirm-complete-coverage after "\n            "a real primary-source review."\n        )\n',
-    '    if not args.confirm_complete_coverage:\n'
-    '        parser.error(\n'
-    '            "Refusing to certify completeness without --confirm-complete-coverage after "\n'
-    '            "a real primary-source review."\n'
-    '        )\n'
-    '    if not args.confirm_announcement_timing:\n'
-    '        parser.error(\n'
-    '            "Refusing schema-v2 certification without --confirm-announcement-timing "\n'
-    '            "after reviewing when each source became knowable."\n'
-    '        )\n',
+    '''    if not args.confirm_complete_coverage:
+        parser.error(
+            "Refusing to certify completeness without --confirm-complete-coverage after "
+            "a real primary-source review."
+        )
+''',
+    '''    if not args.confirm_complete_coverage:
+        parser.error(
+            "Refusing to certify completeness without --confirm-complete-coverage after "
+            "a real primary-source review."
+        )
+    if not args.confirm_announcement_timing:
+        parser.error(
+            "Refusing schema-v2 certification without --confirm-announcement-timing "
+            "after reviewing when each event/rate became publicly knowable."
+        )
+''',
 )
 replace_once(
     "scripts/build_cash_distribution_coverage_certification.py",
@@ -103,7 +172,9 @@ replace_once(
     '        "announcement_timing_evidence": announcement_timing_evidence,\n',
 )
 
-# Point-in-time sync: gather every dataset verification failure before stopping.
+# Optional audit mode: official/certified execution still raises on the first critical
+# dataset verifier error; --audit-all-errors catches independent ticker failures, writes
+# one complete report, and then exits non-zero so nothing can be certified/published.
 replace_once(
     "scripts/sync_point_in_time_universe.py",
     "    build_verified_daily_candles,\n",
@@ -119,6 +190,7 @@ replace_once(
     "scripts/sync_point_in_time_universe.py",
     '    parser.add_argument("--supplemental-splits", type=Path, default=DEFAULT_SUPPLEMENTAL_SPLITS)\n',
     '    parser.add_argument("--supplemental-splits", type=Path, default=DEFAULT_SUPPLEMENTAL_SPLITS)\n'
+    '    parser.add_argument("--audit-all-errors", action="store_true")\n'
     '    parser.add_argument("--data-verification-report", type=Path, default=DEFAULT_DATA_VERIFICATION_REPORT)\n',
 )
 replace_once(
@@ -154,30 +226,34 @@ replace_once(
                     split_evidence_path=args.dataset_split_evidence,
                 )
             except DataVerificationError as error:
+                if not args.audit_all_errors:
+                    raise
                 verification_failures.append(
                     {"ticker": ticker, "interval": interval, "error": str(error)}
                 )
                 print(
-                    f"{ticker}/{interval}: verification failed; continuing audit: {error}",
+                    f"AUDIT {ticker}/{interval}: {error}",
                     flush=True,
                 )
         if not any(row["ticker"] == ticker for row in verification_failures):
             print(f"{ticker}: verified through {daily[-1].date}", flush=True)
 
-    _write_json_atomic(
-        args.data_verification_report,
-        {
-            "schema_version": 1,
-            "ready": not verification_failures,
-            "failure_count": len(verification_failures),
-            "failures": verification_failures,
-        },
-    )
-    if verification_failures:
-        raise ValueError(
-            f"{len(verification_failures)} point-in-time dataset verification failure(s); "
-            f"all tickers were audited. See {args.data_verification_report}."
+    if args.audit_all_errors:
+        _write_json_atomic(
+            args.data_verification_report,
+            {
+                "schema_version": 1,
+                "mode": "audit_only_no_publication",
+                "ready": not verification_failures,
+                "failure_count": len(verification_failures),
+                "failures": verification_failures,
+            },
         )
+        if verification_failures:
+            raise ValueError(
+                f"{len(verification_failures)} point-in-time dataset verification failure(s); "
+                f"all independent ticker datasets were audited. See {args.data_verification_report}."
+            )
 
     cash_rows, cash_issues = build_cash_events(
 ''',
