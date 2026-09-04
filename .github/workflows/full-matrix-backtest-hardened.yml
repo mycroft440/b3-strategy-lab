@@ -532,6 +532,7 @@ jobs:
           fi
 
       - name: Exigir insumos realistas certificados
+        id: realistic_audit
         run: |
           set -euo pipefail
           python scripts/audit_realistic_backtest_inputs.py
@@ -548,7 +549,7 @@ jobs:
 
       - name: Empacotar snapshot exato dos insumos realistas
         id: realistic_snapshot
-        if: ${{ always() && steps.realistic_data.outcome == 'success' }}
+        if: ${{ always() && steps.realistic_data.outcome == 'success' && steps.realistic_audit.outcome == 'success' }}
         run: |
           set -euo pipefail
           tar \
