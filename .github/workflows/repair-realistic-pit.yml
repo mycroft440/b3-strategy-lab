@@ -1,4 +1,4 @@
-name: Temporary PIT repair batch 2
+name: Temporary raw COTAHIST disappearance audit
 
 on:
   push:
@@ -8,74 +8,73 @@ on:
       - '.github/workflows/repair-realistic-pit.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  instrument-transitions:
+  raw-cotahist-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply generic instrument-transition patches
+      - name: Inspect every raw record for unresolved symbols
         run: |
           set -euo pipefail
-          python scripts/_temporary_pit_repair_batch2.py
-          python scripts/_temporary_pit_repair_batch2b.py
-          python -m py_compile \
-            b3_strategy_lab/instrument_transitions.py \
-            b3_strategy_lab/realistic_portfolio_core.py \
-            b3_strategy_lab/realistic_portfolio.py \
-            scripts/build_survivorship_safe_realistic_universe.py \
-            scripts/build_ticker_transitions.py \
-            tests/test_instrument_transition_layer.py
-          python -m unittest tests.test_instrument_transition_layer tests.test_ticker_transition_policy -v
-          python -m unittest discover -s tests -v
-      - name: Commit verified transition engine changes
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            b3_strategy_lab/realistic_portfolio_core.py \
-            b3_strategy_lab/realistic_portfolio.py \
-            scripts/build_survivorship_safe_realistic_universe.py \
-            scripts/build_ticker_transitions.py
-          git diff --cached --check
-          git commit -m 'feat: support source-bound instrument transitions'
-          git push origin HEAD:fix/realistic-pit-integrity-20260904
-      - name: Rebuild PIT scope with source-reviewed successors
-        run: |
-          set -euo pipefail
-          rm -rf reports/pit-batch2
-          mkdir -p reports/pit-batch2
-          python scripts/build_survivorship_safe_realistic_universe.py \
-            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
-          python scripts/build_ticker_transitions.py \
-            --years 2017:2026 --end 2026-08-19 --download \
-            --unresolved-output reports/pit-batch2/unresolved_historical_delistings.csv
           python - <<'PY'
-          import csv, json
+          from collections import defaultdict
           from pathlib import Path
-          universe = json.loads(Path('data/universes/point_in_time_union.json').read_text())
-          manifest = json.loads(Path('data/corporate_actions/ticker_transitions.manifest.json').read_text())
-          rows = list(csv.DictReader(Path('data/corporate_actions/ticker_transitions.csv').open()))
-          goll = [row for row in rows if row['old_ticker'] == 'GOLL4']
-          if 'GOLL54' not in universe.get('market_data_tickers', []):
-              raise SystemExit('GOLL54 missing from continuity-only market-data scope')
-          if len(goll) != 1 or goll[0]['new_ticker'] != 'GOLL54':
-              raise SystemExit(f'GOLL4 transition missing/ambiguous: {goll!r}')
-          if goll[0]['share_ratio'] != '1' or goll[0]['new_quotation_factor'] != '1000':
-              raise SystemExit(f'GOLL4 transition economics wrong: {goll[0]!r}')
-          print('GOLL4_TRANSITION', json.dumps(goll[0], ensure_ascii=False, sort_keys=True))
-          print('UNRESOLVED', manifest.get('older_unresolved_disappearances'))
+          import zipfile
+          from b3_strategy_lab.cotahist import download_cotahist
+
+          targets = {
+              'ARZZ3','AZUL4','BRDT3','BRFS3','BRML3','BTOW3','BVMF3','CCRO3','CIEL3',
+              'CPLE6','CRFB3','ELET3','EMBR3','ESTC3','FIBR3','GNDI3','GOLL54','JBSS3',
+              'KROT3','LAME4','MRFG3','NTCO3','PCAR4','PETZ3','RRRP3','SMLS3','VIIA3',
+              'VIVT4','VVAR3'
+          }
+          rows = defaultdict(list)
+          for year in range(2017, 2027):
+              path = download_cotahist(year, Path('.cache/cotahist'))
+              with zipfile.ZipFile(path) as archive:
+                  member = [n for n in archive.namelist() if not n.endswith('/')][0]
+                  with archive.open(member) as fh:
+                      for raw in fh:
+                          line = raw.decode('latin-1').rstrip('\r\n')
+                          if len(line) < 245 or line[:2] != '01':
+                              continue
+                          ticker = line[12:24].strip().upper()
+                          if ticker not in targets:
+                              continue
+                          rows[ticker].append({
+                              'date': line[2:10],
+                              'bdi': line[10:12],
+                              'market': line[24:27],
+                              'issuer': line[27:39].strip(),
+                              'spec': line[39:49].strip(),
+                              'fatcot': line[210:217].strip(),
+                              'isin': line[230:242].strip(),
+                          })
+          for ticker in sorted(targets):
+              values = sorted(rows[ticker], key=lambda r: r['date'])
+              print(f'=== {ticker} raw_rows={len(values)} ===')
+              if not values:
+                  print('NO_RAW_ROWS')
+                  continue
+              combos = defaultdict(lambda: {'first': None, 'last': None, 'count': 0})
+              for row in values:
+                  key = (row['bdi'], row['market'], row['spec'], row['fatcot'], row['isin'])
+                  item = combos[key]
+                  item['first'] = item['first'] or row['date']
+                  item['last'] = row['date']
+                  item['count'] += 1
+              for key, item in sorted(combos.items(), key=lambda kv: (kv[1]['last'], kv[0])):
+                  print('COMBO', *key, item['first'], item['last'], item['count'])
+              print('LAST10')
+              for row in values[-10:]:
+                  print(row)
           PY
-          echo '=== ALL TRANSITION BLOCKERS AFTER GOLL ==='
-          cat reports/pit-batch2/unresolved_historical_delistings.csv
