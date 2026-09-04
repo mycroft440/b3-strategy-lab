@@ -44,6 +44,17 @@ class HistoricalTickerReviewCoverageError(RuntimeError):
     """Deterministic evidence gap; unlike a B3 transport error it must not retry."""
 
 
+def _is_retryable_b3_transport_error(error: B3CorporateActionError) -> bool:
+    """Identify only the exhausted network/download failure emitted by B3 fetches.
+
+    The B3 downloader already performs its own bounded retries. The outer realistic
+    sync retries the full operation only after that downloader exhausts, allowing
+    cached issuer successes to be reused. Deterministic validation/evidence errors
+    must propagate immediately instead of sleeping and repeating unchanged input.
+    """
+    return str(error).startswith("Falha ao consultar eventos oficiais de ")
+
+
 def _option_value(arguments: list[str], option: str) -> str | None:
     for index, value in enumerate(arguments):
         if value == option and index + 1 < len(arguments):
@@ -366,14 +377,16 @@ def main(argv: list[str] | None = None) -> int:
     _install_evidence_addendum(_load_evidence_addendum())
 
     # Successful issuer supplements are written atomically by the base synchronizer.
-    # If the B3 endpoint transiently returns an empty/non-JSON response, a retry of
-    # the full sync therefore resumes from those cached successes and only fetches
-    # the missing issuers. We retry only the explicit B3 transport/data error and
-    # preserve fail-closed behavior after the bounded attempts are exhausted.
+    # The B3 downloader already retries each request internally. Only its final
+    # transport-exhaustion error receives a bounded whole-sync retry so cached
+    # successes can be reused; deterministic evidence/integrity errors propagate
+    # immediately and remain fail-closed.
     for attempt in range(1, SYNC_ATTEMPTS + 1):
         try:
             return base.main(arguments)
         except B3CorporateActionError as error:
+            if not _is_retryable_b3_transport_error(error):
+                raise
             if attempt >= SYNC_ATTEMPTS:
                 raise
             delay = SYNC_RETRY_DELAYS_SECONDS[attempt - 1]
