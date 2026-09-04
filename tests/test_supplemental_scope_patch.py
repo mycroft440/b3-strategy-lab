@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import importlib
 import unittest
 
-from b3_strategy_lab import b3_official
+from b3_strategy_lab import b3_official, supplemental_scope_patch
 
 
 class SupplementalScopePatchTests(unittest.TestCase):
@@ -17,19 +18,25 @@ class SupplementalScopePatchTests(unittest.TestCase):
             "source_url": "https://ri.example.com/evento",
         }
 
+    def _parse(self, payload: dict) -> list:
+        return b3_official.parse_supplemental_split_events(
+            payload,
+            tickers=["AAAA3"],
+            quote_dates_by_ticker={"AAAA3": ["2017-01-02", "2017-01-03"]},
+            coverage_start="2017-01-01",
+        )
+
     def test_unrelated_valid_registry_event_is_not_treated_as_current_universe_corruption(self) -> None:
         payload = {
             "schema_version": 1,
             "coverage_start": "2017-01-01",
             "events": [self._valid_event("AAAA3"), self._valid_event("BBBB3")],
         }
-        events = b3_official.parse_supplemental_split_events(
-            payload,
-            tickers=["AAAA3"],
-            quote_dates_by_ticker={"AAAA3": ["2017-01-02", "2017-01-03"]},
-            coverage_start="2017-01-01",
+        events = self._parse(payload)
+        self.assertEqual(
+            [(event.ticker, event.ex_date) for event in events],
+            [("AAAA3", "2017-01-03")],
         )
-        self.assertEqual([(event.ticker, event.ex_date) for event in events], [("AAAA3", "2017-01-03")])
 
     def test_in_scope_invalid_event_still_fails_closed(self) -> None:
         broken = self._valid_event("AAAA3")
@@ -40,12 +47,7 @@ class SupplementalScopePatchTests(unittest.TestCase):
             "events": [broken],
         }
         with self.assertRaisesRegex(Exception, "fonte suplementar precisa ser CVM ou issuer"):
-            b3_official.parse_supplemental_split_events(
-                payload,
-                tickers=["AAAA3"],
-                quote_dates_by_ticker={"AAAA3": ["2017-01-02", "2017-01-03"]},
-                coverage_start="2017-01-01",
-            )
+            self._parse(payload)
 
     def test_missing_ticker_record_is_preserved_for_canonical_rejection(self) -> None:
         broken = self._valid_event("AAAA3")
@@ -56,12 +58,7 @@ class SupplementalScopePatchTests(unittest.TestCase):
             "events": [broken],
         }
         with self.assertRaisesRegex(Exception, "Ticker suplementar fora do universo: <vazio>"):
-            b3_official.parse_supplemental_split_events(
-                payload,
-                tickers=["AAAA3"],
-                quote_dates_by_ticker={"AAAA3": ["2017-01-02", "2017-01-03"]},
-                coverage_start="2017-01-01",
-            )
+            self._parse(payload)
 
     def test_non_mapping_registry_record_is_preserved_for_canonical_rejection(self) -> None:
         payload = {
@@ -70,11 +67,28 @@ class SupplementalScopePatchTests(unittest.TestCase):
             "events": ["corrupt-record"],
         }
         with self.assertRaisesRegex(Exception, "Evento suplementar invalido"):
-            b3_official.parse_supplemental_split_events(
-                payload,
-                tickers=["AAAA3"],
-                quote_dates_by_ticker={"AAAA3": ["2017-01-02", "2017-01-03"]},
-                coverage_start="2017-01-01",
+            self._parse(payload)
+
+    def test_reloading_scope_patch_does_not_stack_or_recurse(self) -> None:
+        payload = {
+            "schema_version": 1,
+            "coverage_start": "2017-01-01",
+            "events": [self._valid_event("AAAA3"), self._valid_event("BBBB3")],
+        }
+        canonical = getattr(
+            b3_official,
+            "_supplemental_scope_patch_original_parse",
+        )
+        for _ in range(3):
+            importlib.reload(supplemental_scope_patch)
+            self.assertIs(
+                getattr(b3_official, "_supplemental_scope_patch_original_parse"),
+                canonical,
+            )
+            events = self._parse(payload)
+            self.assertEqual(
+                [(event.ticker, event.ex_date) for event in events],
+                [("AAAA3", "2017-01-03")],
             )
 
 
