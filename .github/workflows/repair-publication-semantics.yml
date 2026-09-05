@@ -1,4 +1,4 @@
-name: Temporary publication semantics repair
+name: Temporary publication semantics repair v2
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - fix/realistic-pit-integrity-20260904
     paths:
       - '.github/workflows/repair-publication-semantics.yml'
+      - 'scripts/_temporary_pit_repair_batch4.py'
 
 permissions:
   contents: write
