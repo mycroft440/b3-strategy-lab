@@ -31,6 +31,7 @@ jobs:
           python scripts/_temporary_transition_review_batch6_post.py
           python scripts/_temporary_transition_review_batch7.py
           python scripts/_temporary_final_hardening.py
+          python scripts/_temporary_final_test_contracts.py
           python -m json.tool data/corporate_actions/instrument_transition_reviews.json >/dev/null
           python -m py_compile \
             b3_strategy_lab/cotahist.py \
@@ -39,10 +40,13 @@ jobs:
             scripts/_temporary_transition_review_batch6_post.py \
             scripts/_temporary_transition_review_batch7.py \
             scripts/_temporary_final_hardening.py \
+            scripts/_temporary_final_test_contracts.py \
             tests/test_bdi58_goll4_regression.py \
             tests/test_instrument_transition_layer.py \
             tests/test_realistic_snapshot_certification_gate.py \
-            tests/test_hardened_backtest_performance_settings.py
+            tests/test_hardened_backtest_performance_settings.py \
+            tests/test_hardened_workflow_snapshot_bootstrap.py \
+            tests/test_realistic_snapshot_reuse_window.py
           python -m unittest discover -s tests -v
           git diff --check
       - name: Rebuild point-in-time scope and require complete transition classification
@@ -88,7 +92,9 @@ jobs:
             tests/test_bdi58_goll4_regression.py \
             tests/test_instrument_transition_layer.py \
             tests/test_realistic_snapshot_certification_gate.py \
-            tests/test_hardened_backtest_performance_settings.py
+            tests/test_hardened_backtest_performance_settings.py \
+            tests/test_hardened_workflow_snapshot_bootstrap.py \
+            tests/test_realistic_snapshot_reuse_window.py
           git diff --cached --check
           git commit -m 'fix: close PIT transition chain and harden publication gates'
           git push origin HEAD:fix/realistic-pit-integrity-20260904
