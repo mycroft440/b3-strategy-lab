@@ -263,8 +263,8 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin backtest-results:refs/remotes/origin/backtest-results
-          rm -rf reports/latest_attempt
-          mkdir -p reports/latest_attempt
+          rm -rf reports/latest_attempt previous-certified-snapshot
+          mkdir -p reports/latest_attempt previous-certified-snapshot
           SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
           CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
           snapshot_exists=false
@@ -276,10 +276,10 @@ jobs:
             exit 1
           fi
           if [ "$snapshot_exists" = "true" ]; then
-            git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"
-            git show "origin/backtest-results:${CHECKSUM}" > "$CHECKSUM"
+            git show "origin/backtest-results:${SNAPSHOT}"               > previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            git show "origin/backtest-results:${CHECKSUM}"               > previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256
             (
-              cd reports/latest_attempt
+              cd previous-certified-snapshot
               sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
             )
           fi
