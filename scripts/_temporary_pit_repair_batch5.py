@@ -58,10 +58,17 @@ new = '''          rm -rf reports/latest_attempt previous-certified-snapshot
 '''
 replace_once(workflow, old, new)
 
-# Strengthen the workflow regression so source and local staging destinations can
-# never be conflated again.
+# Replace the obsolete test that required the remote path to double as a local file.
 test_path = Path("tests/test_execution_hardening.py")
 test_text = test_path.read_text(encoding="utf-8")
+obsolete = '''        self.assertIn(
+            'git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"',
+            announce,
+        )
+'''
+if obsolete not in test_text:
+    raise SystemExit("obsolete announce destination assertion missing")
+test_text = test_text.replace(obsolete, "", 1)
 anchor = '''        self.assertIn(
             "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
             announce,
