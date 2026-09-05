@@ -289,11 +289,39 @@ def run_portfolio(
         invested_value = sum(
             shares[ticker] * today_candles[ticker].close for ticker in selected
         )
-        equity = cash + invested_value
-        invested_weight = invested_value / equity if equity > 0 else 0.0
+        mark_equity = cash + invested_value
+        exposure_weight = invested_value / mark_equity if mark_equity > 0 else 0.0
+        held_positions = len(selected)
+
+        # The research window ends in cash, not in an unliquidated mark-to-market.
+        # Preserve the final session's close-to-close P&L, then sell at that close
+        # with the same adverse slippage and transaction-cost assumptions used
+        # elsewhere. Exposure statistics still count the position as held that day.
+        if next_date is None and selected:
+            liquidation_trades, liquidation_turnover, cash = _liquidate_at_close(
+                current_date,
+                data.tickers,
+                today_candles,
+                shares,
+                cash,
+                cost_rate,
+                slippage_rate,
+            )
+            trade_count += liquidation_trades
+            turnover += liquidation_turnover
+            total_trades += liquidation_trades
+            total_turnover += liquidation_turnover
+            equity = cash
+            invested_weight = 0.0
+            selected_for_curve: list[str] = []
+        else:
+            equity = mark_equity
+            invested_weight = exposure_weight
+            selected_for_curve = selected
+
         equities.append(equity)
-        exposure_days += int(invested_weight > 0.01)
-        position_days += len(selected)
+        exposure_days += int(exposure_weight > 0.01)
+        position_days += held_positions
         if collect_curve:
             curve.append(
                 PortfolioCurveRow(
@@ -340,7 +368,7 @@ def run_portfolio(
                 pending_targets = signal_targets
 
     result_metrics = _portfolio_metrics(equities, dates, initial_cash)
-    yearly = _yearly_returns(equities, dates, initial_cash)
+    yearly = _full_calendar_year_returns(equities, dates, initial_cash)
     summary = PortfolioSummary(
         strategy=config.name,
         start=dates[0],
@@ -912,6 +940,41 @@ def _yearly_returns(
     return result
 
 
+def _full_calendar_year_returns(
+    equities: list[float],
+    dates: list[str],
+    initial_equity: float,
+) -> dict[int, float]:
+    """Return only calendar years covered from the opening to closing sessions.
+
+    Partial first/last years are useful in the annual table but must not receive
+    the same weight as a full year in ``average_annual_return``. A complete B3
+    calendar year starts in the first week of January and ends in late December.
+    """
+
+    yearly = _yearly_returns(equities, dates, initial_equity)
+    if not yearly or not dates:
+        return {}
+
+    by_year: dict[int, list[date]] = {}
+    for value in dates:
+        current = _point_datetime(value).date()
+        by_year.setdefault(current.year, []).append(current)
+
+    complete: dict[int, float] = {}
+    for year, value in yearly.items():
+        sessions = by_year.get(year, [])
+        if not sessions:
+            continue
+        first_session = sessions[0]
+        last_session = sessions[-1]
+        starts_at_year_open = first_session.month == 1 and first_session.day <= 7
+        ends_at_year_close = last_session.month == 12 and last_session.day >= 20
+        if starts_at_year_open and ends_at_year_close:
+            complete[year] = value
+    return complete
+
+
 def _weights(selected: list[dict], config: PortfolioConfig) -> dict[str, float]:
     if not selected:
         return {}
@@ -1029,6 +1092,48 @@ def _rebalance(
         trade_count += 1
 
     return trade_count, traded_notional / equity, cash
+
+
+def _liquidate_at_close(
+    current_date: str,
+    tickers: list[str],
+    today_candles: dict[str, Candle],
+    shares: dict[str, float],
+    cash: float,
+    cost_rate: float,
+    slippage_rate: float,
+) -> tuple[int, float, float]:
+    selected = [ticker for ticker in tickers if shares[ticker] > 0]
+    if not selected:
+        return 0, 0.0, cash
+
+    missing_closes = sorted(
+        ticker
+        for ticker in selected
+        if ticker not in today_candles or today_candles[ticker].close <= 0
+    )
+    if missing_closes:
+        raise ValueError(
+            f"{current_date}: fechamento fresco obrigatorio ausente para liquidacao final: "
+            + ", ".join(missing_closes)
+        )
+
+    marked_equity = cash + sum(
+        shares[ticker] * today_candles[ticker].close for ticker in selected
+    )
+    traded_notional = 0.0
+    trade_count = 0
+    for ticker in selected:
+        quantity = shares[ticker]
+        close_price = today_candles[ticker].close
+        execution_price = _slipped_price(close_price, "SELL", slippage_rate)
+        cash += quantity * execution_price * (1 - cost_rate)
+        shares[ticker] = 0.0
+        traded_notional += quantity * execution_price
+        trade_count += 1
+
+    turnover = traded_notional / marked_equity if marked_equity > 0 else 0.0
+    return trade_count, turnover, cash
 
 
 def _write(rows: list[dict], output: Path) -> None:

@@ -565,7 +565,7 @@ def _write_annual_report(sections: list[dict[str, object]], output: Path) -> Non
         lines.extend(
             [
                 "",
-                f"Media de lucro por ano: {float(section['average']):.2%}",
+                f"Media dos anos-calendario completos: {float(section['average']):.2%}",
                 "",
             ]
         )
@@ -731,9 +731,8 @@ def _write_manifest(
             "dividends_and_jcp_excluded",
             "taxes_excluded",
             "standard_market_open_used_for_integer_share_research_execution",
-            "final_positions_marked_to_close_and_not_liquidated",
         ],
-        "final_valuation": "mark_to_market_at_last_verified_close_not_liquidated",
+        "final_valuation": "liquidated_at_last_verified_close_with_costs_and_slippage",
         "workers": args.workers,
         "elapsed_seconds": elapsed_seconds,
     }

@@ -267,9 +267,9 @@ def main(argv: list[str] | None = None) -> int:
             and "strategy_and_management_selected_on_the_same_full_period"
             in (manifest.get("limitations") or [])
         ),
-        "final_mark_to_market_is_not_mislabeled_as_liquidation": (
+        "final_positions_are_liquidated_with_costs_and_slippage": (
             manifest.get("final_valuation")
-            == "mark_to_market_at_last_verified_close_not_liquidated"
+            == "liquidated_at_last_verified_close_with_costs_and_slippage"
         ),
         "transaction_assumptions_are_finite_and_nonnegative": all(
             math.isfinite(float(manifest.get(field, math.nan)))

@@ -397,7 +397,8 @@ class PortfolioCombinationTests(unittest.TestCase):
             [point.selected for point in curve],
             ["AAA3", "AAA3", "", "AAA3"],
         )
-        self.assertEqual(summary.trades, 3)
+        # Three strategy/management trades plus the mandatory terminal liquidation.
+        self.assertEqual(summary.trades, 4)
 
     def test_portfolio_executes_and_marks_on_split_normalized_prices(self) -> None:
         data = market_data()
