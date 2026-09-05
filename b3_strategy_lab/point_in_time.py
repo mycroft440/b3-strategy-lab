@@ -11,7 +11,11 @@ from pathlib import Path
 from .cotahist import COMPANY_EQUITY_BDI_CODES, STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines
 
 
-TICKER_RE = re.compile(r"^[A-Z]{4}\d{1,2}$")
+# B3 cash-share tickers usually use four-letter issuer roots (PETR4), but valid
+# listed companies can contain a digit inside that four-character root (B3SA3).
+# Keep the first character alphabetic and require the final class suffix to be
+# numeric so this remains a share-ticker shape check rather than a broad symbol pass.
+TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{3}\d{1,2}$")
 STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
 # Candidate BDI codes for company shares. BDI 58 is still filtered through
