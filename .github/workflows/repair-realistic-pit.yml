@@ -51,4 +51,4 @@ jobs:
           python -m unittest discover -s tests -v
           git diff --check
 
-# retrigger after validated cleanup
+# final clean-tree validation trigger
