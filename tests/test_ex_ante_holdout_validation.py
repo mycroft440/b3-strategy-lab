@@ -8,6 +8,7 @@ from b3_strategy_lab.ex_ante_validation import (
     ValidationError,
     build_frozen_candidate,
     build_holdout_validation_report,
+    build_prospective_freeze,
     latest_complete_calendar_year,
     point_in_time_contract_issues,
 )
@@ -20,10 +21,7 @@ class HoldoutBoundaryTests(unittest.TestCase):
             *(f"2025-{month:02d}-{day:02d}" for month in range(1, 13) for day in range(1, 22)),
             *(f"2026-{month:02d}-{day:02d}" for month in range(1, 9) for day in range(1, 22)),
         ]
-        self.assertEqual(
-            latest_complete_calendar_year(dates, as_of=date(2026, 9, 5)),
-            2025,
-        )
+        self.assertEqual(latest_complete_calendar_year(dates, as_of=date(2026, 9, 5)), 2025)
 
     def _pit_audit(self) -> dict[str, object]:
         return {
@@ -65,8 +63,36 @@ class HoldoutBoundaryTests(unittest.TestCase):
                 pit_audit=self._pit_audit(),
                 holdout_start="2025-01-02",
                 holdout_end="2025-12-30",
+                frozen_at_utc="2024-12-31T12:00:00+00:00",
                 source_bindings={},
             )
+
+    def test_completed_past_year_cannot_be_retroactively_declared_untouched(self) -> None:
+        with self.assertRaisesRegex(ValidationError, "retroactive"):
+            build_frozen_candidate(
+                candidates=self._top(),
+                matrix_manifest=self._matrix(),
+                pit_audit=self._pit_audit(),
+                holdout_start="2025-01-02",
+                holdout_end="2025-12-30",
+                frozen_at_utc="2026-09-05T19:00:00+00:00",
+                source_bindings={},
+            )
+
+    def test_prospective_freeze_uses_all_seen_history_but_claims_no_validation_yet(self) -> None:
+        frozen = build_prospective_freeze(
+            candidates=self._top(end="2026-09-04"),
+            matrix_manifest=self._matrix(end="2026-09-04"),
+            pit_audit=self._pit_audit(),
+            frozen_at_utc="2026-09-05T19:00:00+00:00",
+            source_bindings={},
+        )
+        self.assertEqual(frozen["status"], "PROSPECTIVE_FROZEN_PENDING")
+        self.assertEqual(frozen["information_cutoff"], "2026-09-04")
+        self.assertEqual(frozen["prospective_validation_must_start_after"], "2026-09-05")
+        self.assertFalse(frozen["historical_holdout_claim_allowed"])
+        self.assertFalse(frozen["validated_winner_available"])
+        self.assertFalse(frozen["fallback_candidate_allowed"])
 
     def test_holdout_result_cannot_switch_to_second_candidate(self) -> None:
         frozen = build_frozen_candidate(
@@ -75,6 +101,7 @@ class HoldoutBoundaryTests(unittest.TestCase):
             pit_audit=self._pit_audit(),
             holdout_start="2025-01-02",
             holdout_end="2025-12-30",
+            frozen_at_utc="2024-12-31T12:00:00+00:00",
             source_bindings={},
         )
         summary = {
@@ -101,13 +128,14 @@ class HoldoutBoundaryTests(unittest.TestCase):
         self.assertIn("holdout_strategy_differs_from_frozen", report["issues"])
         self.assertFalse(frozen["fallback_candidate_allowed"])
 
-    def test_exact_frozen_candidate_passes_without_reranking(self) -> None:
+    def test_exact_pre_frozen_candidate_passes_without_reranking(self) -> None:
         frozen = build_frozen_candidate(
             candidates=self._top(),
             matrix_manifest=self._matrix(),
             pit_audit=self._pit_audit(),
             holdout_start="2025-01-02",
             holdout_end="2025-12-30",
+            frozen_at_utc="2024-12-31T12:00:00+00:00",
             source_bindings={},
         )
         summary = {
@@ -132,10 +160,7 @@ class HoldoutBoundaryTests(unittest.TestCase):
             source_bindings={},
         )
         self.assertEqual(report["status"], "PASS")
-        self.assertEqual(
-            report["selection_classification"],
-            "EX_ANTE_FROZEN_SINGLE_HOLDOUT_VALIDATED",
-        )
+        self.assertEqual(report["selection_classification"], "EX_ANTE_FROZEN_SINGLE_HOLDOUT_VALIDATED")
         self.assertEqual(report["holdout_metrics"]["total_return"], -0.10)
         self.assertFalse(report["formal_multiple_testing_significance_claim_allowed"])
 
@@ -166,16 +191,12 @@ class PointInTimeContractTests(unittest.TestCase):
 
     def test_strict_pit_contract_passes_only_with_timing_certification(self) -> None:
         issues = point_in_time_contract_issues(
-            universe=self._universe(),
-            snapshots=self._snapshots(),
+            universe=self._universe(), snapshots=self._snapshots(),
             data_dir=Path("data/candles_point_in_time"),
             actions_dir=Path("data/actions_point_in_time"),
             manifests_dir=Path("data/manifests_point_in_time"),
             split_evidence=Path("data/corporate_actions/point_in_time_split_evidence.json"),
-            cash_certification={
-                "coverage_certified": True,
-                "announcement_timing_certified": True,
-            },
+            cash_certification={"coverage_certified": True, "announcement_timing_certified": True},
         )
         self.assertEqual(issues, [])
 
@@ -184,10 +205,8 @@ class PointInTimeContractTests(unittest.TestCase):
         universe["selection_rules"] = dict(universe["selection_rules"])
         universe["selection_rules"]["future_return_filter"] = True
         issues = point_in_time_contract_issues(
-            universe=universe,
-            snapshots=self._snapshots(),
-            data_dir=Path("data/candles_point_in_time"),
-            actions_dir=Path("data/actions_point_in_time"),
+            universe=universe, snapshots=self._snapshots(),
+            data_dir=Path("data/candles_point_in_time"), actions_dir=Path("data/actions_point_in_time"),
             manifests_dir=Path("data/manifests_point_in_time"),
             split_evidence=Path("data/corporate_actions/point_in_time_split_evidence.json"),
             cash_certification={"coverage_certified": True},
@@ -197,16 +216,11 @@ class PointInTimeContractTests(unittest.TestCase):
 
     def test_legacy_storage_is_rejected_even_with_good_snapshots(self) -> None:
         issues = point_in_time_contract_issues(
-            universe=self._universe(),
-            snapshots=self._snapshots(),
-            data_dir=Path("data/candles"),
-            actions_dir=Path("data/corporate_actions"),
+            universe=self._universe(), snapshots=self._snapshots(),
+            data_dir=Path("data/candles"), actions_dir=Path("data/corporate_actions"),
             manifests_dir=Path("data/manifests"),
             split_evidence=Path("data/corporate_actions/split_evidence.json"),
-            cash_certification={
-                "coverage_certified": True,
-                "announcement_timing_certified": True,
-            },
+            cash_certification={"coverage_certified": True, "announcement_timing_certified": True},
         )
         self.assertIn("legacy_or_unexpected_data_dir", issues)
         self.assertIn("legacy_or_unexpected_actions_dir", issues)
