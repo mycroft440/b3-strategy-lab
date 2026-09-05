@@ -50,6 +50,29 @@ jobs:
           exec(compile(blocks[0], '<survivorship-safe-patch>', 'exec'), {})
           PY
 
+      - name: Preserve default loader compatibility and replace legacy universe test
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          core = Path('scripts/research_portfolio_allocation_core.py')
+          text = core.read_text(encoding='utf-8')
+          old = '''                candles, manifest = load_verified_candles(\n                    ticker,\n                    interval,\n                    data_dir=self.data_dir,\n                    actions_dir=self.actions_dir,\n                    manifests_dir=self.manifests_dir,\n                    start=history_start,\n                    require_verified_splits_from=require_verified_splits_from,\n                    split_evidence_path=self.split_evidence_path,\n                )\n'''
+          new = '''                using_default_storage = (\n                    self.data_dir == DEFAULT_DATA_DIR\n                    and self.actions_dir == DEFAULT_ACTIONS_DIR\n                    and self.manifests_dir == DEFAULT_MANIFESTS_DIR\n                    and self.split_evidence_path == DEFAULT_SPLIT_EVIDENCE_PATH\n                )\n                if using_default_storage:\n                    candles, manifest = load_verified_candles(\n                        ticker,\n                        interval,\n                        start=history_start,\n                        require_verified_splits_from=require_verified_splits_from,\n                    )\n                else:\n                    candles, manifest = load_verified_candles(\n                        ticker,\n                        interval,\n                        data_dir=self.data_dir,\n                        actions_dir=self.actions_dir,\n                        manifests_dir=self.manifests_dir,\n                        start=history_start,\n                        require_verified_splits_from=require_verified_splits_from,\n                        split_evidence_path=self.split_evidence_path,\n                    )\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'core default-storage block count={text.count(old)}')
+          core.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/test_portfolio_allocation.py')
+          text = test.read_text(encoding='utf-8')
+          old = '''    def test_default_universe_discloses_selection_and_survivorship_bias(self) -> None:\n        universe = _load_universe(DEFAULT_UNIVERSE_MANIFEST)\n\n        self.assertEqual(universe["selected_as_of"], "2018-01-02")\n        self.assertEqual(universe["warmup_start"], "2017-01-01")\n        self.assertFalse(universe["survivorship_safe"])\n        self.assertEqual(len(universe["tickers"]), 40)\n        self.assertEqual(len(universe["original_tickers"]), 10)\n        self.assertEqual(len(universe["added_tickers"]), 30)\n        self.assertTrue(set(universe["original_tickers"]).issubset(universe["tickers"]))\n'''
+          new = '''    def test_default_universe_is_point_in_time_not_fixed_legacy(self) -> None:\n        self.assertEqual(\n            DEFAULT_UNIVERSE_MANIFEST,\n            Path("data/universes/point_in_time_union.json"),\n        )\n        self.assertNotEqual(\n            DEFAULT_UNIVERSE_MANIFEST,\n            Path("data/universes/fixed_40_2018.json"),\n        )\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'legacy universe test block count={text.count(old)}')
+          test.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Compile changed critical modules
         run: |
           python -m py_compile \
@@ -87,7 +110,8 @@ jobs:
                   scripts/audit_matrix_results.py \
                   scripts/merge_matrix_shards.py \
                   .github/workflows/full-matrix-backtest-hardened.yml \
-                  tests/test_survivorship_safe_research_matrix.py
+                  tests/test_survivorship_safe_research_matrix.py \
+                  tests/test_portfolio_allocation.py
           git reset --soft origin/main
           git commit -m "fix: use survivorship-safe point-in-time research universe [skip ci]"
           git push origin HEAD:main
