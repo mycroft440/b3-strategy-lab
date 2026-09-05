@@ -1,0 +1,96 @@
+name: Promote validated survivorship-safe code
+
+on:
+  push:
+    branches:
+      - fix/survivorship-safe-research-matrix-20260905
+    paths:
+      - .github/workflows/survivorship-safe-promote-code.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/survivorship-safe-research-matrix-20260905
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Reconstruct exact validated changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show 2c9e467021c2883f98af6bd13101fc8fa3fbf34f:.github/workflows/survivorship-safe-research-matrix-patch.yml > /tmp/base.yml
+          git show 7aa894e1bbad592331b69480c8567433b66fde43:.github/workflows/survivorship-safe-patch-runner.yml > /tmp/compat.yml
+          git show c2b4b8abeae979915d5c448302ab831960a91de4:.github/workflows/survivorship-safe-final-runner.yml > /tmp/final.yml
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          def blocks(path: str) -> list[str]:
+              lines = Path(path).read_text(encoding='utf-8').splitlines()
+              result = []
+              current = None
+              for line in lines:
+                  if line.strip() == "python - <<'PY'":
+                      current = []
+                      continue
+                  if current is not None and line.strip() == 'PY':
+                      result.append(textwrap.dedent('\n'.join(current)))
+                      current = None
+                      continue
+                  if current is not None:
+                      current.append(line)
+              return result
+
+          base = blocks('/tmp/base.yml')
+          compat = blocks('/tmp/compat.yml')
+          final = blocks('/tmp/final.yml')
+          if len(base) != 1 or len(compat) != 2 or len(final) != 2:
+              raise SystemExit(
+                  f'unexpected patch blocks: base={len(base)} compat={len(compat)} final={len(final)}'
+              )
+          exec(compile(base[0], '<pit-base>', 'exec'), {})
+          exec(compile(compat[1], '<pit-compat>', 'exec'), {})
+          exec(compile(final[1], '<pit-final>', 'exec'), {})
+          PY
+
+      - name: Reconfirm full test suite
+        run: |
+          python -m pip install pytest
+          python -m pytest -q
+
+      - name: Promote code and stage tested workflow candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          mkdir -p reports
+          cp .github/workflows/full-matrix-backtest-hardened.yml \
+             reports/full-matrix-backtest-hardened.pit-candidate.yml
+          git restore --source=origin/main -- .github/workflows/full-matrix-backtest-hardened.yml
+          git rm .github/workflows/survivorship-safe-research-matrix-patch.yml \
+                 .github/workflows/survivorship-safe-patch-runner.yml \
+                 .github/workflows/survivorship-safe-final-runner.yml \
+                 .github/workflows/survivorship-safe-promote-code.yml
+          git add scripts/research_portfolio_allocation_core.py \
+                  scripts/backtest_strategy_management_combinations.py \
+                  scripts/audit_matrix_results.py \
+                  scripts/merge_matrix_shards.py \
+                  tests/test_survivorship_safe_research_matrix.py \
+                  tests/test_portfolio_allocation.py \
+                  tests/test_combination_control_panel.py \
+                  tests/test_execution_hardening.py \
+                  reports/full-matrix-backtest-hardened.pit-candidate.yml
+          git reset --soft origin/main
+          git commit -m "fix: use survivorship-safe point-in-time research universe [skip ci]"
+          git push origin HEAD:main
