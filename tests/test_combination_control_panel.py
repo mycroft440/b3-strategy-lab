@@ -58,13 +58,13 @@ class CombinationControlPanelTests(unittest.TestCase):
                 }
             )
 
-    def test_user_subset_is_a_valid_universe_manifest(self) -> None:
+    def test_user_subset_is_rejected_by_strict_historical_matrix(self) -> None:
         payload = _selected_payload(["PETR4", "VALE3"])
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "subset.json"
             path.write_text(json.dumps(payload), encoding="utf-8")
-            loaded = _load_universe(path)
-        self.assertEqual(loaded["tickers"], ["PETR4", "VALE3"])
+            with self.assertRaisesRegex(ValueError, "PIT|point_in_time|survivorship"):
+                _load_universe(path)
 
     def test_progress_parser_reports_combinations(self) -> None:
         progress = _parse_combination_progress(

@@ -67,6 +67,8 @@ def _validate_manifests(manifests: list[dict[str, object]]) -> None:
         "git_dirty_scope",
         "source_sha256",
         "universe",
+        "market_data_paths",
+        "universe_selection_policy",
         "datasets",
         "tickers",
         "management_count",

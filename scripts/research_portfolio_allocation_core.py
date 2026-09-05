@@ -21,8 +21,19 @@ from b3_strategy_lab.backtest import (  # noqa: E402
     metrics,
     simulate_buy_and_hold_price_only,
 )
-from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle, cache_path, load_candles  # noqa: E402
-from b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402
+from b3_strategy_lab.candles import (  # noqa: E402
+    DEFAULT_ACTIONS_DIR,
+    DEFAULT_DATA_DIR,
+    DEFAULT_TICKERS,
+    Candle,
+    cache_path,
+    load_candles,
+)
+from b3_strategy_lab.cotahist import (  # noqa: E402
+    DEFAULT_MANIFESTS_DIR,
+    DEFAULT_SPLIT_EVIDENCE_PATH,
+    load_verified_candles,
+)
 
 
 INITIAL_CASH = 1_000.0
@@ -96,10 +107,18 @@ class MarketData:
         allow_unverified_data: bool = False,
         require_verified_splits_from: str | None = None,
         history_start: str | None = None,
+        data_dir: Path | str = DEFAULT_DATA_DIR,
+        actions_dir: Path | str = DEFAULT_ACTIONS_DIR,
+        manifests_dir: Path | str = DEFAULT_MANIFESTS_DIR,
+        split_evidence_path: Path | str = DEFAULT_SPLIT_EVIDENCE_PATH,
     ) -> None:
         self.tickers = tickers
         self.interval = interval
         self.signal_mode = signal_mode
+        self.data_dir = Path(data_dir)
+        self.actions_dir = Path(actions_dir)
+        self.manifests_dir = Path(manifests_dir)
+        self.split_evidence_path = Path(split_evidence_path)
         self.candles: dict[str, list[Candle]] = {}
         self.by_date: dict[str, dict[str, Candle]] = {}
         self.index_by_date: dict[str, dict[str, int]] = {}
@@ -111,18 +130,36 @@ class MarketData:
 
         for ticker in tickers:
             if allow_unverified_data:
-                candles = load_candles(cache_path(ticker, interval))
+                candles = load_candles(cache_path(ticker, interval, self.data_dir))
                 if history_start is not None:
                     candles = [
                         candle for candle in candles if candle.date >= history_start
                     ]
             else:
-                candles, manifest = load_verified_candles(
-                    ticker,
-                    interval,
-                    start=history_start,
-                    require_verified_splits_from=require_verified_splits_from,
+                using_default_storage = (
+                    self.data_dir == DEFAULT_DATA_DIR
+                    and self.actions_dir == DEFAULT_ACTIONS_DIR
+                    and self.manifests_dir == DEFAULT_MANIFESTS_DIR
+                    and self.split_evidence_path == DEFAULT_SPLIT_EVIDENCE_PATH
                 )
+                if using_default_storage:
+                    candles, manifest = load_verified_candles(
+                        ticker,
+                        interval,
+                        start=history_start,
+                        require_verified_splits_from=require_verified_splits_from,
+                    )
+                else:
+                    candles, manifest = load_verified_candles(
+                        ticker,
+                        interval,
+                        data_dir=self.data_dir,
+                        actions_dir=self.actions_dir,
+                        manifests_dir=self.manifests_dir,
+                        start=history_start,
+                        require_verified_splits_from=require_verified_splits_from,
+                        split_evidence_path=self.split_evidence_path,
+                    )
                 self.manifests[ticker] = manifest
             if not candles:
                 raise ValueError(
@@ -208,6 +245,7 @@ def run_portfolio(
     slippage_bps: float = SLIPPAGE_BPS,
     lot_size: int = LOT_SIZE,
     eligibility: dict[str, list[int]] | None = None,
+    universe_membership: dict[str, set[str]] | None = None,
     collect_curve: bool = True,
 ) -> tuple[PortfolioSummary, list[PortfolioCurveRow]]:
     cost_rate = cost_bps / 10_000
@@ -239,7 +277,9 @@ def run_portfolio(
             data,
             prior_date,
             config,
-            eligible_tickers=_eligible_tickers(data, prior_date, eligibility),
+            eligible_tickers=_decision_eligible_tickers(
+                data, prior_date, eligibility, universe_membership
+            ),
         )
         pending_targets = dict(designated_targets)
 
@@ -345,7 +385,9 @@ def run_portfolio(
                 data,
                 current_date,
                 config,
-                eligible_tickers=_eligible_tickers(data, current_date, eligibility),
+                eligible_tickers=_decision_eligible_tickers(
+                    data, current_date, eligibility, universe_membership
+                ),
             )
             # A scheduled management rebalance must still run when the target
             # names/weights are unchanged, because market moves make the actual
@@ -704,6 +746,28 @@ def _eligible_tickers(
         if index is not None and signals is not None and index < len(signals) and signals[index] == 1:
             eligible.add(ticker)
     return eligible
+
+
+def _decision_eligible_tickers(
+    data: MarketData,
+    current_date: str,
+    strategy_eligibility: dict[str, list[int]] | None,
+    universe_membership: dict[str, set[str]] | None,
+) -> set[str] | None:
+    """Intersect the strategy signal with the universe known at this close.
+
+    ``universe_membership`` is deliberately applied only when a management
+    decision is made. Between rebalances the designated basket remains frozen,
+    while binary strategy exits/re-entries keep their existing next-open contract.
+    """
+
+    strategy_eligible = _eligible_tickers(data, current_date, strategy_eligibility)
+    if universe_membership is None:
+        return strategy_eligible
+    universe_eligible = set(universe_membership.get(current_date, set()))
+    if strategy_eligible is None:
+        return universe_eligible
+    return strategy_eligible.intersection(universe_eligible)
 
 
 def _target_weights(

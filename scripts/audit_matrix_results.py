@@ -165,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         "b3_strategy_lab/candles.py",
         "b3_strategy_lab/cli.py",
         "b3_strategy_lab/cotahist.py",
+        "b3_strategy_lab/point_in_time.py",
         "b3_strategy_lab/strategies.py",
         "b3_strategy_lab/extensions.py",
         "b3_strategy_lab/user_extensions.py",
@@ -176,22 +177,35 @@ def main(argv: list[str] | None = None) -> int:
         "b3_strategy_lab/trend_strategies.py",
         "b3_strategy_lab/portfolio_risk.py",
         "scripts/backtest_strategy_management_combinations.py",
+        "scripts/build_survivorship_safe_realistic_universe.py",
         "scripts/research_portfolio_allocation.py",
         "scripts/research_portfolio_allocation_core.py",
     }
     if manifest.get("sharded_execution") is True:
         required_source_hashes.add("scripts/merge_matrix_shards.py")
-    universe_path = Path(manifest["universe"]["manifest"])
+    universe_meta = manifest["universe"]
+    universe_path = Path(universe_meta["manifest"])
     universe_hash_matches = (
         universe_path.exists()
-        and _sha256(universe_path) == manifest["universe"]["sha256"]
+        and _sha256(universe_path) == universe_meta["sha256"]
+    )
+    snapshot_path = Path(str(universe_meta.get("snapshot_file", "")))
+    snapshot_hash_matches = (
+        universe_meta.get("point_in_time") is True
+        and universe_meta.get("survivorship_safe") is True
+        and snapshot_path.exists()
+        and _sha256(snapshot_path) == universe_meta.get("snapshot_sha256")
+    )
+    market_paths = manifest.get("market_data_paths")
+    if not isinstance(market_paths, dict):
+        market_paths = {}
+    data_dir = Path(str(market_paths.get("data_dir", "data/candles")))
+    split_evidence_path = Path(
+        str(market_paths.get("split_evidence", "data/corporate_actions/split_evidence.json"))
     )
     dataset_hashes_match = all(
-        (Path("data/candles") / f"{ticker.lower()}_{manifest['interval']}.csv").exists()
-        and _sha256(
-            Path("data/candles")
-            / f"{ticker.lower()}_{manifest['interval']}.csv"
-        )
+        (data_dir / f"{ticker.lower()}_{manifest['interval']}.csv").exists()
+        and _sha256(data_dir / f"{ticker.lower()}_{manifest['interval']}.csv")
         == values["candle_sha256"]
         for ticker, values in manifest["datasets"].items()
     )
@@ -200,9 +214,8 @@ def main(argv: list[str] | None = None) -> int:
     }
     split_evidence_hash_matches = (
         len(split_evidence_hashes) == 1
-        and Path("data/corporate_actions/split_evidence.json").exists()
-        and _sha256(Path("data/corporate_actions/split_evidence.json"))
-        == next(iter(split_evidence_hashes))
+        and split_evidence_path.exists()
+        and _sha256(split_evidence_path) == next(iter(split_evidence_hashes))
     )
 
     checks = {
@@ -290,6 +303,13 @@ def main(argv: list[str] | None = None) -> int:
             == "calculation_sources_and_workflows_excluding_hashed_market_data"
         ),
         "universe_hash_matches": universe_hash_matches,
+        "survivorship_safe_point_in_time_universe_is_enforced": (
+            universe_meta.get("survivorship_safe") is True
+            and universe_meta.get("point_in_time") is True
+            and manifest.get("universe_selection_policy")
+            == "latest_snapshot_at_or_before_decision_close_no_future_backfill"
+            and snapshot_hash_matches
+        ),
         "dataset_hashes_match": dataset_hashes_match,
         "split_evidence_hash_matches": split_evidence_hash_matches,
     }

@@ -131,16 +131,15 @@ class PortfolioCombinationTests(unittest.TestCase):
         )
         self.assertEqual(data.dates, ["2024-01-02", "2024-01-03"])
 
-    def test_default_universe_discloses_selection_and_survivorship_bias(self) -> None:
-        universe = _load_universe(DEFAULT_UNIVERSE_MANIFEST)
-
-        self.assertEqual(universe["selected_as_of"], "2018-01-02")
-        self.assertEqual(universe["warmup_start"], "2017-01-01")
-        self.assertFalse(universe["survivorship_safe"])
-        self.assertEqual(len(universe["tickers"]), 40)
-        self.assertEqual(len(universe["original_tickers"]), 10)
-        self.assertEqual(len(universe["added_tickers"]), 30)
-        self.assertTrue(set(universe["original_tickers"]).issubset(universe["tickers"]))
+    def test_default_universe_is_point_in_time_not_fixed_legacy(self) -> None:
+        self.assertEqual(
+            DEFAULT_UNIVERSE_MANIFEST,
+            Path("data/universes/point_in_time_union.json"),
+        )
+        self.assertNotEqual(
+            DEFAULT_UNIVERSE_MANIFEST,
+            Path("data/universes/fixed_40_2018.json"),
+        )
 
     def test_full_matrix_cli_does_not_advertise_unused_train_ratio(self) -> None:
         project_root = Path(__file__).resolve().parents[1]

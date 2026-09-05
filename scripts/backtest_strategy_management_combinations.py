@@ -43,7 +43,11 @@ DEFAULT_START = "2018-01-02"
 DEFAULT_REPORT = Path(
     "reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz"
 )
-DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_40_2018.json")
+DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/point_in_time_union.json")
+PIT_DATA_DIR = Path("data/candles_point_in_time")
+PIT_ACTIONS_DIR = Path("data/actions_point_in_time")
+PIT_MANIFESTS_DIR = Path("data/manifests_point_in_time")
+PIT_SPLIT_EVIDENCE = Path("data/corporate_actions/point_in_time_split_evidence.json")
 _WORKER_STATE: tuple | None = None
 
 
@@ -72,8 +76,12 @@ def main(argv: list[str] | None = None) -> int:
         "--universe-manifest",
         type=Path,
         default=DEFAULT_UNIVERSE_MANIFEST,
-        help="Manifesto que explicita data de selecao e vieses do universo.",
+        help="Manifesto survivorship-safe point-in-time com snapshots historicos.",
     )
+    parser.add_argument("--data-dir", type=Path, default=PIT_DATA_DIR)
+    parser.add_argument("--actions-dir", type=Path, default=PIT_ACTIONS_DIR)
+    parser.add_argument("--manifests-dir", type=Path, default=PIT_MANIFESTS_DIR)
+    parser.add_argument("--split-evidence", type=Path, default=PIT_SPLIT_EVIDENCE)
     parser.add_argument("--strategies", nargs="+", default=portfolio_strategies())
     parser.add_argument("--interval", default="1d")
     parser.add_argument("--start", default=DEFAULT_START)
@@ -143,17 +151,24 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Estrategias fora do catalogo: " + ", ".join(unknown))
 
     universe = _load_universe(args.universe_manifest)
-    manifest_tickers = [ticker.upper() for ticker in universe["tickers"]]
+    manifest_tickers = [str(ticker).upper() for ticker in universe["tickers"]]
     tickers = [ticker.upper() for ticker in (args.tickers or manifest_tickers)]
     if tickers != manifest_tickers:
         parser.error(
-            "--tickers diverge do --universe-manifest; forneca um manifesto proprio "
-            "para tornar a selecao reproduzivel."
+            "--tickers diverge da uniao historica do --universe-manifest; "
+            "o universo PIT nao pode ser sobrescrito silenciosamente."
         )
-    if start_date < date.fromisoformat(str(universe["selected_as_of"])):
+    selected_as_of = date.fromisoformat(str(universe["selected_as_of"]))
+    selection_end = date.fromisoformat(str(universe["selection_end"]))
+    if start_date < selected_as_of:
         parser.error(
-            f"--start nao pode anteceder selected_as_of={universe['selected_as_of']} "
-            "do universo fixo."
+            f"--start nao pode anteceder selected_as_of={selected_as_of.isoformat()} "
+            "do universo point-in-time."
+        )
+    if end_date is not None and end_date > selection_end:
+        parser.error(
+            f"--end nao pode exceder selection_end={selection_end.isoformat()} "
+            "do universo point-in-time."
         )
     data = MarketData(
         tickers,
@@ -162,13 +177,18 @@ def main(argv: list[str] | None = None) -> int:
         allow_unverified_data=args.allow_unverified_data,
         require_verified_splits_from=universe["warmup_start"],
         history_start=str(universe["warmup_start"]),
+        data_dir=args.data_dir,
+        actions_dir=args.actions_dir,
+        manifests_dir=args.manifests_dir,
+        split_evidence_path=args.split_evidence,
     )
-    end = args.end or min(data.candles[ticker][-1].date for ticker in tickers)
-    dates = [value for value in data.dates if args.start <= value <= end]
+    requested_end = args.end or selection_end.isoformat()
+    dates = [value for value in data.dates if args.start <= value <= requested_end]
     if len(dates) < 3:
-        raise ValueError("Periodo comum insuficiente para executar o backtest.")
+        raise ValueError("Periodo de mercado insuficiente para executar o backtest.")
     args.start = dates[0]
     end = dates[-1]
+    universe_membership = _load_point_in_time_membership(universe, data.dates)
 
     signals_by_strategy = _build_eligibility(
         data,
@@ -192,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
                     strategy,
                     signals_by_strategy[strategy],
                     strategy_parameters(strategy),
+                    universe_membership=universe_membership,
                     start=args.start,
                     end=end,
                     initial_cash=args.initial_cash,
@@ -205,6 +226,7 @@ def main(argv: list[str] | None = None) -> int:
         initargs = (
             data,
             configs,
+            universe_membership,
             args.start,
             end,
             args.initial_cash,
@@ -240,6 +262,7 @@ def main(argv: list[str] | None = None) -> int:
         data=data,
         configs=config_by_name,
         signals_by_strategy=signals_by_strategy,
+        universe_membership=universe_membership,
         start=args.start,
         end=end,
         initial_cash=args.initial_cash,
@@ -314,6 +337,7 @@ def _build_eligibility(
 def _initialize_worker(
     data: MarketData,
     configs: list[PortfolioConfig],
+    universe_membership: dict[str, set[str]],
     start: str,
     end: str,
     initial_cash: float,
@@ -325,6 +349,7 @@ def _initialize_worker(
     _WORKER_STATE = (
         data,
         configs,
+        universe_membership,
         start,
         end,
         initial_cash,
@@ -341,13 +366,24 @@ def _worker_strategy_rows(
 ) -> list[dict[str, object]]:
     if _WORKER_STATE is None:
         raise RuntimeError("Worker da matriz nao foi inicializado.")
-    data, configs, start, end, initial_cash, cost_bps, slippage_bps, lot_size = _WORKER_STATE
+    (
+        data,
+        configs,
+        universe_membership,
+        start,
+        end,
+        initial_cash,
+        cost_bps,
+        slippage_bps,
+        lot_size,
+    ) = _WORKER_STATE
     return _strategy_rows(
         data,
         configs,
         strategy,
         eligibility,
         params,
+        universe_membership=universe_membership,
         start=start,
         end=end,
         initial_cash=initial_cash,
@@ -364,6 +400,7 @@ def _strategy_rows(
     eligibility: dict[str, list[int]],
     params: dict[str, object],
     *,
+    universe_membership: dict[str, set[str]],
     start: str,
     end: str,
     initial_cash: float,
@@ -384,6 +421,7 @@ def _strategy_rows(
             slippage_bps=slippage_bps,
             lot_size=lot_size,
             eligibility=eligibility,
+            universe_membership=universe_membership,
             collect_curve=False,
         )
         rows.append(
@@ -433,6 +471,7 @@ def _top_annual_sections(
     data: MarketData,
     configs: dict[str, PortfolioConfig],
     signals_by_strategy: dict[str, dict[str, list[int]]],
+    universe_membership: dict[str, set[str]],
     start: str,
     end: str,
     initial_cash: float,
@@ -454,6 +493,7 @@ def _top_annual_sections(
             slippage_bps=slippage_bps,
             lot_size=lot_size,
             eligibility=signals_by_strategy[strategy],
+            universe_membership=universe_membership,
             collect_curve=True,
         )
         yearly = _yearly_returns(curve, initial_cash)
@@ -616,6 +656,12 @@ def _write_manifest(
             "b3_strategy_lab/cotahist.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/cotahist.py"
             ),
+            "b3_strategy_lab/point_in_time.py": _sha256_file(
+                PROJECT_ROOT / "b3_strategy_lab/point_in_time.py"
+            ),
+            "scripts/build_survivorship_safe_realistic_universe.py": _sha256_file(
+                PROJECT_ROOT / "scripts/build_survivorship_safe_realistic_universe.py"
+            ),
             "b3_strategy_lab/strategies.py": _sha256_file(
                 PROJECT_ROOT / "b3_strategy_lab/strategies.py"
             ),
@@ -662,10 +708,21 @@ def _write_manifest(
             "id": universe["id"],
             "selection_mode": universe["selection_mode"],
             "selected_as_of": universe["selected_as_of"],
+            "selection_end": universe["selection_end"],
             "warmup_start": universe["warmup_start"],
             "survivorship_safe": universe["survivorship_safe"],
+            "point_in_time": universe["point_in_time"],
+            "snapshot_file": universe["snapshot_file"],
+            "snapshot_sha256": _sha256_file(_snapshot_path(universe)),
             "bias_disclosure": universe["bias_disclosure"],
         },
+        "market_data_paths": {
+            "data_dir": str(args.data_dir),
+            "actions_dir": str(args.actions_dir),
+            "manifests_dir": str(args.manifests_dir),
+            "split_evidence": str(args.split_evidence),
+        },
+        "universe_selection_policy": "latest_snapshot_at_or_before_decision_close_no_future_backfill",
         "datasets": {
             ticker: {
                 "status": manifest.status,
@@ -727,7 +784,6 @@ def _write_manifest(
         "real_money_claim_allowed": False,
         "limitations": [
             "strategy_and_management_selected_on_the_same_full_period",
-            "fixed_universe_is_not_survivorship_safe",
             "dividends_and_jcp_excluded",
             "taxes_excluded",
             "standard_market_open_used_for_integer_share_research_execution",
@@ -742,6 +798,74 @@ def _write_manifest(
     print(f"Manifesto: {output}", flush=True)
 
 
+def _snapshot_path(universe: dict[str, object]) -> Path:
+    path = Path(str(universe["snapshot_file"]))
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _load_point_in_time_membership(
+    universe: dict[str, object],
+    market_dates: list[str],
+) -> dict[str, set[str]]:
+    path = _snapshot_path(universe)
+    if not path.exists():
+        raise FileNotFoundError(f"Snapshot point-in-time ausente: {path}")
+    selectable = {str(ticker).strip().upper() for ticker in universe["tickers"]}
+    rules = universe.get("selection_rules")
+    expected_size = int(rules.get("weekly_candidates", 0)) if isinstance(rules, dict) else 0
+    snapshots: dict[str, list[tuple[int, str]]] = {}
+    with path.open(encoding="utf-8", newline="") as source:
+        reader = csv.DictReader(source)
+        required = {"effective_date", "ticker", "rank"}
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            raise ValueError(f"Snapshot PIT sem colunas obrigatorias {sorted(required)}: {path}")
+        for row in reader:
+            effective_date = date.fromisoformat(str(row["effective_date"])).isoformat()
+            ticker = str(row["ticker"]).strip().upper()
+            rank = int(row["rank"])
+            if ticker not in selectable:
+                raise ValueError(f"Snapshot PIT contem ticker fora da uniao historica: {ticker}")
+            snapshots.setdefault(effective_date, []).append((rank, ticker))
+    if not snapshots:
+        raise ValueError("Snapshot point-in-time vazio.")
+    selection_end = str(universe["selection_end"])
+    selected_as_of = str(universe["selected_as_of"])
+    normalized: list[tuple[str, set[str]]] = []
+    for effective_date in sorted(snapshots):
+        if effective_date < selected_as_of or effective_date > selection_end:
+            raise ValueError(
+                f"Snapshot PIT fora da janela declarada: {effective_date} not in "
+                f"{selected_as_of}..{selection_end}"
+            )
+        rows = sorted(snapshots[effective_date])
+        ranks = [rank for rank, _ in rows]
+        tickers = [ticker for _, ticker in rows]
+        if len(set(tickers)) != len(tickers):
+            raise ValueError(f"Snapshot PIT possui ticker duplicado em {effective_date}.")
+        if ranks != list(range(1, len(rows) + 1)):
+            raise ValueError(f"Snapshot PIT possui ranking nao sequencial em {effective_date}.")
+        if expected_size and len(rows) != expected_size:
+            raise ValueError(
+                f"Snapshot PIT {effective_date} tem {len(rows)} ativos; esperado {expected_size}."
+            )
+        normalized.append((effective_date, set(tickers)))
+
+    membership: dict[str, set[str]] = {}
+    snapshot_index = 0
+    active: set[str] = set()
+    for market_date in sorted(market_dates):
+        while (
+            snapshot_index < len(normalized)
+            and normalized[snapshot_index][0] <= market_date
+        ):
+            active = set(normalized[snapshot_index][1])
+            snapshot_index += 1
+        # Deliberately empty before the first historical snapshot: a future
+        # composition must never be backfilled into earlier decisions.
+        membership[market_date] = set(active)
+    return membership
+
+
 def _load_universe(path: Path) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     required = {
@@ -749,45 +873,46 @@ def _load_universe(path: Path) -> dict[str, object]:
         "id",
         "selection_mode",
         "selected_as_of",
+        "selection_end",
         "warmup_start",
         "survivorship_safe",
+        "point_in_time",
+        "snapshot_file",
         "bias_disclosure",
+        "selection_rules",
         "tickers",
     }
     missing = sorted(required - payload.keys())
     if missing:
-        raise ValueError(f"Manifesto de universo incompleto: {missing}.")
-    if payload["schema_version"] not in {1, 2}:
-        raise ValueError("Schema de universo nao suportado.")
-    datetime.fromisoformat(str(payload["selected_as_of"]))
-    datetime.fromisoformat(str(payload["warmup_start"]))
-    tickers = payload["tickers"]
-    if not isinstance(tickers, list) or not tickers or len(tickers) != len(set(tickers)):
-        raise ValueError("Lista de tickers invalida no manifesto de universo.")
-    if payload["schema_version"] == 2:
-        original = payload.get("original_tickers")
-        added = payload.get("added_tickers")
-        if (
-            not isinstance(original, list)
-            or not isinstance(added, list)
-            or set(original).intersection(added)
-            or set(original).union(added) != set(tickers)
-        ):
-            raise ValueError(
-                "Composicao original_tickers + added_tickers invalida no manifesto "
-                "de universo. As listas precisam ser disjuntas e cobrir tickers."
-            )
-        if payload["selection_mode"] == (
-            "original_10_plus_30_by_2018_liquidity_and_continuous_coverage"
-        ) and (len(original) != 10 or len(added) != 30):
-            raise ValueError(
-                "O universo canonico original_10_plus_30 precisa conter exatamente "
-                "10 tickers originais e 30 adicionados."
-            )
-    if payload["survivorship_safe"] is not False:
+        raise ValueError(f"Manifesto de universo PIT incompleto: {missing}.")
+    if int(payload["schema_version"]) < 8:
+        raise ValueError("A matriz exige schema PIT >= 8; universo fixo legado foi desativado.")
+    if payload["survivorship_safe"] is not True or payload["point_in_time"] is not True:
         raise ValueError(
-            "Este universo fixo precisa declarar explicitamente survivorship_safe=false."
+            "A matriz de pesquisa exige survivorship_safe=true e point_in_time=true; "
+            "universos fixos retrospectivos nao sao mais aceitos."
         )
+    selected_as_of = date.fromisoformat(str(payload["selected_as_of"]))
+    selection_end = date.fromisoformat(str(payload["selection_end"]))
+    warmup_start = date.fromisoformat(str(payload["warmup_start"])[:10])
+    if warmup_start >= selected_as_of or selected_as_of > selection_end:
+        raise ValueError("Janela temporal invalida no manifesto PIT.")
+    tickers = [str(ticker).strip().upper() for ticker in payload["tickers"]]
+    if not tickers or len(tickers) != len(set(tickers)):
+        raise ValueError("Uniao historica de tickers invalida no manifesto PIT.")
+    payload["tickers"] = tickers
+    rules = payload["selection_rules"]
+    if not isinstance(rules, dict):
+        raise ValueError("selection_rules invalido no manifesto PIT.")
+    if rules.get("future_continuity_filter") is not False:
+        raise ValueError("O universo PIT nao pode exigir sobrevivencia/continuidade futura.")
+    if rules.get("future_return_filter") is not False:
+        raise ValueError("O universo PIT nao pode usar retornos futuros na selecao.")
+    if int(rules.get("weekly_candidates", 0)) <= 0:
+        raise ValueError("weekly_candidates precisa ser positivo no manifesto PIT.")
+    snapshot = _snapshot_path(payload)
+    if not snapshot.exists():
+        raise FileNotFoundError(f"Snapshot PIT declarado nao existe: {snapshot}")
     return payload
 
 

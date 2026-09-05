@@ -584,11 +584,48 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
 
     def test_serial_and_parallel_small_matrix_are_identical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            serial = Path(directory) / "serial.csv.gz"
-            parallel = Path(directory) / "parallel.csv.gz"
+            directory_path = Path(directory)
+            serial = directory_path / "serial.csv.gz"
+            parallel = directory_path / "parallel.csv.gz"
+            snapshot = directory_path / "pit_weekly.csv"
+            snapshot.write_text(
+                "effective_date,ticker,rank\n"
+                "2024-01-02,PETR4,1\n"
+                "2024-01-02,VALE3,2\n",
+                encoding="utf-8",
+            )
+            pit_manifest = directory_path / "pit_universe.json"
+            pit_manifest.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 8,
+                        "id": "parallel-determinism-pit-fixture",
+                        "selection_mode": "test_only_point_in_time_fixture",
+                        "selected_as_of": "2024-01-02",
+                        "selection_end": "2024-06-28",
+                        "warmup_start": "2017-01-01",
+                        "survivorship_safe": True,
+                        "point_in_time": True,
+                        "snapshot_file": str(snapshot),
+                        "bias_disclosure": "Synthetic unit-test fixture; not a research universe.",
+                        "selection_rules": {
+                            "weekly_candidates": 2,
+                            "future_continuity_filter": False,
+                            "future_return_filter": False,
+                        },
+                        "tickers": ["PETR4", "VALE3"],
+                    }
+                ),
+                encoding="utf-8",
+            )
             common = [
                 sys.executable,
                 "scripts/backtest_strategy_management_combinations.py",
+                "--universe-manifest", str(pit_manifest),
+                "--data-dir", "data/candles",
+                "--actions-dir", "data/corporate_actions",
+                "--manifests-dir", "data/manifests",
+                "--split-evidence", "data/corporate_actions/split_evidence.json",
                 "--strategies", "buy_and_hold", "gap_momentum",
                 "--config-set", "base",
                 "--start", "2024-01-02",
