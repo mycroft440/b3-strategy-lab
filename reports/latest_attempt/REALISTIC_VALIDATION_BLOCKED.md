@@ -1,0 +1,51 @@
+# Matriz de pesquisa aprovada; validação realista bloqueada
+
+{
+  "status": "RESEARCH_SUCCESS_REALISTIC_BLOCKED",
+  "generated_at_utc": "2026-09-05T17:29:38.716513+00:00",
+  "run_id": 33980001785,
+  "run_number": 238,
+  "workflow_sha": "92bb13ba9d4e5013429915e83de7ecc02ce0b8e8",
+  "calculation_sha": "92bb13ba9d4e5013429915e83de7ecc02ce0b8e8",
+  "source_sha_matches": true,
+  "jobs": {
+    "prepare": "success",
+    "announce": "success",
+    "backtest": "success",
+    "merge": "success",
+    "realistic_validation": "failure"
+  },
+  "strategy_count": 234,
+  "management_count": 478,
+  "combination_count": 111852,
+  "top_n": 10,
+  "research_ranking_ready": true,
+  "research_matrix_completed": true,
+  "research_matrix_real_money_ready": false,
+  "realistic_finalist_validation_ready": false,
+  "result_classification": "RETROSPECTIVE_PRICE_ONLY_RESEARCH",
+  "data_cutoff": "2026-08-19",
+  "data_freshness_reference_date": "2026-09-05",
+  "data_age_calendar_days": 17,
+  "data_is_recent": false,
+  "historical_cutoff_accepted": true,
+  "real_money_claim_allowed": false,
+  "counterfactual_execution_exact": false,
+  "ex_ante_selection_claim_allowed": false,
+  "universe_selection_bias_remaining": false,
+  "strategy_selection_bias_remaining": true,
+  "selection_bias_remaining": true,
+  "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
+  "verified_data_snapshot_included": true,
+  "verified_data_snapshot_paths": [
+    "data/candles",
+    "data/manifests",
+    "data/corporate_actions",
+    "data/universes/fixed_40_2018.json",
+    "data/quality_reviews.json"
+  ],
+  "research_matrix_path": "reports/latest_attempt/MATRIX.csv.gz",
+  "realistic_input_snapshot_path": null,
+  "realistic_input_snapshot_current_run": false,
+  "realistic_input_snapshot_reused": false
+}
