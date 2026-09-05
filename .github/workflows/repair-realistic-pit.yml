@@ -1,4 +1,4 @@
-name: Temporary PIT transition rebuild batch 5
+name: Temporary PIT transition rebuild final
 
 on:
   push:
@@ -24,19 +24,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply all source-backed transition repairs and validate full suite
+      - name: Apply source-backed transition repairs and final hardening
         run: |
           set -euo pipefail
           python scripts/_temporary_transition_review_batch6.py
           python scripts/_temporary_transition_review_batch6_post.py
           python scripts/_temporary_transition_review_batch7.py
+          python scripts/_temporary_final_hardening.py
           python -m json.tool data/corporate_actions/instrument_transition_reviews.json >/dev/null
           python -m py_compile \
+            b3_strategy_lab/cotahist.py \
             b3_strategy_lab/realistic_portfolio.py \
             scripts/_temporary_transition_review_batch6.py \
             scripts/_temporary_transition_review_batch6_post.py \
             scripts/_temporary_transition_review_batch7.py \
-            tests/test_instrument_transition_layer.py
+            scripts/_temporary_final_hardening.py \
+            tests/test_bdi58_goll4_regression.py \
+            tests/test_instrument_transition_layer.py \
+            tests/test_realistic_snapshot_certification_gate.py \
+            tests/test_hardened_backtest_performance_settings.py
           python -m unittest discover -s tests -v
           git diff --check
       - name: Rebuild point-in-time scope and require complete transition classification
@@ -76,8 +82,13 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             data/corporate_actions/instrument_transition_reviews.json \
+            b3_strategy_lab/cotahist.py \
             b3_strategy_lab/realistic_portfolio.py \
-            tests/test_instrument_transition_layer.py
+            .github/workflows/full-matrix-backtest-hardened.yml \
+            tests/test_bdi58_goll4_regression.py \
+            tests/test_instrument_transition_layer.py \
+            tests/test_realistic_snapshot_certification_gate.py \
+            tests/test_hardened_backtest_performance_settings.py
           git diff --cached --check
-          git commit -m 'fix: certify remaining PIT instrument transitions'
+          git commit -m 'fix: close PIT transition chain and harden publication gates'
           git push origin HEAD:fix/realistic-pit-integrity-20260904
