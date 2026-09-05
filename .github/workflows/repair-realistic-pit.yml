@@ -1,4 +1,4 @@
-name: Temporary publish validated PIT patch
+name: Temporary clean-tree PIT validator
 
 on:
   push:
@@ -8,65 +8,45 @@ on:
       - '.github/workflows/repair-realistic-pit.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  publish-validated-patch:
+  validate-clean-tree:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Reproduce validated production patch
+      - name: Verify repair harnesses are gone
         run: |
           set -euo pipefail
-          python scripts/_temporary_transition_review_batch6.py
-          python scripts/_temporary_transition_review_batch6_post.py
-          python scripts/_temporary_transition_review_batch7.py
-          python scripts/_temporary_final_hardening.py
-          python scripts/_temporary_final_test_contracts.py
+          if find scripts -maxdepth 1 -type f -name '_temporary_*' | grep -q .; then
+            echo '::error::temporary scripts remain in the branch'
+            find scripts -maxdepth 1 -type f -name '_temporary_*' -print
+            exit 1
+          fi
+          test ! -e .github/workflows/repair-publication-semantics.yml
+          test ! -e reports/_validated_full_matrix_backtest_hardened.yml
+          grep -q 'cancel-in-progress: false' .github/workflows/full-matrix-backtest-hardened.yml
+      - name: Validate final clean tree
+        run: |
+          set -euo pipefail
           python -m json.tool data/corporate_actions/instrument_transition_reviews.json >/dev/null
           python -m py_compile \
             b3_strategy_lab/cotahist.py \
+            b3_strategy_lab/instrument_transitions.py \
+            b3_strategy_lab/point_in_time.py \
+            b3_strategy_lab/realistic_core.py \
             b3_strategy_lab/realistic_portfolio.py \
-            tests/test_bdi58_goll4_regression.py \
-            tests/test_instrument_transition_layer.py \
-            tests/test_realistic_snapshot_certification_gate.py \
-            tests/test_hardened_backtest_performance_settings.py \
-            tests/test_hardened_workflow_snapshot_bootstrap.py \
-            tests/test_realistic_snapshot_reuse_window.py
+            b3_strategy_lab/realistic_portfolio_core.py \
+            scripts/build_cash_distribution_coverage_certification.py \
+            scripts/build_survivorship_safe_realistic_universe.py \
+            scripts/build_ticker_transitions.py \
+            scripts/sync_point_in_time_universe.py
           python -m unittest discover -s tests -v
           git diff --check
-      - name: Push non-workflow files and export validated workflow text
-        run: |
-          set -euo pipefail
-          mkdir -p reports
-          cp .github/workflows/full-matrix-backtest-hardened.yml reports/_validated_full_matrix_backtest_hardened.yml
-          git checkout -- .github/workflows/full-matrix-backtest-hardened.yml
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            data/corporate_actions/instrument_transition_reviews.json \
-            b3_strategy_lab/cotahist.py \
-            b3_strategy_lab/realistic_portfolio.py \
-            tests/test_bdi58_goll4_regression.py \
-            tests/test_instrument_transition_layer.py \
-            tests/test_realistic_snapshot_certification_gate.py \
-            tests/test_hardened_backtest_performance_settings.py \
-            tests/test_hardened_workflow_snapshot_bootstrap.py \
-            tests/test_realistic_snapshot_reuse_window.py \
-            reports/_validated_full_matrix_backtest_hardened.yml
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo 'No non-workflow patch changes to publish.'
-          else
-            git commit -m 'fix: close PIT transition chain and harden publication gates'
-            git push origin HEAD:fix/realistic-pit-integrity-20260904
-          fi
