@@ -13,6 +13,11 @@ _original_apply_split_from_adjustment_factors = _core._apply_split_from_adjustme
 
 def _apply_ticker_transitions(account, transitions) -> None:
     for transition in transitions:
+        # A source-reviewed corporate event is relevant to account economics only
+        # when the account actually carries the disappearing instrument across it.
+        # Unheld terminal/complex events must not poison unrelated portfolios.
+        if account.shares(transition.old_ticker) <= 0:
+            continue
         if not math.isclose(float(transition.cash_per_old_share), 0.0, abs_tol=1e-12):
             raise ValueError(
                 f"{transition.old_ticker}->{transition.new_ticker}: cash component is not "

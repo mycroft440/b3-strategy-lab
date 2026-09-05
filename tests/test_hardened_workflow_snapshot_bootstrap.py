@@ -11,7 +11,7 @@ class HardenedWorkflowSnapshotBootstrapTest(unittest.TestCase):
         cls.text = WORKFLOW.read_text(encoding="utf-8")
         marker = "- name: Resolver período e preparar dados point-in-time"
         start = cls.text.index(marker)
-        end = cls.text.index("- name: Exigir insumos realistas certificados", start)
+        end = cls.text.index("- name: Auditar prontidão realista e nível de certificação", start)
         cls.block = cls.text[start:end]
 
     def test_missing_snapshot_bootstraps_from_certified_builders(self):
@@ -34,7 +34,7 @@ class HardenedWorkflowSnapshotBootstrapTest(unittest.TestCase):
         self.assertIn('BUILD_REALISTIC_DATA=true', self.block)
 
     def test_bootstrap_does_not_bypass_certification_gate(self):
-        following = self.text[self.text.index("- name: Exigir insumos realistas certificados"):]
+        following = self.text[self.text.index("- name: Auditar prontidão realista e nível de certificação"):]
         self.assertIn('scripts/audit_realistic_backtest_inputs.py', following)
         self.assertIn('ready_for_certified_market_inputs', following)
         self.assertIn('sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz', following)

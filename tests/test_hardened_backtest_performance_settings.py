@@ -17,6 +17,11 @@ class HardenedBacktestPerformanceSettingsTests(unittest.TestCase):
         self.assertIn("max-parallel: 32", self.text)
         self.assertNotIn("max-parallel: 16", self.text)
 
+    def test_long_backtests_are_not_cancelled_by_new_pushes(self) -> None:
+        self.assertIn("cancel-in-progress: false", self.text)
+        self.assertNotIn("cancel-in-progress: true", self.text)
+
+
     def test_runner_cpu_cap_is_four_not_two(self) -> None:
         self.assertIn('if [ "$WORKERS" -gt 4 ]; then WORKERS=4; fi', self.text)
         self.assertNotIn('if [ "$WORKERS" -gt 2 ]; then WORKERS=2; fi', self.text)
@@ -47,7 +52,7 @@ class HardenedBacktestPerformanceSettingsTests(unittest.TestCase):
             "audit_volume_indicators.py",
             "audit_realistic_backtest_inputs.py",
             "sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256",
-            "Exigir aprovação realista retrospectiva",
+            "Exigir classificação final consistente",
         )
         for marker in required:
             with self.subTest(marker=marker):

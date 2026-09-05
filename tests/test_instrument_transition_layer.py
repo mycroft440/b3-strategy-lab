@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import unittest
 from collections import defaultdict
 from pathlib import Path
@@ -117,6 +118,132 @@ class InstrumentTransitionLayerTests(unittest.TestCase):
         account = self._account()
         transition = self._certified(cash_per_old_share=2.0)
         with self.assertRaisesRegex(ValueError, "cash component"):
+            _apply_ticker_transitions(account, [transition])
+
+
+    def test_unheld_terminal_unresolved_event_does_not_poison_unrelated_account(self) -> None:
+        account = self._account()
+        account.positions["OLD4"].shares = 0
+        account.positions["OLD4"].average_cost = 0.0
+        transition = self._certified(
+            new_ticker="",
+            new_isin="",
+            event_type="registration_cancelled",
+            fractional_treatment="not_applicable",
+            tax_basis_treatment="terminal_unresolved",
+            first_successor_trade_date="",
+            new_quotation_factor=1,
+        )
+        cash_before = account.cash
+        _apply_ticker_transitions(account, [transition])
+        self.assertAlmostEqual(account.cash, cash_before)
+
+    def test_held_terminal_unresolved_event_still_fails_closed(self) -> None:
+        account = self._account()
+        transition = self._certified(
+            new_ticker="",
+            new_isin="",
+            event_type="registration_cancelled",
+            fractional_treatment="not_applicable",
+            tax_basis_treatment="terminal_unresolved",
+            first_successor_trade_date="",
+            new_quotation_factor=1,
+        )
+        with self.assertRaisesRegex(ValueError, "terminal transition"):
+            _apply_ticker_transitions(account, [transition])
+
+    def test_transition_registry_covers_historical_disappearance_set(self) -> None:
+        reviews = load_transition_reviews(
+            Path("data/corporate_actions/instrument_transition_reviews.json")
+        )
+        by_old = {item.old_ticker: item for item in reviews}
+        required = {
+            "AZUL4", "BRML3", "CIEL3", "CPLE6", "CRFB3", "FIBR3", "GNDI3",
+            "GOLL54", "JBSS3", "KROT3", "LAME4", "NTCO3", "RRRP3", "SMLS3",
+        }
+        self.assertEqual(required - set(by_old), set())
+        self.assertEqual(by_old["AZUL4"].new_ticker, "AZUL54")
+        self.assertEqual(by_old["AZUL4"].new_quotation_factor, 10000)
+        self.assertTrue(math.isclose(by_old["FIBR3"].share_ratio, 0.4613))
+        self.assertTrue(math.isclose(by_old["GNDI3"].share_ratio, 5.2436))
+        self.assertTrue(math.isclose(by_old["LAME4"].share_ratio, 0.188964))
+        self.assertEqual(by_old["NTCO3"].new_ticker, "NATU3")
+        self.assertEqual(by_old["RRRP3"].new_ticker, "BRAV3")
+        for ticker in ("CIEL3", "CRFB3", "GOLL54", "JBSS3", "SMLS3"):
+            self.assertEqual(by_old[ticker].new_ticker, "")
+            self.assertEqual(by_old[ticker].tax_basis_treatment, "terminal_unresolved")
+
+
+    def test_final_chained_successors_are_source_bound(self) -> None:
+        reviews = load_transition_reviews(
+            Path("data/corporate_actions/instrument_transition_reviews.json")
+        )
+        by_old = {item.old_ticker: item for item in reviews}
+        self.assertEqual(by_old["ALSO3"].new_ticker, "ALOS3")
+        self.assertEqual(by_old["ALSO3"].share_ratio, 1.0)
+        self.assertEqual(by_old["AZUL54"].new_ticker, "AZUL53")
+        self.assertEqual(by_old["AZUL54"].share_ratio, 75.0)
+        self.assertEqual(by_old["AZUL54"].old_quotation_factor, 10000)
+        self.assertEqual(by_old["AZUL54"].new_quotation_factor, 1000000)
+        self.assertEqual(by_old["AZUL54"].effective_date, "2026-01-14")
+        self.assertEqual(by_old["AZUL54"].first_successor_trade_date, "2026-01-13")
+        self.assertEqual(by_old["AZUL53"].new_ticker, "AZUL3")
+        self.assertAlmostEqual(by_old["AZUL53"].share_ratio, 1.0 / 150000.0)
+        self.assertEqual(by_old["AZUL53"].old_isin, "BRAZULA01OR8")
+        self.assertEqual(by_old["AZUL53"].new_isin, "BRAZULACNOR7")
+        self.assertEqual(by_old["AZUL53"].first_successor_trade_date, "2026-04-20")
+
+    def test_azul54_to_azul53_preserves_total_basis(self) -> None:
+        account = self._account(shares=2, average_cost=75.0)
+        transition = self._certified(
+            effective_date="2026-01-14",
+            old_ticker="OLD4",
+            new_ticker="NEW54",
+            share_ratio=75.0,
+            old_quotation_factor=10000,
+            new_quotation_factor=1000000,
+            fractional_treatment="require_integer",
+            event_type="class_change",
+        )
+        _apply_ticker_transitions(account, [transition])
+        self.assertEqual(account.shares("NEW54"), 150)
+        self.assertAlmostEqual(account.positions["NEW54"].average_cost, 1.0)
+        self.assertAlmostEqual(
+            account.positions["NEW54"].shares * account.positions["NEW54"].average_cost,
+            150.0,
+        )
+
+    def test_azul53_grouping_preserves_basis_only_for_exact_multiple(self) -> None:
+        account = self._account(shares=300000, average_cost=0.001)
+        transition = self._certified(
+            effective_date="2026-04-20",
+            old_ticker="OLD4",
+            new_ticker="NEW3",
+            share_ratio=1.0 / 150000.0,
+            old_quotation_factor=1000000,
+            new_quotation_factor=1,
+            fractional_treatment="cash_in_lieu",
+            event_type="reorganization",
+        )
+        _apply_ticker_transitions(account, [transition])
+        self.assertEqual(account.shares("NEW3"), 2)
+        self.assertAlmostEqual(account.positions["NEW3"].average_cost, 150.0)
+        self.assertAlmostEqual(
+            account.positions["NEW3"].shares * account.positions["NEW3"].average_cost,
+            300.0,
+        )
+
+    def test_azul53_grouping_fraction_remains_fail_closed(self) -> None:
+        account = self._account(shares=100000, average_cost=0.001)
+        transition = self._certified(
+            effective_date="2026-04-20",
+            old_ticker="OLD4",
+            new_ticker="NEW3",
+            share_ratio=1.0 / 150000.0,
+            fractional_treatment="cash_in_lieu",
+            event_type="reorganization",
+        )
+        with self.assertRaisesRegex(ValueError, "cash-in-lieu"):
             _apply_ticker_transitions(account, [transition])
 
 

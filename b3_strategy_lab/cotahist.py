@@ -47,7 +47,7 @@ STANDARD_EQUITY_BDI_CODES = ("02", "05", "06", "07", "08", "09", "11")
 # separate so its acceptance remains conditional on share metadata below.
 SPECIAL_COMPANY_EQUITY_BDI_CODES = ("58",)
 COMPANY_EQUITY_BDI_CODES = STANDARD_EQUITY_BDI_CODES + SPECIAL_COMPANY_EQUITY_BDI_CODES
-_COMPANY_SHARE_TICKER_RE = re.compile(r"^[A-Z]{4}\d{1,2}$")
+_COMPANY_SHARE_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{3}\d{1,2}$")
 _COMPANY_SHARE_SPECIFICATIONS = ("ON", "PN")
 
 

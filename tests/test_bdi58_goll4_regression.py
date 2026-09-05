@@ -89,5 +89,21 @@ class Bdi58Goll4RegressionTests(unittest.TestCase):
         )
 
 
+    def test_bdi58_keeps_alphanumeric_company_share_root(self) -> None:
+        rows = [
+            _record(
+                day="2025-01-02",
+                bdi="58",
+                ticker="B3SA3",
+                spec="ON NM",
+                close=12.34,
+                isin="BRB3SAACNOR6",
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            quotes = read_standard_company_equity_cotahist(_archive(rows, Path(directory)))
+        self.assertEqual([(q.ticker, q.bdi_code) for q in quotes], [("B3SA3", "58")])
+
+
 if __name__ == "__main__":
     unittest.main()

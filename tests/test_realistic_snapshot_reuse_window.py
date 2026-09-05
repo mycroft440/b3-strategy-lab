@@ -12,7 +12,7 @@ class RealisticSnapshotReuseWindowTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         start = text.index("- name: Resolver período e preparar dados point-in-time")
-        end = text.index("- name: Exigir insumos realistas certificados", start)
+        end = text.index("- name: Auditar prontidão realista e nível de certificação", start)
         cls.block = text[start:end]
 
     def test_snapshot_matches_both_start_and_end_before_reuse(self) -> None:
