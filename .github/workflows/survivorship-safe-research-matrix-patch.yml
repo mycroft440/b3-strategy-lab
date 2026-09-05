@@ -1,0 +1,300 @@
+name: Test survivorship-safe research matrix integration
+
+on:
+  push:
+    branches:
+      - fix/survivorship-safe-research-matrix-20260905
+    paths:
+      - .github/workflows/survivorship-safe-research-matrix-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/survivorship-safe-research-matrix-20260905
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply point-in-time research-universe integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old[:100]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # ------------------------------------------------------------------
+          # Portfolio engine: keep strategy eligibility separate from the PIT
+          # universe membership used only at management decision dates.
+          # ------------------------------------------------------------------
+          core = 'scripts/research_portfolio_allocation_core.py'
+          replace_once(
+              core,
+              'from b3_strategy_lab.candles import DEFAULT_TICKERS, Candle, cache_path, load_candles  # noqa: E402\nfrom b3_strategy_lab.cotahist import load_verified_candles  # noqa: E402\n',
+              'from b3_strategy_lab.candles import (  # noqa: E402\n    DEFAULT_ACTIONS_DIR,\n    DEFAULT_DATA_DIR,\n    DEFAULT_TICKERS,\n    Candle,\n    cache_path,\n    load_candles,\n)\nfrom b3_strategy_lab.cotahist import (  # noqa: E402\n    DEFAULT_MANIFESTS_DIR,\n    DEFAULT_SPLIT_EVIDENCE_PATH,\n    load_verified_candles,\n)\n',
+          )
+          replace_once(
+              core,
+              '''        allow_unverified_data: bool = False,\n        require_verified_splits_from: str | None = None,\n        history_start: str | None = None,\n    ) -> None:\n        self.tickers = tickers\n        self.interval = interval\n        self.signal_mode = signal_mode\n''',
+              '''        allow_unverified_data: bool = False,\n        require_verified_splits_from: str | None = None,\n        history_start: str | None = None,\n        data_dir: Path | str = DEFAULT_DATA_DIR,\n        actions_dir: Path | str = DEFAULT_ACTIONS_DIR,\n        manifests_dir: Path | str = DEFAULT_MANIFESTS_DIR,\n        split_evidence_path: Path | str = DEFAULT_SPLIT_EVIDENCE_PATH,\n    ) -> None:\n        self.tickers = tickers\n        self.interval = interval\n        self.signal_mode = signal_mode\n        self.data_dir = Path(data_dir)\n        self.actions_dir = Path(actions_dir)\n        self.manifests_dir = Path(manifests_dir)\n        self.split_evidence_path = Path(split_evidence_path)\n''',
+          )
+          replace_once(
+              core,
+              '                candles = load_candles(cache_path(ticker, interval))\n',
+              '                candles = load_candles(cache_path(ticker, interval, self.data_dir))\n',
+          )
+          replace_once(
+              core,
+              '''                candles, manifest = load_verified_candles(\n                    ticker,\n                    interval,\n                    start=history_start,\n                    require_verified_splits_from=require_verified_splits_from,\n                )\n''',
+              '''                candles, manifest = load_verified_candles(\n                    ticker,\n                    interval,\n                    data_dir=self.data_dir,\n                    actions_dir=self.actions_dir,\n                    manifests_dir=self.manifests_dir,\n                    start=history_start,\n                    require_verified_splits_from=require_verified_splits_from,\n                    split_evidence_path=self.split_evidence_path,\n                )\n''',
+          )
+          replace_once(
+              core,
+              '''    lot_size: int = LOT_SIZE,\n    eligibility: dict[str, list[int]] | None = None,\n    collect_curve: bool = True,\n''',
+              '''    lot_size: int = LOT_SIZE,\n    eligibility: dict[str, list[int]] | None = None,\n    universe_membership: dict[str, set[str]] | None = None,\n    collect_curve: bool = True,\n''',
+          )
+          replace_once(
+              core,
+              '            eligible_tickers=_eligible_tickers(data, prior_date, eligibility),\n',
+              '            eligible_tickers=_decision_eligible_tickers(\n                data, prior_date, eligibility, universe_membership\n            ),\n',
+          )
+          replace_once(
+              core,
+              '                eligible_tickers=_eligible_tickers(data, current_date, eligibility),\n',
+              '                eligible_tickers=_decision_eligible_tickers(\n                    data, current_date, eligibility, universe_membership\n                ),\n',
+          )
+          replace_once(
+              core,
+              '''    return eligible\n\n\ndef _target_weights(\n''',
+              '''    return eligible\n\n\ndef _decision_eligible_tickers(\n    data: MarketData,\n    current_date: str,\n    strategy_eligibility: dict[str, list[int]] | None,\n    universe_membership: dict[str, set[str]] | None,\n) -> set[str] | None:\n    """Intersect the strategy signal with the universe known at this close.\n\n    ``universe_membership`` is deliberately applied only when a management\n    decision is made. Between rebalances the designated basket remains frozen,\n    while binary strategy exits/re-entries keep their existing next-open contract.\n    """\n\n    strategy_eligible = _eligible_tickers(data, current_date, strategy_eligibility)\n    if universe_membership is None:\n        return strategy_eligible\n    universe_eligible = set(universe_membership.get(current_date, set()))\n    if strategy_eligible is None:\n        return universe_eligible\n    return strategy_eligible.intersection(universe_eligible)\n\n\ndef _target_weights(\n''',
+          )
+
+          # ------------------------------------------------------------------
+          # Matrix driver: PIT universe is now mandatory/default. It reads the
+          # historical union from the manifest and forward-fills only snapshots
+          # already known at each decision date (never backwards from the future).
+          # ------------------------------------------------------------------
+          matrix = 'scripts/backtest_strategy_management_combinations.py'
+          replace_once(
+              matrix,
+              'DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/fixed_40_2018.json")\n',
+              '''DEFAULT_UNIVERSE_MANIFEST = Path("data/universes/point_in_time_union.json")\nPIT_DATA_DIR = Path("data/candles_point_in_time")\nPIT_ACTIONS_DIR = Path("data/actions_point_in_time")\nPIT_MANIFESTS_DIR = Path("data/manifests_point_in_time")\nPIT_SPLIT_EVIDENCE = Path("data/corporate_actions/point_in_time_split_evidence.json")\n''',
+          )
+          replace_once(
+              matrix,
+              '        help="Manifesto que explicita data de selecao e vieses do universo.",\n',
+              '        help="Manifesto survivorship-safe point-in-time com snapshots historicos.",\n',
+          )
+          old_universe_block = '''    universe = _load_universe(args.universe_manifest)\n    manifest_tickers = [ticker.upper() for ticker in universe["tickers"]]\n    tickers = [ticker.upper() for ticker in (args.tickers or manifest_tickers)]\n    if tickers != manifest_tickers:\n        parser.error(\n            "--tickers diverge do --universe-manifest; forneca um manifesto proprio "\n            "para tornar a selecao reproduzivel."\n        )\n    if start_date < date.fromisoformat(str(universe["selected_as_of"])):\n        parser.error(\n            f"--start nao pode anteceder selected_as_of={universe['selected_as_of']} "\n            "do universo fixo."\n        )\n    data = MarketData(\n        tickers,\n        args.interval,\n        args.signal_mode,\n        allow_unverified_data=args.allow_unverified_data,\n        require_verified_splits_from=universe["warmup_start"],\n        history_start=str(universe["warmup_start"]),\n    )\n    end = args.end or min(data.candles[ticker][-1].date for ticker in tickers)\n    dates = [value for value in data.dates if args.start <= value <= end]\n    if len(dates) < 3:\n        raise ValueError("Periodo comum insuficiente para executar o backtest.")\n    args.start = dates[0]\n    end = dates[-1]\n\n    signals_by_strategy = _build_eligibility(\n'''
+          new_universe_block = '''    universe = _load_universe(args.universe_manifest)\n    manifest_tickers = [str(ticker).upper() for ticker in universe["tickers"]]\n    tickers = [ticker.upper() for ticker in (args.tickers or manifest_tickers)]\n    if tickers != manifest_tickers:\n        parser.error(\n            "--tickers diverge da uniao historica do --universe-manifest; "\n            "o universo PIT nao pode ser sobrescrito silenciosamente."\n        )\n    selected_as_of = date.fromisoformat(str(universe["selected_as_of"]))\n    selection_end = date.fromisoformat(str(universe["selection_end"]))\n    if start_date < selected_as_of:\n        parser.error(\n            f"--start nao pode anteceder selected_as_of={selected_as_of.isoformat()} "\n            "do universo point-in-time."\n        )\n    if end_date is not None and end_date > selection_end:\n        parser.error(\n            f"--end nao pode exceder selection_end={selection_end.isoformat()} "\n            "do universo point-in-time."\n        )\n    data = MarketData(\n        tickers,\n        args.interval,\n        args.signal_mode,\n        allow_unverified_data=args.allow_unverified_data,\n        require_verified_splits_from=universe["warmup_start"],\n        history_start=str(universe["warmup_start"]),\n        data_dir=PIT_DATA_DIR,\n        actions_dir=PIT_ACTIONS_DIR,\n        manifests_dir=PIT_MANIFESTS_DIR,\n        split_evidence_path=PIT_SPLIT_EVIDENCE,\n    )\n    requested_end = args.end or selection_end.isoformat()\n    dates = [value for value in data.dates if args.start <= value <= requested_end]\n    if len(dates) < 3:\n        raise ValueError("Periodo de mercado insuficiente para executar o backtest.")\n    args.start = dates[0]\n    end = dates[-1]\n    universe_membership = _load_point_in_time_membership(universe, data.dates)\n\n    signals_by_strategy = _build_eligibility(\n'''
+          replace_once(matrix, old_universe_block, new_universe_block)
+
+          # Serial execution.
+          replace_once(
+              matrix,
+              '''                    signals_by_strategy[strategy],\n                    strategy_parameters(strategy),\n                    start=args.start,\n''',
+              '''                    signals_by_strategy[strategy],\n                    strategy_parameters(strategy),\n                    universe_membership=universe_membership,\n                    start=args.start,\n''',
+          )
+          # Worker initialization receives immutable snapshot mapping once.
+          replace_once(
+              matrix,
+              '''        initargs = (\n            data,\n            configs,\n            args.start,\n''',
+              '''        initargs = (\n            data,\n            configs,\n            universe_membership,\n            args.start,\n''',
+          )
+          # Top annual replay receives same membership.
+          replace_once(
+              matrix,
+              '''        signals_by_strategy=signals_by_strategy,\n        start=args.start,\n''',
+              '''        signals_by_strategy=signals_by_strategy,\n        universe_membership=universe_membership,\n        start=args.start,\n''',
+          )
+          # Worker signature/state.
+          replace_once(
+              matrix,
+              '''def _initialize_worker(\n    data: MarketData,\n    configs: list[PortfolioConfig],\n    start: str,\n''',
+              '''def _initialize_worker(\n    data: MarketData,\n    configs: list[PortfolioConfig],\n    universe_membership: dict[str, set[str]],\n    start: str,\n''',
+          )
+          replace_once(
+              matrix,
+              '''        data,\n        configs,\n        start,\n''',
+              '''        data,\n        configs,\n        universe_membership,\n        start,\n''',
+          )
+          replace_once(
+              matrix,
+              '''    data, configs, start, end, initial_cash, cost_bps, slippage_bps, lot_size = _WORKER_STATE\n    return _strategy_rows(\n''',
+              '''    (\n        data,\n        configs,\n        universe_membership,\n        start,\n        end,\n        initial_cash,\n        cost_bps,\n        slippage_bps,\n        lot_size,\n    ) = _WORKER_STATE\n    return _strategy_rows(\n''',
+          )
+          replace_once(
+              matrix,
+              '''        eligibility,\n        params,\n        start=start,\n''',
+              '''        eligibility,\n        params,\n        universe_membership=universe_membership,\n        start=start,\n''',
+          )
+          # Strategy-row function and portfolio call.
+          replace_once(
+              matrix,
+              '''    params: dict[str, object],\n    *,\n    start: str,\n''',
+              '''    params: dict[str, object],\n    *,\n    universe_membership: dict[str, set[str]],\n    start: str,\n''',
+          )
+          replace_once(
+              matrix,
+              '''            eligibility=eligibility,\n            collect_curve=False,\n''',
+              '''            eligibility=eligibility,\n            universe_membership=universe_membership,\n            collect_curve=False,\n''',
+          )
+          # Annual replay signature/call.
+          replace_once(
+              matrix,
+              '''    signals_by_strategy: dict[str, dict[str, list[int]]],\n    start: str,\n''',
+              '''    signals_by_strategy: dict[str, dict[str, list[int]]],\n    universe_membership: dict[str, set[str]],\n    start: str,\n''',
+          )
+          replace_once(
+              matrix,
+              '''            eligibility=signals_by_strategy[strategy],\n            collect_curve=True,\n''',
+              '''            eligibility=signals_by_strategy[strategy],\n            universe_membership=universe_membership,\n            collect_curve=True,\n''',
+          )
+
+          # Source hashes and explicit PIT metadata in matrix manifest.
+          replace_once(
+              matrix,
+              '''            "b3_strategy_lab/cotahist.py": _sha256_file(\n                PROJECT_ROOT / "b3_strategy_lab/cotahist.py"\n            ),\n''',
+              '''            "b3_strategy_lab/cotahist.py": _sha256_file(\n                PROJECT_ROOT / "b3_strategy_lab/cotahist.py"\n            ),\n            "b3_strategy_lab/point_in_time.py": _sha256_file(\n                PROJECT_ROOT / "b3_strategy_lab/point_in_time.py"\n            ),\n            "scripts/build_survivorship_safe_realistic_universe.py": _sha256_file(\n                PROJECT_ROOT / "scripts/build_survivorship_safe_realistic_universe.py"\n            ),\n''',
+          )
+          old_manifest_universe = '''        "universe": {\n            "manifest": str(args.universe_manifest),\n            "sha256": _sha256_file(args.universe_manifest),\n            "id": universe["id"],\n            "selection_mode": universe["selection_mode"],\n            "selected_as_of": universe["selected_as_of"],\n            "warmup_start": universe["warmup_start"],\n            "survivorship_safe": universe["survivorship_safe"],\n            "bias_disclosure": universe["bias_disclosure"],\n        },\n'''
+          new_manifest_universe = '''        "universe": {\n            "manifest": str(args.universe_manifest),\n            "sha256": _sha256_file(args.universe_manifest),\n            "id": universe["id"],\n            "selection_mode": universe["selection_mode"],\n            "selected_as_of": universe["selected_as_of"],\n            "selection_end": universe["selection_end"],\n            "warmup_start": universe["warmup_start"],\n            "survivorship_safe": universe["survivorship_safe"],\n            "point_in_time": universe["point_in_time"],\n            "snapshot_file": universe["snapshot_file"],\n            "snapshot_sha256": _sha256_file(_snapshot_path(universe)),\n            "bias_disclosure": universe["bias_disclosure"],\n        },\n        "market_data_paths": {\n            "data_dir": str(PIT_DATA_DIR),\n            "actions_dir": str(PIT_ACTIONS_DIR),\n            "manifests_dir": str(PIT_MANIFESTS_DIR),\n            "split_evidence": str(PIT_SPLIT_EVIDENCE),\n        },\n        "universe_selection_policy": "latest_snapshot_at_or_before_decision_close_no_future_backfill",\n'''
+          replace_once(matrix, old_manifest_universe, new_manifest_universe)
+          replace_once(
+              matrix,
+              '''            "strategy_and_management_selected_on_the_same_full_period",\n            "fixed_universe_is_not_survivorship_safe",\n            "dividends_and_jcp_excluded",\n''',
+              '''            "strategy_and_management_selected_on_the_same_full_period",\n            "dividends_and_jcp_excluded",\n''',
+          )
+
+          # Replace the legacy fixed-universe loader with strict PIT validation +
+          # a causal snapshot expander.
+          text = Path(matrix).read_text(encoding='utf-8')
+          pattern = re.compile(r'def _load_universe\(path: Path\) -> dict\[str, object\]:\n.*?\n\ndef _git_state\(\)', re.S)
+          match = pattern.search(text)
+          if not match:
+              raise SystemExit('matrix: _load_universe block not found')
+          replacement = '''def _snapshot_path(universe: dict[str, object]) -> Path:\n    path = Path(str(universe["snapshot_file"]))\n    return path if path.is_absolute() else PROJECT_ROOT / path\n\n\ndef _load_point_in_time_membership(\n    universe: dict[str, object],\n    market_dates: list[str],\n) -> dict[str, set[str]]:\n    path = _snapshot_path(universe)\n    if not path.exists():\n        raise FileNotFoundError(f"Snapshot point-in-time ausente: {path}")\n    selectable = {str(ticker).strip().upper() for ticker in universe["tickers"]}\n    rules = universe.get("selection_rules")\n    expected_size = int(rules.get("weekly_candidates", 0)) if isinstance(rules, dict) else 0\n    snapshots: dict[str, list[tuple[int, str]]] = {}\n    with path.open(encoding="utf-8", newline="") as source:\n        reader = csv.DictReader(source)\n        required = {"effective_date", "ticker", "rank"}\n        if reader.fieldnames is None or not required.issubset(reader.fieldnames):\n            raise ValueError(f"Snapshot PIT sem colunas obrigatorias {sorted(required)}: {path}")\n        for row in reader:\n            effective_date = date.fromisoformat(str(row["effective_date"])).isoformat()\n            ticker = str(row["ticker"]).strip().upper()\n            rank = int(row["rank"])\n            if ticker not in selectable:\n                raise ValueError(f"Snapshot PIT contem ticker fora da uniao historica: {ticker}")\n            snapshots.setdefault(effective_date, []).append((rank, ticker))\n    if not snapshots:\n        raise ValueError("Snapshot point-in-time vazio.")\n    selection_end = str(universe["selection_end"])\n    selected_as_of = str(universe["selected_as_of"])\n    normalized: list[tuple[str, set[str]]] = []\n    for effective_date in sorted(snapshots):\n        if effective_date < selected_as_of or effective_date > selection_end:\n            raise ValueError(\n                f"Snapshot PIT fora da janela declarada: {effective_date} not in "\n                f"{selected_as_of}..{selection_end}"\n            )\n        rows = sorted(snapshots[effective_date])\n        ranks = [rank for rank, _ in rows]\n        tickers = [ticker for _, ticker in rows]\n        if len(set(tickers)) != len(tickers):\n            raise ValueError(f"Snapshot PIT possui ticker duplicado em {effective_date}.")\n        if ranks != list(range(1, len(rows) + 1)):\n            raise ValueError(f"Snapshot PIT possui ranking nao sequencial em {effective_date}.")\n        if expected_size and len(rows) != expected_size:\n            raise ValueError(\n                f"Snapshot PIT {effective_date} tem {len(rows)} ativos; esperado {expected_size}."\n            )\n        normalized.append((effective_date, set(tickers)))\n\n    membership: dict[str, set[str]] = {}\n    snapshot_index = 0\n    active: set[str] = set()\n    for market_date in sorted(market_dates):\n        while (\n            snapshot_index < len(normalized)\n            and normalized[snapshot_index][0] <= market_date\n        ):\n            active = set(normalized[snapshot_index][1])\n            snapshot_index += 1\n        # Deliberately empty before the first historical snapshot: a future\n        # composition must never be backfilled into earlier decisions.\n        membership[market_date] = set(active)\n    return membership\n\n\ndef _load_universe(path: Path) -> dict[str, object]:\n    payload = json.loads(path.read_text(encoding="utf-8"))\n    required = {\n        "schema_version",\n        "id",\n        "selection_mode",\n        "selected_as_of",\n        "selection_end",\n        "warmup_start",\n        "survivorship_safe",\n        "point_in_time",\n        "snapshot_file",\n        "bias_disclosure",\n        "selection_rules",\n        "tickers",\n    }\n    missing = sorted(required - payload.keys())\n    if missing:\n        raise ValueError(f"Manifesto de universo PIT incompleto: {missing}.")\n    if int(payload["schema_version"]) < 8:\n        raise ValueError("A matriz exige schema PIT >= 8; universo fixo legado foi desativado.")\n    if payload["survivorship_safe"] is not True or payload["point_in_time"] is not True:\n        raise ValueError(\n            "A matriz de pesquisa exige survivorship_safe=true e point_in_time=true; "\n            "universos fixos retrospectivos nao sao mais aceitos."\n        )\n    selected_as_of = date.fromisoformat(str(payload["selected_as_of"]))\n    selection_end = date.fromisoformat(str(payload["selection_end"]))\n    warmup_start = date.fromisoformat(str(payload["warmup_start"])[:10])\n    if warmup_start >= selected_as_of or selected_as_of > selection_end:\n        raise ValueError("Janela temporal invalida no manifesto PIT.")\n    tickers = [str(ticker).strip().upper() for ticker in payload["tickers"]]\n    if not tickers or len(tickers) != len(set(tickers)):\n        raise ValueError("Uniao historica de tickers invalida no manifesto PIT.")\n    payload["tickers"] = tickers\n    rules = payload["selection_rules"]\n    if not isinstance(rules, dict):\n        raise ValueError("selection_rules invalido no manifesto PIT.")\n    if rules.get("future_continuity_filter") is not False:\n        raise ValueError("O universo PIT nao pode exigir sobrevivencia/continuidade futura.")\n    if rules.get("future_return_filter") is not False:\n        raise ValueError("O universo PIT nao pode usar retornos futuros na selecao.")\n    if int(rules.get("weekly_candidates", 0)) <= 0:\n        raise ValueError("weekly_candidates precisa ser positivo no manifesto PIT.")\n    snapshot = _snapshot_path(payload)\n    if not snapshot.exists():\n        raise FileNotFoundError(f"Snapshot PIT declarado nao existe: {snapshot}")\n    return payload\n\n\ndef _git_state()'''
+          text = text[:match.start()] + replacement + text[match.end():]
+          Path(matrix).write_text(text, encoding='utf-8')
+
+          # ------------------------------------------------------------------
+          # Auditor: validate the same PIT files/dataset roots actually consumed
+          # by the matrix, and make survivorship-safe PIT a research-readiness gate.
+          # ------------------------------------------------------------------
+          audit = 'scripts/audit_matrix_results.py'
+          replace_once(
+              audit,
+              '''        "b3_strategy_lab/cotahist.py",\n        "b3_strategy_lab/strategies.py",\n''',
+              '''        "b3_strategy_lab/cotahist.py",\n        "b3_strategy_lab/point_in_time.py",\n        "b3_strategy_lab/strategies.py",\n''',
+          )
+          replace_once(
+              audit,
+              '''        "scripts/backtest_strategy_management_combinations.py",\n        "scripts/research_portfolio_allocation.py",\n''',
+              '''        "scripts/backtest_strategy_management_combinations.py",\n        "scripts/build_survivorship_safe_realistic_universe.py",\n        "scripts/research_portfolio_allocation.py",\n''',
+          )
+          old_audit_paths = '''    universe_path = Path(manifest["universe"]["manifest"])\n    universe_hash_matches = (\n        universe_path.exists()\n        and _sha256(universe_path) == manifest["universe"]["sha256"]\n    )\n    dataset_hashes_match = all(\n        (Path("data/candles") / f"{ticker.lower()}_{manifest['interval']}.csv").exists()\n        and _sha256(\n            Path("data/candles")\n            / f"{ticker.lower()}_{manifest['interval']}.csv"\n        )\n        == values["candle_sha256"]\n        for ticker, values in manifest["datasets"].items()\n    )\n    split_evidence_hashes = {\n        values["split_evidence_sha256"] for values in manifest["datasets"].values()\n    }\n    split_evidence_hash_matches = (\n        len(split_evidence_hashes) == 1\n        and Path("data/corporate_actions/split_evidence.json").exists()\n        and _sha256(Path("data/corporate_actions/split_evidence.json"))\n        == next(iter(split_evidence_hashes))\n    )\n'''
+          new_audit_paths = '''    universe_meta = manifest["universe"]\n    universe_path = Path(universe_meta["manifest"])\n    universe_hash_matches = (\n        universe_path.exists()\n        and _sha256(universe_path) == universe_meta["sha256"]\n    )\n    snapshot_path = Path(str(universe_meta.get("snapshot_file", "")))\n    snapshot_hash_matches = (\n        universe_meta.get("point_in_time") is True\n        and universe_meta.get("survivorship_safe") is True\n        and snapshot_path.exists()\n        and _sha256(snapshot_path) == universe_meta.get("snapshot_sha256")\n    )\n    market_paths = manifest.get("market_data_paths")\n    if not isinstance(market_paths, dict):\n        market_paths = {}\n    data_dir = Path(str(market_paths.get("data_dir", "data/candles")))\n    split_evidence_path = Path(\n        str(market_paths.get("split_evidence", "data/corporate_actions/split_evidence.json"))\n    )\n    dataset_hashes_match = all(\n        (data_dir / f"{ticker.lower()}_{manifest['interval']}.csv").exists()\n        and _sha256(data_dir / f"{ticker.lower()}_{manifest['interval']}.csv")\n        == values["candle_sha256"]\n        for ticker, values in manifest["datasets"].items()\n    )\n    split_evidence_hashes = {\n        values["split_evidence_sha256"] for values in manifest["datasets"].values()\n    }\n    split_evidence_hash_matches = (\n        len(split_evidence_hashes) == 1\n        and split_evidence_path.exists()\n        and _sha256(split_evidence_path) == next(iter(split_evidence_hashes))\n    )\n'''
+          replace_once(audit, old_audit_paths, new_audit_paths)
+          replace_once(
+              audit,
+              '''        "universe_hash_matches": universe_hash_matches,\n        "dataset_hashes_match": dataset_hashes_match,\n''',
+              '''        "universe_hash_matches": universe_hash_matches,\n        "survivorship_safe_point_in_time_universe_is_enforced": (\n            universe_meta.get("survivorship_safe") is True\n            and universe_meta.get("point_in_time") is True\n            and manifest.get("universe_selection_policy")\n            == "latest_snapshot_at_or_before_decision_close_no_future_backfill"\n            and snapshot_hash_matches\n        ),\n        "dataset_hashes_match": dataset_hashes_match,\n''',
+          )
+
+          # Shard merge must also prove all workers used identical PIT inputs.
+          merge = 'scripts/merge_matrix_shards.py'
+          replace_once(
+              merge,
+              '''        "universe",\n        "datasets",\n        "tickers",\n''',
+              '''        "universe",\n        "market_data_paths",\n        "universe_selection_policy",\n        "datasets",\n        "tickers",\n''',
+          )
+
+          # ------------------------------------------------------------------
+          # Hardened workflow: build/sync PIT data BEFORE retrospective research,
+          # distribute those exact inputs to every shard, and pass the PIT manifest.
+          # ------------------------------------------------------------------
+          workflow = '.github/workflows/full-matrix-backtest-hardened.yml'
+          replace_once(
+              workflow,
+              '      - "data/universes/fixed_40_2018.json"\n',
+              '      - "data/universes/**"\n',
+          )
+          anchor = '''      - name: Validar dados verificados\n        run: |\n'''
+          pit_step = '''      - name: Construir universo histórico point-in-time para a pesquisa\n        env:\n          START_DATE: ${{ inputs.start || '2018-01-02' }}\n        run: |\n          set -euo pipefail\n          START_YEAR="${START_DATE:0:4}"\n          END_YEAR="${SYNC_END:0:4}"\n          SOURCE_YEARS="$((10#$START_YEAR - 1)):$((10#$END_YEAR))"\n          python scripts/build_survivorship_safe_realistic_universe.py \\\n            --start "$START_DATE" \\\n            --end "$SYNC_END" \\\n            --years "$SOURCE_YEARS" \\\n            --download\n          python scripts/build_ticker_transitions.py \\\n            --years "$SOURCE_YEARS" \\\n            --download\n          python scripts/sync_point_in_time_universe_realistic.py \\\n            --years "$SOURCE_YEARS" \\\n            --download \\\n            --refresh-actions\n\n'''
+          replace_once(workflow, anchor, pit_step + anchor)
+          replace_once(
+              workflow,
+              '''            data/corporate_actions\n            data/universes/fixed_40_2018.json\n            data/quality_reviews.json\n''',
+              '''            data/corporate_actions\n            data/candles_point_in_time\n            data/actions_point_in_time\n            data/manifests_point_in_time\n            data/universes/point_in_time_union.json\n            data/universes/point_in_time_weekly.csv\n            data/quality_reviews.json\n''',
+          )
+          replace_once(
+              workflow,
+              '''            --strategies "${STRATEGY_ARGS[@]}"\n            --start "$START_DATE"\n''',
+              '''            --strategies "${STRATEGY_ARGS[@]}"\n            --universe-manifest data/universes/point_in_time_union.json\n            --start "$START_DATE"\n''',
+          )
+
+          # ------------------------------------------------------------------
+          # Regression tests: no future backfill, strict manifest, intersection,
+          # and workflow contract.
+          # ------------------------------------------------------------------
+          Path('tests/test_survivorship_safe_research_matrix.py').write_text(
+              '''from __future__ import annotations\n\nimport csv\nimport json\nimport tempfile\nfrom pathlib import Path\n\nimport pytest\n\nfrom scripts import backtest_strategy_management_combinations as matrix\nfrom scripts import research_portfolio_allocation_core as core\n\n\ndef _pit_fixture(directory: Path) -> tuple[Path, Path]:\n    snapshots = directory / "weekly.csv"\n    with snapshots.open("w", encoding="utf-8", newline="") as file:\n        writer = csv.DictWriter(file, fieldnames=["effective_date", "ticker", "rank"])\n        writer.writeheader()\n        writer.writerows(\n            [\n                {"effective_date": "2020-01-03", "ticker": "AAA3", "rank": 1},\n                {"effective_date": "2020-01-03", "ticker": "BBB4", "rank": 2},\n                {"effective_date": "2020-01-10", "ticker": "BBB4", "rank": 1},\n                {"effective_date": "2020-01-10", "ticker": "CCC3", "rank": 2},\n            ]\n        )\n    manifest = directory / "universe.json"\n    manifest.write_text(\n        json.dumps(\n            {\n                "schema_version": 8,\n                "id": "test-pit",\n                "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",\n                "selected_as_of": "2020-01-01",\n                "selection_end": "2020-01-31",\n                "warmup_start": "2019-01-01",\n                "survivorship_safe": True,\n                "point_in_time": True,\n                "snapshot_file": str(snapshots),\n                "bias_disclosure": "test",\n                "selection_rules": {\n                    "weekly_candidates": 2,\n                    "future_continuity_filter": False,\n                    "future_return_filter": False,\n                },\n                "tickers": ["AAA3", "BBB4", "CCC3"],\n            }\n        ),\n        encoding="utf-8",\n    )\n    return manifest, snapshots\n\n\ndef test_pit_membership_never_backfills_a_future_snapshot() -> None:\n    with tempfile.TemporaryDirectory() as tmp:\n        manifest_path, _ = _pit_fixture(Path(tmp))\n        universe = matrix._load_universe(manifest_path)\n        dates = ["2020-01-02", "2020-01-03", "2020-01-06", "2020-01-10", "2020-01-13"]\n        membership = matrix._load_point_in_time_membership(universe, dates)\n\n    assert membership["2020-01-02"] == set()\n    assert membership["2020-01-03"] == {"AAA3", "BBB4"}\n    assert membership["2020-01-06"] == {"AAA3", "BBB4"}\n    assert membership["2020-01-10"] == {"BBB4", "CCC3"}\n    assert membership["2020-01-13"] == {"BBB4", "CCC3"}\n\n\ndef test_fixed_retrospective_universe_is_rejected() -> None:\n    with tempfile.TemporaryDirectory() as tmp:\n        path = Path(tmp) / "fixed.json"\n        path.write_text(\n            json.dumps(\n                {\n                    "schema_version": 2,\n                    "id": "legacy",\n                    "selection_mode": "legacy",\n                    "selected_as_of": "2018-01-02",\n                    "warmup_start": "2017-01-01",\n                    "survivorship_safe": False,\n                    "bias_disclosure": "legacy",\n                    "tickers": ["AAA3"],\n                }\n            ),\n            encoding="utf-8",\n        )\n        with pytest.raises(ValueError, match="PIT|point_in_time|survivorship"):\n            matrix._load_universe(path)\n\n\ndef test_management_decision_intersects_signal_and_pit_universe() -> None:\n    class Data:\n        tickers = ["AAA3", "BBB4", "CCC3"]\n        index_by_date = {\n            "AAA3": {"2020-01-03": 0},\n            "BBB4": {"2020-01-03": 0},\n            "CCC3": {"2020-01-03": 0},\n        }\n\n    signals = {"AAA3": [1], "BBB4": [0], "CCC3": [1]}\n    universe = {"2020-01-03": {"AAA3", "BBB4"}}\n    assert core._decision_eligible_tickers(\n        Data(), "2020-01-03", signals, universe\n    ) == {"AAA3"}\n\n\ndef test_hardened_matrix_workflow_builds_and_passes_pit_universe() -> None:\n    text = Path(".github/workflows/full-matrix-backtest-hardened.yml").read_text(encoding="utf-8")\n    assert "build_survivorship_safe_realistic_universe.py" in text\n    assert "sync_point_in_time_universe_realistic.py" in text\n    assert "--universe-manifest data/universes/point_in_time_union.json" in text\n    assert "data/candles_point_in_time" in text\n    assert matrix.DEFAULT_UNIVERSE_MANIFEST == Path("data/universes/point_in_time_union.json")\n''',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Compile changed critical modules
+        run: |
+          python -m py_compile \
+            scripts/research_portfolio_allocation_core.py \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/audit_matrix_results.py \
+            scripts/merge_matrix_shards.py
+
+      - name: Install pytest
+        run: python -m pip install pytest
+
+      - name: Run focused survivorship-safe tests
+        run: |
+          python -m pytest -q \
+            tests/test_survivorship_safe_research_matrix.py \
+            tests/test_point_in_time_cotahist.py \
+            tests/test_survivorship_safe_continuity_horizon.py \
+            tests/test_portfolio_allocation.py \
+            tests/test_matrix_reports.py
+
+      - name: Run full test suite
+        run: python -m pytest -q
+
+      - name: Squash tested changes and fast-forward main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git rm .github/workflows/survivorship-safe-research-matrix-patch.yml
+          git add scripts/research_portfolio_allocation_core.py \
+                  scripts/backtest_strategy_management_combinations.py \
+                  scripts/audit_matrix_results.py \
+                  scripts/merge_matrix_shards.py \
+                  .github/workflows/full-matrix-backtest-hardened.yml \
+                  tests/test_survivorship_safe_research_matrix.py
+          git reset --soft origin/main
+          git commit -m "fix: use survivorship-safe point-in-time research universe [skip ci]"
+          git push origin HEAD:main
