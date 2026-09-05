@@ -1,0 +1,893 @@
+name: Full matrix backtest — research + realistic validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: Data inicial do backteste
+        required: true
+        default: "2018-01-02"
+        type: string
+      end:
+        description: Data final (vazio = cutoff certificado versionado)
+        required: false
+        default: ""
+        type: string
+      refresh_data:
+        # Explicit manual refresh remains available as refresh_data=true.
+        description: Tentar atualizar fontes B3 antes da execução
+        required: false
+        default: false
+        type: boolean
+      initial_cash:
+        description: Capital inicial em reais
+        required: true
+        default: "1000"
+        type: string
+      cost_bps:
+        description: Custo por ordem em bps na triagem retrospectiva
+        required: true
+        default: "3.2"
+        type: string
+      slippage_bps:
+        description: Slippage em bps na triagem retrospectiva
+        required: true
+        default: "10"
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/full-matrix-backtest-hardened.yml"
+      - "b3_strategy_lab/**"
+      - "scripts/**"
+      - "data/candles/**"
+      - "data/manifests/**"
+      - "data/corporate_actions/**"
+      - "data/universes/**"
+      - "data/quality_reviews.json"
+      - "data/fees/**"
+      - "tests/**"
+
+run-name: "Backtest 100k+ — triagem + validação realista"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: backtest-results-publication
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  SHARD_COUNT: "32"
+  TOP_N: "10"
+
+jobs:
+  prepare:
+    name: Validar e preparar shards
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.shards.outputs.matrix }}
+      strategy_count: ${{ steps.shards.outputs.strategy_count }}
+      management_count: ${{ steps.shards.outputs.management_count }}
+      combination_count: ${{ steps.shards.outputs.combination_count }}
+      certified_end: ${{ steps.cutoff.outputs.certified_end }}
+      sync_end: ${{ steps.cutoff.outputs.sync_end }}
+      refresh_data: ${{ steps.cutoff.outputs.refresh_data }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compilar módulos críticos
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/causal_liquidity.py \
+            b3_strategy_lab/extended_strategies.py \
+            b3_strategy_lab/research_indicators.py \
+            b3_strategy_lab/indicator_strategies.py \
+            b3_strategy_lab/trend_strategies.py \
+            b3_strategy_lab/portfolio_risk.py \
+            b3_strategy_lab/realistic_portfolio.py \
+            b3_strategy_lab/realistic_portfolio_core.py \
+            scripts/backtest_strategy_management_combinations.py \
+            scripts/research_portfolio_allocation.py \
+            scripts/research_portfolio_allocation_core.py \
+            scripts/merge_matrix_shards.py \
+            scripts/audit_matrix_results.py \
+            scripts/audit_backtest_integrity.py \
+            scripts/audit_backtest_readiness.py \
+            scripts/sync_official_universe.py \
+            scripts/backtest_strategy_management_realistic.py \
+            scripts/validate_matrix_top_realistic.py \
+            scripts/validate_matrix_top_realistic_core.py \
+            scripts/walk_forward_realistic.py \
+            scripts/walk_forward_certified.py \
+            scripts/run_realistic_pipeline.py \
+            b3_strategy_lab/ex_ante_validation.py \
+            scripts/audit_point_in_time_validation.py \
+            scripts/freeze_ex_ante_candidate.py \
+            scripts/certify_ex_ante_holdout.py
+
+      - name: Executar suíte completa antes da matriz
+        run: python -m unittest discover -s tests -v
+
+      - name: Resolver cutoff oficial reproduzível
+        id: cutoff
+        env:
+          REQUESTED_END: ${{ inputs.end || '' }}
+          REQUEST_REFRESH: ${{ inputs.refresh_data || false }}
+        run: |
+          set -euo pipefail
+          CERTIFIED_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          from b3_strategy_lab.cotahist import load_verified_candles
+
+          universe = json.loads(Path("data/universes/fixed_40_2018.json").read_text())
+          coverage_start = str(universe["warmup_start"])
+          ends = []
+          for ticker in universe["tickers"]:
+              candles, _manifest = load_verified_candles(
+                  str(ticker),
+                  "1d",
+                  require_verified_splits_from=coverage_start,
+              )
+              ends.append(candles[-1].date)
+          print(min(ends))
+          PY
+          )"
+          SYNC_END="$CERTIFIED_END"
+          REFRESH_DATA=false
+          if [ "$REQUEST_REFRESH" = "true" ]; then
+            REFRESH_DATA=true
+            SYNC_END="${REQUESTED_END:-$(date -u -d 'yesterday' +%F)}"
+          elif [ -n "$REQUESTED_END" ] && [[ "$REQUESTED_END" > "$CERTIFIED_END" ]]; then
+            REFRESH_DATA=true
+            SYNC_END="$REQUESTED_END"
+          elif [ -n "$REQUESTED_END" ]; then
+            SYNC_END="$REQUESTED_END"
+          fi
+          python - "$SYNC_END" <<'PY'
+          import sys
+          from datetime import date
+
+          value = date.fromisoformat(sys.argv[1])
+          if value >= date.today():
+              raise SystemExit("cutoff precisa ser anterior ao dia corrente")
+          PY
+          echo "CERTIFIED_END=$CERTIFIED_END" >> "$GITHUB_ENV"
+          echo "SYNC_END=$SYNC_END" >> "$GITHUB_ENV"
+          echo "REFRESH_DATA=$REFRESH_DATA" >> "$GITHUB_ENV"
+          echo "certified_end=$CERTIFIED_END" >> "$GITHUB_OUTPUT"
+          echo "sync_end=$SYNC_END" >> "$GITHUB_OUTPUT"
+          echo "refresh_data=$REFRESH_DATA" >> "$GITHUB_OUTPUT"
+
+      - name: Atualizar dados oficiais da B3
+        run: |
+          if [ "$REFRESH_DATA" != "true" ]; then
+            echo "Usando snapshot certificado versionado ate $CERTIFIED_END."
+            exit 0
+          fi
+          END_YEAR="${SYNC_END:0:4}"
+          python scripts/sync_official_universe.py \
+            --years "2017:${END_YEAR}" \
+            --end "$SYNC_END" \
+            --download \
+            --refresh-current \
+            --refresh-actions \
+            --refresh-selection
+
+      - name: Construir universo histórico point-in-time para a pesquisa
+        env:
+          START_DATE: ${{ inputs.start || '2018-01-02' }}
+        run: |
+          set -euo pipefail
+          START_YEAR="${START_DATE:0:4}"
+          END_YEAR="${SYNC_END:0:4}"
+          SOURCE_YEARS="$((10#$START_YEAR - 1)):$((10#$END_YEAR))"
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start "$START_DATE" \
+            --end "$SYNC_END" \
+            --years "$SOURCE_YEARS" \
+            --download
+          python scripts/build_ticker_transitions.py \
+            --years "$SOURCE_YEARS" \
+            --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" \
+            --download \
+            --refresh-actions
+
+      - name: Validar dados verificados
+        run: |
+          python -m b3_strategy_lab verify-data --interval 1d
+          if [ "$REFRESH_DATA" = "true" ]; then
+            python scripts/audit_backtest_readiness.py --max-age-calendar-days 4
+          else
+            python scripts/audit_backtest_readiness.py \
+              --max-age-calendar-days 4 \
+              --expected-end "$CERTIFIED_END" \
+              --allow-historical-cutoff
+          fi
+          python scripts/audit_backtest_integrity.py --start 2018-01-01
+          python scripts/audit_volume_indicators.py
+
+      - name: Montar matriz de shards
+        id: shards
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          from b3_strategy_lab.strategies import portfolio_strategies
+          from scripts.research_portfolio_allocation import _configs
+
+          strategies = list(portfolio_strategies())
+          shard_count = int(os.environ["SHARD_COUNT"])
+          shards = []
+          for index in range(shard_count):
+              subset = strategies[index::shard_count]
+              if subset:
+                  shards.append({
+                      "index": index,
+                      "strategies": " ".join(subset),
+                      "strategy_count": len(subset),
+                  })
+          management_count = len(_configs("adjusted", "all"))
+          print("matrix=" + json.dumps({"include": shards}, separators=(",", ":")))
+          print(f"strategy_count={len(strategies)}")
+          print(f"management_count={management_count}")
+          print(f"combination_count={len(strategies) * management_count}")
+          PY
+
+      - name: Compartilhar auditoria de cutoff e atualidade
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-readiness-${{ github.run_id }}
+          path: reports/backtest_data_audit_40.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Compartilhar dados verificados com os shards
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: |
+            data/candles
+            data/manifests
+            data/corporate_actions
+            data/execution
+            data/candles_point_in_time
+            data/actions_point_in_time
+            data/manifests_point_in_time
+            data/universes/point_in_time_union.json
+            data/universes/point_in_time_weekly.csv
+            data/quality_reviews.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+
+  announce:
+    name: Registrar execução atual
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publicar RUNNING em backtest-results
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
+          MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
+          COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
+        run: |
+          set -euo pipefail
+          git fetch origin backtest-results:refs/remotes/origin/backtest-results
+          rm -rf reports/latest_attempt previous-certified-snapshot
+          mkdir -p reports/latest_attempt previous-certified-snapshot
+          SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
+          CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
+          snapshot_exists=false
+          checksum_exists=false
+          git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null && snapshot_exists=true
+          git cat-file -e "origin/backtest-results:${CHECKSUM}" 2>/dev/null && checksum_exists=true
+          if [ "$snapshot_exists" != "$checksum_exists" ]; then
+            echo "::error::snapshot/checksum realista assimétricos em backtest-results"
+            exit 1
+          fi
+          if [ "$snapshot_exists" = "true" ]; then
+            git show "origin/backtest-results:${SNAPSHOT}"               > previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            git show "origin/backtest-results:${CHECKSUM}"               > previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256
+            (
+              cd previous-certified-snapshot
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+          fi
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          payload = {
+              "status": "RUNNING",
+              "stage": "retrospective_research_screen",
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "workflow_sha": os.environ["WORKFLOW_SHA"],
+              "strategy_count": int(os.environ["STRATEGY_COUNT"]),
+              "management_count": int(os.environ["MANAGEMENT_COUNT"]),
+              "combination_count": int(os.environ["COMBINATION_COUNT"]),
+              "top_n": 10,
+              "real_money_claim_allowed": False,
+          }
+          Path("reports/latest_attempt/STATUS.json").write_text(
+              json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- reports/latest_attempt
+          git commit -m "Backtest ${RUN_NUMBER}: running [skip ci]"
+          git push --force origin HEAD:backtest-results
+
+  backtest:
+    name: "Shard ${{ matrix.index }} — ${{ matrix.strategy_count }} estratégias"
+    needs: [prepare, announce]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 32
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Baixar dados verificados desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Executar shard de pesquisa
+        env:
+          STRATEGIES: ${{ matrix.strategies }}
+          SHARD_INDEX: ${{ matrix.index }}
+          START_DATE: ${{ inputs.start || '2018-01-02' }}
+          END_DATE: ${{ inputs.end || '' }}
+          INITIAL_CASH: ${{ inputs.initial_cash || '1000' }}
+          COST_BPS: ${{ inputs.cost_bps || '3.2' }}
+          SLIPPAGE_BPS: ${{ inputs.slippage_bps || '10' }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/shards
+          read -r -a STRATEGY_ARGS <<< "$STRATEGIES"
+          WORKERS="$(nproc)"
+          if [ "$WORKERS" -gt 4 ]; then WORKERS=4; fi
+          CMD=(
+            python scripts/backtest_strategy_management_combinations.py
+            --strategies "${STRATEGY_ARGS[@]}"
+            --universe-manifest data/universes/point_in_time_union.json
+            --start "$START_DATE"
+            --initial-cash "$INITIAL_CASH"
+            --cost-bps "$COST_BPS"
+            --slippage-bps "$SLIPPAGE_BPS"
+            --lot-size 1
+            --top "$TOP_N"
+            --workers "$WORKERS"
+            --output "reports/shards/shard_${SHARD_INDEX}.csv.gz"
+          )
+          if [ -n "$END_DATE" ]; then CMD+=(--end "$END_DATE"); fi
+          "${CMD[@]}"
+
+      - name: Publicar shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-shard-${{ matrix.index }}
+          path: |
+            reports/shards/shard_${{ matrix.index }}.csv.gz
+            reports/shards/shard_${{ matrix.index }}.manifest.json
+            reports/shards/shard_${{ matrix.index }}_top10_annual.md
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  merge:
+    name: Consolidar e auditar triagem 100k+
+    needs: [prepare, backtest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Baixar dados verificados desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Baixar todos os shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: matrix-shard-*
+          path: reports/shards
+          merge-multiple: true
+
+      - name: Consolidar shortlist retrospectiva
+        run: |
+          python scripts/merge_matrix_shards.py \
+            --input-dir reports/shards \
+            --top "$TOP_N" \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --summary-output reports/TOP_10.md \
+            --json-output reports/TOP_10.json
+
+      - name: Auditar resultado de pesquisa
+        run: |
+          python scripts/audit_matrix_results.py \
+            --results reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --annual-report reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
+            --output reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+
+      - name: Exibir shortlist de pesquisa
+        run: cat reports/TOP_10.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar artifact da triagem
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
+          path: |
+            reports/TOP_10.md
+            reports/TOP_10.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  realistic_validation:
+    name: Auditar PIT e congelar candidato prospectivo
+    needs: [prepare, merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      snapshot_ready: ${{ steps.realistic_snapshot.outputs.ready || 'false' }}
+      pit_ready: ${{ steps.pit_audit.outputs.ready || 'false' }}
+      freeze_ready: ${{ steps.freeze.outputs.ready || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Baixar matriz de pesquisa
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
+          path: research-artifact
+
+      - name: Baixar snapshot PIT produzido nesta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Preparar artefatos da seleção
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          cp research-artifact/TOP_10.json reports/TOP_10.json
+          cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json
+
+      - name: Auditar informação point-in-time de forma fail-closed
+        id: pit_audit
+        run: |
+          set -euo pipefail
+          PERIOD_START="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("reports/TOP_10.json").read_text())
+          print(payload["period"]["start"])
+          PY
+          )"
+          PERIOD_END="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("reports/TOP_10.json").read_text())
+          print(payload["period"]["end"])
+          PY
+          )"
+          set +e
+          python scripts/audit_point_in_time_validation.py \
+            --start "$PERIOD_START" \
+            --end "$PERIOD_END" \
+            --output reports/POINT_IN_TIME_VALIDATION.json
+          PIT_RC=$?
+          set -e
+          if [ "$PIT_RC" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$PIT_RC" -eq 2 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::point-in-time validation is blocked; no candidate will be frozen"
+          else
+            echo "::error::point-in-time audit crashed with exit code $PIT_RC"
+            exit "$PIT_RC"
+          fi
+
+      - name: Congelar rank 1 somente para validação futura
+        id: freeze
+        if: ${{ steps.pit_audit.outputs.ready == 'true' }}
+        run: |
+          set -euo pipefail
+          python scripts/freeze_ex_ante_candidate.py \
+            --candidates reports/TOP_10.json \
+            --matrix-manifest reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            --pit-audit reports/POINT_IN_TIME_VALIDATION.json \
+            --output reports/FROZEN_CANDIDATE.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          frozen = json.loads(Path("reports/FROZEN_CANDIDATE.json").read_text())
+          assert frozen["status"] == "PROSPECTIVE_FROZEN_PENDING"
+          assert frozen["fallback_candidate_allowed"] is False
+          assert frozen["future_result_may_change_candidate"] is False
+          assert frozen["historical_holdout_claim_allowed"] is False
+          assert frozen["validated_winner_available"] is False
+          PY
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Empacotar snapshot exato dos insumos PIT do congelamento
+        id: realistic_snapshot
+        if: ${{ steps.pit_audit.outputs.ready == 'true' && steps.freeze.outputs.ready == 'true' }}
+        run: |
+          set -euo pipefail
+          tar \
+            --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 --group=0 --numeric-owner \
+            -czf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz \
+            data/candles_point_in_time \
+            data/actions_point_in_time \
+            data/manifests_point_in_time \
+            data/universes/point_in_time_union.json \
+            data/universes/point_in_time_weekly.csv \
+            data/execution/b3_standard_fractional_open.csv \
+            data/corporate_actions/point_in_time_cash_distributions.csv \
+            data/corporate_actions/point_in_time_cash_distributions.manifest.json \
+            data/corporate_actions/cash_distribution_coverage_certification.json \
+            data/corporate_actions/point_in_time_split_evidence.json \
+            data/corporate_actions/ticker_transitions.csv \
+            data/corporate_actions/ticker_transitions.manifest.json \
+            data/fees/b3_equity_fee_schedule.json
+          (
+            cd reports
+            sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz > REALISTIC_INPUT_SNAPSHOT.sha256
+          )
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar auditoria PIT e congelamento prospectivo
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
+          path: |
+            reports/POINT_IN_TIME_VALIDATION.json
+            reports/FROZEN_CANDIDATE.json
+            reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            reports/REALISTIC_INPUT_SNAPSHOT.sha256
+          if-no-files-found: warn
+          retention-days: 90
+
+  publish:
+    name: Publicar resultado verificável
+    needs: [prepare, announce, backtest, merge, realistic_validation]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar triagem retrospectiva
+        if: ${{ needs.merge.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-research-top10-${{ github.run_number }}
+          path: research-artifact
+
+      - name: Baixar validação realista
+        if: ${{ needs.realistic_validation.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
+          path: realistic-artifact
+
+      - name: Validar checksum do snapshot realista
+        if: ${{ needs.realistic_validation.outputs.snapshot_ready == 'true' }}
+        run: |
+          (
+            cd realistic-artifact
+            sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+          )
+
+      - name: Baixar snapshot exato dos dados verificados
+        if: ${{ needs.prepare.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Baixar auditoria atual de cutoff e atualidade
+        if: ${{ needs.prepare.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: backtest-readiness-${{ github.run_id }}
+          path: readiness-artifact
+
+      - name: Revalidar triagem contra o snapshot que será publicado
+        if: ${{ needs.merge.result == 'success' }}
+        run: |
+          python scripts/audit_matrix_results.py \
+            --results research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz \
+            --manifest research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            --annual-report research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
+            --output research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
+
+      - name: Montar status final sem promover vencedor in-sample
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          ANNOUNCE_RESULT: ${{ needs.announce.result }}
+          BACKTEST_RESULT: ${{ needs.backtest.result }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          REALISTIC_RESULT: ${{ needs.realistic_validation.result }}
+          REALISTIC_SNAPSHOT_READY: ${{ needs.realistic_validation.outputs.snapshot_ready || 'false' }}
+          PIT_READY: ${{ needs.realistic_validation.outputs.pit_ready || 'false' }}
+          FREEZE_READY: ${{ needs.realistic_validation.outputs.freeze_ready || 'false' }}
+          STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
+          MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
+          COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
+        run: |
+          set -euo pipefail
+          rm -rf reports/latest_attempt
+          mkdir -p reports/latest_attempt
+          if [ "$PREPARE_RESULT" = "success" ]; then
+            cp readiness-artifact/backtest_data_audit_40.json reports/backtest_data_audit_40.json
+            cp readiness-artifact/backtest_data_audit_40.json reports/latest_attempt/DATA_READINESS.json
+          fi
+          if [ "$MERGE_RESULT" = "success" ]; then
+            cp research-artifact/TOP_10.md reports/latest_attempt/RESEARCH_TOP_10.md
+            cp research-artifact/TOP_10.json reports/latest_attempt/RESEARCH_TOP_10.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_attempt/AUDIT.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_attempt/MANIFEST.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_attempt/RESEARCH_TOP_10_ANNUAL.md
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_attempt/MATRIX.csv.gz
+          fi
+          if [ -d realistic-artifact ]; then
+            if [ -f realistic-artifact/POINT_IN_TIME_VALIDATION.json ]; then
+              cp realistic-artifact/POINT_IN_TIME_VALIDATION.json reports/latest_attempt/POINT_IN_TIME_VALIDATION.json
+            fi
+            if [ -f realistic-artifact/FROZEN_CANDIDATE.json ]; then
+              cp realistic-artifact/FROZEN_CANDIDATE.json reports/latest_attempt/FROZEN_CANDIDATE.json
+            fi
+          fi
+          REALISTIC_SNAPSHOT_PUBLISHED=false
+          if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
+            (
+              cd reports/latest_attempt
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+            REALISTIC_SNAPSHOT_PUBLISHED=true
+          fi
+          export REALISTIC_SNAPSHOT_PUBLISHED
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          latest = Path("reports/latest_attempt")
+          def read(name):
+              path = latest / name
+              return json.loads(path.read_text()) if path.exists() else None
+          audit = read("AUDIT.json")
+          manifest = read("MANIFEST.json")
+          readiness = read("DATA_READINESS.json")
+          pit = read("POINT_IN_TIME_VALIDATION.json")
+          frozen = read("FROZEN_CANDIDATE.json")
+          research_ok = bool(audit and audit.get("ready_for_research_ranking") is True)
+          research_jobs_ok = all(os.environ[name] == "success" for name in (
+              "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT"
+          ))
+          source_matches = bool(manifest and manifest.get("git_commit") == os.environ["WORKFLOW_SHA"])
+          pit_ok = bool(
+              pit
+              and pit.get("status") == "PASS"
+              and pit.get("point_in_time_validation_complete") is True
+              and pit.get("strict_signal_information_claim_allowed") is True
+              and pit.get("cash_announcement_timing_certified") is True
+              and pit.get("ticker_transition_binding_verified") is True
+          )
+          freeze_ok = bool(
+              frozen
+              and frozen.get("status") == "PROSPECTIVE_FROZEN_PENDING"
+              and frozen.get("fallback_candidate_allowed") is False
+              and frozen.get("future_result_may_change_candidate") is False
+              and frozen.get("historical_holdout_claim_allowed") is False
+              and frozen.get("validated_winner_available") is False
+              and manifest
+              and frozen.get("information_cutoff") == manifest.get("end")
+          )
+          gates_ok = (
+              research_jobs_ok and research_ok and source_matches
+              and os.environ["REALISTIC_RESULT"] == "success"
+          )
+          if gates_ok and pit_ok and freeze_ok:
+              status = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN"
+          elif research_jobs_ok and research_ok and source_matches:
+              status = "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED"
+          else:
+              status = "FAILED"
+          payload = {
+              "status": status,
+              "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+              "run_id": int(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "workflow_sha": os.environ["WORKFLOW_SHA"],
+              "calculation_sha": manifest.get("git_commit") if manifest else None,
+              "source_sha_matches": source_matches,
+              "jobs": {
+                  "prepare": os.environ["PREPARE_RESULT"],
+                  "announce": os.environ["ANNOUNCE_RESULT"],
+                  "backtest": os.environ["BACKTEST_RESULT"],
+                  "merge": os.environ["MERGE_RESULT"],
+                  "point_in_time_and_freeze": os.environ["REALISTIC_RESULT"],
+              },
+              "strategy_count": int(manifest.get("strategy_count", 0)) if manifest else int(os.environ.get("STRATEGY_COUNT") or 0),
+              "management_count": int(manifest.get("management_count", 0)) if manifest else int(os.environ.get("MANAGEMENT_COUNT") or 0),
+              "combination_count": int(manifest.get("combinations", 0)) if manifest else int(os.environ.get("COMBINATION_COUNT") or 0),
+              "research_ranking_ready": research_ok,
+              "research_matrix_completed": bool(research_jobs_ok and research_ok and source_matches),
+              "point_in_time_validation_complete": pit_ok,
+              "prospective_candidate_frozen": freeze_ok,
+              "validated_winner_available": False,
+              "in_sample_winner_claim_allowed": False,
+              "ex_ante_selection_claim_allowed": False,
+              "prospective_validation_pending": freeze_ok,
+              "data_snooping_control_active": freeze_ok,
+              "data_snooping_control": (
+                  "wall_clock_prospective_freeze_no_historical_holdout_retrocertification"
+                  if freeze_ok else None
+              ),
+              "formal_multiple_testing_significance_claim_allowed": False,
+              "retrospective_ranking_selection_bias_remaining": True,
+              "real_money_claim_allowed": False,
+              "counterfactual_execution_exact": False,
+              "universe_selection_bias_remaining": False if pit_ok else None,
+              "candidate": frozen.get("candidate") if frozen else None,
+              "information_cutoff": frozen.get("information_cutoff") if frozen else None,
+              "frozen_at_utc": frozen.get("frozen_at_utc") if frozen else None,
+              "prospective_validation_must_start_after": (
+                  frozen.get("prospective_validation_must_start_after") if frozen else None
+              ),
+              "result_classification": (
+                  "PROSPECTIVE_CANDIDATE_FROZEN_PENDING_VALIDATION"
+                  if status == "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN"
+                  else "POINT_IN_TIME_VALIDATION_BLOCKED"
+                  if status == "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED"
+                  else "FAILED"
+              ),
+              "data_cutoff": readiness.get("evaluation_end") if readiness else None,
+              "realistic_input_snapshot_path": (
+                  "reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz"
+                  if os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true" else None
+              ),
+          }
+          (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+          if status == "FAILED":
+              (latest / "FAILURE.md").write_text("# Backtest não aprovado\n\n" + json.dumps(payload, indent=2) + "\n")
+          elif status == "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED":
+              (latest / "POINT_IN_TIME_VALIDATION_BLOCKED.md").write_text(
+                  "# Pesquisa concluída; validação point-in-time bloqueada\n\n"
+                  + json.dumps(payload, indent=2) + "\n"
+              )
+          PY
+
+      - name: Publicar tentativa e freeze sem fabricar certificado retrospectivo
+        env:
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          STATUS="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          print(json.loads(Path("reports/latest_attempt/STATUS.json").read_text())["status"])
+          PY
+          )"
+          rm -rf reports/.latest_attempt_staging
+          cp -a reports/latest_attempt reports/.latest_attempt_staging
+          rm -rf reports/latest_attempt
+          mv reports/.latest_attempt_staging reports/latest_attempt
+
+          # A prospective freeze is durable evidence, but it is deliberately not a
+          # validated performance certificate. latest_certified remains untouched.
+          if [ "$STATUS" = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN" ]; then
+            test -f reports/latest_attempt/FROZEN_CANDIDATE.json
+            test -f reports/latest_attempt/POINT_IN_TIME_VALIDATION.json
+            test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
+            rm -rf reports/.latest_freeze_staging
+            cp -a reports/latest_attempt reports/.latest_freeze_staging
+            rm -rf reports/latest_freeze
+            mv reports/.latest_freeze_staging reports/latest_freeze
+          fi
+
+          git add -A -- reports/latest_attempt
+          if [ "$STATUS" = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN" ]; then
+            git add -A -- reports/latest_freeze
+          fi
+          if [ "$PREPARE_RESULT" = "success" ]; then
+            git add -- \
+              reports/backtest_data_audit_40.json \
+              data/candles \
+              data/manifests \
+              data/corporate_actions \
+              data/candles_point_in_time \
+              data/actions_point_in_time \
+              data/manifests_point_in_time \
+              data/universes/point_in_time_union.json \
+              data/universes/point_in_time_weekly.csv \
+              data/quality_reviews.json
+          fi
+          git commit -m "Backtest ${{ github.run_number }}: publish research/PIT freeze [skip ci]"
+          git push --force origin HEAD:backtest-results
+
+      - name: Exigir classificação final consistente
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path("reports/latest_attempt/STATUS.json").read_text())
+          allowed = {
+              "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN",
+              "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED",
+          }
+          if status["status"] not in allowed:
+              raise SystemExit("full matrix publication failed its integrity classification")
+          if status["status"] == "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN":
+              assert status["point_in_time_validation_complete"] is True
+              assert status["prospective_candidate_frozen"] is True
+              assert status["validated_winner_available"] is False
+              assert status["in_sample_winner_claim_allowed"] is False
+          print("final classification:", status["status"])
+          PY
