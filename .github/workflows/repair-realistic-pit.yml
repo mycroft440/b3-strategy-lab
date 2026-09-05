@@ -1,4 +1,4 @@
-name: Temporary PIT transition rebuild batch 2
+name: Temporary PIT transition rebuild batch 3
 
 on:
   push:
@@ -59,4 +59,6 @@ jobs:
           print('TRANSITION_ROWS', manifest['transition_row_count'])
           print('MARKET_DATA_TICKERS', manifest['scoped_ticker_count'])
           print('UNRESOLVED_TICKERS', ','.join(row['ticker'] for row in rows))
+          for row in rows:
+              print('UNRESOLVED_ROW', json.dumps(row, sort_keys=True, ensure_ascii=False))
           PY
