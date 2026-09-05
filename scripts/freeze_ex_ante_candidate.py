@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from b3_strategy_lab.ex_ante_validation import (  # noqa: E402
     build_frozen_candidate,
+    build_prospective_freeze,
     sha256_file,
 )
 
@@ -33,18 +34,23 @@ def _read(path: Path) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Freeze exactly one rank-1 candidate using pre-holdout data only. "
-            "The holdout is never consulted and no fallback candidate is allowed."
+            "Freeze exactly one rank-1 candidate. By default the freeze is prospective: "
+            "all already-seen history is treated only as research and future validation "
+            "must begin after the wall-clock freeze. A historical holdout may be supplied "
+            "only when the freeze itself demonstrably predates that holdout."
         )
     )
     parser.add_argument("--candidates", type=Path, default=DEFAULT_CANDIDATES)
     parser.add_argument("--matrix-manifest", type=Path, default=DEFAULT_MATRIX_MANIFEST)
     parser.add_argument("--pit-audit", type=Path, default=DEFAULT_PIT_AUDIT)
-    parser.add_argument("--holdout-start", required=True)
-    parser.add_argument("--holdout-end", required=True)
+    parser.add_argument("--holdout-start")
+    parser.add_argument("--holdout-end")
+    parser.add_argument("--frozen-at-utc")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
 
+    if bool(args.holdout_start) != bool(args.holdout_end):
+        parser.error("--holdout-start and --holdout-end must be supplied together.")
     for path in (args.candidates, args.matrix_manifest, args.pit_audit):
         if not path.is_file():
             parser.error(f"Required input does not exist: {path}")
@@ -54,14 +60,22 @@ def main(argv: list[str] | None = None) -> int:
         "matrix_manifest": sha256_file(args.matrix_manifest),
         "pit_audit": sha256_file(args.pit_audit),
     }
-    frozen = build_frozen_candidate(
-        candidates=_read(args.candidates),
-        matrix_manifest=_read(args.matrix_manifest),
-        pit_audit=_read(args.pit_audit),
-        holdout_start=args.holdout_start,
-        holdout_end=args.holdout_end,
-        source_bindings=source_bindings,
-    )
+    common = {
+        "candidates": _read(args.candidates),
+        "matrix_manifest": _read(args.matrix_manifest),
+        "pit_audit": _read(args.pit_audit),
+        "source_bindings": source_bindings,
+        "frozen_at_utc": args.frozen_at_utc,
+    }
+    if args.holdout_start:
+        frozen = build_frozen_candidate(
+            **common,
+            holdout_start=args.holdout_start,
+            holdout_end=args.holdout_end,
+        )
+    else:
+        frozen = build_prospective_freeze(**common)
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(frozen, indent=2, ensure_ascii=False) + "\n",
@@ -70,7 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         "Frozen candidate: "
         f"{frozen['candidate']['trading_strategy']} + "
-        f"{frozen['candidate']['management_strategy']} -> {args.output}",
+        f"{frozen['candidate']['management_strategy']} "
+        f"[{frozen['status']}] -> {args.output}",
         flush=True,
     )
     return 0
