@@ -1,4 +1,4 @@
-name: Temporary publication semantics repair v3
+name: Temporary publication semantics repair v4
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - fix/realistic-pit-integrity-20260904
     paths:
       - '.github/workflows/repair-publication-semantics.yml'
-      - 'scripts/_temporary_pit_repair_batch4.py'
+      - 'scripts/_temporary_pit_repair_batch5.py'
 
 permissions:
   contents: write
@@ -25,14 +25,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply publication patch and run full regression suite
+      - name: Apply staging correction and run full regression suite
         run: |
           set -euo pipefail
-          python scripts/_temporary_pit_repair_batch4.py
-          python -m py_compile scripts/_temporary_pit_repair_batch4.py tests/test_execution_hardening.py
+          python scripts/_temporary_pit_repair_batch5.py
+          python -m py_compile scripts/_temporary_pit_repair_batch5.py tests/test_execution_hardening.py
           python -m unittest discover -s tests -v
           git diff --check
-      - name: Commit verified production workflow and contract test
+      - name: Commit tested production workflow locally
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
@@ -41,5 +41,6 @@ jobs:
             .github/workflows/full-matrix-backtest-hardened.yml \
             tests/test_execution_hardening.py
           git diff --cached --check
-          git commit -m 'fix: separate latest attempt from certified backtest publication'
+          git commit -m 'fix: stage certified snapshot outside attempt pointer'
+          git rev-parse HEAD
           git push origin HEAD:fix/realistic-pit-integrity-20260904
