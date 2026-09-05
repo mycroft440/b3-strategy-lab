@@ -50,3 +50,5 @@ jobs:
             scripts/sync_point_in_time_universe.py
           python -m unittest discover -s tests -v
           git diff --check
+
+# retrigger after validated cleanup
