@@ -1,0 +1,32 @@
+name: Ex-ante holdout validation tests
+
+on:
+  push:
+    branches:
+      - fix/ex-ante-holdout-pit-validation-20260905
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ex-ante-holdout-pit-validation-20260905
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile new validation modules
+        run: |
+          python -m py_compile \
+            b3_strategy_lab/ex_ante_validation.py \
+            scripts/audit_point_in_time_validation.py \
+            scripts/freeze_ex_ante_candidate.py \
+            scripts/certify_ex_ante_holdout.py
+      - name: Run focused validation tests
+        run: python -m unittest tests.test_ex_ante_holdout_validation -v
+      - name: Run full test suite
+        run: python -m unittest discover -s tests -v
