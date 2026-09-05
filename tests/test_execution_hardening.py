@@ -531,12 +531,19 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
             "sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256",
             announce,
         )
-        self.assertIn("git add -- reports/latest_backtest", announce)
-        publish = workflow.split("\n  publish:\n", 1)[1]
+        self.assertIn("git add -- reports/latest_attempt", announce)
         self.assertIn(
+            "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+            announce,
+        )
+        publish = workflow.split("\n  publish:\n", 1)[1]
+        self.assertNotIn(
             "elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]",
             publish,
         )
+        self.assertIn("Publicar tentativa e promover certificado atomicamente", publish)
+        self.assertIn("reports/latest_certified", publish)
+        self.assertNotIn("reports/latest_backtest", workflow)
         self.assertIn("REALISTIC_SNAPSHOT_PUBLISHED=true", publish)
         self.assertIn('os.environ["REALISTIC_SNAPSHOT_PUBLISHED"]', publish)
 

@@ -263,10 +263,10 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin backtest-results:refs/remotes/origin/backtest-results
-          rm -rf reports/latest_backtest
-          mkdir -p reports/latest_backtest
-          SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
-          CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+          rm -rf reports/latest_attempt
+          mkdir -p reports/latest_attempt
+          SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
+          CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
           snapshot_exists=false
           checksum_exists=false
           git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null && snapshot_exists=true
@@ -279,7 +279,7 @@ jobs:
             git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"
             git show "origin/backtest-results:${CHECKSUM}" > "$CHECKSUM"
             (
-              cd reports/latest_backtest
+              cd reports/latest_attempt
               sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
             )
           fi
@@ -300,14 +300,14 @@ jobs:
               "top_n": 10,
               "real_money_claim_allowed": False,
           }
-          Path("reports/latest_backtest/STATUS.json").write_text(
+          Path("reports/latest_attempt/STATUS.json").write_text(
               json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- reports/latest_backtest
+          git add -- reports/latest_attempt
           git commit -m "Backtest ${RUN_NUMBER}: running [skip ci]"
           git push --force origin HEAD:backtest-results
 
@@ -489,8 +489,8 @@ jobs:
           BUILD_REALISTIC_DATA="$REFRESH_DATA"
           if [ "$REFRESH_DATA" != "true" ]; then
             git fetch origin backtest-results:refs/remotes/origin/backtest-results
-            SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
             snapshot_exists=false
             checksum_exists=false
             git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null && snapshot_exists=true
@@ -696,8 +696,8 @@ jobs:
           rm -rf previous-realistic-snapshot
           mkdir -p previous-realistic-snapshot
           git fetch origin backtest-results:refs/remotes/origin/backtest-results
-          PREVIOUS_SNAPSHOT=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
-          PREVIOUS_CHECKSUM=reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+          PREVIOUS_SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
+          PREVIOUS_CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
           previous_snapshot_exists=false
           previous_checksum_exists=false
           git cat-file -e "origin/backtest-results:${PREVIOUS_SNAPSHOT}" 2>/dev/null && previous_snapshot_exists=true
@@ -716,43 +716,39 @@ jobs:
               sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
             )
           fi
-          rm -rf reports/latest_backtest
-          mkdir -p reports/latest_backtest
+          rm -rf reports/latest_attempt
+          mkdir -p reports/latest_attempt
           if [ "$PREPARE_RESULT" = "success" ]; then
             cp readiness-artifact/backtest_data_audit_40.json reports/backtest_data_audit_40.json
-            cp readiness-artifact/backtest_data_audit_40.json reports/latest_backtest/DATA_READINESS.json
+            cp readiness-artifact/backtest_data_audit_40.json reports/latest_attempt/DATA_READINESS.json
           fi
           if [ "$MERGE_RESULT" = "success" ]; then
-            cp research-artifact/TOP_10.md reports/latest_backtest/RESEARCH_TOP_10.md
-            cp research-artifact/TOP_10.json reports/latest_backtest/RESEARCH_TOP_10.json
-            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_backtest/AUDIT.json
-            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_backtest/MANIFEST.json
-            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_backtest/RESEARCH_TOP_10_ANNUAL.md
-            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_backtest/MATRIX.csv.gz
+            cp research-artifact/TOP_10.md reports/latest_attempt/RESEARCH_TOP_10.md
+            cp research-artifact/TOP_10.json reports/latest_attempt/RESEARCH_TOP_10.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json reports/latest_attempt/AUDIT.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json reports/latest_attempt/MANIFEST.json
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_attempt/RESEARCH_TOP_10_ANNUAL.md
+            cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_attempt/MATRIX.csv.gz
           fi
           REALISTIC_SNAPSHOT_PUBLISHED=false
           if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then
-            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
             REALISTIC_SNAPSHOT_PUBLISHED=true
             if [ -f realistic-artifact/realistic_input_audit.json ]; then
-              cp realistic-artifact/realistic_input_audit.json reports/latest_backtest/REALISTIC_INPUT_AUDIT.json
+              cp realistic-artifact/realistic_input_audit.json reports/latest_attempt/REALISTIC_INPUT_AUDIT.json
             fi
             if [ -f realistic-artifact/REALISTIC_TOP_10.json ]; then
-              cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_backtest/TOP_10.md
-              cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_backtest/TOP_10.json
+              cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_attempt/TOP_10.md
+              cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_attempt/TOP_10.json
             fi
-          elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]; then
-            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.sha256
-            REALISTIC_SNAPSHOT_PUBLISHED=true
           fi
           export REALISTIC_SNAPSHOT_PUBLISHED
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          latest = Path("reports/latest_backtest")
+          latest = Path("reports/latest_attempt")
           audit_path = latest / "AUDIT.json"
           manifest_path = latest / "MANIFEST.json"
           realistic_path = latest / "TOP_10.json"
@@ -827,6 +823,8 @@ jobs:
               "real_money_claim_allowed": False,
               "counterfactual_execution_exact": False,
               "ex_ante_selection_claim_allowed": False,
+              "universe_selection_bias_remaining": False,
+              "strategy_selection_bias_remaining": True,
               "selection_bias_remaining": True,
               "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
               "verified_data_snapshot_included": os.environ["PREPARE_RESULT"] == "success",
@@ -838,10 +836,10 @@ jobs:
                   "data/quality_reviews.json",
               ],
               "research_matrix_path": (
-                  "reports/latest_backtest/MATRIX.csv.gz" if manifest else None
+                  "reports/latest_attempt/MATRIX.csv.gz" if manifest else None
               ),
               "realistic_input_snapshot_path": (
-                  "reports/latest_backtest/REALISTIC_INPUT_SNAPSHOT.tar.gz"
+                  "reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz"
                   if os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true" else None
               ),
               "realistic_input_snapshot_current_run": (
@@ -863,24 +861,53 @@ jobs:
               )
           PY
 
-      - name: Gravar latest em backtest-results
+      - name: Publicar tentativa e promover certificado atomicamente
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- reports/latest_backtest
-          if [ "$PREPARE_RESULT" = "success" ]; then
-            git add -- \
-              reports/backtest_data_audit_40.json \
-              data/candles \
-              data/manifests \
-              data/corporate_actions \
-              data/universes/fixed_40_2018.json \
-              data/quality_reviews.json
+
+          STATUS="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          print(json.loads(Path("reports/latest_attempt/STATUS.json").read_text())["status"])
+          PY
+          )"
+
+          # Build the mutable attempt pointer as one complete directory before it is
+          # staged. This keeps partial intermediate copies out of the commit.
+          rm -rf reports/.latest_attempt_staging
+          cp -a reports/latest_attempt reports/.latest_attempt_staging
+          rm -rf reports/latest_attempt
+          mv reports/.latest_attempt_staging reports/latest_attempt
+
+          # Promote only a fully approved current run. A failed or research-only run
+          # leaves latest_certified completely untouched.
+          if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
+            test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
+            test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
+            test -f reports/latest_attempt/TOP_10.json
+            test -f reports/latest_attempt/STATUS.json
+            (
+              cd reports/latest_attempt
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
+            rm -rf reports/.latest_certified_staging
+            cp -a reports/latest_attempt reports/.latest_certified_staging
+            rm -rf reports/latest_certified
+            mv reports/.latest_certified_staging reports/latest_certified
           fi
-          git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
+
+          git add -A -- reports/latest_attempt
+          if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
+            git add -A -- reports/latest_certified
+          fi
+          if [ "$PREPARE_RESULT" = "success" ]; then
+            git add --               reports/backtest_data_audit_40.json               data/candles               data/manifests               data/corporate_actions               data/universes/fixed_40_2018.json               data/quality_reviews.json
+          fi
+          git commit -m "Backtest ${{ github.run_number }}: publish attempt/certified pointers [skip ci]"
           git push --force origin HEAD:backtest-results
 
       - name: Exigir aprovação realista retrospectiva
@@ -888,7 +915,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          status = json.loads(Path("reports/latest_backtest/STATUS.json").read_text())
+          status = json.loads(Path("reports/latest_attempt/STATUS.json").read_text())
           if status["status"] != "REALISTIC_RETROSPECTIVE_SUCCESS":
               raise SystemExit("full matrix realistic finalist validation not approved")
           PY
