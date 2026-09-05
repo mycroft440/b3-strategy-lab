@@ -1,0 +1,29 @@
+name: ChatGPT matrix count probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Count matrix
+        run: |
+          python - <<'PY'
+          from b3_strategy_lab.strategies import portfolio_strategies
+          from scripts.research_portfolio_allocation import _configs
+          strategies = portfolio_strategies()
+          configs = _configs('adjusted', 'all')
+          print('STRATEGIES', len(strategies))
+          print('CONFIGS', len(configs))
+          print('COMBINATIONS', len(strategies) * len(configs))
+          print('STRATEGY_NAMES', ','.join(strategies))
+          PY
