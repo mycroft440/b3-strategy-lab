@@ -109,7 +109,11 @@ jobs:
             scripts/validate_matrix_top_realistic_core.py \
             scripts/walk_forward_realistic.py \
             scripts/walk_forward_certified.py \
-            scripts/run_realistic_pipeline.py
+            scripts/run_realistic_pipeline.py \
+            b3_strategy_lab/ex_ante_validation.py \
+            scripts/audit_point_in_time_validation.py \
+            scripts/freeze_ex_ante_candidate.py \
+            scripts/certify_ex_ante_holdout.py
 
       - name: Executar suíte completa antes da matriz
         run: python -m unittest discover -s tests -v
@@ -258,6 +262,7 @@ jobs:
             data/candles
             data/manifests
             data/corporate_actions
+            data/execution
             data/candles_point_in_time
             data/actions_point_in_time
             data/manifests_point_in_time
@@ -465,12 +470,14 @@ jobs:
           compression-level: 0
 
   realistic_validation:
-    name: Revalidar shortlist no motor realista
+    name: Auditar PIT e congelar candidato prospectivo
     needs: [prepare, merge]
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     outputs:
-      snapshot_ready: ${{ steps.realistic_snapshot.outputs.ready }}
+      snapshot_ready: ${{ steps.realistic_snapshot.outputs.ready || 'false' }}
+      pit_ready: ${{ steps.pit_audit.outputs.ready || 'false' }}
+      freeze_ready: ${{ steps.freeze.outputs.ready || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -480,135 +487,86 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Baixar shortlist de pesquisa
+      - name: Baixar matriz de pesquisa
         uses: actions/download-artifact@v4
         with:
           name: b3-strategy-lab-research-top10-${{ github.run_number }}
           path: research-artifact
 
-      - name: Resolver período e preparar dados point-in-time
-        id: realistic_data
-        env:
-          REFRESH_DATA: ${{ needs.prepare.outputs.refresh_data }}
+      - name: Baixar snapshot PIT produzido nesta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-market-data-${{ github.run_id }}
+          path: data
+
+      - name: Preparar artefatos da seleção
         run: |
           set -euo pipefail
-          REAL_START="$(python - <<'PY'
+          mkdir -p reports
+          cp research-artifact/TOP_10.json reports/TOP_10.json
+          cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json
+
+      - name: Auditar informação point-in-time de forma fail-closed
+        id: pit_audit
+        run: |
+          set -euo pipefail
+          PERIOD_START="$(python - <<'PY'
           import json
           from pathlib import Path
-          payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
+          payload = json.loads(Path("reports/TOP_10.json").read_text())
           print(payload["period"]["start"])
           PY
           )"
-          REAL_END="$(python - <<'PY'
+          PERIOD_END="$(python - <<'PY'
           import json
           from pathlib import Path
-          payload = json.loads(Path("research-artifact/TOP_10.json").read_text())
+          payload = json.loads(Path("reports/TOP_10.json").read_text())
           print(payload["period"]["end"])
           PY
           )"
-          START_YEAR="${REAL_START:0:4}"
-          END_YEAR="${REAL_END:0:4}"
-          SOURCE_YEARS="$((START_YEAR - 1)):${END_YEAR}"
-          echo "REAL_START=$REAL_START" >> "$GITHUB_ENV"
-          echo "REAL_END=$REAL_END" >> "$GITHUB_ENV"
-          echo "SOURCE_YEARS=$SOURCE_YEARS" >> "$GITHUB_ENV"
-          BUILD_REALISTIC_DATA="$REFRESH_DATA"
-          if [ "$REFRESH_DATA" != "true" ]; then
-            git fetch origin backtest-results:refs/remotes/origin/backtest-results
-            SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
-            snapshot_exists=false
-            checksum_exists=false
-            git cat-file -e "origin/backtest-results:${SNAPSHOT}" 2>/dev/null && snapshot_exists=true
-            git cat-file -e "origin/backtest-results:${CHECKSUM}" 2>/dev/null && checksum_exists=true
-            if [ "$snapshot_exists" != "$checksum_exists" ]; then
-              echo "::error::snapshot/checksum realista assimétricos em backtest-results"
-              exit 1
-            fi
-            if [ "$snapshot_exists" = "false" ]; then
-              echo "Snapshot PIT certificado ausente; inicializando pelas fontes oficiais e mantendo todos os gates."
-              BUILD_REALISTIC_DATA=true
-            else
-              mkdir -p reports
-              git show "origin/backtest-results:${SNAPSHOT}" > reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
-              git show "origin/backtest-results:${CHECKSUM}" > reports/REALISTIC_INPUT_SNAPSHOT.sha256
-              (
-                cd reports
-                sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
-              )
-              SNAPSHOT_UNIVERSE=reports/snapshot_point_in_time_union.json
-              SNAPSHOT_PERIOD_MATCH=false
-              if tar -xOf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz \
-                  data/universes/point_in_time_union.json \
-                  > "$SNAPSHOT_UNIVERSE" 2>/dev/null
-              then
-                if python - "$SNAPSHOT_UNIVERSE" "$REAL_START" "$REAL_END" <<'PY'
-          import json, sys
-          from pathlib import Path
-          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          expected_start, expected_end = sys.argv[2], sys.argv[3]
-          if str(payload.get("selected_as_of")) != expected_start:
-              raise SystemExit(1)
-          if str(payload.get("selection_end")) != expected_end:
-              raise SystemExit(1)
-          PY
-                then
-                  SNAPSHOT_PERIOD_MATCH=true
-                fi
-              fi
-              rm -f "$SNAPSHOT_UNIVERSE"
-              if [ "$SNAPSHOT_PERIOD_MATCH" = "true" ]; then
-                echo "Snapshot PIT corresponde exatamente ao período $REAL_START..$REAL_END; reutilizando."
-                tar -xzf reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
-              else
-                echo "Snapshot PIT certificado pertence a outra janela ou é estruturalmente incompatível; reconstruindo pelas fontes oficiais."
-                BUILD_REALISTIC_DATA=true
-              fi
-            fi
-          fi
-          if [ "$BUILD_REALISTIC_DATA" = "true" ]; then
-            python scripts/build_survivorship_safe_realistic_universe.py \
-              --start "$REAL_START" --end "$REAL_END" --years "$SOURCE_YEARS" --download
-            python scripts/build_ticker_transitions.py --years "$SOURCE_YEARS" --download
-            python scripts/sync_point_in_time_universe_realistic.py \
-              --years "$SOURCE_YEARS" --download --refresh-actions
+          set +e
+          python scripts/audit_point_in_time_validation.py \
+            --start "$PERIOD_START" \
+            --end "$PERIOD_END" \
+            --output reports/POINT_IN_TIME_VALIDATION.json
+          PIT_RC=$?
+          set -e
+          if [ "$PIT_RC" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$PIT_RC" -eq 2 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::point-in-time validation is blocked; no candidate will be frozen"
+          else
+            echo "::error::point-in-time audit crashed with exit code $PIT_RC"
+            exit "$PIT_RC"
           fi
 
-      - name: Auditar prontidão realista e nível de certificação
-        id: realistic_audit
+      - name: Congelar rank 1 somente para validação futura
+        id: freeze
+        if: ${{ steps.pit_audit.outputs.ready == 'true' }}
         run: |
           set -euo pipefail
-          set +e
-          python scripts/audit_realistic_backtest_inputs.py
-          AUDIT_RC=$?
-          set -e
-          python - "$GITHUB_OUTPUT" "$AUDIT_RC" <<'PY'
-          import json, sys
+          python scripts/freeze_ex_ante_candidate.py \
+            --candidates reports/TOP_10.json \
+            --matrix-manifest reports/strategy_management_combinations_40_adjusted_no_dividends_1d.manifest.json \
+            --pit-audit reports/POINT_IN_TIME_VALIDATION.json \
+            --output reports/FROZEN_CANDIDATE.json
+          python - <<'PY'
+          import json
           from pathlib import Path
-          audit = json.loads(Path("reports/realistic_input_audit.json").read_text())
-          audit_rc = int(sys.argv[2])
-          if audit_rc not in {0, 2}:
-              raise SystemExit(f"realistic input audit crashed with exit code {audit_rc}")
-          if audit.get("ready_for_realistic_estimate") is not True:
-              raise SystemExit(
-                  "realistic structural inputs are not ready: "
-                  + repr(audit.get("estimate_blockers"))
-              )
-          certified = audit.get("ready_for_certified_market_inputs") is True
-          with Path(sys.argv[1]).open("a", encoding="utf-8") as output:
-              output.write("estimate_ready=true\n")
-              output.write(f"certified={'true' if certified else 'false'}\n")
-          if not certified:
-              print(
-                  "::warning::realistic estimate can run, but documentary market-input "
-                  "certification is incomplete: "
-                  + repr(audit.get("certified_market_input_blockers"))
-              )
+          frozen = json.loads(Path("reports/FROZEN_CANDIDATE.json").read_text())
+          assert frozen["status"] == "PROSPECTIVE_FROZEN_PENDING"
+          assert frozen["fallback_candidate_allowed"] is False
+          assert frozen["future_result_may_change_candidate"] is False
+          assert frozen["historical_holdout_claim_allowed"] is False
+          assert frozen["validated_winner_available"] is False
           PY
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Empacotar snapshot exato dos insumos realistas
+      - name: Empacotar snapshot exato dos insumos PIT do congelamento
         id: realistic_snapshot
-        if: ${{ always() && steps.realistic_data.outcome == 'success' && steps.realistic_audit.outputs.certified == 'true' }}
+        if: ${{ steps.pit_audit.outputs.ready == 'true' && steps.freeze.outputs.ready == 'true' }}
         run: |
           set -euo pipefail
           tar \
@@ -631,56 +589,21 @@ jobs:
             data/fees/b3_equity_fee_schedule.json
           (
             cd reports
-            sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz \
-              > REALISTIC_INPUT_SNAPSHOT.sha256
+            sha256sum REALISTIC_INPUT_SNAPSHOT.tar.gz > REALISTIC_INPUT_SNAPSHOT.sha256
           )
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Reexecutar Top 10 com fracionário, proventos, impostos e slippage causal
-        id: realistic_replay
-        run: |
-          set -euo pipefail
-          mkdir -p reports
-          cp research-artifact/TOP_10.json reports/TOP_10.json
-          set +e
-          python scripts/validate_matrix_top_realistic.py \
-            --candidates reports/TOP_10.json \
-            --output reports/REALISTIC_TOP_10.json \
-            --markdown-output reports/REALISTIC_TOP_10.md \
-            --workers 2 \
-            --require-valid "$TOP_N"
-          REPLAY_RC=$?
-          set -e
-          if [ "$REPLAY_RC" -eq 0 ]; then
-            echo "validation_passed=true" >> "$GITHUB_OUTPUT"
-            cat reports/REALISTIC_TOP_10.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            if [ ! -f reports/REALISTIC_TOP_10_REJECTED.json ]; then
-              echo "::error::realistic finalist replay crashed before producing a fail-closed rejection artifact"
-              exit "$REPLAY_RC"
-            fi
-            echo "validation_passed=false" >> "$GITHUB_OUTPUT"
-            if [ -f reports/REALISTIC_TOP_10_REJECTED.md ]; then
-              cat reports/REALISTIC_TOP_10_REJECTED.md >> "$GITHUB_STEP_SUMMARY"
-            fi
-            echo "::warning::realistic finalists were executed but rejected by certification gates"
-          fi
-
-      - name: Publicar validação realista
-        if: ${{ always() && steps.realistic_data.outcome == 'success' && steps.realistic_audit.outcome == 'success' }}
+      - name: Publicar auditoria PIT e congelamento prospectivo
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: b3-strategy-lab-realistic-top10-${{ github.run_number }}
           path: |
-            reports/REALISTIC_TOP_10.md
-            reports/REALISTIC_TOP_10.json
-            reports/REALISTIC_TOP_10_REJECTED.md
-            reports/REALISTIC_TOP_10_REJECTED.json
-            reports/realistic_candidates/**
-            reports/realistic_input_audit.json
+            reports/POINT_IN_TIME_VALIDATION.json
+            reports/FROZEN_CANDIDATE.json
             reports/REALISTIC_INPUT_SNAPSHOT.tar.gz
             reports/REALISTIC_INPUT_SNAPSHOT.sha256
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
 
   publish:
@@ -736,7 +659,7 @@ jobs:
             --annual-report research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md \
             --output research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.audit.json
 
-      - name: Montar status final
+      - name: Montar status final sem promover vencedor in-sample
         env:
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -747,34 +670,13 @@ jobs:
           MERGE_RESULT: ${{ needs.merge.result }}
           REALISTIC_RESULT: ${{ needs.realistic_validation.result }}
           REALISTIC_SNAPSHOT_READY: ${{ needs.realistic_validation.outputs.snapshot_ready || 'false' }}
+          PIT_READY: ${{ needs.realistic_validation.outputs.pit_ready || 'false' }}
+          FREEZE_READY: ${{ needs.realistic_validation.outputs.freeze_ready || 'false' }}
           STRATEGY_COUNT: ${{ needs.prepare.outputs.strategy_count }}
           MANAGEMENT_COUNT: ${{ needs.prepare.outputs.management_count }}
           COMBINATION_COUNT: ${{ needs.prepare.outputs.combination_count }}
         run: |
           set -euo pipefail
-          rm -rf previous-realistic-snapshot
-          mkdir -p previous-realistic-snapshot
-          git fetch origin backtest-results:refs/remotes/origin/backtest-results
-          PREVIOUS_SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz
-          PREVIOUS_CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256
-          previous_snapshot_exists=false
-          previous_checksum_exists=false
-          git cat-file -e "origin/backtest-results:${PREVIOUS_SNAPSHOT}" 2>/dev/null && previous_snapshot_exists=true
-          git cat-file -e "origin/backtest-results:${PREVIOUS_CHECKSUM}" 2>/dev/null && previous_checksum_exists=true
-          if [ "$previous_snapshot_exists" != "$previous_checksum_exists" ]; then
-            echo "::error::snapshot/checksum realista assimétricos em backtest-results"
-            exit 1
-          fi
-          if [ "$previous_snapshot_exists" = "true" ]; then
-            git show "origin/backtest-results:${PREVIOUS_SNAPSHOT}" \
-              > previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            git show "origin/backtest-results:${PREVIOUS_CHECKSUM}" \
-              > previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256
-            (
-              cd previous-realistic-snapshot
-              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
-            )
-          fi
           rm -rf reports/latest_attempt
           mkdir -p reports/latest_attempt
           if [ "$PREPARE_RESULT" = "success" ]; then
@@ -789,25 +691,22 @@ jobs:
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d_top10_annual.md reports/latest_attempt/RESEARCH_TOP_10_ANNUAL.md
             cp research-artifact/strategy_management_combinations_40_adjusted_no_dividends_1d.csv.gz reports/latest_attempt/MATRIX.csv.gz
           fi
-          REALISTIC_SNAPSHOT_PUBLISHED=false
           if [ -d realistic-artifact ]; then
-            if [ -f realistic-artifact/realistic_input_audit.json ]; then
-              cp realistic-artifact/realistic_input_audit.json reports/latest_attempt/REALISTIC_INPUT_AUDIT.json
+            if [ -f realistic-artifact/POINT_IN_TIME_VALIDATION.json ]; then
+              cp realistic-artifact/POINT_IN_TIME_VALIDATION.json reports/latest_attempt/POINT_IN_TIME_VALIDATION.json
             fi
-            if [ -f realistic-artifact/REALISTIC_TOP_10.json ]; then
-              cp realistic-artifact/REALISTIC_TOP_10.md reports/latest_attempt/TOP_10.md
-              cp realistic-artifact/REALISTIC_TOP_10.json reports/latest_attempt/TOP_10.json
-            fi
-            if [ -f realistic-artifact/REALISTIC_TOP_10_REJECTED.json ]; then
-              cp realistic-artifact/REALISTIC_TOP_10_REJECTED.json reports/latest_attempt/REALISTIC_TOP_10_REJECTED.json
-              if [ -f realistic-artifact/REALISTIC_TOP_10_REJECTED.md ]; then
-                cp realistic-artifact/REALISTIC_TOP_10_REJECTED.md reports/latest_attempt/REALISTIC_TOP_10_REJECTED.md
-              fi
+            if [ -f realistic-artifact/FROZEN_CANDIDATE.json ]; then
+              cp realistic-artifact/FROZEN_CANDIDATE.json reports/latest_attempt/FROZEN_CANDIDATE.json
             fi
           fi
+          REALISTIC_SNAPSHOT_PUBLISHED=false
           if [ "$REALISTIC_SNAPSHOT_READY" = "true" ]; then
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
             cp realistic-artifact/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
+            (
+              cd reports/latest_attempt
+              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
+            )
             REALISTIC_SNAPSHOT_PUBLISHED=true
           fi
           export REALISTIC_SNAPSHOT_PUBLISHED
@@ -816,34 +715,45 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
           latest = Path("reports/latest_attempt")
-          audit_path = latest / "AUDIT.json"
-          manifest_path = latest / "MANIFEST.json"
-          realistic_path = latest / "TOP_10.json"
-          readiness_path = latest / "DATA_READINESS.json"
-          audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
-          manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
-          realistic = json.loads(realistic_path.read_text()) if realistic_path.exists() else None
-          readiness = json.loads(readiness_path.read_text()) if readiness_path.exists() else None
+          def read(name):
+              path = latest / name
+              return json.loads(path.read_text()) if path.exists() else None
+          audit = read("AUDIT.json")
+          manifest = read("MANIFEST.json")
+          readiness = read("DATA_READINESS.json")
+          pit = read("POINT_IN_TIME_VALIDATION.json")
+          frozen = read("FROZEN_CANDIDATE.json")
           research_ok = bool(audit and audit.get("ready_for_research_ranking") is True)
-          research_real_money_ready = bool(audit and audit.get("ready_for_real_money") is True)
-          realistic_ok = bool(
-              realistic
-              and int(realistic.get("validated_candidate_count", 0)) > 0
-              and realistic.get("result_classification")
-                  == "REALISTIC_POINT_IN_TIME_RETROSPECTIVE_FINALIST_REPLAY"
-              and realistic.get("real_money_claim_allowed") is False
-              and realistic.get("ex_ante_selection_claim_allowed") is False
-              and realistic.get("counterfactual_execution_exact") is False
-          )
           research_jobs_ok = all(os.environ[name] == "success" for name in (
               "PREPARE_RESULT", "ANNOUNCE_RESULT", "BACKTEST_RESULT", "MERGE_RESULT"
           ))
-          full_jobs_ok = research_jobs_ok and os.environ["REALISTIC_RESULT"] == "success"
           source_matches = bool(manifest and manifest.get("git_commit") == os.environ["WORKFLOW_SHA"])
-          if full_jobs_ok and research_ok and realistic_ok and source_matches:
-              status = "REALISTIC_RETROSPECTIVE_SUCCESS"
+          pit_ok = bool(
+              pit
+              and pit.get("status") == "PASS"
+              and pit.get("point_in_time_validation_complete") is True
+              and pit.get("strict_signal_information_claim_allowed") is True
+              and pit.get("cash_announcement_timing_certified") is True
+              and pit.get("ticker_transition_binding_verified") is True
+          )
+          freeze_ok = bool(
+              frozen
+              and frozen.get("status") == "PROSPECTIVE_FROZEN_PENDING"
+              and frozen.get("fallback_candidate_allowed") is False
+              and frozen.get("future_result_may_change_candidate") is False
+              and frozen.get("historical_holdout_claim_allowed") is False
+              and frozen.get("validated_winner_available") is False
+              and manifest
+              and frozen.get("information_cutoff") == manifest.get("end")
+          )
+          gates_ok = (
+              research_jobs_ok and research_ok and source_matches
+              and os.environ["REALISTIC_RESULT"] == "success"
+          )
+          if gates_ok and pit_ok and freeze_ok:
+              status = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN"
           elif research_jobs_ok and research_ok and source_matches:
-              status = "RESEARCH_SUCCESS_REALISTIC_BLOCKED"
+              status = "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED"
           else:
               status = "FAILED"
           payload = {
@@ -859,122 +769,107 @@ jobs:
                   "announce": os.environ["ANNOUNCE_RESULT"],
                   "backtest": os.environ["BACKTEST_RESULT"],
                   "merge": os.environ["MERGE_RESULT"],
-                  "realistic_validation": os.environ["REALISTIC_RESULT"],
+                  "point_in_time_and_freeze": os.environ["REALISTIC_RESULT"],
               },
               "strategy_count": int(manifest.get("strategy_count", 0)) if manifest else int(os.environ.get("STRATEGY_COUNT") or 0),
               "management_count": int(manifest.get("management_count", 0)) if manifest else int(os.environ.get("MANAGEMENT_COUNT") or 0),
               "combination_count": int(manifest.get("combinations", 0)) if manifest else int(os.environ.get("COMBINATION_COUNT") or 0),
-              "top_n": 10,
               "research_ranking_ready": research_ok,
-              "research_matrix_completed": bool(
-                  research_jobs_ok and research_ok and source_matches
+              "research_matrix_completed": bool(research_jobs_ok and research_ok and source_matches),
+              "point_in_time_validation_complete": pit_ok,
+              "prospective_candidate_frozen": freeze_ok,
+              "validated_winner_available": False,
+              "in_sample_winner_claim_allowed": False,
+              "ex_ante_selection_claim_allowed": False,
+              "prospective_validation_pending": freeze_ok,
+              "data_snooping_control_active": freeze_ok,
+              "data_snooping_control": (
+                  "wall_clock_prospective_freeze_no_historical_holdout_retrocertification"
+                  if freeze_ok else None
               ),
-              "research_matrix_real_money_ready": research_real_money_ready,
-              "realistic_finalist_validation_ready": realistic_ok,
-              "result_classification": (
-                  realistic.get("result_classification")
-                  if realistic
-                  else audit.get("result_classification") if audit else None
-              ),
-              "data_cutoff": readiness.get("evaluation_end") if readiness else None,
-              "data_freshness_reference_date": (
-                  readiness.get("freshness_reference_date") if readiness else None
-              ),
-              "data_age_calendar_days": (
-                  readiness.get("age_calendar_days") if readiness else None
-              ),
-              "data_is_recent": readiness.get("data_is_recent") if readiness else None,
-              "historical_cutoff_accepted": (
-                  readiness.get("historical_cutoff_accepted") if readiness else None
-              ),
+              "formal_multiple_testing_significance_claim_allowed": False,
+              "retrospective_ranking_selection_bias_remaining": True,
               "real_money_claim_allowed": False,
               "counterfactual_execution_exact": False,
-              "ex_ante_selection_claim_allowed": False,
-              "universe_selection_bias_remaining": False,
-              "strategy_selection_bias_remaining": True,
-              "selection_bias_remaining": True,
-              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
-              "verified_data_snapshot_included": os.environ["PREPARE_RESULT"] == "success",
-              "verified_data_snapshot_paths": [
-                  "data/candles",
-                  "data/manifests",
-                  "data/corporate_actions",
-                  "data/universes/fixed_40_2018.json",
-                  "data/quality_reviews.json",
-              ],
-              "research_matrix_path": (
-                  "reports/latest_attempt/MATRIX.csv.gz" if manifest else None
+              "universe_selection_bias_remaining": False if pit_ok else None,
+              "candidate": frozen.get("candidate") if frozen else None,
+              "information_cutoff": frozen.get("information_cutoff") if frozen else None,
+              "frozen_at_utc": frozen.get("frozen_at_utc") if frozen else None,
+              "prospective_validation_must_start_after": (
+                  frozen.get("prospective_validation_must_start_after") if frozen else None
               ),
+              "result_classification": (
+                  "PROSPECTIVE_CANDIDATE_FROZEN_PENDING_VALIDATION"
+                  if status == "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN"
+                  else "POINT_IN_TIME_VALIDATION_BLOCKED"
+                  if status == "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED"
+                  else "FAILED"
+              ),
+              "data_cutoff": readiness.get("evaluation_end") if readiness else None,
               "realistic_input_snapshot_path": (
                   "reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz"
                   if os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true" else None
-              ),
-              "realistic_input_snapshot_current_run": (
-                  os.environ["REALISTIC_SNAPSHOT_READY"] == "true"
-              ),
-              "realistic_input_snapshot_reused": bool(
-                  os.environ["REALISTIC_SNAPSHOT_PUBLISHED"] == "true"
-                  and os.environ["REALISTIC_SNAPSHOT_READY"] != "true"
               ),
           }
           (latest / "STATUS.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
           if status == "FAILED":
               (latest / "FAILURE.md").write_text("# Backtest não aprovado\n\n" + json.dumps(payload, indent=2) + "\n")
-          elif status == "RESEARCH_SUCCESS_REALISTIC_BLOCKED":
-              (latest / "REALISTIC_VALIDATION_BLOCKED.md").write_text(
-                  "# Matriz de pesquisa aprovada; validação realista bloqueada\n\n"
-                  + json.dumps(payload, indent=2)
-                  + "\n"
+          elif status == "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED":
+              (latest / "POINT_IN_TIME_VALIDATION_BLOCKED.md").write_text(
+                  "# Pesquisa concluída; validação point-in-time bloqueada\n\n"
+                  + json.dumps(payload, indent=2) + "\n"
               )
           PY
 
-      - name: Publicar tentativa e promover certificado atomicamente
+      - name: Publicar tentativa e freeze sem fabricar certificado retrospectivo
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           STATUS="$(python - <<'PY'
           import json
           from pathlib import Path
           print(json.loads(Path("reports/latest_attempt/STATUS.json").read_text())["status"])
           PY
           )"
-
-          # Build the mutable attempt pointer as one complete directory before it is
-          # staged. This keeps partial intermediate copies out of the commit.
           rm -rf reports/.latest_attempt_staging
           cp -a reports/latest_attempt reports/.latest_attempt_staging
           rm -rf reports/latest_attempt
           mv reports/.latest_attempt_staging reports/latest_attempt
 
-          # Promote only a fully approved current run. A failed or research-only run
-          # leaves latest_certified completely untouched.
-          if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
+          # A prospective freeze is durable evidence, but it is deliberately not a
+          # validated performance certificate. latest_certified remains untouched.
+          if [ "$STATUS" = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN" ]; then
+            test -f reports/latest_attempt/FROZEN_CANDIDATE.json
+            test -f reports/latest_attempt/POINT_IN_TIME_VALIDATION.json
             test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
             test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
-            test -f reports/latest_attempt/TOP_10.json
-            test -f reports/latest_attempt/STATUS.json
-            (
-              cd reports/latest_attempt
-              sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256
-            )
-            rm -rf reports/.latest_certified_staging
-            cp -a reports/latest_attempt reports/.latest_certified_staging
-            rm -rf reports/latest_certified
-            mv reports/.latest_certified_staging reports/latest_certified
+            rm -rf reports/.latest_freeze_staging
+            cp -a reports/latest_attempt reports/.latest_freeze_staging
+            rm -rf reports/latest_freeze
+            mv reports/.latest_freeze_staging reports/latest_freeze
           fi
 
           git add -A -- reports/latest_attempt
-          if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
-            git add -A -- reports/latest_certified
+          if [ "$STATUS" = "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN" ]; then
+            git add -A -- reports/latest_freeze
           fi
           if [ "$PREPARE_RESULT" = "success" ]; then
-            git add --               reports/backtest_data_audit_40.json               data/candles               data/manifests               data/corporate_actions               data/universes/fixed_40_2018.json               data/quality_reviews.json
+            git add -- \
+              reports/backtest_data_audit_40.json \
+              data/candles \
+              data/manifests \
+              data/corporate_actions \
+              data/candles_point_in_time \
+              data/actions_point_in_time \
+              data/manifests_point_in_time \
+              data/universes/point_in_time_union.json \
+              data/universes/point_in_time_weekly.csv \
+              data/quality_reviews.json
           fi
-          git commit -m "Backtest ${{ github.run_number }}: publish attempt/certified pointers [skip ci]"
+          git commit -m "Backtest ${{ github.run_number }}: publish research/PIT freeze [skip ci]"
           git push --force origin HEAD:backtest-results
 
       - name: Exigir classificação final consistente
@@ -984,10 +879,15 @@ jobs:
           from pathlib import Path
           status = json.loads(Path("reports/latest_attempt/STATUS.json").read_text())
           allowed = {
-              "REALISTIC_RETROSPECTIVE_SUCCESS",
-              "RESEARCH_SUCCESS_REALISTIC_BLOCKED",
+              "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN",
+              "RESEARCH_SUCCESS_POINT_IN_TIME_BLOCKED",
           }
           if status["status"] not in allowed:
               raise SystemExit("full matrix publication failed its integrity classification")
+          if status["status"] == "RESEARCH_SUCCESS_PROSPECTIVE_FROZEN":
+              assert status["point_in_time_validation_complete"] is True
+              assert status["prospective_candidate_frozen"] is True
+              assert status["validated_winner_available"] is False
+              assert status["in_sample_winner_claim_allowed"] is False
           print("final classification:", status["status"])
           PY
