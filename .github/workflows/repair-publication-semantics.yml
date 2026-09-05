@@ -1,4 +1,4 @@
-name: Temporary publication semantics repair v2
+name: Temporary publication semantics repair v3
 
 on:
   push:
@@ -29,15 +29,17 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/_temporary_pit_repair_batch4.py
-          python -m py_compile scripts/_temporary_pit_repair_batch4.py
+          python -m py_compile scripts/_temporary_pit_repair_batch4.py tests/test_execution_hardening.py
           python -m unittest discover -s tests -v
           git diff --check
-      - name: Commit verified production workflow
+      - name: Commit verified production workflow and contract test
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/workflows/full-matrix-backtest-hardened.yml
+          git add \
+            .github/workflows/full-matrix-backtest-hardened.yml \
+            tests/test_execution_hardening.py
           git diff --cached --check
           git commit -m 'fix: separate latest attempt from certified backtest publication'
           git push origin HEAD:fix/realistic-pit-integrity-20260904
