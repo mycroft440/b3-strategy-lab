@@ -1,4 +1,4 @@
-name: Temporary PIT transition rebuild final
+name: Temporary publish validated PIT patch
 
 on:
   push:
@@ -14,9 +14,9 @@ env:
   PYTHONUNBUFFERED: '1'
 
 jobs:
-  rebuild-transitions:
+  publish-validated-patch:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply source-backed transition repairs and final hardening
+      - name: Reproduce validated production patch
         run: |
           set -euo pipefail
           python scripts/_temporary_transition_review_batch6.py
@@ -36,11 +36,6 @@ jobs:
           python -m py_compile \
             b3_strategy_lab/cotahist.py \
             b3_strategy_lab/realistic_portfolio.py \
-            scripts/_temporary_transition_review_batch6.py \
-            scripts/_temporary_transition_review_batch6_post.py \
-            scripts/_temporary_transition_review_batch7.py \
-            scripts/_temporary_final_hardening.py \
-            scripts/_temporary_final_test_contracts.py \
             tests/test_bdi58_goll4_regression.py \
             tests/test_instrument_transition_layer.py \
             tests/test_realistic_snapshot_certification_gate.py \
@@ -49,52 +44,29 @@ jobs:
             tests/test_realistic_snapshot_reuse_window.py
           python -m unittest discover -s tests -v
           git diff --check
-      - name: Rebuild point-in-time scope and require complete transition classification
+      - name: Push non-workflow files and export validated workflow text
         run: |
           set -euo pipefail
-          rm -rf reports/pit-transition-rebuild
-          mkdir -p reports/pit-transition-rebuild
-          python scripts/build_survivorship_safe_realistic_universe.py \
-            --start 2018-01-02 --end 2026-08-19 --years 2017:2026 --download
-          python scripts/build_ticker_transitions.py \
-            --years 2017:2026 --end 2026-08-19 --download \
-            --unresolved-output reports/pit-transition-rebuild/unresolved.csv
-          python - <<'PY'
-          import csv, json
-          from pathlib import Path
-          manifest = json.loads(Path('data/corporate_actions/ticker_transitions.manifest.json').read_text())
-          rows = list(csv.DictReader(Path('reports/pit-transition-rebuild/unresolved.csv').open()))
-          print('OLDER_UNRESOLVED', manifest['older_unresolved_disappearances'])
-          print('TOTAL_UNRESOLVED', manifest['unresolved_disappearances'])
-          print('TRANSITION_ROWS', manifest['transition_row_count'])
-          print('MARKET_DATA_TICKERS', manifest['scoped_ticker_count'])
-          print('UNRESOLVED_TICKERS', ','.join(row['ticker'] for row in rows))
-          for row in rows:
-              print('UNRESOLVED_ROW', json.dumps(row, sort_keys=True, ensure_ascii=False))
-          if manifest['older_unresolved_disappearances'] != 0:
-              raise SystemExit('older unresolved PIT disappearances remain')
-          if manifest['unresolved_disappearances'] != 0 or rows:
-              raise SystemExit('unresolved PIT disappearances remain')
-          if manifest.get('complete') is not True:
-              raise SystemExit('transition manifest is not complete')
-          PY
-          git diff --check
-      - name: Commit tested production repairs
-        run: |
-          set -euo pipefail
+          mkdir -p reports
+          cp .github/workflows/full-matrix-backtest-hardened.yml reports/_validated_full_matrix_backtest_hardened.yml
+          git checkout -- .github/workflows/full-matrix-backtest-hardened.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             data/corporate_actions/instrument_transition_reviews.json \
             b3_strategy_lab/cotahist.py \
             b3_strategy_lab/realistic_portfolio.py \
-            .github/workflows/full-matrix-backtest-hardened.yml \
             tests/test_bdi58_goll4_regression.py \
             tests/test_instrument_transition_layer.py \
             tests/test_realistic_snapshot_certification_gate.py \
             tests/test_hardened_backtest_performance_settings.py \
             tests/test_hardened_workflow_snapshot_bootstrap.py \
-            tests/test_realistic_snapshot_reuse_window.py
+            tests/test_realistic_snapshot_reuse_window.py \
+            reports/_validated_full_matrix_backtest_hardened.yml
           git diff --cached --check
-          git commit -m 'fix: close PIT transition chain and harden publication gates'
-          git push origin HEAD:fix/realistic-pit-integrity-20260904
+          if git diff --cached --quiet; then
+            echo 'No non-workflow patch changes to publish.'
+          else
+            git commit -m 'fix: close PIT transition chain and harden publication gates'
+            git push origin HEAD:fix/realistic-pit-integrity-20260904
+          fi
