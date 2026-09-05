@@ -145,5 +145,38 @@ require("reports/latest_backtest" not in text, "legacy latest_backtest path surv
 require("reports/latest_attempt/STATUS.json" in text, "attempt status path missing")
 require("reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz" in text, "certified snapshot source missing")
 require("- name: Publicar tentativa e promover certificado atomicamente" in text, "atomic publication step missing")
-
 workflow.write_text(text, encoding="utf-8")
+
+# Migrate the regression contract with the implementation. It must now prove that a
+# RUNNING/failed attempt is published only under latest_attempt, that snapshot reuse
+# reads latest_certified, and that the old fallback cannot reappear.
+test_path = Path("tests/test_execution_hardening.py")
+test_text = test_path.read_text(encoding="utf-8")
+old_contract = '''        self.assertIn("git add -- reports/latest_backtest", announce)
+        publish = workflow.split("\\n  publish:\\n", 1)[1]
+        self.assertIn(
+            "elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]",
+            publish,
+        )
+        self.assertIn("REALISTIC_SNAPSHOT_PUBLISHED=true", publish)
+        self.assertIn('os.environ["REALISTIC_SNAPSHOT_PUBLISHED"]', publish)
+'''
+new_contract = '''        self.assertIn("git add -- reports/latest_attempt", announce)
+        self.assertIn(
+            "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+            announce,
+        )
+        publish = workflow.split("\\n  publish:\\n", 1)[1]
+        self.assertNotIn(
+            "elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]",
+            publish,
+        )
+        self.assertIn("Publicar tentativa e promover certificado atomicamente", publish)
+        self.assertIn("reports/latest_certified", publish)
+        self.assertNotIn("reports/latest_backtest", workflow)
+        self.assertIn("REALISTIC_SNAPSHOT_PUBLISHED=true", publish)
+        self.assertIn('os.environ["REALISTIC_SNAPSHOT_PUBLISHED"]', publish)
+'''
+require(old_contract in test_text, "old execution-hardening publication contract not found")
+test_text = test_text.replace(old_contract, new_contract, 1)
+test_path.write_text(test_text, encoding="utf-8")
