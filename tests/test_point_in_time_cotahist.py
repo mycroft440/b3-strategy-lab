@@ -110,6 +110,42 @@ class PointInTimeCotahistFilterTests(unittest.TestCase):
 
         self.assertEqual([quote.ticker for quote in quotes], ["PETR4"])
 
+    def test_standard_reader_keeps_alphanumeric_issuer_root(self) -> None:
+        b3sa = cotahist_line(
+            ticker="B3SA3",
+            specification="ON NM",
+            bdi_code="02",
+            market_type="010",
+            open_=12.0,
+            high=12.5,
+            low=11.8,
+            close=12.2,
+        )
+
+        quotes = read_standard_company_equity_cotahist(
+            self._write(envelope([b3sa]))
+        )
+
+        self.assertEqual([quote.ticker for quote in quotes], ["B3SA3"])
+
+    def test_fractional_reader_keeps_alphanumeric_issuer_root(self) -> None:
+        b3sa = cotahist_line(
+            ticker="B3SA3F",
+            specification="ON NM",
+            bdi_code="96",
+            market_type="020",
+            open_=12.0,
+            high=12.5,
+            low=11.8,
+            close=12.2,
+        )
+
+        quotes = read_fractional_cotahist(
+            self._write(envelope([b3sa]))
+        )
+
+        self.assertEqual([quote.ticker for quote in quotes], ["B3SA3F"])
+
     def test_standard_reader_keeps_recovery_extrajudicial_equity(self) -> None:
         recovered = cotahist_line(
             ticker="BRKM5",
