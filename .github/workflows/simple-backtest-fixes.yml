@@ -99,6 +99,29 @@ jobs:
           )
           PY
 
+      - name: Preserve terminal-session curve semantics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          core = Path("scripts/research_portfolio_allocation_core.py")
+          text = core.read_text(encoding="utf-8")
+          old = '''                    positions=len(selected_for_curve),\n                    selected=";".join(selected_for_curve),\n'''
+          new = '''                    positions=len(selected),\n                    selected=";".join(selected),\n'''
+          if text.count(old) != 1:
+              raise SystemExit("terminal curve replacement mismatch")
+          core.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          test = Path("tests/test_simple_backtest_fixes.py")
+          text = test.read_text(encoding="utf-8")
+          old = '''    assert curve[-1].positions == 0\n    assert curve[-1].selected == ""\n'''
+          new = '''    # selected/positions describe the asset held during the final session;\n    # cash/equity already reflect the mandatory close liquidation.\n    assert curve[-1].positions == 1\n    assert curve[-1].selected == "AAA"\n'''
+          if text.count(old) != 1:
+              raise SystemExit("focused test replacement mismatch")
+          test.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Install test runner
         run: python -m pip install pytest
 
