@@ -23,16 +23,9 @@ require("reports/latest_attempt" not in text, "partial latest_attempt migration 
 text = text.replace("reports/latest_backtest", "reports/latest_attempt")
 
 # Reuse/bootstrap is allowed only from the previous certified pointer. A failed
-# attempt must never be a source of reusable realistic inputs.
+# attempt must never be a source of reusable realistic inputs. Migrate PREVIOUS_*
+# anchors before the generic names because SNAPSHOT= is a suffix of PREVIOUS_SNAPSHOT=.
 for old, new in (
-    (
-        "SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-        "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-    ),
-    (
-        "CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
-        "CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
-    ),
     (
         "PREVIOUS_SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
         "PREVIOUS_SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
@@ -40,6 +33,14 @@ for old, new in (
     (
         "PREVIOUS_CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
         "PREVIOUS_CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
+    ),
+    (
+        "SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+        "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+    ),
+    (
+        "CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
+        "CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
     ),
 ):
     require(old in text, f"missing certified snapshot migration anchor: {old}")
