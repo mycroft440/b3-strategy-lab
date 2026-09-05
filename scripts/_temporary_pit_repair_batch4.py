@@ -1,109 +1,87 @@
+from __future__ import annotations
+
+import re
 from pathlib import Path
 
 
-def replace_all(path: str, old: str, new: str, expected_min: int = 1) -> None:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    count = text.count(old)
-    if count < expected_min:
-        raise SystemExit(f"{path}: expected at least {expected_min} replacements, found {count}: {old!r}")
-    p.write_text(text.replace(old, new), encoding="utf-8")
+workflow = Path(".github/workflows/full-matrix-backtest-hardened.yml")
+text = workflow.read_text(encoding="utf-8")
 
 
-def replace_once(path: str, old: str, new: str) -> None:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    count = text.count(old)
-    if count != 1:
-        raise SystemExit(f"{path}: expected one replacement, found {count}: {old!r}")
-    p.write_text(text.replace(old, new), encoding="utf-8")
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise SystemExit(message)
 
 
-workflow = ".github/workflows/full-matrix-backtest-hardened.yml"
+# This temporary migration is intentionally one-shot. Refuse to run against an
+# already-migrated file so a rerun cannot stack or partially duplicate semantics.
+require("reports/latest_backtest" in text, "workflow already migrated or source contract changed")
+require("reports/latest_attempt" not in text, "partial latest_attempt migration detected")
 
-# `latest_attempt` is the mutable pointer for any run. `latest_certified` is immutable
-# unless all research, realistic and final certification gates pass in the same run.
-replace_all(workflow, "reports/latest_backtest", "reports/latest_attempt")
+# Every path produced by the current run is an attempt. Only an explicitly promoted
+# successful attempt becomes the certified pointer.
+text = text.replace("reports/latest_backtest", "reports/latest_attempt")
 
-# Snapshot reuse must come only from a previously certified run, never from an aborted
-# attempt. The first two reads occur in announce/realistic-data; the final publish stage
-# also reads the prior certified pointer.
-p = Path(workflow)
-text = p.read_text(encoding="utf-8")
+# Reuse/bootstrap is allowed only from the previous certified pointer. A failed
+# attempt must never be a source of reusable realistic inputs.
+for old, new in (
+    (
+        "SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+        "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+    ),
+    (
+        "CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
+        "CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
+    ),
+    (
+        "PREVIOUS_SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+        "PREVIOUS_SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
+    ),
+    (
+        "PREVIOUS_CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
+        "PREVIOUS_CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
+    ),
+):
+    require(old in text, f"missing certified snapshot migration anchor: {old}")
+    text = text.replace(old, new)
+
+# A blocked current run must not copy an old certified snapshot into the current
+# attempt and then report it as if it had been produced by this run.
+fallback_pattern = re.compile(
+    r'''          elif \[ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT\.tar\.gz \]; then\n'''
+    r'''            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT\.tar\.gz reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT\.tar\.gz\n'''
+    r'''            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT\.sha256 reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT\.sha256\n'''
+    r'''            REALISTIC_SNAPSHOT_PUBLISHED=true\n'''
+    r'''          fi\n'''
+)
+text, count = fallback_pattern.subn("          fi\n", text, count=1)
+require(count == 1, f"expected exactly one stale snapshot fallback, found {count}")
+
+# The point-in-time universe is survivorship-safe; retrospective strategy selection
+# remains a separate bias and must stay explicitly disclosed.
+bias_anchor = (
+    '              "selection_bias_remaining": True,\n'
+    '              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",\n'
+)
+require(bias_anchor in text, "selection bias status anchor missing")
 text = text.replace(
-    "SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-    "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-)
-text = text.replace(
-    "CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
-    "CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
-)
-text = text.replace(
-    "PREVIOUS_SNAPSHOT=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-    "PREVIOUS_SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-)
-text = text.replace(
-    "PREVIOUS_CHECKSUM=reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256",
-    "PREVIOUS_CHECKSUM=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.sha256",
-)
-p.write_text(text, encoding="utf-8")
-
-# A failed/current attempt must not silently publish the previous certified snapshot as
-# if it belonged to this run. Remove the fallback copy entirely.
-replace_once(
-    workflow,
-    '''          elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]; then
-            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
-            cp previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.sha256 reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
-            REALISTIC_SNAPSHOT_PUBLISHED=true
-          fi
-''',
-    '''          fi
-''',
+    bias_anchor,
+    '              "universe_selection_bias_remaining": False,\n'
+    '              "strategy_selection_bias_remaining": True,\n'
+    '              "selection_bias_remaining": True,\n'
+    '              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",\n',
+    1,
 )
 
-# Split bias semantics instead of claiming the point-in-time universe itself still has
-# survivorship bias. Retrospective strategy selection remains research-only.
-replace_once(
-    workflow,
-    '''              "selection_bias_remaining": True,
-              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
-''',
-    '''              "universe_selection_bias_remaining": False,
-              "strategy_selection_bias_remaining": True,
-              "selection_bias_remaining": True,
-              "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
-''',
-)
+# Replace the complete publish step by anchors rather than whitespace-sensitive body
+# matching. The next step name is preserved as the boundary.
+start_marker = "      - name: Gravar latest em backtest-results\n"
+end_marker = "      - name: Exigir aprovação realista retrospectiva\n"
+start = text.find(start_marker)
+end = text.find(end_marker, start + len(start_marker))
+require(start >= 0 and end > start, "publication step anchors not found or ambiguous")
 
-# Paths in status must reflect attempt semantics.
-replace_all(workflow, '"reports/latest_attempt/MATRIX.csv.gz"', '"reports/latest_attempt/MATRIX.csv.gz"')
-
-# Replace the publication step with atomic staging of the attempt, and promote a
-# complete directory to latest_certified only after the current status is fully green.
-replace_once(
-    workflow,
-    '''      - name: Gravar latest em backtest-results
-        env:
-          PREPARE_RESULT: ${{ needs.prepare.result }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- reports/latest_attempt
-          if [ "$PREPARE_RESULT" = "success" ]; then
-            git add -- \
-              reports/backtest_data_audit_40.json \
-              data/candles \
-              data/manifests \
-              data/corporate_actions \
-              data/universes/fixed_40_2018.json \
-              data/quality_reviews.json
-          fi
-          git commit -m "Backtest ${{ github.run_number }}: publicar resultado [skip ci]"
-          git push --force origin HEAD:backtest-results
-''',
-    '''      - name: Publicar tentativa e promover certificado atomicamente
+publication = '''      - name: Publicar tentativa e promover certificado atomicamente
         env:
           PREPARE_RESULT: ${{ needs.prepare.result }}
         run: |
@@ -118,13 +96,15 @@ replace_once(
           PY
           )"
 
-          # Stage the whole attempt under a temporary directory first. A partial copy
-          # is never the canonical pointer.
+          # Build the mutable attempt pointer as one complete directory before it is
+          # staged. This keeps partial intermediate copies out of the commit.
           rm -rf reports/.latest_attempt_staging
           cp -a reports/latest_attempt reports/.latest_attempt_staging
           rm -rf reports/latest_attempt
           mv reports/.latest_attempt_staging reports/latest_attempt
 
+          # Promote only a fully approved current run. A failed or research-only run
+          # leaves latest_certified completely untouched.
           if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
             test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.tar.gz
             test -f reports/latest_attempt/REALISTIC_INPUT_SNAPSHOT.sha256
@@ -140,7 +120,7 @@ replace_once(
             mv reports/.latest_certified_staging reports/latest_certified
           fi
 
-          git add -- reports/latest_attempt
+          git add -A -- reports/latest_attempt
           if [ "$STATUS" = "REALISTIC_RETROSPECTIVE_SUCCESS" ]; then
             git add -A -- reports/latest_certified
           fi
@@ -155,12 +135,14 @@ replace_once(
           fi
           git commit -m "Backtest ${{ github.run_number }}: publish attempt/certified pointers [skip ci]"
           git push --force origin HEAD:backtest-results
-''',
-)
 
-# The final assertion reads the attempt, never aliases a failed attempt as certified.
-replace_once(
-    workflow,
-    '          status = json.loads(Path("reports/latest_attempt/STATUS.json").read_text())\n',
-    '          status = json.loads(Path("reports/latest_attempt/STATUS.json").read_text())\n',
-)
+'''
+text = text[:start] + publication + text[end:]
+
+# Contract sanity checks after migration.
+require("reports/latest_backtest" not in text, "legacy latest_backtest path survived migration")
+require("reports/latest_attempt/STATUS.json" in text, "attempt status path missing")
+require("reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz" in text, "certified snapshot source missing")
+require("- name: Publicar tentativa e promover certificado atomicamente" in text, "atomic publication step missing")
+
+workflow.write_text(text, encoding="utf-8")
