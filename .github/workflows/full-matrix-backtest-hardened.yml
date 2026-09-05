@@ -44,7 +44,7 @@ on:
       - "data/candles/**"
       - "data/manifests/**"
       - "data/corporate_actions/**"
-      - "data/universes/fixed_40_2018.json"
+      - "data/universes/**"
       - "data/quality_reviews.json"
       - "data/fees/**"
       - "tests/**"
@@ -180,6 +180,27 @@ jobs:
             --refresh-actions \
             --refresh-selection
 
+      - name: Construir universo histórico point-in-time para a pesquisa
+        env:
+          START_DATE: ${{ inputs.start || '2018-01-02' }}
+        run: |
+          set -euo pipefail
+          START_YEAR="${START_DATE:0:4}"
+          END_YEAR="${SYNC_END:0:4}"
+          SOURCE_YEARS="$((10#$START_YEAR - 1)):$((10#$END_YEAR))"
+          python scripts/build_survivorship_safe_realistic_universe.py \
+            --start "$START_DATE" \
+            --end "$SYNC_END" \
+            --years "$SOURCE_YEARS" \
+            --download
+          python scripts/build_ticker_transitions.py \
+            --years "$SOURCE_YEARS" \
+            --download
+          python scripts/sync_point_in_time_universe_realistic.py \
+            --years "$SOURCE_YEARS" \
+            --download \
+            --refresh-actions
+
       - name: Validar dados verificados
         run: |
           python -m b3_strategy_lab verify-data --interval 1d
@@ -237,7 +258,11 @@ jobs:
             data/candles
             data/manifests
             data/corporate_actions
-            data/universes/fixed_40_2018.json
+            data/candles_point_in_time
+            data/actions_point_in_time
+            data/manifests_point_in_time
+            data/universes/point_in_time_union.json
+            data/universes/point_in_time_weekly.csv
             data/quality_reviews.json
           if-no-files-found: error
           retention-days: 7
@@ -353,6 +378,7 @@ jobs:
           CMD=(
             python scripts/backtest_strategy_management_combinations.py
             --strategies "${STRATEGY_ARGS[@]}"
+            --universe-manifest data/universes/point_in_time_union.json
             --start "$START_DATE"
             --initial-cash "$INITIAL_CASH"
             --cost-bps "$COST_BPS"
