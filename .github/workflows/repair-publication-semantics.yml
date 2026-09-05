@@ -1,0 +1,42 @@
+name: Temporary publication semantics repair
+
+on:
+  push:
+    branches:
+      - fix/realistic-pit-integrity-20260904
+    paths:
+      - '.github/workflows/repair-publication-semantics.yml'
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  publication-semantics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply publication patch and run full regression suite
+        run: |
+          set -euo pipefail
+          python scripts/_temporary_pit_repair_batch4.py
+          python -m py_compile scripts/_temporary_pit_repair_batch4.py
+          python -m unittest discover -s tests -v
+          git diff --check
+      - name: Commit verified production workflow
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/full-matrix-backtest-hardened.yml
+          git diff --cached --check
+          git commit -m 'fix: separate latest attempt from certified backtest publication'
+          git push origin HEAD:fix/realistic-pit-integrity-20260904
