@@ -8,7 +8,7 @@ on:
       - reports/full-matrix-ex-ante-candidate.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -29,22 +29,18 @@ jobs:
             b3_strategy_lab/ex_ante_validation.py \
             scripts/audit_point_in_time_validation.py \
             scripts/freeze_ex_ante_candidate.py \
-            scripts/certify_ex_ante_holdout.py \
-            scripts/resolve_ex_ante_holdout.py \
-            scripts/patch_full_matrix_ex_ante_workflow.py
+            scripts/certify_ex_ante_holdout.py
       - name: Run focused validation tests
         run: |
           python -m unittest \
             tests.test_ex_ante_holdout_validation \
             tests.test_ex_ante_production_workflow -v
-      - name: Render and parse production workflow candidate
+      - name: Parse installed production workflow
         run: |
-          python scripts/patch_full_matrix_ex_ante_workflow.py \
-            --output /tmp/full-matrix-ex-ante.yml
           python - <<'PY'
           from pathlib import Path
           import yaml
-          payload = yaml.safe_load(Path('/tmp/full-matrix-ex-ante.yml').read_text())
+          payload = yaml.safe_load(Path('.github/workflows/full-matrix-backtest-hardened.yml').read_text())
           assert isinstance(payload, dict)
           assert 'jobs' in payload
           assert 'realistic_validation' in payload['jobs']
@@ -52,16 +48,3 @@ jobs:
           PY
       - name: Run full test suite
         run: python -m unittest discover -s tests -v
-      - name: Persist the exact tested workflow candidate
-        run: |
-          set -euo pipefail
-          mkdir -p reports
-          cp /tmp/full-matrix-ex-ante.yml reports/full-matrix-ex-ante-candidate.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reports/full-matrix-ex-ante-candidate.yml
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "test: retain ex-ante production workflow candidate [skip ci]"
-          git push origin HEAD:fix/ex-ante-holdout-pit-validation-20260905
