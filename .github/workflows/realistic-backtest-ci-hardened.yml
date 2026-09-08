@@ -17,6 +17,7 @@ on:
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
+      - "requirements-test.txt"
       - "data/fees/**"
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
@@ -42,6 +43,7 @@ on:
       - "scripts/sync_point_in_time_universe*.py"
       - "scripts/research_portfolio_allocation*.py"
       - "tests/**"
+      - "requirements-test.txt"
       - "data/fees/**"
       - "data/quality_reviews.json"
       - "data/personal_account_examples/**"
@@ -115,7 +117,9 @@ jobs:
             scripts/backtest_strategy_management_combinations.py
 
       - name: Full unit suite
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m pip install -r requirements-test.txt
+          python -m pytest -q
 
   realistic-2018-smoke:
     if: ${{ github.event_name == 'workflow_dispatch' }}

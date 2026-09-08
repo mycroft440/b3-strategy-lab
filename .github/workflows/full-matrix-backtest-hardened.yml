@@ -48,6 +48,7 @@ on:
       - "data/quality_reviews.json"
       - "data/fees/**"
       - "tests/**"
+      - "requirements-test.txt"
 
 run-name: "Backtest 100k+ — triagem + validação realista"
 
@@ -112,7 +113,9 @@ jobs:
             scripts/run_realistic_pipeline.py
 
       - name: Executar suíte completa antes da matriz
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m pip install -r requirements-test.txt
+          python -m pytest -q
 
       - name: Resolver cutoff oficial reproduzível
         id: cutoff
