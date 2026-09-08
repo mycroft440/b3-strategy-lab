@@ -64,21 +64,10 @@ def _provisional_ordinary_tax_after_irrf(account, value_date: str) -> float:
     return max(0.0, gross_tax - min(gross_tax, available_irrf_credit))
 
 
-def _enforce_causal_capacity(account, value_date: str, ticker: str, quantity: int, quote) -> None:
-    """Reject fills above the configured causal-ADV participation ceiling.
+def remaining_causal_capacity(account, value_date: str, ticker: str, quote) -> float:
+    """Remaining daily notional under the causal ADV limit, across both sides."""
 
-    The generic engine keeps this disabled for backwards-compatible research.
-    Certified runners explicitly set ``_max_causal_adv_participation``. Once set,
-    an oversized order is rejected instead of receiving an unrealistic full fill
-    merely because the slippage curve reached its maximum bps.
-    """
-
-    if quantity <= 0:
-        return
-    limit = getattr(account, "_max_causal_adv_participation", None)
-    if limit is None:
-        return
-    limit = float(limit)
+    limit = float(getattr(account, "_max_causal_adv_participation", 0.01))
     if not math.isfinite(limit) or not 0 < limit <= 1:
         raise ValueError("max causal ADV participation must be finite and in (0, 1].")
 
@@ -90,24 +79,42 @@ def _enforce_causal_capacity(account, value_date: str, ticker: str, quantity: in
         raise ValueError(
             f"{value_date}/{ticker}: causal financial volume is required for capacity check."
         )
-    raw_notional = int(quantity) * raw_price
-    participation = raw_notional / liquidity
-    if participation > limit + 1e-12:
+    key = (value_date, ticker.upper(), quote.market_type)
+    used = getattr(account, "_causal_capacity_used", {}).get(key, 0.0)
+    return max(0.0, limit * liquidity - used)
+
+
+def _enforce_causal_capacity(account, value_date: str, ticker: str, quantity: int, quote) -> None:
+    if quantity <= 0:
+        return
+    remaining = remaining_causal_capacity(account, value_date, ticker, quote)
+    if int(quantity) * float(quote.open) > remaining + 1e-9:
         raise ValueError(
             f"{value_date}/{ticker}/{quote.market_type}: requested opening fill uses "
-            f"{participation:.6%} of causal ADV, above certified limit {limit:.6%}. "
+            "more than the remaining daily causal ADV capacity. "
             "Refusing a full-fill assumption."
         )
+
+
+def _record_capacity(account, value_date, ticker, quantity, quote) -> None:
+    if not hasattr(account, "_causal_capacity_used"):
+        account._causal_capacity_used = {}
+    key = (value_date, ticker.upper(), quote.market_type)
+    account._causal_capacity_used[key] = (
+        account._causal_capacity_used.get(key, 0.0) + max(0, quantity) * float(quote.open)
+    )
 
 
 def _capacity_checked_buy_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
     _enforce_causal_capacity(self, value_date, ticker, quantity, quote)
     _original_buy_leg(self, value_date, ticker, quantity, quote)
+    _record_capacity(self, value_date, ticker, quantity, quote)
 
 
 def _capacity_checked_sell_leg(self, value_date, ticker: str, quantity: int, quote) -> None:
     _enforce_causal_capacity(self, value_date, ticker, quantity, quote)
     _original_sell_leg(self, value_date, ticker, quantity, quote)
+    _record_capacity(self, value_date, ticker, quantity, quote)
 
 
 def install() -> None:

@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,12 +26,16 @@ from scripts import walk_forward_realistic as _walk  # noqa: E402
 
 
 def _value_after(argv: list[str], flag: str, default: str) -> str:
-    if flag not in argv:
-        return default
-    index = argv.index(flag)
-    if index + 1 >= len(argv):
-        raise ValueError(f"{flag} requires a value")
-    return argv[index + 1]
+    # Match argparse's --flag=value syntax and last-occurrence-wins semantics.
+    value = default
+    for index, argument in enumerate(argv):
+        if argument.startswith(flag + "="):
+            value = argument[len(flag) + 1 :]
+        elif argument == flag:
+            if index + 1 >= len(argv) or argv[index + 1].startswith("--"):
+                raise ValueError(f"{flag} requires a value")
+            value = argv[index + 1]
+    return value
 
 
 def _force_certified_semantics(argv: list[str]) -> list[str]:
@@ -55,7 +60,7 @@ def _is_complete_calendar_year_fold(row: dict[str, str]) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     parser.add_argument(
         "--cash-certification",
         type=Path,
@@ -68,10 +73,13 @@ def main(argv: list[str] | None = None) -> int:
         default=0.01,
         help=(
             "Fail-closed maximum share of trailing causal financial-volume ADV used "
-            "by any opening execution leg. Default: 0.01 (1%)."
+            "by any opening execution leg. Default: 0.01 (1%%)."
         ),
     )
     known, forwarded = parser.parse_known_args(raw)
+    if "--help" in forwarded or "-h" in forwarded:
+        print(parser.format_help())
+        return _walk.main(["--help"])
     if not 0 < known.max_causal_adv_participation <= 1:
         parser.error("--max-causal-adv-participation must be in (0, 1].")
     forwarded = _force_certified_semantics(forwarded)
@@ -103,6 +111,13 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(
             "Certified walk-forward requires --end or a certified cash-manifest end date."
         )
+    start = date.fromisoformat(start).isoformat()
+    end = date.fromisoformat(end).isoformat()
+    if end < start:
+        parser.error("Certified coverage end must not precede --start.")
+    # The dates validated below must also be the dates actually dispatched. In
+    # particular, newly downloaded candles cannot extend an implicit --end.
+    forwarded.extend(["--start", start, "--end", end])
 
     market_data_tickers = sorted(
         {
@@ -137,6 +152,13 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     def certified_run(*args, **kwargs):
+        run_start = str(kwargs.get("start", ""))
+        run_end = str(kwargs.get("end", ""))
+        if not start <= run_start <= run_end <= end:
+            raise ValueError(
+                f"Walk-forward interval {run_start}..{run_end} exceeds "
+                f"certified coverage {start}..{end}."
+            )
         kwargs["cash_events_complete"] = True
         kwargs["economic_gap_adjustment"] = True
         return original_run(*args, **kwargs)
@@ -169,20 +191,22 @@ def main(argv: list[str] | None = None) -> int:
     summary["cash_events_complete"] = True
     summary["cash_certification_verified"] = True
     summary["cash_certification"] = str(known.cash_certification)
+    summary["certified_coverage_start"] = start
+    summary["certified_coverage_end"] = end
     summary["causal_opening_liquidity_required"] = True
     summary["economic_gap_adjustment_required"] = True
     summary["continuous_oos_account_required"] = True
     summary["certified_strategy_semantics"] = "economic_gap_adjustment_for_gap_momentum"
     summary["execution_capacity_gate_required"] = True
-    summary["execution_capacity_gate"] = "reject_above_causal_adv_participation"
+    summary["execution_capacity_gate"] = "partial_fill_and_cancel_above_causal_adv_participation"
     summary["max_causal_adv_participation"] = float(
         known.max_causal_adv_participation
     )
-    summary["partial_fill_model"] = False
+    summary["partial_fill_model"] = True
     summary["capacity_interpretation"] = (
-        "Certified execution rejects any leg above the configured fraction of trailing "
-        "causal financial-volume ADV. It intentionally does not invent an order-book or "
-        "partial-fill reconstruction that the daily source data cannot support."
+        "Orders are sized before the open; modeled fills are capped by causal ADV and "
+        "available cash, and the remainder expires. This is a conservative execution "
+        "scenario, not a reconstruction of auction queue priority or actual broker fills."
     )
 
     announcement_timing_verified = (
@@ -208,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
         fold_rows = list(csv.DictReader(file))
     complete_rows = [row for row in fold_rows if _is_complete_calendar_year_fold(row)]
     positive_complete = sum(
-        1 for row in complete_rows if float(row["test_total_return"]) > 0
+        1 for row in complete_rows if float(row[
+            "test_excess_total_return" if summary.get("benchmark_csv") else "test_total_return"
+        ]) > 0
     )
     summary["complete_test_folds"] = len(complete_rows)
     summary["positive_complete_test_folds"] = positive_complete

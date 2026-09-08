@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -169,13 +170,16 @@ def certified_replay_blockers(
 
     blockers: list[str] = []
     if audit.get("ready_for_certified_market_inputs") is not True:
+        blockers.append("certified_market_inputs_required")
         blockers.extend(str(item) for item in audit.get("certified_market_input_blockers", []))
     if audit.get("ex_ante_selection_claim_allowed") is not True:
         blockers.append("survivorship_safe_point_in_time_universe_required")
     if execution_policy != CERTIFIED_EXECUTION_POLICY:
         blockers.append("execution_policy_must_use_official_open_market_order")
-    if any(value != 0.0 for value in (base_slippage_bps, participation_bps_at_1pct, max_slippage_bps)):
-        blockers.append("modeled_slippage_must_be_disabled_for_certified_official_open_replay")
+    if (any(not math.isfinite(value) or value < 0 for value in
+            (base_slippage_bps, participation_bps_at_1pct, max_slippage_bps))
+            or not base_slippage_bps <= max_slippage_bps < 10_000):
+        blockers.append("invalid_modeled_slippage_parameters")
     blockers.extend(broker_profile_issues(profile, start=start, end=end))
     return sorted(set(blockers))
 

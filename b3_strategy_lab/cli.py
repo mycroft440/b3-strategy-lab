@@ -22,7 +22,7 @@ from .candles import (
     split_candles_by_year,
     validate_candles,
 )
-from .cotahist import DEFAULT_MANIFESTS_DIR, DataVerificationError, load_verified_candles
+from .cotahist import DEFAULT_MANIFESTS_DIR, DEFAULT_SPLIT_EVIDENCE_PATH, DataVerificationError, load_verified_candles
 from .strategies import STRATEGIES, available_strategies, build_signals, strategies_by_family, strategy_parameters, sweep_strategies
 
 PARAM_FIELDS = [
@@ -130,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     _add_common_data_args(verify_parser)
     verify_parser.add_argument("--manifests-dir", default=str(DEFAULT_MANIFESTS_DIR))
+    verify_parser.add_argument("--split-evidence", default=str(DEFAULT_SPLIT_EVIDENCE_PATH))
     verify_parser.add_argument(
         "--require-verified-actions",
         action="store_true",
@@ -380,6 +381,7 @@ def _verify_data_command(args: argparse.Namespace) -> int:
             start=args.start,
             end=args.end,
             require_verified_actions=args.require_verified_actions,
+            split_evidence_path=args.split_evidence,
         )
         if not candles:
             raise DataVerificationError(

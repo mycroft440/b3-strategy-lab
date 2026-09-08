@@ -811,6 +811,12 @@ def _load_point_in_time_membership(
     if not path.exists():
         raise FileNotFoundError(f"Snapshot point-in-time ausente: {path}")
     selectable = {str(ticker).strip().upper() for ticker in universe["tickers"]}
+    panel = universe.get("control_panel")
+    selected = selectable
+    if isinstance(panel, dict) and "selected_tickers" in panel:
+        selected = {str(ticker).strip().upper() for ticker in panel["selected_tickers"]}
+        if not selected or not selected.issubset(selectable):
+            raise ValueError("Subconjunto do painel fora da uniao historica PIT.")
     rules = universe.get("selection_rules")
     expected_size = int(rules.get("weekly_candidates", 0)) if isinstance(rules, dict) else 0
     snapshots: dict[str, list[tuple[int, str]]] = {}
@@ -862,7 +868,7 @@ def _load_point_in_time_membership(
             snapshot_index += 1
         # Deliberately empty before the first historical snapshot: a future
         # composition must never be backfilled into earlier decisions.
-        membership[market_date] = set(active)
+        membership[market_date] = active & selected
     return membership
 
 

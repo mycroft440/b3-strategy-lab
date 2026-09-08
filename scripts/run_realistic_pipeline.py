@@ -48,6 +48,18 @@ def _source_year_range(start: str, end: str | None) -> str:
     return f"{start_year - 1}:{end_year}"
 
 
+def _require_input_mode(audit: dict, mode: str) -> None:
+    if audit.get("ready_for_realistic_estimate") is not True:
+        raise RuntimeError(f"Realistic input audit failed; refusing estimate. Blockers: {audit.get('blockers', [])}")
+    if mode == "maximum_fidelity" and audit.get("ready_for_certified_market_inputs") is not True:
+        raise RuntimeError(
+            "Maximum fidelity requires certified market inputs, including documentary cash "
+            "coverage. Supply missing primary documents and certify the exact ledger; "
+            "--mode research explicitly permits an uncertified estimate only. Blockers: "
+            f"{audit.get('certified_market_input_blockers', [])}"
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -60,6 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--end")
     parser.add_argument("--initial-cash", type=float, default=1_000.0)
+    parser.add_argument("--mode", choices=("maximum_fidelity", "research"), default="maximum_fidelity")
+    parser.add_argument("--cash-supplement", type=Path)
+    parser.add_argument("--corporate-settlements", type=Path)
+    parser.add_argument("--benchmark-csv", type=Path)
+    parser.add_argument("--holdout-start")
     download_group = parser.add_mutually_exclusive_group()
     download_group.add_argument("--download", dest="download", action="store_true", default=True)
     download_group.add_argument("--no-download", dest="download", action="store_false")
@@ -118,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
             sync.append("--download")
         if args.refresh_actions:
             sync.append("--refresh-actions")
+        if args.cash_supplement is not None:
+            sync.extend(["--cash-supplement", str(args.cash_supplement)])
         _run(sync)
 
     audit_path = Path("reports/realistic_input_audit.json")
@@ -153,6 +172,12 @@ def main(argv: list[str] | None = None) -> int:
             set([*existing, *transition_issues])
         )
     audit["ticker_transition_binding_issues"] = transition_issues
+    _require_input_mode(audit, args.mode)
+    if args.mode == "maximum_fidelity":
+        audit_start = str(audit_details.get("audit_start", ""))
+        if not audit_end or not audit_start or args.start < audit_start or (args.end and args.end > audit_end):
+            raise RuntimeError("Requested replay lies outside the audited market-input interval.")
+        common_end = ["--end", args.end or audit_end]
 
     runs: list[dict[str, object]] = []
     for label, economic in (("raw_gap", False), ("economic_gap", True)):
@@ -180,12 +205,18 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if economic:
             command.append("--economic-gap-adjustment")
+        if args.mode == "maximum_fidelity":
+            command.append("--require-certified-inputs")
+        if args.corporate_settlements:
+            command.extend(["--corporate-settlements", str(args.corporate_settlements)])
         _run(command)
         summary = _read(summary_path)
         summary["account_reconstruction_classification"] = _account_classification(
             audit, summary
         )
         summary["ticker_transition_binding_verified"] = not transition_issues
+        summary["fidelity_mode"] = args.mode
+        summary["research_estimate"] = args.mode == "research"
         summary["strategy_selection_classification"] = "RETROSPECTIVE_HYPOTHESIS_REPLAY"
         summary["ex_ante_selection_claim_allowed"] = False
         summary["counterfactual_execution_exact"] = False
@@ -203,12 +234,16 @@ def main(argv: list[str] | None = None) -> int:
 
     walk_forward_reports: dict[str, object] = {}
     if not args.skip_walk_forward:
-        for label, economic in (("raw_gap", False), ("economic_gap", True)):
+        # Certified validation always enforces economic gap adjustment.
+        variants = (("economic_gap", True),) if args.mode == "maximum_fidelity" else (
+            ("raw_gap", False), ("economic_gap", True)
+        )
+        for label, economic in variants:
             output = Path(f"reports/realistic_walk_forward_{label}.csv")
             summary_output = Path(f"reports/realistic_walk_forward_{label}_summary.json")
             walk = [
                 python,
-                "scripts/walk_forward_realistic.py",
+                "scripts/walk_forward_certified.py" if args.mode == "maximum_fidelity" else "scripts/walk_forward_realistic.py",
                 "--start",
                 args.start,
                 "--first-test-year",
@@ -225,6 +260,11 @@ def main(argv: list[str] | None = None) -> int:
                 walk.append("--all-strategies")
             if economic:
                 walk.append("--economic-gap-adjustment")
+            walk.append("--continuous-oos-account")
+            for flag, value in (("--corporate-settlements", args.corporate_settlements),
+                                ("--benchmark-csv", args.benchmark_csv), ("--holdout-start", args.holdout_start)):
+                if value:
+                    walk.extend([flag, str(value)])
             _run(walk)
             walk_forward_reports[label] = {
                 "csv": str(output),
@@ -243,6 +283,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     status = {
         "schema_version": 7,
+        "fidelity_mode": args.mode,
+        "research_estimate": args.mode == "research",
         "initial_cash": args.initial_cash,
         "start": args.start,
         "end": raw.get("end"),

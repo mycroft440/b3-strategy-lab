@@ -149,7 +149,7 @@ class DistributionReceivableTests(unittest.TestCase):
             candidate_profile_cache={},
         )
         quotes = []
-        for day, price in (("2026-01-05", 10.0), ("2026-01-06", 9.0)):
+        for day, price in (("2026-01-02", 10.0), ("2026-01-05", 10.0), ("2026-01-06", 9.0)):
             quotes.append(ExecutionQuote(day, "AAA3", "010", price, price, 10_000_000.0))
             quotes.append(ExecutionQuote(day, "AAA3F", "020", price, price, 1_000_000.0))
         event = CashDistribution(

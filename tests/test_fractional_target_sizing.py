@@ -25,6 +25,10 @@ class FractionalTargetSizingTests(unittest.TestCase):
         day = "2026-01-02"
         return ExecutionPriceBook(
             [
+                ExecutionQuote("2025-12-30", "AAA3", "010", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2025-12-30", "BBB3", "010", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2025-12-30", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2025-12-30", "BBB3F", "020", 10.0, 10.0, 1_000_000.0),
                 ExecutionQuote(day, "AAA3", "010", 10.0, 10.0, 1_000_000.0),
                 ExecutionQuote(day, "AAA3F", "020", 20.0, 20.0, 100_000.0),
                 ExecutionQuote(day, "BBB3", "010", 10.0, 10.0, 1_000_000.0),
@@ -32,7 +36,7 @@ class FractionalTargetSizingTests(unittest.TestCase):
             ]
         )
 
-    def test_small_account_weights_use_fractional_not_standard_open(self) -> None:
+    def test_fractional_gap_reduces_fills_without_resizing_frozen_orders(self) -> None:
         account = rebalance_atomic(
             self._account(),
             data=None,
@@ -40,13 +44,14 @@ class FractionalTargetSizingTests(unittest.TestCase):
             current="2026-01-02",
             targets={"AAA3": 0.5, "BBB3": 0.5},
         )
-        # R$50 target in AAA3 at the fractional open of R$20 fits 2 shares.
-        # R$50 target in BBB3 at the fractional open of R$10 fits 5 shares.
-        self.assertEqual(account.shares("AAA3"), 2)
-        self.assertEqual(account.shares("BBB3"), 5)
+        # Both orders were 5 shares at the prior R$10 close. A gap in AAA3
+        # makes that basket unaffordable; proportional partial fills are 3 each.
+        self.assertEqual([row["requested_shares"] for row in account.order_ledger], [5, 5])
+        self.assertEqual(account.shares("AAA3"), 3)
+        self.assertEqual(account.shares("BBB3"), 3)
         self.assertAlmostEqual(account.cash, 10.0)
 
-    def test_existing_odd_lot_is_valued_at_fractional_open(self) -> None:
+    def test_existing_odd_lot_is_not_resized_from_its_fractional_open(self) -> None:
         account = self._account(0.01)
         account.positions["AAA3"].shares = 2
         account.positions["AAA3"].average_cost = 10.0
@@ -57,8 +62,8 @@ class FractionalTargetSizingTests(unittest.TestCase):
             current="2026-01-02",
             targets={"AAA3": 1.0},
         )
-        # Opening equity is 2 * R$20 + cash, not 2 * the R$10 standard quote.
         self.assertEqual(result.shares("AAA3"), 2)
+        self.assertFalse(result.order_ledger)
 
 
 if __name__ == "__main__":

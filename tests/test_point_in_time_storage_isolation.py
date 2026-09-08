@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,12 +15,12 @@ from scripts import walk_forward_realistic as walk_forward
 
 class PointInTimeStorageIsolationTests(unittest.TestCase):
     def test_isolated_defaults_align_across_realistic_modules(self) -> None:
-        expected_data = "data/candles_point_in_time"
-        expected_actions = "data/actions_point_in_time"
-        expected_manifests = "data/manifests_point_in_time"
-        expected_splits = "data/corporate_actions/point_in_time_split_evidence.json"
-        expected_transitions = "data/corporate_actions/ticker_transitions.csv"
-        expected_transition_manifest = "data/corporate_actions/ticker_transitions.manifest.json"
+        expected_data = str(Path("data/candles_point_in_time"))
+        expected_actions = str(Path("data/actions_point_in_time"))
+        expected_manifests = str(Path("data/manifests_point_in_time"))
+        expected_splits = str(Path("data/corporate_actions/point_in_time_split_evidence.json"))
+        expected_transitions = str(Path("data/corporate_actions/ticker_transitions.csv"))
+        expected_transition_manifest = str(Path("data/corporate_actions/ticker_transitions.manifest.json"))
 
         self.assertEqual(str(sync_base.DEFAULT_DATA), expected_data)
         self.assertEqual(str(sync_base.DEFAULT_ACTIONS), expected_actions)
@@ -53,12 +54,12 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
             self.assertEqual(sync_realistic.main(["--years", "2017:2018"]), 0)
         arguments = delegated.call_args.args[0]
         pairs = dict(zip(arguments[::2], arguments[1::2]))
-        self.assertEqual(pairs["--data-dir"], "data/candles_point_in_time")
-        self.assertEqual(pairs["--actions-dir"], "data/actions_point_in_time")
-        self.assertEqual(pairs["--manifests-dir"], "data/manifests_point_in_time")
+        self.assertEqual(Path(pairs["--data-dir"]), Path("data/candles_point_in_time"))
+        self.assertEqual(Path(pairs["--actions-dir"]), Path("data/actions_point_in_time"))
+        self.assertEqual(Path(pairs["--manifests-dir"]), Path("data/manifests_point_in_time"))
         self.assertEqual(
-            pairs["--split-evidence"],
-            "data/corporate_actions/point_in_time_split_evidence.json",
+            Path(pairs["--split-evidence"]),
+            Path("data/corporate_actions/point_in_time_split_evidence.json"),
         )
         self.assertEqual(pairs["--dataset-split-evidence"], pairs["--split-evidence"])
         self.assertEqual(pairs["--action-workers"], "1")

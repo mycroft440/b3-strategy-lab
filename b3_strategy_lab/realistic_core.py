@@ -581,6 +581,8 @@ class CashLedgerRow:
 
 
 class RealCashAccount:
+    _max_causal_adv_participation = 0.01
+
     def __init__(
         self,
         initial_cash: float,
@@ -597,6 +599,7 @@ class RealCashAccount:
         self.distribution_tax = CashDistributionTaxLedger()
         self.positions: dict[str, Position] = defaultdict(Position)
         self.trade_ledger: list[TradeLedgerRow] = []
+        self.order_ledger: list[dict[str, object]] = []
         self.cash_ledger: list[CashLedgerRow] = []
         self.tax_paid = 0.0
         self.fees_paid = 0.0

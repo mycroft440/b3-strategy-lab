@@ -220,15 +220,18 @@ def simulate_single_asset_price_only(
     slippage_bps: float = 0.0,
     lot_size: int = 0,
 ) -> list[CurvePoint]:
-    """Simula no OHLC split-normalizado e ignora todos os proventos em dinheiro."""
-    return simulate_single_asset(
+    """Use historical share prices/quantities, excluding cash distributions."""
+    curve = simulate_single_asset_raw_events(
         candles,
         signals,
+        _split_actions_from_factors(candles),
         initial_cash=initial_cash,
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
         lot_size=lot_size,
     )
+    _validate_discrete_positions(curve, lot_size)
+    return curve
 
 
 def simulate_single_asset_raw_events(
@@ -339,14 +342,43 @@ def simulate_buy_and_hold_price_only(
     slippage_bps: float = 0.0,
     lot_size: int = 0,
 ) -> list[CurvePoint]:
-    """Compra e segura no OHLC split-normalizado, sem dividendos ou JCP."""
-    return simulate_buy_and_hold(
+    """Buy actual historical shares and apply splits, without dividends/JCP."""
+    curve = simulate_buy_and_hold_raw_events(
         candles,
+        _split_actions_from_factors(candles),
         initial_cash=initial_cash,
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
         lot_size=lot_size,
     )
+    _validate_discrete_positions(curve, lot_size)
+    return curve
+
+
+def _split_actions_from_factors(candles: list[Candle]) -> dict[str, CorporateAction]:
+    """Recover quantity changes; absolute future normalization cannot size trades."""
+    result = {}
+    for previous, current in zip(candles, candles[1:]):
+        factors = (previous.adjustment_factor, current.adjustment_factor)
+        if any(not math.isfinite(value) or value <= 0 for value in factors):
+            raise ValueError("Invalid split adjustment factor.")
+        ratio = current.adjustment_factor / previous.adjustment_factor
+        if not math.isclose(ratio, 1.0, rel_tol=1e-10, abs_tol=1e-12):
+            result[current.date] = CorporateAction(
+                current.date, current.ticker, current.source_symbol, 0.0, ratio
+            )
+    return result
+
+
+def _validate_discrete_positions(curve: list[CurvePoint], lot_size: int) -> None:
+    if lot_size <= 0:
+        return
+    for point in curve:
+        if not math.isclose(point.shares, round(point.shares), abs_tol=1e-9):
+            raise ValueError(
+                f"{point.date}: corporate action creates fractional shares; "
+                "an official cash-in-lieu settlement is required."
+            )
 
 
 def simulate_buy_and_hold_raw_events(
@@ -395,20 +427,20 @@ def simulate_buy_and_hold_raw_events(
 
 def metrics(curve: list[CurvePoint], initial_cash: float) -> dict[str, float]:
     equities = [point.equity for point in curve]
-    returns = [
+    returns = [equities[0] / initial_cash - 1.0] + [
         equities[index] / equities[index - 1] - 1
         for index in range(1, len(equities))
         if equities[index - 1] > 0
     ]
     total_return = equities[-1] / initial_cash - 1
     years = _years_between(curve[0].date, curve[-1].date)
-    periods_per_year = (len(curve) - 1) / years if years > 0 else 252.0
+    periods_per_year = len(curve) / (years + 1 / 365.25) if years > 0 else 252.0
     annual_volatility = _annual_volatility(returns, periods_per_year)
 
     return {
         "total_return": total_return,
         "cagr": _cagr(total_return, years),
-        "max_drawdown": _max_drawdown(equities),
+        "max_drawdown": _max_drawdown([initial_cash] + equities),
         "annual_volatility": annual_volatility,
         "sharpe": _sharpe(returns, periods_per_year),
     }

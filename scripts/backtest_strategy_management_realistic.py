@@ -18,6 +18,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     load_cash_distributions,
     write_dataclass_csv,
 )
+from b3_strategy_lab.corporate_settlements import load_corporate_settlements  # noqa: E402
 from b3_strategy_lab.realistic_certification import (  # noqa: E402
     bonus_tax_basis_dependencies,
     terminal_month_tax_policy,
@@ -105,6 +106,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-slippage-bps", type=float, default=10.0)
     parser.add_argument("--participation-bps-at-1pct", type=float, default=5.0)
     parser.add_argument("--max-slippage-bps", type=float, default=100.0)
+    parser.add_argument("--max-causal-adv-participation", type=float, default=0.01)
+    parser.add_argument("--require-certified-inputs", action="store_true")
+    parser.add_argument("--orders-output", type=Path)
+    parser.add_argument("--corporate-settlements", type=Path)
     parser.add_argument("--economic-gap-adjustment", action="store_true")
     parser.add_argument(
         "--selection-status",
@@ -198,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
 
+    if args.require_certified_inputs and (not cash_events_complete or transition_issues):
+        parser.error("Maximum fidelity requires certified cash coverage and bound transitions.")
     summary, curve, account = run_realistic(
         data=data,
         universe=universe,
@@ -212,6 +219,9 @@ def main(argv: list[str] | None = None) -> int:
         base_slippage_bps=args.base_slippage_bps,
         participation_bps_at_1pct=args.participation_bps_at_1pct,
         max_slippage_bps=args.max_slippage_bps,
+        max_causal_adv_participation=args.max_causal_adv_participation,
+        corporate_settlement_rules=(load_corporate_settlements(args.corporate_settlements)
+                                    if args.corporate_settlements else None),
         transitions=load_transitions(args.ticker_transitions),
         economic_gap_adjustment=args.economic_gap_adjustment,
         selection_status=args.selection_status,
@@ -234,6 +244,8 @@ def main(argv: list[str] | None = None) -> int:
         transition_csv_path=args.ticker_transitions,
     )
     payload["bonus_tax_basis_affects_realized_gain"] = bool(bonus_dependencies)
+    if args.require_certified_inputs and bonus_dependencies:
+        parser.error("Maximum fidelity cannot publish realized gains with unsupported stock-bonus tax basis.")
     payload["bonus_tax_basis_dependencies"] = bonus_dependencies[:100]
     payload["bonus_tax_basis_policy"] = (
         "Receita Federal distinguishes stock bonuses from ordinary splits for acquisition "
@@ -244,6 +256,9 @@ def main(argv: list[str] | None = None) -> int:
         "or before the first simulated purchase does not taint later-acquired shares."
     )
     payload["execution_model"] = {
+        "order_sizing": "previous_close_frozen_quantities",
+        "unfilled_order_policy": "partial_fill_then_cancel_remainder",
+        "max_causal_adv_participation": args.max_causal_adv_participation,
         "execution_prices": str(args.execution_prices),
         "fee_schedule": str(args.fee_schedule),
         "base_slippage_bps": float(args.base_slippage_bps),
@@ -318,6 +333,16 @@ def main(argv: list[str] | None = None) -> int:
     payload["excluded_instrument_classes"] = manifest.get("excluded_instrument_classes", [])
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    orders_path = args.orders_output or args.output.with_suffix(".orders.json")
+    orders_path.parent.mkdir(parents=True, exist_ok=True)
+    orders = getattr(account, "order_ledger", [])
+    orders_path.write_text(json.dumps(orders, indent=2) + "\n", encoding="utf-8")
+    payload["order_ledger_file"] = str(orders_path)
+    payload["corporate_settlements_file"] = str(args.corporate_settlements) if args.corporate_settlements else None
+    payload["corporate_settlement_ledger"] = getattr(account, "corporate_action_ledger", [])
+    payload["unpaid_corporate_receivable"] = getattr(account, "_corporate_receivable_value", 0.0)
+    payload["partially_filled_orders"] = sum(row["status"] == "PARTIAL" for row in orders)
+    payload["cancelled_orders"] = sum(row["status"] == "CANCELLED" for row in orders)
     args.output.write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

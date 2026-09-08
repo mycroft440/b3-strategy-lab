@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,8 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     load_cash_distributions,
 )
 from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
+from b3_strategy_lab.benchmarks import benchmark_comparison, load_daily_benchmark  # noqa: E402
+from b3_strategy_lab.corporate_settlements import load_corporate_settlements  # noqa: E402
 from b3_strategy_lab.realistic_portfolio import load_transitions, run_realistic  # noqa: E402
 from b3_strategy_lab.statistical_validation import oos_evidence_summary  # noqa: E402
 from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
@@ -78,6 +82,19 @@ def _rank_candidates(ranked):
     )
 
 
+def _training_end(dates, test_start, holdout_start=None):
+    cutoff = min(test_start, holdout_start) if holdout_start else test_start
+    prior = [day for day in dates if day < cutoff]
+    return prior[-1] if prior else None
+
+
+def _compare_curve(curve, initial_equity, benchmark):
+    return benchmark_comparison(
+        [point.date for point in curve], [point.equity for point in curve],
+        initial_equity, benchmark,
+    )
+
+
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
@@ -92,6 +109,7 @@ def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
+        allow_abbrev=False,
         description=(
             "Expanding-window walk-forward using the real-money-oriented engine. "
             "Each test year is completely excluded from candidate selection. "
@@ -133,7 +151,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--first-test-year", type=int, default=2021)
     parser.add_argument("--last-test-year", type=int)
     parser.add_argument("--initial-cash", type=float, default=1_000.0)
-    parser.add_argument("--objective", choices=["cagr", "total_return", "sharpe"], default="cagr")
+    parser.add_argument("--objective", choices=["cagr", "total_return", "sharpe", "excess_sharpe"], default="cagr")
+    parser.add_argument("--benchmark-csv", type=Path, help="Daily dated decimal returns, e.g. BCB CDI.")
+    parser.add_argument("--holdout-start", help="January 1 cutoff: no training may use this year or later.")
+    parser.add_argument("--corporate-settlements", type=Path)
     parser.add_argument("--base-slippage-bps", type=float, default=10.0)
     parser.add_argument("--participation-bps-at-1pct", type=float, default=5.0)
     parser.add_argument("--max-slippage-bps", type=float, default=100.0)
@@ -154,6 +175,14 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_CONTINUOUS_CURVE,
     )
     args = parser.parse_args(argv)
+    if args.objective == "excess_sharpe" and args.benchmark_csv is None:
+        parser.error("--objective excess_sharpe requires --benchmark-csv.")
+    if args.holdout_start:
+        holdout = date.fromisoformat(args.holdout_start)
+        if (holdout.month, holdout.day) != (1, 1) or args.holdout_start <= args.start:
+            parser.error("--holdout-start must be January 1 after the training start.")
+    benchmark = load_daily_benchmark(args.benchmark_csv) if args.benchmark_csv else None
+    settlement_rules = load_corporate_settlements(args.corporate_settlements) if args.corporate_settlements else None
 
     manifest = json.loads(args.universe_manifest.read_text(encoding="utf-8"))
     if manifest.get("point_in_time") is not True:
@@ -198,6 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if len(evaluation_dates) < 2:
         parser.error("Insufficient market sessions inside the requested walk-forward window.")
+    if benchmark is not None:
+        benchmark_comparison(evaluation_dates, [1.0] * len(evaluation_dates), 1.0, benchmark)
 
     walk_end = max(evaluation_dates)
     transition_issues = transition_binding_issues(
@@ -267,10 +298,9 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("Continuous OOS account requires consecutive test years.")
 
         test_start, test_end = bounds
-        prior_dates = [value for value in evaluation_dates if value < test_start]
-        if not prior_dates:
+        train_end = _training_end(evaluation_dates, test_start, args.holdout_start)
+        if train_end is None:
             continue
-        train_end = prior_dates[-1]
 
         ranked = []
         for strategy in strategies:
@@ -289,12 +319,17 @@ def main(argv: list[str] | None = None) -> int:
                     base_slippage_bps=args.base_slippage_bps,
                     participation_bps_at_1pct=args.participation_bps_at_1pct,
                     max_slippage_bps=args.max_slippage_bps,
+                    corporate_settlement_rules=settlement_rules,
                     transitions=transitions,
                     economic_gap_adjustment=args.economic_gap_adjustment,
                     selection_status="retrospective_hypothesis_replay",
                     survivorship_safe=survivorship_safe,
                 )
-                ranked.append((_metric(train, args.objective), strategy, config, train))
+                score = (
+                    _compare_curve(_curve, train.initial_cash, benchmark)["excess_sharpe"]
+                    if args.objective == "excess_sharpe" else _metric(train, args.objective)
+                )
+                ranked.append((score, strategy, config, train))
         ranked = _rank_candidates(ranked)
         _score, winner_strategy, winner_config, train_summary = ranked[0]
 
@@ -312,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
             base_slippage_bps=args.base_slippage_bps,
             participation_bps_at_1pct=args.participation_bps_at_1pct,
             max_slippage_bps=args.max_slippage_bps,
+            corporate_settlement_rules=settlement_rules,
             transitions=transitions,
             economic_gap_adjustment=args.economic_gap_adjustment,
             selection_status="walk_forward_out_of_sample",
@@ -373,6 +409,11 @@ def main(argv: list[str] | None = None) -> int:
                     test_summary.ordinary_income_tax_paid
                     + test_summary.distribution_tax_paid
                 ),
+                "is_holdout": bool(args.holdout_start and test_start >= args.holdout_start),
+                "sharpe_reference": "zero_rate",
+                **({"test_" + key: value for key, value in
+                    _compare_curve(test_curve, test_summary.initial_cash, benchmark).items()}
+                   if benchmark is not None else {}),
                 "selection_status": test_summary.selection_status,
                 "validity": test_summary.validity,
             }
@@ -388,7 +429,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.continuous_oos_account:
         _write_csv(args.continuous_curve_output, continuous_curve_rows)
 
-    positive = sum(1 for row in rows if float(row["test_total_return"]) > 0)
+    evidence_key = "test_excess_total_return" if benchmark is not None else "test_total_return"
+    positive = sum(1 for row in rows if float(row[evidence_key]) > 0)
     evidence = oos_evidence_summary(positive_folds=positive, folds=len(rows))
     research_claim_allowed = survivorship_safe
     continuous_final_equity = (
@@ -409,6 +451,16 @@ def main(argv: list[str] | None = None) -> int:
         "management_count": len(configs),
         "full_multiple_testing_scope": full_multiple_testing_scope,
         "selection_uses_test_data": False,
+        "holdout_start": args.holdout_start,
+        "holdout_used_for_training": False,
+        "holdout_fold_count": sum(bool(row["is_holdout"]) for row in rows),
+        "historical_holdout_proves_prospective_selection": False,
+        "benchmark_csv": str(args.benchmark_csv) if args.benchmark_csv else None,
+        "benchmark_csv_sha256": hashlib.sha256(args.benchmark_csv.read_bytes()).hexdigest() if args.benchmark_csv else None,
+        "benchmark_comparison_is_net_of_strategy_costs": True,
+        "benchmark_tax_treatment": "as_supplied_BCB_CDI_is_gross_index_not_investable_net_return",
+        "sharpe_reference": "zero_rate; use excess_sharpe for benchmark-adjusted risk",
+        "oos_sign_test_reference": "benchmark_excess" if benchmark is not None else "zero_return",
         "survivorship_safe_universe": survivorship_safe,
         "research_claim_allowed": research_claim_allowed,
         "ex_ante_selection_claim_allowed": False,
@@ -467,6 +519,12 @@ def main(argv: list[str] | None = None) -> int:
             "diagnostics and must not be compounded into a live-account return."
         ),
     }
+    if benchmark is not None and continuous_curve_rows:
+        summary.update({"continuous_" + key: value for key, value in benchmark_comparison(
+            [row["date"] for row in continuous_curve_rows],
+            [row["equity"] for row in continuous_curve_rows],
+            args.initial_cash, benchmark,
+        ).items()})
     args.summary_output.parent.mkdir(parents=True, exist_ok=True)
     args.summary_output.write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n",

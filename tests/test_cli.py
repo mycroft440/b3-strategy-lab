@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
+from types import SimpleNamespace
 
 from b3_strategy_lab.cli import (
     _actions_for_candles,
@@ -49,6 +51,16 @@ def candle(day: str, open_: float, close: float) -> Candle:
 
 
 class CliWindowTests(unittest.TestCase):
+    def test_verify_data_forwards_point_in_time_split_evidence(self) -> None:
+        from b3_strategy_lab import cli
+        manifest = SimpleNamespace(status="verified", split_verified_from="2017-01-01",
+                                   split_action_status="verified", corporate_action_status="diagnostic",
+                                   warnings=[], warning_reviews=[])
+        with patch.object(cli, "load_verified_candles", return_value=(
+            [candle("2024-01-02", 10, 10)], manifest)) as loader:
+            self.assertEqual(cli.main(["verify-data", "--tickers", "TEST3", "--split-evidence", "pit.json"]), 0)
+        self.assertEqual(loader.call_args.kwargs["split_evidence_path"], "pit.json")
+
     def test_signal_modes_keep_price_and_volume_on_the_same_basis(self) -> None:
         original = Candle(
             date="2024-01-02",

@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Fail-closed certified deterministic B3 counterfactual replay. It uses a "
             "survivorship-safe historical universe, official B3 opening prices, certified "
-            "cash/split/transition inputs, zero modeled slippage and a certified broker "
+            "cash/split/transition inputs, configurable adverse slippage and a certified broker "
             "fee profile. It does NOT claim an exact hypothetical fill."
         )
     )
@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--start", default="2018-01-02")
     parser.add_argument("--end")
     parser.add_argument("--initial-cash", type=float, default=1_000.0)
+    parser.add_argument("--base-slippage-bps", type=float, default=10.0)
+    parser.add_argument("--participation-bps-at-1pct", type=float, default=5.0)
+    parser.add_argument("--max-slippage-bps", type=float, default=100.0)
     parser.add_argument("--skip-data-build", action="store_true")
     parser.add_argument("--no-download", action="store_true")
     parser.add_argument("--refresh-actions", action="store_true")
@@ -182,9 +185,9 @@ def main(argv: list[str] | None = None) -> int:
         start=args.start,
         end=end,
         execution_policy=CERTIFIED_EXECUTION_POLICY,
-        base_slippage_bps=0.0,
-        participation_bps_at_1pct=0.0,
-        max_slippage_bps=0.0,
+        base_slippage_bps=args.base_slippage_bps,
+        participation_bps_at_1pct=args.participation_bps_at_1pct,
+        max_slippage_bps=args.max_slippage_bps,
     )
     preflight_blockers = sorted(set([*preflight_blockers, *transition_issues]))
 
@@ -252,11 +255,11 @@ def main(argv: list[str] | None = None) -> int:
         "--initial-cash",
         str(args.initial_cash),
         "--base-slippage-bps",
-        "0",
+        str(args.base_slippage_bps),
         "--participation-bps-at-1pct",
-        "0",
+        str(args.participation_bps_at_1pct),
         "--max-slippage-bps",
-        "0",
+        str(args.max_slippage_bps),
         "--fee-schedule",
         str(composite_fees),
         "--ticker-transitions",
@@ -311,7 +314,8 @@ def main(argv: list[str] | None = None) -> int:
     summary["engine_validity"] = engine_validity
     summary["validity"] = _normalized_certified_validity(summary)
     summary["small_account_scope"] = replay_scope
-    summary["modeled_slippage"] = False
+    summary["modeled_slippage"] = any(value > 0 for value in (
+        args.base_slippage_bps, args.participation_bps_at_1pct, args.max_slippage_bps))
     summary["certified_broker_fees"] = True
     summary["execution_policy"] = CERTIFIED_EXECUTION_POLICY
     summary["ticker_transition_binding_verified"] = not transition_issues

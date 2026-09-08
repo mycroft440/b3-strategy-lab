@@ -103,7 +103,7 @@ class ReconstructionQualityTests(unittest.TestCase):
             )
             self.assertEqual(blockers, [])
 
-    def test_modeled_slippage_is_a_certified_replay_blocker(self) -> None:
+    def test_invalid_slippage_is_a_certified_replay_blocker(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             profile = self._profile(Path(tmp))
             blockers = certified_replay_blockers(
@@ -117,9 +117,17 @@ class ReconstructionQualityTests(unittest.TestCase):
                 max_slippage_bps=0.0,
             )
             self.assertIn(
-                "modeled_slippage_must_be_disabled_for_certified_official_open_replay",
+                "invalid_modeled_slippage_parameters",
                 blockers,
             )
+
+    def test_source_certification_allows_declared_adverse_execution_costs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(certified_replay_blockers(
+                self._audit(), self._profile(Path(tmp)), start="2018-01-02", end="2026-08-20",
+                execution_policy=CERTIFIED_EXECUTION_POLICY, base_slippage_bps=10.0,
+                participation_bps_at_1pct=5.0, max_slippage_bps=100.0,
+            ), [])
 
     def test_legacy_exact_names_are_compatibility_aliases_only(self) -> None:
         self.assertEqual(EXACT_EXECUTION_POLICY, CERTIFIED_EXECUTION_POLICY)

@@ -13,13 +13,15 @@ import sys
 import threading
 import webbrowser
 from copy import deepcopy
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_UNIVERSE = ROOT / "data/universes/fixed_40_2018.json"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+DEFAULT_UNIVERSE = ROOT / "data/universes/point_in_time_union.json"
 CACHE_DIR = ROOT / ".cache/control_panel"
 SELECTED_UNIVERSE = CACHE_DIR / "selected_universe_combinations.json"
 LOG_PATH = ROOT / "reports/control_panel_combinations.log"
@@ -62,7 +64,10 @@ def _read_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _load_available_tickers(path: Path = DEFAULT_UNIVERSE) -> list[str]:
+def _load_available_tickers(path: Path | None = None) -> list[str]:
+    path = path or DEFAULT_UNIVERSE
+    if not path.exists():
+        return []
     payload = _read_json(path)
     tickers = {
         str(item).strip().upper()
@@ -75,10 +80,17 @@ def _load_available_tickers(path: Path = DEFAULT_UNIVERSE) -> list[str]:
 
 def _selected_payload(
     selected: list[str],
-    base_path: Path = DEFAULT_UNIVERSE,
+    base_path: Path | None = None,
+    *,
+    use_full_universe: bool = False,
 ) -> dict[str, object]:
-    base = deepcopy(_read_json(base_path))
+    from scripts.backtest_strategy_management_combinations import _load_universe
+
+    base_path = base_path or DEFAULT_UNIVERSE
+    base = deepcopy(_load_universe(base_path))
     allowed = set(_load_available_tickers(base_path))
+    if use_full_universe:
+        selected = sorted(allowed)
     normalized = sorted({item.strip().upper() for item in selected if item.strip()})
     unexpected = sorted(set(normalized) - allowed)
     if unexpected:
@@ -88,28 +100,19 @@ def _selected_payload(
 
     chosen = set(normalized)
     base["id"] = "control_panel_combinations_subset"
-    base["selection_mode"] = "user_selected_subset_for_combination_matrix"
-    base["tickers"] = normalized
-    base["original_tickers"] = [
-        ticker for ticker in base.get("original_tickers", [])
-        if str(ticker).upper() in chosen
-    ]
-    base["added_tickers"] = [
-        ticker for ticker in base.get("added_tickers", [])
-        if str(ticker).upper() in chosen
-    ]
-    for field in ("issuing_company_by_ticker", "issuer_name_by_ticker", "isins_by_ticker"):
-        values = base.get(field)
-        if isinstance(values, dict):
-            base[field] = {
-                key: value for key, value in values.items()
-                if str(key).upper() in chosen
-            }
+    # Keep the original union and every snapshot, including weeks when the user
+    # subset has no constituents. The matrix intersects membership afterwards.
+    snapshot_path = Path(str(base["snapshot_file"]))
+    base["snapshot_file"] = str(
+        snapshot_path if snapshot_path.is_absolute() else ROOT / snapshot_path
+    )
 
     base["control_panel"] = {
         "mode": "strategy_management_combinations",
         "selected_tickers": normalized,
-        "no_replacements": True,
+        "no_replacements": not use_full_universe,
+        "use_full_universe": use_full_universe,
+        "selection_is_retrospective_user_filter": chosen != allowed,
         "excluded_tickers": sorted(EXCLUDED_TICKERS),
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
@@ -118,6 +121,7 @@ def _selected_payload(
 
 def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
     available = set(_load_available_tickers())
+    use_full_universe = bool(payload.get("use_full_universe", False))
     selected = sorted(
         {
             str(item).strip().upper()
@@ -125,7 +129,9 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
             if str(item).strip()
         }
     )
-    if not selected:
+    if use_full_universe:
+        selected = sorted(available)
+    if not selected and not use_full_universe:
         raise ValueError("Selecione pelo menos uma ação.")
     unknown = sorted(set(selected) - available)
     if unknown:
@@ -165,6 +171,7 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
 
     return {
         "tickers": selected,
+        "use_full_universe": use_full_universe,
         "start": start,
         "end": end,
         "initial_cash": initial_cash,
@@ -321,6 +328,32 @@ def _run_preflight(step: str, command: list[str]) -> None:
         raise RuntimeError(f"{step} falhou com código {code}.")
 
 
+def _preparation_commands(config: dict[str, object]) -> list[tuple[str, list[str]]]:
+    if not config["refresh_data"]:
+        if not DEFAULT_UNIVERSE.exists():
+            raise ValueError("Ative a atualização para preparar o universo histórico.")
+        return []
+    end = min(str(config["end"] or date.today().isoformat()),
+              (date.today() - timedelta(days=1)).isoformat())
+    years = f"{int(str(config['start'])[:4]) - 1}:{end[:4]}"
+    return [
+        ("Construindo universo histórico sem filtro de sobrevivência", [
+            sys.executable, "scripts/build_survivorship_safe_realistic_universe.py",
+            "--start", str(config["start"]), "--end", end,
+            "--years", years, "--download",
+        ]),
+        ("Atualizando continuidade dos instrumentos", [
+            sys.executable, "scripts/build_ticker_transitions.py",
+            "--years", years, "--download",
+        ]),
+        ("Sincronizando e auditando dados históricos da B3", [
+            sys.executable, "scripts/sync_point_in_time_universe_realistic.py",
+            "--universe", str(DEFAULT_UNIVERSE), "--years", years,
+            "--download", "--refresh-current", "--refresh-actions",
+        ]),
+    ]
+
+
 def _worker(config: dict[str, object]) -> None:
     global CURRENT_PROCESS
     try:
@@ -330,43 +363,27 @@ def _worker(config: dict[str, object]) -> None:
         if REPORT_PATH.exists():
             REPORT_PATH.unlink()
 
+        for step, preparation_command in _preparation_commands(config):
+            _run_preflight(step, preparation_command)
+
+        universe = _selected_payload(
+            list(config["tickers"]),
+            use_full_universe=bool(config.get("use_full_universe")),
+        )
         SELECTED_UNIVERSE.write_text(
-            json.dumps(
-                _selected_payload(list(config["tickers"])),
-                indent=2,
-                ensure_ascii=False,
-            ) + "\n",
+            json.dumps(universe, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
-
-        if config["refresh_data"]:
-            _run_preflight(
-                "Atualizando candles e eventos oficiais da B3",
-                [
-                    sys.executable,
-                    "scripts/sync_official_universe.py",
-                    "--download",
-                    "--refresh-current",
-                    "--refresh-actions",
-                ],
-            )
-
         _run_preflight(
-            "Verificando hashes e cobertura dos candles",
-            [sys.executable, "-m", "b3_strategy_lab", "verify-data", "--interval", "1d"],
-        )
-        _run_preflight(
-            "Verificando atualidade e prontidão dos dados",
+            "Verificando os dados do universo histórico",
             [
-                sys.executable,
-                "scripts/audit_backtest_readiness.py",
-                "--max-age-calendar-days",
-                "4",
+                sys.executable, "-m", "b3_strategy_lab", "verify-data",
+                "--interval", "1d", "--data-dir", "data/candles_point_in_time",
+                "--actions-dir", "data/actions_point_in_time",
+                "--manifests-dir", "data/manifests_point_in_time",
+                "--split-evidence", "data/corporate_actions/point_in_time_split_evidence.json",
+                "--tickers", *map(str, universe["tickers"]),
             ],
-        )
-        _run_preflight(
-            "Auditando indicadores de volume",
-            [sys.executable, "scripts/audit_volume_indicators.py"],
         )
 
         command = [
@@ -374,6 +391,10 @@ def _worker(config: dict[str, object]) -> None:
             "scripts/backtest_strategy_management_combinations.py",
             "--universe-manifest",
             str(SELECTED_UNIVERSE.relative_to(ROOT)),
+            "--data-dir", "data/candles_point_in_time",
+            "--actions-dir", "data/actions_point_in_time",
+            "--manifests-dir", "data/manifests_point_in_time",
+            "--split-evidence", "data/corporate_actions/point_in_time_split_evidence.json",
             "--start",
             str(config["start"]),
             "--initial-cash",
@@ -521,9 +542,10 @@ input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-r
 <div class="notice">Esta matriz continua sendo pesquisa retrospectiva. Custos e slippage são aplicados, mas dividendos/JCP, imposto e execução fracionária exata exigem a validação realista separada.</div>
 </div>
 <div class="card">
+<div class="field"><label><input id="fullUniverse" type="checkbox" checked onchange="toggleUniverse()"> Usar todo o universo histórico</label><div class="hint">A composição muda conforme as informações disponíveis em cada data. Na primeira execução, a atualização prepara os dados.</div></div>
 <div class="stocks-head"><div><strong>Ações testadas</strong><div class="count"><span id="selectedCount">0</span> selecionadas</div></div><div class="actions"><button class="btn soft" onclick="selectAll(true)">Todas</button><button class="btn soft" onclick="selectAll(false)">Limpar</button></div></div>
 <div class="stocks">__TICKERS__</div>
-<div class="hint" style="margin-top:12px">BOAC34 e qualquer ativo fora da lista original permanecem bloqueados. Nenhuma ação substituta é adicionada.</div>
+<div class="hint" style="margin-top:12px">Ao escolher um subconjunto, cada ação só participa nas datas em que integrava o universo histórico. O filtro manual é uma escolha retrospectiva.</div>
 </div>
 </div>
 <div class="card" style="margin-top:18px"><strong>Log</strong><div id="log" class="log">Nenhuma execução iniciada.</div></div>
@@ -532,9 +554,10 @@ input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-r
 const boxes=()=>[...document.querySelectorAll('.ticker')];
 function refreshCount(){document.getElementById('selectedCount').textContent=boxes().filter(x=>x.checked).length}
 function selectAll(v){boxes().forEach(x=>x.checked=v);refreshCount()}
-boxes().forEach(x=>x.addEventListener('change',refreshCount));selectAll(true);
+function toggleUniverse(){boxes().forEach(x=>x.disabled=document.getElementById('fullUniverse').checked)}
+boxes().forEach(x=>x.addEventListener('change',refreshCount));selectAll(true);toggleUniverse();
 async function runBacktest(){
- const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value),cost_bps:Number(document.getElementById('cost').value),slippage_bps:Number(document.getElementById('slippage').value),workers:Number(document.getElementById('workers').value),refresh_data:document.getElementById('refreshData').checked};
+ const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),use_full_universe:document.getElementById('fullUniverse').checked,start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value),cost_bps:Number(document.getElementById('cost').value),slippage_bps:Number(document.getElementById('slippage').value),workers:Number(document.getElementById('workers').value),refresh_data:document.getElementById('refreshData').checked};
  const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
  const d=await r.json();if(!r.ok)alert(d.error||'Falha ao iniciar');refresh();
 }
@@ -665,8 +688,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args(argv)
 
-    if not DEFAULT_UNIVERSE.exists():
-        parser.error(f"Universo fixo não encontrado: {DEFAULT_UNIVERSE}")
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     url = f"http://{args.host}:{args.port}"
     print(f"Painel de combinações disponível em {url}")

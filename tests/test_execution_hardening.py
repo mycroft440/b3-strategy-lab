@@ -285,7 +285,7 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
                     price,
                     1_000_000.0,
                 )
-                for value_date, price in zip(dates[3:], prices[3:])
+                for value_date, price in zip(dates, prices)
             ]
         )
         eligibility = {"AAA3": [0, 0, 1, 1, 0, 1, 1]}
@@ -371,7 +371,7 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
         pricebook = ExecutionPriceBook(
             [
                 ExecutionQuote(value_date, "PCAR3F", "020", 10.0, 10.0, 1_000.0)
-                for value_date in dates[-2:]
+                for value_date in dates
             ]
         )
         config = PortfolioConfig(
@@ -425,6 +425,10 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
         )
         pricebook = ExecutionPriceBook(
             [
+                ExecutionQuote("2023-12-29", "AAA3", "010", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2023-12-29", "ZZZ3", "010", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2023-12-29", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
+                ExecutionQuote("2023-12-29", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
                 ExecutionQuote("2024-01-02", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
                 ExecutionQuote("2024-01-02", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
             ]

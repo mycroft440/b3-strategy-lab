@@ -7,6 +7,9 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from scripts import realistic_combination_backtest_control_panel as panel
 
 from scripts.realistic_combination_backtest_control_panel import (
     EXCLUDED_TICKERS,
@@ -18,17 +21,46 @@ from scripts.realistic_combination_backtest_control_panel import (
     _read_winner,
     _selected_payload,
 )
-from scripts.backtest_strategy_management_combinations import _load_universe
+from scripts.backtest_strategy_management_combinations import (
+    _load_universe, _load_point_in_time_membership,
+)
 
 
 class CombinationControlPanelTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.directory = Path(self.tmp.name)
+        snapshots = self.directory / "snapshots.csv"
+        snapshots.write_text(
+            "effective_date,ticker,rank\n"
+            "2018-01-02,PETR4,1\n2018-01-02,VALE3,2\n"
+            "2018-01-10,ABEV3,1\n2018-01-10,BBDC4,2\n"
+            "2018-01-17,PETR4,1\n2018-01-17,ABEV3,2\n",
+            encoding="utf-8",
+        )
+        self.manifest = self.directory / "universe.json"
+        self.manifest.write_text(json.dumps({
+            "schema_version": 8, "id": "test-pit", "selection_mode": "historical",
+            "selected_as_of": "2018-01-02", "selection_end": "2025-12-31",
+            "warmup_start": "2017-01-01", "survivorship_safe": True,
+            "point_in_time": True, "snapshot_file": str(snapshots),
+            "bias_disclosure": "test", "tickers": ["ABEV3", "BBDC4", "PETR4", "VALE3"],
+            "selection_rules": {"weekly_candidates": 2, "future_continuity_filter": False,
+                                "future_return_filter": False},
+        }), encoding="utf-8")
+        default = patch.object(panel, "DEFAULT_UNIVERSE", self.manifest)
+        default.start()
+        self.addCleanup(default.stop)
+
     def test_boac34_is_excluded(self) -> None:
         self.assertIn("BOAC34", EXCLUDED_TICKERS)
         self.assertNotIn("BOAC34", _load_available_tickers())
 
     def test_selected_subset_has_no_replacements(self) -> None:
         payload = _selected_payload(["PETR4", "VALE3"])
-        self.assertEqual(payload["tickers"], ["PETR4", "VALE3"])
+        self.assertEqual(payload["control_panel"]["selected_tickers"], ["PETR4", "VALE3"])
+        self.assertEqual(len(payload["tickers"]), 4)
         self.assertTrue(payload["control_panel"]["no_replacements"])
         self.assertIn("BOAC34", payload["control_panel"]["excluded_tickers"])
 
@@ -58,13 +90,66 @@ class CombinationControlPanelTests(unittest.TestCase):
                 }
             )
 
-    def test_user_subset_is_rejected_by_strict_historical_matrix(self) -> None:
+    def test_user_subset_preserves_empty_weeks_and_never_backfills(self) -> None:
         payload = _selected_payload(["PETR4", "VALE3"])
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "subset.json"
             path.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "PIT|point_in_time|survivorship"):
-                _load_universe(path)
+            universe = _load_universe(path)
+            dates = ["2018-01-01", "2018-01-03", "2018-01-11", "2018-01-18"]
+            membership = _load_point_in_time_membership(universe, dates)
+        self.assertEqual(membership[dates[0]], set())
+        self.assertEqual(membership[dates[1]], {"PETR4", "VALE3"})
+        self.assertEqual(membership[dates[2]], set())
+        self.assertEqual(membership[dates[3]], {"PETR4"})
+
+    def test_full_universe_can_bootstrap_without_existing_manifest(self) -> None:
+        with patch.object(panel, "DEFAULT_UNIVERSE", self.directory / "missing.json"):
+            config = _parse_run_request({"use_full_universe": True})
+            self.assertEqual(config["tickers"], [])
+            commands = panel._preparation_commands(config)
+        scripts = [command[1][1] for command in commands]
+        self.assertEqual(scripts, [
+            "scripts/build_survivorship_safe_realistic_universe.py",
+            "scripts/build_ticker_transitions.py",
+            "scripts/sync_point_in_time_universe_realistic.py",
+        ])
+
+    def test_worker_dispatches_valid_pit_manifest_and_isolated_data(self) -> None:
+        from io import StringIO
+        from types import SimpleNamespace
+
+        commands = []
+
+        def spawn(command):
+            commands.append(command)
+            path = self.directory / command[command.index("--universe-manifest") + 1]
+            membership = _load_point_in_time_membership(
+                _load_universe(path), ["2018-01-11"]
+            )
+            self.assertEqual(membership["2018-01-11"], set())
+            self.assertEqual(command[command.index("--data-dir") + 1],
+                             "data/candles_point_in_time")
+            return SimpleNamespace(stdout=StringIO(""), wait=lambda: 0)
+
+        config = _parse_run_request({
+            "tickers": ["PETR4", "VALE3"], "refresh_data": False,
+        })
+        with (
+            patch.object(panel, "ROOT", self.directory),
+            patch.object(panel, "CACHE_DIR", self.directory / "cache"),
+            patch.object(panel, "SELECTED_UNIVERSE", self.directory / "cache/selected.json"),
+            patch.object(panel, "REPORT_PATH", self.directory / "reports/result.csv.gz"),
+            patch.object(panel, "LOG_PATH", self.directory / "reports/panel.log"),
+            patch.object(panel, "_run_preflight") as preflight,
+            patch.object(panel, "_spawn", side_effect=spawn),
+            patch.object(panel, "_read_winner", return_value=None),
+            patch.dict(panel.STATE, {"stop_requested": False}),
+        ):
+            panel._worker(config)
+            self.assertEqual(panel.STATE["state"], "success", panel.STATE.get("message"))
+        self.assertEqual(len(commands), 1)
+        self.assertIn("data/manifests_point_in_time", preflight.call_args.args[1])
 
     def test_progress_parser_reports_combinations(self) -> None:
         progress = _parse_combination_progress(

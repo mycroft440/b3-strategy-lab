@@ -25,6 +25,7 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     cash_coverage_certification_issues,
 )
 from b3_strategy_lab.realistic_certification import transition_binding_issues  # noqa: E402
+from b3_strategy_lab.historical_cash import historical_cash_binding_issues  # noqa: E402
 
 
 DEFAULT_UNIVERSE = Path("data/universes/point_in_time_union.json")
@@ -259,6 +260,9 @@ def main(argv: list[str] | None = None) -> int:
     cash_coverage_start = str(cash_payload.get("coverage_start", ""))[:10]
     cash_coverage_end = str(cash_payload.get("coverage_end", ""))[:10]
     checks["cash_response_has_no_parse_issues"] = not bool(cash_payload.get("issues"))
+    historical_cash_issues = historical_cash_binding_issues(cash_payload)
+    checks["historical_cash_documents_verify"] = not historical_cash_issues
+    details["historical_cash_document_issues"] = historical_cash_issues
     checks["cash_manifest_matches_market_data_scope"] = cash_manifest_tickers == market_data
     checks["cash_manifest_ticker_count_consistent"] = (
         int(cash_payload.get("market_data_ticker_count", -1)) == len(cash_manifest_tickers)
@@ -425,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
         "point_in_time_manifest_count_matches_market_data",
         "point_in_time_manifests_do_not_extend_past_replay_end",
         "cash_response_has_no_parse_issues",
+        "historical_cash_documents_verify",
         "cash_manifest_matches_market_data_scope",
         "cash_manifest_ticker_count_consistent",
         "cash_manifest_starts_by_warmup",

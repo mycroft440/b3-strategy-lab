@@ -6,12 +6,16 @@ import statistics
 from bisect import bisect_left, bisect_right
 
 from b3_strategy_lab import realistic_portfolio_core as _core
+from b3_strategy_lab.corporate_settlements import (
+    apply_cash_transition, apply_fractional_split, mark_and_pay_corporate_receivables,
+)
 
 _original_apply_ticker_transitions = _core._apply_ticker_transitions
 _original_apply_split_from_adjustment_factors = _core._apply_split_from_adjustment_factors
 
 
 def _apply_ticker_transitions(account, transitions) -> None:
+    transitions = [event for event in transitions if not apply_cash_transition(account, event)]
     for transition in transitions:
         # A source-reviewed corporate event is relevant to account economics only
         # when the account actually carries the disappearing instrument across it.
@@ -67,123 +71,156 @@ def _apply_split_from_adjustment_factors(account, data, current: str) -> None:
     processor = getattr(account, "process_due_taxes", None)
     if processor is not None:
         processor(current, data.dates)
-    _original_apply_split_from_adjustment_factors(account, data, current)
-
-
-def _raw_execution_value(pricebook, value_date: str, ticker: str, quantity: int) -> float:
-    if quantity <= 0:
-        return 0.0
-    value = 0.0
-    for qty, quote in pricebook.legs(value_date, ticker, quantity):
-        raw = float(quote.open)
-        if raw <= 0 or not math.isfinite(raw):
-            raise ValueError(f"{value_date}/{ticker}: invalid executable opening price.")
-        value += qty * raw
-    return value
-
-
-def _target_quantity_from_execution_book(
-    pricebook,
-    value_date: str,
-    ticker: str,
-    target_value: float,
-) -> int:
-    if target_value <= 0:
-        return 0
-    low = 0
-    high = 1
-    while _raw_execution_value(pricebook, value_date, ticker, high) <= target_value + 1e-12:
-        low = high
-        high *= 2
-        if high > 1_000_000_000:
-            raise ValueError(f"{value_date}/{ticker}: unreasonable target quantity.")
-    while low + 1 < high:
-        middle = (low + high) // 2
-        if _raw_execution_value(pricebook, value_date, ticker, middle) <= target_value + 1e-12:
-            low = middle
-        else:
-            high = middle
-    return low
+    apply_fractional_split(account, data, current, _original_apply_split_from_adjustment_factors)
 
 
 def _provisional_tax_reserve(account, value_date: str) -> float:
     return max(0.0, float(_core._provisional_ordinary_tax(account, value_date)))
 
 
-def rebalance_atomic(account, data, pricebook, current: str, targets: dict[str, float]):
-    """Atomic rebalance sized from actual 010/020 opens and current tax reserve."""
+def _freeze_target_quantities(account, data, pricebook, decision_date, targets, execution_date=None):
+    """Fix target quantities using only the decision session's closing marks."""
+
+    held = {ticker for ticker, pos in account.positions.items() if pos.shares > 0}
+    required = held | {ticker for ticker, weight in targets.items() if weight > 0}
+    closes = {}
+    for ticker in required:
+        candle = getattr(data, "by_date", {}).get(ticker, {}).get(decision_date)
+        quote = pricebook._quotes.get((decision_date, ticker, "010"))
+        close = float(candle.raw_close if candle is not None else quote.close if quote else 0.0)
+        if close <= 0 or not math.isfinite(close):
+            raise ValueError(f"{decision_date}/{ticker}: prior official close required for order sizing.")
+        closes[ticker] = close
+    equity = account.cash + sum(account.shares(ticker) * closes[ticker] for ticker in held)
+    equity = max(0.0, equity - _provisional_tax_reserve(account, decision_date))
+    quantities = {}
+    for ticker in required:
+        weight = float(targets.get(ticker, 0.0))
+        if not math.isfinite(weight) or weight < 0:
+            raise ValueError(f"{decision_date}/{ticker}: invalid target weight.")
+        quantity = int(math.floor(equity * weight / closes[ticker]))
+        held_quantity = account.shares(ticker)
+        if quantity > held_quantity:
+            fee = account.fee_schedule.rule_on(execution_date or decision_date)
+            legs = 2 if quantity - held_quantity > pricebook.standard_lot else 1
+            budget = equity * weight - held_quantity * closes[ticker] - legs * fee.brokerage_fixed
+            unit_cost = closes[ticker] * (1 + account.slippage.max_bps / 10_000) * (1 + fee.b3_bps / 10_000)
+            quantity = held_quantity + min(quantity - held_quantity, max(0, math.floor(budget / unit_cost)))
+        quantities[ticker] = quantity
+    return quantities
+
+
+def _adjust_pending_quantities(quantities, data, current, transitions):
+    result = dict(quantities)
+    for ticker, quantity in result.items():
+        index = getattr(data, "index_by_date", {}).get(ticker, {}).get(current)
+        if index is not None and index > 0:
+            candles = data.candles[ticker]
+            ratio = float(candles[index].adjustment_factor) / float(candles[index - 1].adjustment_factor)
+            if ratio <= 0 or not math.isfinite(ratio):
+                raise ValueError(f"{current}/{ticker}: invalid pending-order split ratio.")
+            result[ticker] = int(math.floor(quantity * ratio + 1e-9))
+    for event in transitions:
+        quantity = result.pop(event.old_ticker, 0)
+        if event.new_ticker:
+            result[event.new_ticker] = result.get(event.new_ticker, 0) + int(
+                math.floor(quantity * event.share_ratio + 1e-9)
+            )
+    return result
+
+
+def rebalance_atomic(
+    account, data, pricebook, current: str, targets: dict[str, float],
+    *, frozen_quantities=None, decision_date=None,
+):
+    """Execute frozen orders; gaps, capacity and cash can only reduce their fills.
+
+    Daily prices support a conservative partial-fill scenario, not a claim about
+    auction queue priority. Unfilled quantities expire after this session.
+    """
+    from b3_strategy_lab.audit_hardening import remaining_causal_capacity
 
     trial = copy.deepcopy(account)
+    if frozen_quantities == {} and not any(pos.shares > 0 for pos in trial.positions.values()):
+        return trial
+    pricebook.enable_causal_liquidity()
+    if frozen_quantities is None:
+        dates = set(getattr(data, "dates", [])) | {key[0] for key in pricebook._quotes}
+        prior_dates = sorted(day for day in dates if day < current)
+        decision_date = decision_date or (prior_dates[-1] if prior_dates else None)
+        if decision_date is None or decision_date >= current:
+            raise ValueError(f"{current}: a prior decision session is required for order sizing.")
+        frozen_quantities = _freeze_target_quantities(trial, data, pricebook, decision_date, targets, current)
+        frozen_quantities = _adjust_pending_quantities(frozen_quantities, data, current, [])
+    desired_shares = dict(frozen_quantities)
     held = {ticker for ticker, pos in trial.positions.items() if pos.shares > 0}
-    required = held | {ticker for ticker, weight in targets.items() if weight > 0}
+    orders = []
+    for ticker in sorted(held | set(desired_shares)):
+        delta = desired_shares.get(ticker, 0) - trial.shares(ticker)
+        side = "BUY" if delta > 0 else "SELL"
+        quantity = abs(delta)
+        lot = pricebook.standard_lot
+        for requested, unit, market in ((quantity // lot * lot, lot, "010"), (quantity % lot, 1, "020")):
+            if requested <= 0:
+                continue
+            row = dict(date=current, decision_date=decision_date, ticker=ticker, side=side,
+                       market_type=market, requested_shares=requested, filled_shares=0,
+                       status="CANCELLED", reason="unavailable_execution_reference")
+            trial.order_ledger.append(row)
+            try:
+                _, quote = pricebook.legs(current, ticker, requested)[0]
+            except ValueError as exc:
+                if any(reason in str(exc) for reason in (
+                    "Missing ", "trailing causal financial volume is zero", "no prior market session"
+                )):
+                    continue
+                raise
+            maximum = remaining_causal_capacity(trial, current, ticker, quote)
+            fill = min(requested, int(math.floor((maximum + 1e-9) / quote.open / unit)) * unit)
+            row["reason"] = "capacity" if fill < requested else ""
+            orders.append([ticker, side, fill, unit, quote, row])
 
-    equity_open = trial.cash + sum(
-        _raw_execution_value(pricebook, current, ticker, trial.shares(ticker))
-        for ticker in held
-    )
-    if equity_open <= 0 or not math.isfinite(equity_open):
-        raise ValueError(f"{current}: invalid executable opening equity.")
+    for ticker, side, quantity, _unit, quote, row in orders:
+        if side == "SELL" and quantity:
+            trial.sell_leg(current, ticker, quantity, quote)
+            row["filled_shares"] = quantity
 
-    desired_shares: dict[str, int] = {}
-    for ticker in required:
-        weight = max(0.0, float(targets.get(ticker, 0.0)))
-        if not math.isfinite(weight):
-            raise ValueError(f"{current}/{ticker}: non-finite target weight.")
-        desired_shares[ticker] = _target_quantity_from_execution_book(
-            pricebook,
-            current,
-            ticker,
-            equity_open * weight,
-        )
+    buys = [order for order in orders if order[1] == "BUY"]
+    available_cash = max(0.0, trial.cash - _provisional_tax_reserve(trial, current))
 
-    for ticker in sorted(held):
-        excess = trial.shares(ticker) - desired_shares.get(ticker, 0)
-        if excess <= 0:
-            continue
-        for qty, quote in pricebook.legs(current, ticker, excess):
-            trial.sell_leg(current, ticker, qty, quote)
+    def costs(plan):
+        total = 0.0
+        for quantity, order in zip(plan, buys):
+            if not quantity:
+                continue
+            quote = order[4]
+            fill, _ = trial.slippage.price("BUY", quote.open, quantity * quote.open, quote.financial_volume)
+            notional = quantity * fill
+            total += notional + trial.fee_schedule.cost(current, notional)
+        return total
 
-    wanted_by_ticker = {
-        ticker: max(0, desired_shares.get(ticker, 0) - trial.shares(ticker))
-        for ticker in targets
-    }
-    wanted_by_ticker = {
-        ticker: quantity for ticker, quantity in wanted_by_ticker.items() if quantity > 0
-    }
-    reserved_tax = _provisional_tax_reserve(trial, current)
-    available_cash = max(0.0, trial.cash - reserved_tax)
-
-    def total_buy_cost(plan: dict[str, int]) -> float:
-        return sum(
-            _core._estimate_buy_cost(trial, pricebook, current, ticker, quantity)
-            for ticker, quantity in plan.items()
-            if quantity > 0
-        )
-
-    buy_plan = dict(wanted_by_ticker)
-    if wanted_by_ticker and total_buy_cost(buy_plan) > available_cash + 1e-9:
+    buy_plan = [order[2] for order in buys]
+    if costs(buy_plan) > available_cash + 1e-9:
         low, high = 0.0, 1.0
-        best = {ticker: 0 for ticker in wanted_by_ticker}
+        best = [0] * len(buys)
         for _ in range(48):
             scale = (low + high) / 2
-            candidate = {
-                ticker: int(math.floor(quantity * scale))
-                for ticker, quantity in wanted_by_ticker.items()
-            }
-            if total_buy_cost(candidate) <= available_cash + 1e-9:
-                best = candidate
-                low = scale
+            candidate = [int(math.floor(order[2] * scale / order[3])) * order[3] for order in buys]
+            if costs(candidate) <= available_cash + 1e-9:
+                best, low = candidate, scale
             else:
                 high = scale
         buy_plan = best
-
-    for ticker in sorted(buy_plan):
-        quantity = buy_plan[ticker]
-        if quantity <= 0:
-            continue
-        for qty, quote in pricebook.legs(current, ticker, quantity):
-            trial.buy_leg(current, ticker, qty, quote)
-
+    for quantity, order in zip(buy_plan, buys):
+        ticker, _side, capacity_quantity, _unit, quote, row = order
+        if quantity < capacity_quantity:
+            row["reason"] = ";".join(filter(None, [row["reason"], "cash"]))
+        if quantity:
+            trial.buy_leg(current, ticker, quantity, quote)
+            row["filled_shares"] = quantity
+    for *_order, row in orders:
+        filled = row["filled_shares"]
+        row["status"] = "FILLED" if filled == row["requested_shares"] else "PARTIAL" if filled else "CANCELLED"
     if trial.cash < _provisional_tax_reserve(trial, current) - 1e-7:
         raise ValueError(f"{current}: atomic rebalance consumed provisional tax reserve.")
     return trial
@@ -244,7 +281,8 @@ def _register_entitlement_receivable(account, event, entitlements) -> None:
 
 def _receivable_value(account) -> float:
     getter = getattr(account, "distribution_receivable_value", None)
-    return max(0.0, float(getter())) if getter is not None else 0.0
+    dividends = max(0.0, float(getter())) if getter is not None else 0.0
+    return dividends + float(getattr(account, "_corporate_receivable_value", 0.0))
 
 
 def _restore_distribution_entitlements(account, cash_events) -> dict[object, int]:
@@ -302,7 +340,7 @@ def _account_close_equity(account, data, value_date: str, cash_events) -> float:
             continue
         receivables += max(0.0, float(item[0]))
 
-    equity = float(account.cash) + receivables
+    equity = float(account.cash) + receivables + float(getattr(account, "_corporate_receivable_value", 0.0))
     for ticker, position in account.positions.items():
         if position.shares <= 0:
             continue
@@ -340,6 +378,8 @@ def run_realistic(
     progress_callback=None,
     existing_account=None,
     force_initial_decision: bool = False,
+    max_causal_adv_participation: float | None = None,
+    corporate_settlement_rules=None,
 ):
     """Realistic replay with optional continuous account state across OOS folds.
 
@@ -383,6 +423,16 @@ def run_realistic(
             account, data, prior_date, cash_events
         )
 
+    if corporate_settlement_rules is not None:
+        previous_rules = getattr(account, "_corporate_settlement_rules", {})
+        for key in getattr(account, "_corporate_receivables", {}):
+            if previous_rules.get(key) != corporate_settlement_rules.get(key):
+                raise ValueError("Cannot change the source rule of an outstanding corporate receivable.")
+        account._corporate_settlement_rules = corporate_settlement_rules
+    if max_causal_adv_participation is not None:
+        if not math.isfinite(max_causal_adv_participation) or not 0 < max_causal_adv_participation <= 1:
+            raise ValueError("Causal ADV participation must be in (0, 1].")
+        account._max_causal_adv_participation = max_causal_adv_participation
     starting_trades = len(account.trade_ledger)
     starting_fees = float(account.fees_paid)
     starting_ordinary_tax = float(account.tax_paid)
@@ -404,6 +454,8 @@ def run_realistic(
     entitlement_map, payment_map = _cash_event_maps(cash_events, dates)
     entitlements = _restore_distribution_entitlements(account, cash_events)
     pending_targets: dict[str, float] | None = None
+    pending_quantities = None
+    pending_decision_date = None
     designated_targets: dict[str, float] = {}
     active_targets: dict[str, float] = {}
     curve: list[_core.CurveRow] = []
@@ -437,6 +489,10 @@ def run_realistic(
         )
         if allowed or force_initial_decision:
             pending_targets = dict(designated_targets)
+            pending_decision_date = prior_date
+            pending_quantities = _freeze_target_quantities(
+                account, data, pricebook, prior_date, pending_targets, dates[0]
+            )
 
     for index, current in enumerate(dates):
         next_date = dates[index + 1] if index + 1 < len(dates) else None
@@ -460,11 +516,18 @@ def run_realistic(
             distributions_net += _credit_event(account, event, entitlements)
 
         if pending_targets is not None:
-            account = rebalance_atomic(account, data, pricebook, current, pending_targets)
+            adjusted_quantities = _adjust_pending_quantities(
+                pending_quantities, data, current, transitions.get(current, [])
+            )
+            account = rebalance_atomic(
+                account, data, pricebook, current, pending_targets,
+                frozen_quantities=adjusted_quantities, decision_date=pending_decision_date,
+            )
             active_targets = dict(pending_targets)
 
         for event in same_day_payments:
             distributions_net += _credit_event(account, event, entitlements)
+        mark_and_pay_corporate_receivables(account, data, current)
 
         # Once the final B3 session of a month has traded, every ordinary sale for
         # that month is known. At a terminal mid-month replay date this is a terminal
@@ -509,6 +572,7 @@ def run_realistic(
             _register_entitlement_receivable(account, event, entitlements)
 
         pending_targets = None
+        pending_quantities = None
         if next_date is not None and _core._is_rebalance(
             current, next_date, config.rebalance
         ):
@@ -532,6 +596,12 @@ def run_realistic(
             }
             if signal_targets != active_targets:
                 pending_targets = signal_targets
+
+        if pending_targets is not None:
+            pending_decision_date = current
+            pending_quantities = _freeze_target_quantities(
+                account, data, pricebook, current, pending_targets, next_date
+            )
 
         completed = index + 1
         if progress_callback is not None and (

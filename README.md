@@ -1,5 +1,8 @@
 # B3 Strategy Lab
 
+Regras atuais de execução, limites de liquidez, CDI, período reservado e importação
+de eventos documentados: [realismo do backteste](docs/backtest_realism.md).
+
 Laboratorio para testar estrategias compradas por ativo e combina-las com
 gerenciamentos de carteira. O universo verificado padrao possui 40 acoes da B3:
 as 10 originais mais 30 adicoes liquidas, com dados diarios de 2018 ate o ultimo

@@ -21,6 +21,7 @@ from b3_strategy_lab.b3_official import (  # noqa: E402
     payload_sha256,
 )
 from b3_strategy_lab.cash_distributions import build_cash_events  # noqa: E402
+from b3_strategy_lab.historical_cash import load_historical_cash, merge_historical_cash  # noqa: E402
 from b3_strategy_lab.candles import actions_path, cache_path, load_actions, save_actions  # noqa: E402
 from b3_strategy_lab.cotahist import (  # noqa: E402
     DataVerificationError,
@@ -72,11 +73,15 @@ def _write_cash(path: Path, rows: list[dict[str, object]]) -> None:
         "isin",
         "source_authority",
         "source_url",
+        "announcement_date",
+        "source_document",
+        "source_sha256",
+        "source_reference",
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows({field: row.get(field, "") for field in fields} for row in rows)
 
 
 def _scope_supplemental_payload(payload: object, tickers: list[str]) -> object:
@@ -139,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--cash-output", type=Path, default=DEFAULT_CASH)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
+    parser.add_argument("--cash-supplement", type=Path, help="Documented historical cash JSON; source files relative to its directory.")
     parser.add_argument("--missing-splits-report", type=Path, default=DEFAULT_MISSING_SPLITS)
     parser.add_argument("--supplemental-splits", type=Path, default=DEFAULT_SUPPLEMENTAL_SPLITS)
     parser.add_argument("--audit-all-errors", action="store_true")
@@ -438,10 +444,16 @@ def main(argv: list[str] | None = None) -> int:
         payloads,
         quotes_by_ticker,
     )
+    historical_cash = None
+    if args.cash_supplement is not None:
+        historical_cash = load_historical_cash(
+            args.cash_supplement, quotes_by_ticker, start=coverage_start, end=coverage_end,
+        )
+        cash_rows, cash_issues = merge_historical_cash(cash_rows, cash_issues, historical_cash)
     _write_cash(args.cash_output, cash_rows)
     cash_manifest = {
         "schema_version": 4,
-        "source": "B3 GetListedSupplementCompany.cashDividends",
+        "source": "B3 GetListedSupplementCompany.cashDividends" + (" plus document-bound historical cash" if historical_cash else ""),
         "source_authority": "B3",
         "universe": str(args.universe),
         "coverage_start": coverage_start,
@@ -460,8 +472,13 @@ def main(argv: list[str] | None = None) -> int:
         "event_count": len(cash_rows),
         "issues": cash_issues,
         "complete": not cash_issues,
+        "coverage_certification_inferred": False,
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
+    if historical_cash is not None:
+        cash_manifest["historical_cash_supplement"] = {
+            key: value for key, value in historical_cash.items() if key != "rows"
+        }
     _write_json_atomic(args.cash_manifest, cash_manifest)
     if cash_issues and not args.allow_incomplete_cash_ledger:
         raise ValueError(
