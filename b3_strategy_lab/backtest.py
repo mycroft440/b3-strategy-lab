@@ -165,6 +165,7 @@ def simulate_single_asset(
     slippage_bps: float = 0.0,
     lot_size: int = 0,
 ) -> list[CurvePoint]:
+    _validate_adjusted_lot_prices(candles, lot_size)
     cost_rate = cost_bps / 10_000
     slippage_rate = slippage_bps / 10_000
     cash = float(initial_cash)
@@ -311,6 +312,7 @@ def simulate_buy_and_hold(
     slippage_bps: float = 0.0,
     lot_size: int = 0,
 ) -> list[CurvePoint]:
+    _validate_adjusted_lot_prices(candles, lot_size)
     cost_rate = cost_bps / 10_000
     slippage_rate = slippage_bps / 10_000
     execution_price = _slipped_price(candles[0].open, "BUY", slippage_rate)
@@ -353,6 +355,25 @@ def simulate_buy_and_hold_price_only(
     )
     _validate_discrete_positions(curve, lot_size)
     return curve
+
+
+def _validate_adjusted_lot_prices(candles: list[Candle], lot_size: int) -> None:
+    """Synthetic adjusted shares cannot be rounded to actual exchange lots."""
+    if lot_size <= 0:
+        return
+    for candle in candles:
+        if any(
+            not math.isclose(adjusted, raw, rel_tol=1e-12, abs_tol=1e-12)
+            for adjusted, raw in (
+                (candle.open, candle.raw_open), (candle.close, candle.raw_close)
+            )
+        ):
+            raise ValueError(
+                f"{candle.date}: adjusted prices cannot size integer share lots. "
+                "Use price_mode='price_only' for historical share prices and splits, "
+                "or the realistic engine for cash distributions and execution. "
+                "lot_size=0 is a synthetic fractional-share diagnostic only."
+            )
 
 
 def _split_actions_from_factors(candles: list[Candle]) -> dict[str, CorporateAction]:
