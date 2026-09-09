@@ -175,15 +175,19 @@ def main(argv: list[str] | None = None) -> int:
         for transition in transition_reviews:
             if transition.certification_status != "certified" or transition.effective_date > end:
                 continue
-            if transition.old_ticker not in market_data_set or not transition.new_ticker:
+            old_ticker = transition.old_ticker.strip().upper()
+            new_ticker = transition.new_ticker.strip().upper() if transition.new_ticker else ""
+            if old_ticker in EXCLUDED_TICKERS or new_ticker in EXCLUDED_TICKERS:
                 continue
-            if transition.new_ticker not in quoted_tickers:
+            if old_ticker not in market_data_set or not new_ticker:
+                continue
+            if new_ticker not in quoted_tickers:
                 raise ValueError(
-                    f"Certified successor {transition.new_ticker} has no COTAHIST quote through {end}."
+                    f"Certified successor {new_ticker} has no COTAHIST quote through {end}."
                 )
-            if transition.new_ticker not in market_data_set:
-                market_data_set.add(transition.new_ticker)
-                reviewed_successors.add(transition.new_ticker)
+            if new_ticker not in market_data_set:
+                market_data_set.add(new_ticker)
+                reviewed_successors.add(new_ticker)
                 changed = True
     market_data_tickers = sorted(market_data_set)
 
