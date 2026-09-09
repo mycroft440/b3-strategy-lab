@@ -24,7 +24,7 @@ DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
 DEFAULT_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
-EXCLUDED_TICKERS = {"AZUL53", "BOAC34"}
+EXCLUDED_TICKERS = {"AZUL53", "AZUL54", "BOAC34"}
 RECENT_STALE_DAYS = 45
 
 
