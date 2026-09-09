@@ -11,11 +11,11 @@ from pathlib import Path
 from .cotahist import COMPANY_EQUITY_BDI_CODES, STANDARD_EQUITY_BDI_CODES, parse_cotahist_lines
 
 
-# B3 cash-share tickers usually use four-letter issuer roots (PETR4), but valid
-# listed companies can contain a digit inside that four-character root (B3SA3).
-# Keep the first character alphabetic and require the final class suffix to be
-# numeric so this remains a share-ticker shape check rather than a broad symbol pass.
-TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{3}\d{1,2}$")
+# The certified backtest is intentionally restricted to standard B3 share tickers
+# with a four-character issuer root and class suffix 3 or 4 (PETR3/PETR4). Valid
+# issuer roots may contain a digit (B3SA3). Longer/special classes such as GOLL54,
+# SANB11, and share classes 5/6 are outside the research scope by explicit policy.
+TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{3}[34]$")
 STANDARD_MARKET = "010"
 FRACTIONAL_MARKET = "020"
 # Candidate BDI codes for company shares. BDI 58 is still filtered through
