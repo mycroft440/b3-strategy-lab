@@ -329,7 +329,7 @@ fechamento de hoje e comprar no proprio fechamento de hoje.
 
 - `sweep` e in-sample: bom para explorar, ruim para concluir.
 - `train-test` escolhe parametros no trecho inicial e mede o trecho futuro; ainda nao substitui walk-forward completo.
-- `price-mode price_only` e `adjusted` usam OHLC COTAHIST normalizado somente por splits; nao representam retorno total.
+- `price-mode price_only` usa precos historicos brutos e aplica splits a quantidade de acoes; nao inclui dividendos/JCP. O modo legado `adjusted` rejeita lotes inteiros se seus precos diferirem dos precos brutos; `lot-size 0` permite apenas diagnostico com fracoes sinteticas.
 - `price-mode raw_events` usa OHLC COTAHIST bruto e exige eventos corporativos completos; fica bloqueado enquanto dividendos/JCP estiverem `unverified`.
 - `signal-mode adjusted` e o padrao seguro. `signal-mode raw` preserva saltos de escala de splits e serve apenas para diagnostico.
 - O universo de 40 acoes declara `survivorship_safe=false`: exigir continuidade ate a data atual usa informacao futura e introduz vies de sobrevivencia.
