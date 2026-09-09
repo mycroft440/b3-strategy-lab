@@ -8,6 +8,7 @@ from b3_strategy_lab.candles import Candle
 from b3_strategy_lab.extended_strategies import EXTENDED_STRATEGIES
 from b3_strategy_lab.indicator_strategies import INDICATOR_STRATEGIES
 from b3_strategy_lab.researched_strategies import RESEARCHED_STRATEGIES
+from b3_strategy_lab.smi_ergodic_strategies import SMI_ERGODIC_STRATEGIES
 from b3_strategy_lab.trend_strategies import TREND_STRATEGIES
 from b3_strategy_lab.strategies import (
     STRATEGIES,
@@ -58,15 +59,17 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertEqual(len(RESEARCHED_STRATEGIES), 12)
         self.assertEqual(len(EXTENDED_STRATEGIES), 21)
         self.assertEqual(len(INDICATOR_STRATEGIES), 24)
+        self.assertEqual(len(SMI_ERGODIC_STRATEGIES), 15)
         self.assertEqual(len(TREND_STRATEGIES), 20)
-        self.assertEqual(len(sweep_strategies()), 233)
-        self.assertEqual(len(portfolio_strategies()), 234)
+        self.assertEqual(len(sweep_strategies()), 248)
+        self.assertEqual(len(portfolio_strategies()), 249)
 
         groups = [
             {strategy.name for strategy in ADDITIONAL_STRATEGIES},
             {strategy.name for strategy in RESEARCHED_STRATEGIES},
             {strategy.name for strategy in EXTENDED_STRATEGIES},
             {strategy.name for strategy in INDICATOR_STRATEGIES},
+            {strategy.name for strategy in SMI_ERGODIC_STRATEGIES},
             {strategy.name for strategy in TREND_STRATEGIES},
         ]
         self.assertTrue(all(group <= set(STRATEGIES) for group in groups))

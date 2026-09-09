@@ -220,7 +220,7 @@ class StrategyCausalityTests(unittest.TestCase):
         candles = synthetic_candles()
         session_calendar = [item.date for item in candles]
         catalog = portfolio_strategies()
-        self.assertGreaterEqual(len(catalog), 234)
+        self.assertGreaterEqual(len(catalog), 249)
         for strategy in catalog:
             params = strategy_parameters(strategy)
             with self.subTest(strategy=strategy):
@@ -650,9 +650,9 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
                 )
             )
             self.assertFalse(manifest["catalog_complete"])
-            self.assertEqual(manifest["catalog_strategy_count"], 234)
+            self.assertEqual(manifest["catalog_strategy_count"], 249)
             self.assertEqual(manifest["catalog_management_count"], 478)
-            self.assertEqual(manifest["catalog_combination_count"], 111_852)
+            self.assertEqual(manifest["catalog_combination_count"], 119_022)
             self.assertEqual(
                 manifest["signal_execution_policy"],
                 "designated_basket_binary_signal_changes_execute_next_open_"
