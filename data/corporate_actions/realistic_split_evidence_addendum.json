@@ -158,6 +158,24 @@
       "source_authority": "issuer",
       "source_url": "https://ri.cielo.com.br/mercado-de-capitais/bonificacao/",
       "review": "A pagina oficial de RI da Cielo documenta diretamente a bonificacao vinculada a CIEL3 e constitui fonte primaria da emissora para o ticker. Esta revisao apenas fornece o vinculo documental exigido para o ticker historico; nao cria evento, marcador ou ajuste sintetico, e a verificacao economica do COTAHIST continua independente."
+    },
+    {
+      "ticker": "ALSO3",
+      "source_authority": "issuer",
+      "source_url": "https://allos.co/news/aliansce-sonae-ganha-destaque-no-ranking-international-investor/",
+      "review": "Publicacao oficial da ALLOS preserva a identidade historica da Aliansce Sonae e referencia explicitamente ALSO3. Esta revisao fornece somente o vinculo primario do ticker historico; eventos economicos, marcadores e continuidade permanecem sujeitos aos gates independentes."
+    },
+    {
+      "ticker": "AZUL54",
+      "source_authority": "issuer",
+      "source_url": "https://ri.voeazul.com.br/cotacoes-e-graficos-azul54/",
+      "review": "A pagina oficial de RI da Azul identifica explicitamente AZUL54 em seu historico de cotacoes. Esta revisao fornece somente a fonte primaria exigida para o ticker; nenhum evento, ajuste ou continuidade e inferido dela."
+    },
+    {
+      "ticker": "GOLL54",
+      "source_authority": "issuer",
+      "source_url": "https://ri.voegol.com.br/opa/",
+      "review": "A pagina oficial de RI da GOL identifica explicitamente GOLL54 como o codigo das acoes preferenciais negociadas na B3. Esta revisao fornece somente a ancora primaria do ticker; eventos economicos e marcadores continuam sujeitos aos controles independentes."
     }
   ],
   "events": [
