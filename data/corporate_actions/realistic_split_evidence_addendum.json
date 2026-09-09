@@ -176,6 +176,12 @@
       "source_authority": "issuer",
       "source_url": "https://ri.voegol.com.br/opa/",
       "review": "A pagina oficial de RI da GOL identifica explicitamente GOLL54 como o codigo das acoes preferenciais negociadas na B3. Esta revisao fornece somente a ancora primaria do ticker; eventos economicos e marcadores continuam sujeitos aos controles independentes."
+    },
+    {
+      "ticker": "TIMP3",
+      "source_authority": "issuer",
+      "source_url": "https://api.mziq.com/mzfilemanager/v2/d/4c4aa51f-1235-4aa1-8b83-adc92e8dacc3/d472b427-13c9-4f51-9e53-96e5829127d1?origin=1",
+      "review": "O Relatorio Anual 2011 da propria TIM Participacoes informa explicitamente que suas acoes ordinarias eram negociadas na BM&FBOVESPA sob o codigo TIMP3. Esta revisao apenas fornece a fonte primaria exigida para o ticker historico; eventos economicos, marcadores, quantidades e ajustes permanecem sujeitos aos gates independentes."
     }
   ],
   "events": [
