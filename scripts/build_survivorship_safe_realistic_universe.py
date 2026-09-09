@@ -29,7 +29,7 @@ DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_TRANSITION_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
-EXCLUDED_TICKERS = frozenset({"AZUL53", "AZUL54", "GOLL4", "GOLL54"})
+EXCLUDED_TICKERS = frozenset({"AZUL53", "AZUL54", "GOLL4", "GOLL54", "LAME4"})
 
 
 def main(argv: list[str] | None = None) -> int:
