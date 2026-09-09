@@ -24,7 +24,7 @@ DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
 DEFAULT_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
-EXCLUDED_TICKERS = {"BOAC34"}
+EXCLUDED_TICKERS = {"AZUL53", "BOAC34"}
 RECENT_STALE_DAYS = 45
 
 
@@ -49,7 +49,6 @@ def _stale_category(last_quote_date: str, coverage_end: str, *, transitioned: bo
         return ""
     age = (date.fromisoformat(coverage_end) - date.fromisoformat(last_quote_date)).days
     return "recent_stale_symbol" if age <= RECENT_STALE_DAYS else "unresolved_disappearance"
-
 
 
 def _same_isin_transition_rows(items: list, isin: str) -> list[dict[str, object]]:
@@ -101,6 +100,7 @@ def _same_isin_transition_rows(items: list, isin: str) -> list[dict[str, object]
         previous_ticker = ticker
         previous_date = item.date
     return rows
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -196,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     manual_transitions = 0
     for item in load_transition_reviews(args.transition_reviews):
         if item.certification_status != "certified" or item.effective_date > coverage_end:
+            continue
+        if item.old_ticker in EXCLUDED_TICKERS or item.new_ticker in EXCLUDED_TICKERS:
             continue
         if item.old_ticker not in relevant_tickers:
             continue
