@@ -29,6 +29,7 @@ DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_TRANSITION_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
+EXCLUDED_TICKERS = frozenset({"AZUL53"})
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,7 +98,17 @@ def main(argv: list[str] | None = None) -> int:
         standard_quotes.extend(read_standard_company_equity_cotahist(archive))
         fractional_quotes.extend(read_fractional_cotahist(archive))
 
-    standard_quotes = [quote for quote in standard_quotes if is_company_equity(quote)]
+    standard_quotes = [
+        quote
+        for quote in standard_quotes
+        if is_company_equity(quote)
+        and quote.ticker.strip().upper() not in EXCLUDED_TICKERS
+    ]
+    fractional_quotes = [
+        quote
+        for quote in fractional_quotes
+        if base_fractional_ticker(quote.ticker) not in EXCLUDED_TICKERS
+    ]
     if not standard_quotes:
         raise ValueError("No B3 ON/PN company-share quotes were found.")
     requested_end = args.end or max(quote.date for quote in standard_quotes)
@@ -213,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         "point_in_time": True,
         "snapshot_file": str(args.snapshots_output),
         "allowed_universe_file": "",
-        "excluded_tickers": [],
+        "excluded_tickers": sorted(EXCLUDED_TICKERS),
         "excluded_instrument_classes": ["UNT", "BDR", "ETF", "funds", "rights", "receipts"],
         "tax_instrument_scope": "ON_PN_SHARES_ONLY",
         "no_replacements": False,
