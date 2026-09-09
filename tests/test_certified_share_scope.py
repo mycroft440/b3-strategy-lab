@@ -10,10 +10,11 @@ class CertifiedShareScopeTests(unittest.TestCase):
     def _quote(self, ticker: str, specification: str):
         return SimpleNamespace(ticker=ticker, specification=specification)
 
-    def test_on_and_pn_share_classes_are_eligible(self) -> None:
+    def test_only_class_3_and_4_share_tickers_are_eligible(self) -> None:
         self.assertTrue(is_company_equity(self._quote("ABCD3", "ON")))
         self.assertTrue(is_company_equity(self._quote("ABCD4", "PN")))
-        self.assertTrue(is_company_equity(self._quote("ABCD5", "PNA")))
+        self.assertFalse(is_company_equity(self._quote("ABCD5", "PNA")))
+        self.assertFalse(is_company_equity(self._quote("ABCD6", "PNB")))
 
     def test_units_are_excluded_from_certified_small_account_tax_scope(self) -> None:
         self.assertFalse(is_company_equity(self._quote("ABCD11", "UNT")))
