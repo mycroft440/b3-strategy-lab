@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "effective_date": "2021-03-01",
+      "cutoff_date": "2021-02-26",
+      "first_successor_trade_date": "2021-03-01",
+      "old_ticker": "PCAR3",
+      "new_ticker": "PCAR3",
+      "share_ratio": 1.0,
+      "cash_per_old_share": 0.0,
+      "event_type": "spin_off",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "source_specific",
+      "certification_status": "certified",
+      "distributed_ticker": "ASAI3",
+      "distributed_share_ratio": 1.0,
+      "distributed_basis_fraction": 0.1771,
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/AF/B0/BE/BA/CF0D77109ECDCB77DC0D8AA8/OC%20013-2021%20PRE%20-%20Tratamento%20de%20posicoes%20para%20Cisao%20Pao%20de%20Acucar%20%28rev%20DepRV_N%29%20REVISADO%20%28P%29.pdf",
+      "source_reference": "B3 Ofício Circular 013/2021-PRE"
+    }
+  ]
+}

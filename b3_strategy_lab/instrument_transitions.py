@@ -10,15 +10,8 @@ from pathlib import Path
 
 SUPPORTED_EVENT_TYPES = frozenset(
     {
-        "ticker_change",
-        "class_change",
-        "merger",
-        "incorporation",
-        "spin_off",
-        "going_private",
-        "registration_cancelled",
-        "liquidation",
-        "reorganization",
+        "ticker_change", "class_change", "merger", "incorporation", "spin_off",
+        "going_private", "registration_cancelled", "liquidation", "reorganization",
         "economic_termination",
     }
 )
@@ -42,11 +35,10 @@ def _iso(value: str, label: str) -> str:
 class InstrumentTransition:
     """Source-bound economic continuity between exchange instruments.
 
-    The first five fields intentionally match the legacy TickerTransition positional
-    contract. New metadata describes the instrument itself rather than pretending a
-    quotation-factor change is a split. `share_ratio` is the economic quantity
-    conversion: quotation-factor changes are stored separately and never multiplied
-    into position quantity.
+    ``share_ratio`` describes the continuing/replacement instrument.  A spin-off is
+    represented with ``new_ticker == old_ticker`` plus a separately distributed
+    instrument; this prevents a distribution from being mistaken for a ticker
+    replacement by target/order remapping.
     """
 
     effective_date: str
@@ -67,6 +59,9 @@ class InstrumentTransition:
     source_url: str = ""
     source_reference: str = ""
     certification_status: str = "unresolved"
+    distributed_ticker: str = ""
+    distributed_share_ratio: float = 0.0
+    distributed_basis_fraction: float = 0.0
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "effective_date", _iso(self.effective_date, "effective_date"))
@@ -74,6 +69,7 @@ class InstrumentTransition:
         object.__setattr__(self, "new_ticker", self.new_ticker.strip().upper())
         object.__setattr__(self, "old_isin", self.old_isin.strip().upper())
         object.__setattr__(self, "new_isin", self.new_isin.strip().upper())
+        object.__setattr__(self, "distributed_ticker", self.distributed_ticker.strip().upper())
         object.__setattr__(self, "event_type", self.event_type.strip().lower())
         object.__setattr__(self, "fractional_treatment", self.fractional_treatment.strip().lower())
         object.__setattr__(self, "tax_basis_treatment", self.tax_basis_treatment.strip().lower())
@@ -84,11 +80,7 @@ class InstrumentTransition:
         if self.cutoff_date:
             object.__setattr__(self, "cutoff_date", _iso(self.cutoff_date, "cutoff_date"))
         if self.first_successor_trade_date:
-            object.__setattr__(
-                self,
-                "first_successor_trade_date",
-                _iso(self.first_successor_trade_date, "first_successor_trade_date"),
-            )
+            object.__setattr__(self, "first_successor_trade_date", _iso(self.first_successor_trade_date, "first_successor_trade_date"))
         if not self.old_ticker:
             raise ValueError("old_ticker is required")
         if not math.isfinite(self.share_ratio) or self.share_ratio <= 0:
@@ -100,24 +92,29 @@ class InstrumentTransition:
         if self.event_type not in SUPPORTED_EVENT_TYPES:
             raise ValueError(f"unsupported instrument event_type: {self.event_type}")
         if self.fractional_treatment not in SUPPORTED_FRACTIONAL_TREATMENTS:
-            raise ValueError(
-                f"unsupported fractional_treatment: {self.fractional_treatment}"
-            )
+            raise ValueError(f"unsupported fractional_treatment: {self.fractional_treatment}")
         if self.tax_basis_treatment not in SUPPORTED_TAX_BASIS_TREATMENTS:
-            raise ValueError(
-                f"unsupported tax_basis_treatment: {self.tax_basis_treatment}"
-            )
+            raise ValueError(f"unsupported tax_basis_treatment: {self.tax_basis_treatment}")
         if self.certification_status not in SUPPORTED_CERTIFICATION_STATUSES:
-            raise ValueError(
-                f"unsupported certification_status: {self.certification_status}"
-            )
+            raise ValueError(f"unsupported certification_status: {self.certification_status}")
         if self.new_ticker and not self.first_successor_trade_date:
             object.__setattr__(self, "first_successor_trade_date", self.effective_date)
+        if self.event_type == "spin_off":
+            if self.new_ticker != self.old_ticker:
+                raise ValueError("spin_off must retain the parent ticker; distributed_ticker carries the new instrument")
+            if not self.distributed_ticker or self.distributed_ticker == self.old_ticker:
+                raise ValueError("spin_off requires a distinct distributed_ticker")
+            if not math.isfinite(self.distributed_share_ratio) or self.distributed_share_ratio <= 0:
+                raise ValueError("spin_off requires positive distributed_share_ratio")
+            if not math.isfinite(self.distributed_basis_fraction) or not 0 < self.distributed_basis_fraction < 1:
+                raise ValueError("spin_off requires distributed_basis_fraction strictly between zero and one")
+            if self.tax_basis_treatment != "source_specific" or self.cash_per_old_share:
+                raise ValueError("spin_off requires source_specific basis treatment and no cash component")
+        elif self.distributed_ticker or self.distributed_share_ratio or self.distributed_basis_fraction:
+            raise ValueError("distributed instrument fields are reserved for spin_off events")
         if self.certification_status == "certified":
             if not self.source_authority or not self.source_url.startswith("https://"):
-                raise ValueError(
-                    "certified instrument transitions require source_authority and https source_url"
-                )
+                raise ValueError("certified instrument transitions require source_authority and https source_url")
             if not self.source_reference:
                 raise ValueError("certified instrument transitions require source_reference")
 
@@ -148,8 +145,7 @@ def _int(row: dict[str, str], key: str, default: int) -> int:
 
 
 def instrument_transition_from_row(row: dict[str, str]) -> InstrumentTransition:
-    """Load both legacy five-column rows and the extended transition schema."""
-
+    """Load both legacy rows and the extended transition schema."""
     return InstrumentTransition(
         effective_date=str(row["effective_date"])[:10],
         old_ticker=str(row["old_ticker"]),
@@ -161,52 +157,54 @@ def instrument_transition_from_row(row: dict[str, str]) -> InstrumentTransition:
         old_quotation_factor=_int(row, "old_quotation_factor", 1),
         new_quotation_factor=_int(row, "new_quotation_factor", 1),
         cutoff_date=str(row.get("cutoff_date", row.get("last_old_quote", ""))),
-        first_successor_trade_date=str(
-            row.get("first_successor_trade_date", row.get("first_new_quote", ""))
-        ),
+        first_successor_trade_date=str(row.get("first_successor_trade_date", row.get("first_new_quote", ""))),
         event_type=str(row.get("event_type", "ticker_change") or "ticker_change"),
-        fractional_treatment=str(
-            row.get("fractional_treatment", "require_integer") or "require_integer"
-        ),
-        tax_basis_treatment=str(
-            row.get("tax_basis_treatment", "carry_total_basis") or "carry_total_basis"
-        ),
+        fractional_treatment=str(row.get("fractional_treatment", "require_integer") or "require_integer"),
+        tax_basis_treatment=str(row.get("tax_basis_treatment", "carry_total_basis") or "carry_total_basis"),
         source_authority=str(row.get("source_authority", "")),
         source_url=str(row.get("source_url", "")),
         source_reference=str(row.get("source_reference", row.get("evidence", ""))),
-        certification_status=str(
-            row.get("certification_status", "unresolved") or "unresolved"
-        ),
+        certification_status=str(row.get("certification_status", "unresolved") or "unresolved"),
+        distributed_ticker=str(row.get("distributed_ticker", "")),
+        distributed_share_ratio=_float(row, "distributed_share_ratio", 0.0),
+        distributed_basis_fraction=_float(row, "distributed_basis_fraction", 0.0),
     )
 
 
 def instrument_transition_from_mapping(row: dict[str, object]) -> InstrumentTransition:
-    return instrument_transition_from_row(
-        {key: "" if value is None else str(value) for key, value in row.items()}
-    )
+    return instrument_transition_from_row({key: "" if value is None else str(value) for key, value in row.items()})
+
+
+def _review_payload(path: Path) -> list[dict[str, object]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise ValueError("instrument transition review registry requires schema_version 1")
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list):
+        raise ValueError("instrument transition review registry requires a reviews list")
+    return reviews
 
 
 def load_transition_reviews(path: Path | str) -> list[InstrumentTransition]:
     source = Path(path)
     if not source.exists():
         return []
-    payload = json.loads(source.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
-        raise ValueError("instrument transition review registry requires schema_version 1")
-    reviews = payload.get("reviews")
-    if not isinstance(reviews, list):
-        raise ValueError("instrument transition review registry requires a reviews list")
+    sources = [source]
+    shard_dir = source.parent / "instrument_transition_reviews.d"
+    if shard_dir.exists():
+        sources.extend(sorted(shard_dir.glob("*.json")))
     result: list[InstrumentTransition] = []
     seen: set[tuple[str, str, str]] = set()
-    for raw in reviews:
-        if not isinstance(raw, dict):
-            raise ValueError("instrument transition review entries must be objects")
-        item = instrument_transition_from_mapping(raw)
-        key = (item.effective_date, item.old_ticker, item.new_ticker)
-        if key in seen:
-            raise ValueError(f"duplicate instrument transition review: {key}")
-        seen.add(key)
-        result.append(item)
+    for registry in sources:
+        for raw in _review_payload(registry):
+            if not isinstance(raw, dict):
+                raise ValueError("instrument transition review entries must be objects")
+            item = instrument_transition_from_mapping(raw)
+            key = (item.effective_date, item.old_ticker, item.new_ticker)
+            if key in seen:
+                raise ValueError(f"duplicate instrument transition review: {key}")
+            seen.add(key)
+            result.append(item)
     return sorted(result, key=lambda item: (item.effective_date, item.old_ticker, item.new_ticker))
 
 

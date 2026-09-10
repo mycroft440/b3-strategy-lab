@@ -2,6 +2,8 @@
 
 Auction proceeds are unavailable to the model until the documented realization
 date. Before then, fractional rights are marked but cannot fund ordinary orders.
+Certified spin-offs are handled here too so a distribution is never mistaken for a
+ticker replacement by the frozen portfolio core.
 """
 from __future__ import annotations
 
@@ -93,8 +95,59 @@ def apply_fractional_split(account, data, current, original):
         account.positions.update(handled)
 
 
+def _apply_spin_off(account, transition):
+    """Distribute a certified child instrument while preserving aggregate tax basis.
+
+    The parent remains held. No cash, sale, gain or withholding is created. The
+    source-specific basis fraction is applied to the pre-event total basis and the
+    child position is merged using weighted-average cost, matching the tax engine's
+    per-instrument basis representation.
+    """
+    if transition.certification_status != "certified":
+        raise ValueError("Spin-off requires a certified source-bound transition.")
+    if transition.tax_basis_treatment != "source_specific":
+        raise ValueError("Spin-off requires source_specific tax-basis treatment.")
+    if transition.new_ticker != transition.old_ticker or transition.cash_per_old_share:
+        raise ValueError("Spin-off must retain the parent instrument and cannot create cash.")
+    child_ticker = getattr(transition, "distributed_ticker", "")
+    child_ratio = float(getattr(transition, "distributed_share_ratio", 0.0))
+    basis_fraction = float(getattr(transition, "distributed_basis_fraction", 0.0))
+    if not child_ticker or child_ticker == transition.old_ticker:
+        raise ValueError("Spin-off requires a distinct distributed instrument.")
+    if child_ratio <= 0 or not math.isfinite(child_ratio):
+        raise ValueError("Spin-off requires a positive distributed share ratio.")
+    if not 0 < basis_fraction < 1 or not math.isfinite(basis_fraction):
+        raise ValueError("Spin-off requires a source-specific distributed basis fraction.")
+
+    parent = account.positions[transition.old_ticker]
+    exact_child = parent.shares * child_ratio
+    if not math.isclose(exact_child, round(exact_child), rel_tol=0.0, abs_tol=1e-9):
+        raise ValueError("Fractional spin-off entitlement requires a separate source-tested settlement rule.")
+    child_qty = int(round(exact_child))
+    pre_basis = parent.shares * parent.average_cost
+    distributed_basis = pre_basis * basis_fraction
+    retained_basis = pre_basis - distributed_basis
+
+    child = account.positions[child_ticker]
+    existing_child_basis = child.shares * child.average_cost
+    child.shares += child_qty
+    if child.shares > 0:
+        child.average_cost = (existing_child_basis + distributed_basis) / child.shares
+    parent.average_cost = retained_basis / parent.shares if parent.shares else 0.0
+
+    post_basis = parent.shares * parent.average_cost + child.shares * child.average_cost
+    expected_basis = pre_basis + existing_child_basis
+    if not math.isclose(post_basis, expected_basis, rel_tol=1e-12, abs_tol=1e-7):
+        raise ValueError("Spin-off basis conservation failed.")
+    return True
+
+
 def apply_cash_transition(account, transition):
-    if account.shares(transition.old_ticker) <= 0 or not transition.cash_per_old_share:
+    if account.shares(transition.old_ticker) <= 0:
+        return False
+    if getattr(transition, "event_type", "") == "spin_off":
+        return _apply_spin_off(account, transition)
+    if not transition.cash_per_old_share:
         return False
     rule = getattr(account, "_corporate_settlement_rules", {}).get(
         (transition.effective_date, transition.old_ticker))
