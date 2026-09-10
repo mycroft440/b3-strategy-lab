@@ -189,6 +189,13 @@ def main(argv: list[str] | None = None) -> int:
             if old_ticker not in market_data_set or not new_ticker:
                 continue
             if new_ticker not in quoted_tickers:
+                old_factor = int(getattr(transition, "old_quotation_factor", 1) or 1)
+                new_factor = int(getattr(transition, "new_quotation_factor", 1) or 1)
+                if old_factor != new_factor:
+                    # This ON/PN execution book has no safe representation for a
+                    # successor whose quotation factor changes. Leave the boundary
+                    # out of continuity so held positions fail closed downstream.
+                    continue
                 raise ValueError(
                     f"Certified successor {new_ticker} has no COTAHIST quote through {end}."
                 )
