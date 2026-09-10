@@ -1,0 +1,89 @@
+name: One-shot full-matrix repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-shot-full-matrix-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply fail-closed transition and price-only fixes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          research = Path('scripts/research_portfolio_allocation.py')
+          text = research.read_text()
+          old = 'or str(raw.get("event_type", "")) not in {"ticker_change", "class_change"}'
+          new = 'or str(raw.get("event_type", "")) not in {"ticker_change", "class_change", "incorporation"}'
+          if old not in text:
+              raise SystemExit('research transition event-type guard changed unexpectedly')
+          research.write_text(text.replace(old, new, 1))
+
+          reviews_path = Path('data/corporate_actions/instrument_transition_reviews.json')
+          payload = json.loads(reviews_path.read_text())
+          reviews = payload['reviews']
+          if not any(r.get('old_ticker') == 'NATU3' and r.get('new_ticker') == 'NTCO3' and r.get('effective_date') == '2019-12-18' for r in reviews):
+              reviews.append({
+                  'effective_date': '2019-12-18',
+                  'cutoff_date': '2019-12-17',
+                  'first_successor_trade_date': '2019-12-18',
+                  'old_ticker': 'NATU3',
+                  'new_ticker': 'NTCO3',
+                  'share_ratio': 1.0,
+                  'old_quotation_factor': 1,
+                  'new_quotation_factor': 1,
+                  'cash_per_old_share': 0.0,
+                  'event_type': 'incorporation',
+                  'fractional_treatment': 'preserve_units',
+                  'tax_basis_treatment': 'carry_total_basis',
+                  'certification_status': 'certified',
+                  'source_authority': 'B3',
+                  'source_url': 'https://www.b3.com.br/pt_br/noticias/natura-co.htm',
+                  'source_reference': 'B3, Natura &Co conclui incorporação e inicia NTCO3 em 18/12/2019',
+                  'evidence_summary': 'A B3 informa que NATU3 deixou de negociar e NTCO3 iniciou em 18/12/2019. Documentação da companhia confirma troca de uma ação NATU3 por uma NTCO3, preservando quantidade e sem parcela em dinheiro.'
+              })
+              reviews.sort(key=lambda r: (str(r.get('effective_date','')), str(r.get('old_ticker',''))))
+          reviews_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+
+          backtest = Path('scripts/backtest_strategy_management_realistic.py')
+          text = backtest.read_text()
+          anchor = '    payload = asdict(summary)\n'
+          replacement = '    payload = asdict(summary)\n    # Dividend/JCP completeness is not a certification claim in price-only mode.\n    payload["cash_events_complete"] = None\n'
+          if anchor not in text:
+              raise SystemExit('backtest payload anchor changed unexpectedly')
+          backtest.write_text(text.replace(anchor, replacement, 1))
+
+          validator = Path('scripts/validate_matrix_top_realistic_core.py')
+          text = validator.read_text()
+          text = text.replace('    if strategy == "gap_momentum":\n        command.append("--economic-gap-adjustment")\n', '', 1)
+          old = '    if payload.get("cash_events_complete") is not True:\n        issues.append("cash_events_complete=false")\n'
+          new = '''    if payload.get("cash_distributions_scope") != "OUT_OF_SCOPE_BY_USER":\n        issues.append("cash_distributions_scope_invalid")\n    if payload.get("cash_distributions_used") is not False:\n        issues.append("cash_distributions_used=true")\n    if payload.get("cash_distributions_certification_required") is not False:\n        issues.append("cash_distributions_certification_required=true")\n    for field in ("distributions_net", "distribution_tax_paid", "unpaid_distribution_receivable"):\n        try:\n            if not math.isclose(float(payload[field]), 0.0, rel_tol=0.0, abs_tol=1e-12):\n                issues.append(f"price_only_nonzero:{field}")\n        except (KeyError, TypeError, ValueError):\n            issues.append(f"price_only_invalid:{field}")\n    if payload.get("economic_gap_adjustment") is not False:\n        issues.append("economic_gap_adjustment=true")\n'''
+          if old not in text:
+              raise SystemExit('validator cash completeness guard changed unexpectedly')
+          validator.write_text(text.replace(old, new, 1))
+          PY
+
+          python -m pip install -r requirements-test.txt
+          python -m py_compile scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py
+          python -m pytest -q
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/one-shot-full-matrix-fix.yml
+          git add scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py data/corporate_actions/instrument_transition_reviews.json
+          git commit -m 'fix: close NATU3 continuity and price-only certification gaps'
+          git push origin HEAD:main
