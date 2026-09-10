@@ -156,9 +156,18 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         )
 
     def test_default_market_data_still_delegates_to_research_core(self) -> None:
-        with patch.object(research._core.MarketData, "__init__", return_value=None) as init:
+        def initialize_minimal_core(instance, *args, **kwargs) -> None:
+            instance.by_date = {}
+
+        with patch.object(
+            research._core.MarketData,
+            "__init__",
+            autospec=True,
+            side_effect=initialize_minimal_core,
+        ) as init:
             research.MarketData(["AAA3"], "1d", "adjusted")
         init.assert_called_once_with(
+            unittest.mock.ANY,
             ["AAA3"],
             "1d",
             "adjusted",
