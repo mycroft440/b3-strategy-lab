@@ -78,6 +78,25 @@
       "evidence_summary": "Mudança de denominação/ticker KROT3 para COGN3 sem conversão econômica de quantidade."
     },
     {
+      "effective_date": "2019-12-18",
+      "cutoff_date": "2019-12-17",
+      "first_successor_trade_date": "2019-12-18",
+      "old_ticker": "NATU3",
+      "new_ticker": "NTCO3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "incorporation",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "carry_total_basis",
+      "certification_status": "certified",
+      "source_authority": "B3/Natura",
+      "source_url": "https://www.b3.com.br/pt_br/noticias/natura-co.htm",
+      "source_reference": "B3 18/12/2019; Natura fato relevante de 16/12/2019",
+      "evidence_summary": "Em 18/12/2019 NATU3 deixou de negociar e NTCO3 iniciou. O fato relevante da companhia confirma uma ação NTCO3 para cada ação NATU3 detida em 17/12/2019, sem parcela em dinheiro."
+    },
+    {
       "effective_date": "2020-03-02",
       "cutoff_date": "2020-02-28",
       "first_successor_trade_date": "2020-03-02",

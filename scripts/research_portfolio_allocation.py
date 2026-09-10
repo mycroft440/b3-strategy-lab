@@ -67,7 +67,7 @@ def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
         effective = str(raw.get("effective_date", "")).strip()[:10]
         if (
             raw.get("certification_status") != "certified"
-            or str(raw.get("event_type", "")) not in {"ticker_change", "class_change"}
+            or str(raw.get("event_type", "")) not in {"ticker_change", "class_change", "incorporation"}
             or abs(ratio - 1.0) > 1e-12
             or abs(cash) > 1e-12
             or raw.get("fractional_treatment") != "preserve_units"

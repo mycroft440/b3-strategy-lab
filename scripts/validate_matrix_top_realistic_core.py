@@ -24,7 +24,6 @@ DEFAULT_MAX_SLIPPAGE_BPS = 100.0
 
 BLOCKING_VALIDITY_TAGS = (
     "RETROSPECTIVE_UNIVERSE",
-    "UNCERTIFIED_CASH_EVENTS",
     "UNBOUND_TICKER_TRANSITIONS",
     "BONUS_TAX_BASIS_UNCERTIFIED",
 )
@@ -698,8 +697,6 @@ def _run_candidate(
         "--tax-output",
         str(tax),
     ]
-    if strategy == "gap_momentum":
-        command.append("--economic-gap-adjustment")
     try:
         subprocess.run(command, cwd=ROOT, check=True)
     except subprocess.CalledProcessError as error:
@@ -762,8 +759,20 @@ def _validation_issues(
             issues.append(f"validity:{tag}")
     if payload.get("survivorship_safe") is not True:
         issues.append("survivorship_safe=false")
-    if payload.get("cash_events_complete") is not True:
-        issues.append("cash_events_complete=false")
+    if payload.get("cash_distributions_scope") != "OUT_OF_SCOPE_BY_USER":
+        issues.append("cash_distributions_scope_invalid")
+    if payload.get("cash_distributions_used") is not False:
+        issues.append("cash_distributions_used=true")
+    if payload.get("cash_distributions_certification_required") is not False:
+        issues.append("cash_distributions_certification_required=true")
+    for field in ("distributions_net", "distribution_tax_paid", "unpaid_distribution_receivable"):
+        try:
+            if not math.isclose(float(payload[field]), 0.0, rel_tol=0.0, abs_tol=1e-12):
+                issues.append(f"price_only_nonzero:{field}")
+        except (KeyError, TypeError, ValueError):
+            issues.append(f"price_only_invalid:{field}")
+    if payload.get("economic_gap_adjustment") is not False:
+        issues.append("economic_gap_adjustment=true")
     if payload.get("ticker_transition_binding_verified") is not True:
         issues.append("ticker_transition_binding_verified=false")
     if payload.get("bonus_tax_basis_affects_realized_gain") is True:

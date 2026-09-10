@@ -38,7 +38,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
         payload = {
             "validity": "REALISTIC_POINT_IN_TIME__RETROSPECTIVE_SELECTION",
             "survivorship_safe": True,
-            "cash_events_complete": True,
+            "cash_distributions_scope": "OUT_OF_SCOPE_BY_USER",
+            "cash_distributions_used": False,
+            "cash_distributions_certification_required": False,
+            "unpaid_distribution_receivable": 0.0,
+            "economic_gap_adjustment": False,
             "ticker_transition_binding_verified": True,
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
@@ -59,18 +63,22 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "fees_paid": 2.0,
             "ordinary_income_tax_paid": 0.0,
             "distribution_tax_paid": 0.0,
-            "distributions_net": 10.0,
+            "distributions_net": 0.0,
         }
         self.assertEqual(_validation_issues(payload), [])
 
     def test_realistic_finalist_gate_fails_closed_on_uncertified_inputs(self) -> None:
         payload = {
             "validity": (
-                "REALISTIC_POINT_IN_TIME__UNCERTIFIED_CASH_EVENTS"
-                "__UNBOUND_TICKER_TRANSITIONS__BONUS_TAX_BASIS_UNCERTIFIED"
+                "REALISTIC_POINT_IN_TIME__UNBOUND_TICKER_TRANSITIONS"
+                "__BONUS_TAX_BASIS_UNCERTIFIED"
             ),
             "survivorship_safe": False,
-            "cash_events_complete": False,
+            "cash_distributions_scope": "IN_SCOPE",
+            "cash_distributions_used": True,
+            "cash_distributions_certification_required": True,
+            "unpaid_distribution_receivable": 1.0,
+            "economic_gap_adjustment": True,
             "ticker_transition_binding_verified": False,
             "bonus_tax_basis_affects_realized_gain": True,
             "fee_quality": "modeled",
@@ -94,11 +102,14 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "distributions_net": 0.0,
         }
         issues = _validation_issues(payload)
-        self.assertIn("validity:UNCERTIFIED_CASH_EVENTS", issues)
         self.assertIn("validity:UNBOUND_TICKER_TRANSITIONS", issues)
         self.assertIn("validity:BONUS_TAX_BASIS_UNCERTIFIED", issues)
         self.assertIn("survivorship_safe=false", issues)
-        self.assertIn("cash_events_complete=false", issues)
+        self.assertIn("cash_distributions_scope_invalid", issues)
+        self.assertIn("cash_distributions_used=true", issues)
+        self.assertIn("cash_distributions_certification_required=true", issues)
+        self.assertIn("price_only_nonzero:unpaid_distribution_receivable", issues)
+        self.assertIn("economic_gap_adjustment=true", issues)
         self.assertIn("ticker_transition_binding_verified=false", issues)
         self.assertIn("bonus_tax_basis_affects_realized_gain=true", issues)
         self.assertIn("fee_quality=modeled", issues)
@@ -107,7 +118,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
         base = {
             "validity": "REALISTIC_POINT_IN_TIME__RETROSPECTIVE_SELECTION",
             "survivorship_safe": True,
-            "cash_events_complete": True,
+            "cash_distributions_scope": "OUT_OF_SCOPE_BY_USER",
+            "cash_distributions_used": False,
+            "cash_distributions_certification_required": False,
+            "unpaid_distribution_receivable": 0.0,
+            "economic_gap_adjustment": False,
             "ticker_transition_binding_verified": True,
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
@@ -160,7 +175,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
         payload = {
             "validity": "REALISTIC_POINT_IN_TIME__RETROSPECTIVE_SELECTION",
             "survivorship_safe": True,
-            "cash_events_complete": True,
+            "cash_distributions_scope": "OUT_OF_SCOPE_BY_USER",
+            "cash_distributions_used": False,
+            "cash_distributions_certification_required": False,
+            "unpaid_distribution_receivable": 0.0,
+            "economic_gap_adjustment": False,
             "ticker_transition_binding_verified": True,
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
@@ -189,7 +208,11 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
         payload = {
             "validity": "NOT_REALISTIC",
             "survivorship_safe": True,
-            "cash_events_complete": True,
+            "cash_distributions_scope": "OUT_OF_SCOPE_BY_USER",
+            "cash_distributions_used": False,
+            "cash_distributions_certification_required": False,
+            "unpaid_distribution_receivable": 0.0,
+            "economic_gap_adjustment": False,
             "ticker_transition_binding_verified": True,
             "bonus_tax_basis_affects_realized_gain": False,
             "fee_quality": "official",
@@ -243,7 +266,7 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
             "final_equity": 1100.0,
             "trades": 2,
             "fees_paid": 3.0,
-            "distributions_net": 5.0,
+            "distributions_net": 0.0,
             "distribution_tax_paid": 0.0,
         }
         with tempfile.TemporaryDirectory() as temporary:
@@ -262,8 +285,7 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
                 encoding="utf-8",
             )
             cash.write_text(
-                "date,ticker,label,shares_entitled,gross,tax,net\n"
-                "2018-01-03,AAA3,DIVIDENDO,10,5,0,5\n",
+                "date,ticker,label,shares_entitled,gross,tax,net\n",
                 encoding="utf-8",
             )
             self.assertEqual(

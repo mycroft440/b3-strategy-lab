@@ -207,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     payload = asdict(summary)
+    # Dividend/JCP completeness is not a certification claim in price-only mode.
+    payload["cash_events_complete"] = None
     payload["ticker_transition_binding_verified"] = not transition_issues
     payload["ticker_transition_binding_issues"] = transition_issues
     if transition_issues and "__UNBOUND_TICKER_TRANSITIONS" not in str(payload["validity"]):
