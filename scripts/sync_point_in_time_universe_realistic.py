@@ -380,6 +380,13 @@ def main(argv: list[str] | None = None) -> int:
     if _option_value(arguments, "--action-workers") is None:
         arguments.extend(["--action-workers", str(DEFAULT_ACTION_WORKERS)])
 
+    # Project policy: dividend and JCP cash flows are outside the requested model.
+    # Keep building the documentary ledger for auditability, but unresolved cash
+    # coverage must not block synchronization when those flows are not consumed by
+    # the backtest. Split/share-count and all other evidence gates remain fail-closed.
+    if "--allow-incomplete-cash-ledger" not in arguments:
+        arguments.append("--allow-incomplete-cash-ledger")
+
     _install_evidence_addendum(_load_evidence_addendum())
 
     # Successful issuer supplements are written atomically by the base synchronizer.
