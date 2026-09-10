@@ -30,7 +30,7 @@ class MatrixRealMoneyGateTests(unittest.TestCase):
         self.assertIn("manifest_forbids_real_money_claim", blockers)
         self.assertIn("strategy_and_management_selected_on_full_period", blockers)
         self.assertIn("universe_is_not_survivorship_safe", blockers)
-        self.assertIn("dividends_and_jcp_are_not_certified_in_matrix", blockers)
+        self.assertNotIn("dividends_and_jcp_are_not_certified_in_matrix", blockers)
         self.assertIn("taxes_are_excluded", blockers)
         self.assertIn("fractional_market_execution_is_not_modeled", blockers)
 

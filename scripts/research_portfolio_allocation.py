@@ -127,7 +127,8 @@ def _certified_unsupported_transition_boundaries() -> tuple[tuple[str, str, str,
 def _research_invalid_transition_reason(message: str) -> str | None:
     """Classify only fresh-price failures explained by a certified complex event."""
     match = re.match(
-        r"^(?P<date>\d{4}-\d{2}-\d{2}): (?:abertura|fechamento) fresca obrigatoria "
+        r"^(?P<date>\d{4}-\d{2}-\d{2}): "
+        r"(?:abertura fresca obrigatoria|fechamento fresco obrigatorio) "
         r"ausente para (?P<tickers>.+)$",
         message.strip(),
     )

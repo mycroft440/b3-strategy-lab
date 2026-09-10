@@ -47,8 +47,8 @@ def _real_money_blockers(manifest: dict[str, object]) -> list[str]:
     universe = manifest.get("universe")
     if not isinstance(universe, dict) or universe.get("survivorship_safe") is not True:
         blockers.append("universe_is_not_survivorship_safe")
-    if manifest.get("dividends_jcp") != "included_with_certified_cash_events":
-        blockers.append("dividends_and_jcp_are_not_certified_in_matrix")
+    if manifest.get("dividends_jcp") != "excluded":
+        blockers.append("dividends_and_jcp_scope_is_not_explicitly_excluded")
     limitations = {str(item) for item in (manifest.get("limitations") or [])}
     if "taxes_excluded" in limitations:
         blockers.append("taxes_are_excluded")
