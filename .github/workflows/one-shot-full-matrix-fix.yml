@@ -51,10 +51,10 @@ jobs:
                   'fractional_treatment': 'preserve_units',
                   'tax_basis_treatment': 'carry_total_basis',
                   'certification_status': 'certified',
-                  'source_authority': 'B3',
+                  'source_authority': 'B3/Natura',
                   'source_url': 'https://www.b3.com.br/pt_br/noticias/natura-co.htm',
-                  'source_reference': 'B3, Natura &Co conclui incorporação e inicia NTCO3 em 18/12/2019',
-                  'evidence_summary': 'A B3 informa que NATU3 deixou de negociar e NTCO3 iniciou em 18/12/2019. Documentação da companhia confirma troca de uma ação NATU3 por uma NTCO3, preservando quantidade e sem parcela em dinheiro.'
+                  'source_reference': 'B3 18/12/2019; Natura fato relevante de 16/12/2019',
+                  'evidence_summary': 'Em 18/12/2019 NATU3 deixou de negociar e NTCO3 iniciou. O fato relevante da companhia confirma uma ação NTCO3 para cada ação NATU3 detida em 17/12/2019, sem parcela em dinheiro.'
               })
               reviews.sort(key=lambda r: (str(r.get('effective_date','')), str(r.get('old_ticker',''))))
           reviews_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
@@ -74,16 +74,49 @@ jobs:
           new = '''    if payload.get("cash_distributions_scope") != "OUT_OF_SCOPE_BY_USER":\n        issues.append("cash_distributions_scope_invalid")\n    if payload.get("cash_distributions_used") is not False:\n        issues.append("cash_distributions_used=true")\n    if payload.get("cash_distributions_certification_required") is not False:\n        issues.append("cash_distributions_certification_required=true")\n    for field in ("distributions_net", "distribution_tax_paid", "unpaid_distribution_receivable"):\n        try:\n            if not math.isclose(float(payload[field]), 0.0, rel_tol=0.0, abs_tol=1e-12):\n                issues.append(f"price_only_nonzero:{field}")\n        except (KeyError, TypeError, ValueError):\n            issues.append(f"price_only_invalid:{field}")\n    if payload.get("economic_gap_adjustment") is not False:\n        issues.append("economic_gap_adjustment=true")\n'''
           if old not in text:
               raise SystemExit('validator cash completeness guard changed unexpectedly')
-          validator.write_text(text.replace(old, new, 1))
+          text = text.replace(old, new, 1)
+          text = text.replace('    "UNCERTIFIED_CASH_EVENTS",\n', '', 1)
+          validator.write_text(text)
+
+          tests = Path('tests/test_realistic_ranking_gate.py')
+          text = tests.read_text()
+          price_only_fields = (
+              '            "cash_distributions_scope": "OUT_OF_SCOPE_BY_USER",\n'
+              '            "cash_distributions_used": False,\n'
+              '            "cash_distributions_certification_required": False,\n'
+              '            "unpaid_distribution_receivable": 0.0,\n'
+              '            "economic_gap_adjustment": False,\n'
+          )
+          text = text.replace('            "cash_events_complete": True,\n', price_only_fields)
+          text = text.replace('            "cash_events_complete": False,\n',
+              '            "cash_distributions_scope": "IN_SCOPE",\n'
+              '            "cash_distributions_used": True,\n'
+              '            "cash_distributions_certification_required": True,\n'
+              '            "unpaid_distribution_receivable": 1.0,\n'
+              '            "economic_gap_adjustment": True,\n')
+          text = text.replace('            "distributions_net": 10.0,\n', '            "distributions_net": 0.0,\n', 1)
+          text = text.replace('                "REALISTIC_POINT_IN_TIME__UNCERTIFIED_CASH_EVENTS"\n                "__UNBOUND_TICKER_TRANSITIONS__BONUS_TAX_BASIS_UNCERTIFIED"\n',
+              '                "REALISTIC_POINT_IN_TIME__UNBOUND_TICKER_TRANSITIONS"\n                "__BONUS_TAX_BASIS_UNCERTIFIED"\n')
+          text = text.replace('        self.assertIn("validity:UNCERTIFIED_CASH_EVENTS", issues)\n', '')
+          text = text.replace('        self.assertIn("cash_events_complete=false", issues)\n',
+              '        self.assertIn("cash_distributions_scope_invalid", issues)\n'
+              '        self.assertIn("cash_distributions_used=true", issues)\n'
+              '        self.assertIn("cash_distributions_certification_required=true", issues)\n'
+              '        self.assertIn("price_only_nonzero:unpaid_distribution_receivable", issues)\n'
+              '        self.assertIn("economic_gap_adjustment=true", issues)\n')
+          text = text.replace('            "distributions_net": 5.0,\n', '            "distributions_net": 0.0,\n')
+          text = text.replace('                "date,ticker,label,shares_entitled,gross,tax,net\\n"\n                "2018-01-03,AAA3,DIVIDENDO,10,5,0,5\\n",\n',
+              '                "date,ticker,label,shares_entitled,gross,tax,net\\n",\n')
+          tests.write_text(text)
           PY
 
           python -m pip install -r requirements-test.txt
-          python -m py_compile scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py
+          python -m py_compile scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py tests/test_realistic_ranking_gate.py
           python -m pytest -q
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/one-shot-full-matrix-fix.yml
-          git add scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py data/corporate_actions/instrument_transition_reviews.json
+          git add scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_realistic.py scripts/validate_matrix_top_realistic_core.py tests/test_realistic_ranking_gate.py data/corporate_actions/instrument_transition_reviews.json
           git commit -m 'fix: close NATU3 continuity and price-only certification gaps'
           git push origin HEAD:main
