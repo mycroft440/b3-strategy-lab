@@ -98,15 +98,20 @@ def main(argv: list[str] | None = None) -> int:
         standard_quotes.extend(read_standard_company_equity_cotahist(archive))
         fractional_quotes.extend(read_fractional_cotahist(archive))
 
+    # Keep a complete company-share quote pool for source-reviewed continuity and
+    # execution. EXCLUDED_TICKERS remains a selection/ranking policy only: a ticker
+    # such as PCAR3 may be forbidden as a fresh candidate while still being required
+    # to value/execute a certified PCAR4->PCAR3 carry.
+    all_standard_quotes = [quote for quote in standard_quotes if is_company_equity(quote)]
+    all_fractional_quotes = list(fractional_quotes)
     standard_quotes = [
         quote
-        for quote in standard_quotes
-        if is_company_equity(quote)
-        and quote.ticker.strip().upper() not in EXCLUDED_TICKERS
+        for quote in all_standard_quotes
+        if quote.ticker.strip().upper() not in EXCLUDED_TICKERS
     ]
     fractional_quotes = [
         quote
-        for quote in fractional_quotes
+        for quote in all_fractional_quotes
         if base_fractional_ticker(quote.ticker) not in EXCLUDED_TICKERS
     ]
     if not standard_quotes:
@@ -122,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
     # must not leak into continuity_only_tickers for an earlier replay.
     causal_standard_quotes = [quote for quote in standard_quotes if quote.date <= end]
     causal_fractional_quotes = [quote for quote in fractional_quotes if quote.date <= end]
+    causal_all_standard_quotes = [quote for quote in all_standard_quotes if quote.date <= end]
+    causal_all_fractional_quotes = [quote for quote in all_fractional_quotes if quote.date <= end]
 
     snapshots = snapshot_rows(
         causal_standard_quotes,
@@ -167,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     # the replay horizon connects from an already-required symbol. This expands
     # valuation/execution data only; it never grants historical selection eligibility.
     transition_reviews = load_transition_reviews(args.transition_reviews)
-    quoted_tickers = {quote.ticker.upper() for quote in causal_standard_quotes}
+    quoted_tickers = {quote.ticker.upper() for quote in causal_all_standard_quotes}
     reviewed_successors: set[str] = set()
     changed = True
     while changed:
@@ -177,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             old_ticker = transition.old_ticker.strip().upper()
             new_ticker = transition.new_ticker.strip().upper() if transition.new_ticker else ""
-            if old_ticker in EXCLUDED_TICKERS or new_ticker in EXCLUDED_TICKERS:
+            if old_ticker in EXCLUDED_TICKERS:
                 continue
             if old_ticker not in market_data_set or not new_ticker:
                 continue
@@ -194,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
     issuer_by_ticker: dict[str, str] = {}
     issuer_names: dict[str, str] = {}
     isin_by_ticker: dict[str, set[str]] = defaultdict(set)
-    for quote in causal_standard_quotes:
+    for quote in causal_all_standard_quotes:
         ticker = quote.ticker.upper()
         if ticker not in market_data_set:
             continue
@@ -285,11 +292,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     standard_filtered = [
-        quote for quote in causal_standard_quotes if quote.ticker.upper() in market_data_set
+        quote for quote in causal_all_standard_quotes if quote.ticker.upper() in market_data_set
     ]
     fractional_filtered = [
         quote
-        for quote in causal_fractional_quotes
+        for quote in causal_all_fractional_quotes
         if base_fractional_ticker(quote.ticker) in market_data_set
     ]
     executions = execution_rows(
