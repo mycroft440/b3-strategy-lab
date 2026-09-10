@@ -8,6 +8,8 @@ from scripts import research_portfolio_allocation as research
 
 
 class ComplexTransitionInvalidationTests(unittest.TestCase):
+    """Regression contract: certified complex actions invalidate only affected rows."""
+
     def test_gndi3_certified_complex_transition_is_classified(self) -> None:
         reason = research._research_invalid_transition_reason(
             "2022-02-14: abertura fresca obrigatoria ausente para GNDI3"
