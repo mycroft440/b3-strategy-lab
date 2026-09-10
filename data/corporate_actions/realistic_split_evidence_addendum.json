@@ -182,6 +182,12 @@
       "source_authority": "issuer",
       "source_url": "https://api.mziq.com/mzfilemanager/v2/d/4c4aa51f-1235-4aa1-8b83-adc92e8dacc3/d472b427-13c9-4f51-9e53-96e5829127d1?origin=1",
       "review": "O Relatorio Anual 2011 da propria TIM Participacoes informa explicitamente que suas acoes ordinarias eram negociadas na BM&FBOVESPA sob o codigo TIMP3. Esta revisao apenas fornece a fonte primaria exigida para o ticker historico; eventos economicos, marcadores, quantidades e ajustes permanecem sujeitos aos gates independentes."
+    },
+    {
+      "ticker": "PCAR4",
+      "source_authority": "issuer",
+      "source_url": "https://www.gpabr.com/wp-content/uploads/2016/08/relatorioanual2010_port.pdf",
+      "review": "O Relatorio Anual e de Sustentabilidade 2010 publicado no dominio oficial do GPA identifica explicitamente PCAR4 como codigo de negociacao na Bovespa. Esta revisao apenas fornece a ancora primaria exigida para o ticker historico; nenhum evento economico, marcador, razao de ajuste ou continuidade e inferido dela."
     }
   ],
   "events": [
