@@ -31,6 +31,7 @@ from scripts.research_portfolio_allocation import (  # noqa: E402
     PortfolioConfig,
     PortfolioCurveRow,
     _configs,
+    _research_invalid_transition_reason,
     run_portfolio,
 )
 
@@ -51,8 +52,11 @@ PIT_SPLIT_EVIDENCE = Path("data/corporate_actions/point_in_time_split_evidence.j
 _WORKER_STATE: tuple | None = None
 
 
-def _ranking_key(row: dict[str, object]) -> tuple[float, float, str, str]:
+def _ranking_key(row: dict[str, object]) -> tuple[int, float, float, str, str]:
+    if str(row.get("validity", "VALID")) != "VALID":
+        return (1, 0.0, 0.0, str(row["trading_strategy"]), str(row["management_strategy"]))
     return (
+        0,
         -float(row["total_return"]),
         -float(row["cagr"]),
         str(row["trading_strategy"]),
@@ -255,10 +259,13 @@ def main(argv: list[str] | None = None) -> int:
     rows.sort(key=_ranking_key)
     for rank, row in enumerate(rows, start=1):
         row["rank"] = rank
+    valid_rows = [row for row in rows if row.get("validity") == "VALID"]
+    if len(valid_rows) < args.top:
+        raise ValueError(f"Somente {len(valid_rows)} combinacoes validas; Top {args.top} indisponivel.")
 
     config_by_name = {config.name: config for config in configs}
     annual_sections = _top_annual_sections(
-        rows[: args.top],
+        valid_rows[: args.top],
         data=data,
         configs=config_by_name,
         signals_by_strategy=signals_by_strategy,
@@ -288,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
         universe=universe,
         data=data,
     )
-    _print_top(rows[: args.top])
+    _print_top(valid_rows[: args.top])
     return 0
 
 
@@ -411,24 +418,45 @@ def _strategy_rows(
     rows = []
     params_text = _params_text(params)
     for config in configs:
-        summary, _ = run_portfolio(
-            data,
-            config,
-            start=start,
-            end=end,
-            initial_cash=initial_cash,
-            cost_bps=cost_bps,
-            slippage_bps=slippage_bps,
-            lot_size=lot_size,
-            eligibility=eligibility,
-            universe_membership=universe_membership,
-            collect_curve=False,
-        )
+        try:
+            summary, _ = run_portfolio(
+                data,
+                config,
+                start=start,
+                end=end,
+                initial_cash=initial_cash,
+                cost_bps=cost_bps,
+                slippage_bps=slippage_bps,
+                lot_size=lot_size,
+                eligibility=eligibility,
+                universe_membership=universe_membership,
+                collect_curve=False,
+            )
+        except ValueError as error:
+            invalid_reason = _research_invalid_transition_reason(str(error))
+            if invalid_reason is None:
+                raise
+            rows.append(
+                {
+                    "trading_strategy": strategy,
+                    "strategy_params": params_text,
+                    "management_strategy": config.name,
+                    "validity": "INVALID_UNSUPPORTED_CERTIFIED_CORPORATE_TRANSITION",
+                    "invalid_reason": invalid_reason,
+                    "start": start,
+                    "end": end,
+                    "candles": sum(start <= value <= end for value in data.dates),
+                    "initial_equity": initial_cash,
+                }
+            )
+            continue
         rows.append(
             {
                 "trading_strategy": strategy,
                 "strategy_params": params_text,
                 "management_strategy": config.name,
+                "validity": "VALID",
+                "invalid_reason": "",
                 "start": summary.start,
                 "end": summary.end,
                 "candles": summary.candles,
@@ -532,6 +560,8 @@ def _write_results(rows: list[dict[str, object]], output: Path) -> None:
         "trading_strategy",
         "strategy_params",
         "management_strategy",
+        "validity",
+        "invalid_reason",
         "start",
         "end",
         "candles",
@@ -764,7 +794,7 @@ def _write_manifest(
         "cost_bps": args.cost_bps,
         "slippage_bps": args.slippage_bps,
         "lot_size": args.lot_size,
-        "ranking": "total_return_desc_then_cagr_desc_then_strategy_management_asc",
+        "ranking": "valid_only_then_total_return_desc_then_cagr_desc_then_strategy_management_asc",
         "signal_execution_policy": (
             "designated_basket_binary_signal_changes_execute_next_open_"
             "without_intraperiod_reranking"
@@ -787,6 +817,7 @@ def _write_manifest(
             "dividends_and_jcp_excluded",
             "taxes_excluded",
             "standard_market_open_used_for_integer_share_research_execution",
+            "certified_complex_corporate_transition_crossings_excluded_from_ranking",
         ],
         "final_valuation": "liquidated_at_last_verified_close_with_costs_and_slippage",
         "workers": args.workers,

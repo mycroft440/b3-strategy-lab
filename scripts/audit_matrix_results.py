@@ -103,18 +103,51 @@ def main(argv: list[str] | None = None) -> int:
     returns_match_equity = True
     dates_and_candles_match = True
     sorted_as_declared = True
-    previous_sort_key: tuple[float, float, str, str] | None = None
+    previous_sort_key: tuple[int, float, float, str, str] | None = None
+    invalid_rows_are_explicit = True
+    valid_rows_precede_invalid_rows = True
+    seen_invalid = False
+    valid_row_count = 0
+    invalid_row_count = 0
     with _open_results(args.results) as source:
         for row_count, row in enumerate(csv.DictReader(source), start=1):
             try:
                 rank = int(row["rank"])
                 candles = int(row["candles"])
-                values = {field: float(row[field]) for field in float_fields}
             except (KeyError, TypeError, ValueError):
                 ranks_are_sequential = False
-                metrics_are_finite = False
+                dates_and_candles_match = False
                 continue
             ranks_are_sequential &= rank == row_count
+            pair = (row["trading_strategy"], row["management_strategy"])
+            seen_pairs.add(pair)
+            observed_strategies.add(pair[0])
+            observed_managements.add(pair[1])
+            validity = str(row.get("validity", "VALID"))
+            if validity != "VALID":
+                invalid_row_count += 1
+                seen_invalid = True
+                invalid_rows_are_explicit &= (
+                    validity == "INVALID_UNSUPPORTED_CERTIFIED_CORPORATE_TRANSITION"
+                    and bool(str(row.get("invalid_reason", "")).strip())
+                )
+                dates_and_candles_match &= (
+                    row["start"] == manifest["start"]
+                    and row["end"] == manifest["end"]
+                    and candles > 0
+                )
+                sort_key = (1, 0.0, 0.0, pair[0], pair[1])
+                if previous_sort_key is not None:
+                    sorted_as_declared &= previous_sort_key <= sort_key
+                previous_sort_key = sort_key
+                continue
+            valid_row_count += 1
+            valid_rows_precede_invalid_rows &= not seen_invalid
+            try:
+                values = {field: float(row[field]) for field in float_fields}
+            except (KeyError, TypeError, ValueError):
+                metrics_are_finite = False
+                continue
             metrics_are_finite &= all(math.isfinite(value) for value in values.values())
             returns_match_equity &= math.isclose(
                 values["total_return"],
@@ -128,18 +161,15 @@ def main(argv: list[str] | None = None) -> int:
                 and candles > 0
             )
             sort_key = (
+                0,
                 -values["total_return"],
                 -values["cagr"],
-                row["trading_strategy"],
-                row["management_strategy"],
+                pair[0],
+                pair[1],
             )
             if previous_sort_key is not None:
                 sorted_as_declared &= previous_sort_key <= sort_key
             previous_sort_key = sort_key
-            pair = (row["trading_strategy"], row["management_strategy"])
-            seen_pairs.add(pair)
-            observed_strategies.add(pair[0])
-            observed_managements.add(pair[1])
             ranked_pairs.append(pair)
 
     annual_text = annual_path.read_text(encoding="utf-8")
@@ -247,6 +277,13 @@ def main(argv: list[str] | None = None) -> int:
             )
         ),
         "ranking_is_deterministic_total_return_cagr_names": sorted_as_declared,
+        "certified_complex_transition_invalid_rows_are_explicit": invalid_rows_are_explicit,
+        "valid_rows_precede_invalid_rows": valid_rows_precede_invalid_rows,
+        "ranking_contains_valid_rows": valid_row_count > 0,
+        "manifest_declares_complex_transition_ranking_exclusion": (
+            "certified_complex_corporate_transition_crossings_excluded_from_ranking"
+            in (manifest.get("limitations") or [])
+        ),
         "execution_policy_is_fail_closed": (
             manifest.get("execution_missing_price_policy")
             == "fail_closed_fresh_open_and_close_required"
@@ -326,6 +363,8 @@ def main(argv: list[str] | None = None) -> int:
         "annual_report_sha256": _sha256(annual_path),
         "annual_report_top_n": annual_top_n,
         "rows": row_count,
+        "valid_rows": valid_row_count,
+        "invalid_rows": invalid_row_count,
         "strategy_count": len(observed_strategies),
         "management_count": len(observed_managements),
         "result_classification": manifest.get("result_classification"),

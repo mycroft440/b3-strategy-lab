@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -88,6 +89,60 @@ def _applicable_unit_transitions(current_date: str):
             break
         for transition in _certified_unit_transitions()[effective]:
             yield transition
+
+
+@lru_cache(maxsize=1)
+def _certified_unsupported_transition_boundaries() -> tuple[tuple[str, str, str, str], ...]:
+    """Return certified events the price-only research engine must not fabricate."""
+    if not _TRANSITION_REVIEWS.exists():
+        return ()
+    payload = json.loads(_TRANSITION_REVIEWS.read_text(encoding="utf-8"))
+    reviews = payload.get("reviews", []) if isinstance(payload, dict) else []
+    boundaries: list[tuple[str, str, str, str]] = []
+    for raw in reviews:
+        if not isinstance(raw, dict) or raw.get("certification_status") != "certified":
+            continue
+        old = str(raw.get("old_ticker", "")).strip().upper()
+        new = str(raw.get("new_ticker", "")).strip().upper()
+        effective = str(raw.get("effective_date", "")).strip()[:10]
+        event_type = str(raw.get("event_type", "unknown")).strip() or "unknown"
+        try:
+            ratio = float(raw.get("share_ratio", 0.0))
+            cash = float(raw.get("cash_per_old_share", 0.0))
+        except (TypeError, ValueError):
+            ratio = 0.0
+            cash = 0.0
+        unit_preserving = (
+            bool(new)
+            and abs(ratio - 1.0) <= 1e-12
+            and abs(cash) <= 1e-12
+            and raw.get("fractional_treatment") == "preserve_units"
+            and raw.get("tax_basis_treatment") == "carry_total_basis"
+        )
+        if old and effective and not unit_preserving:
+            boundaries.append((effective, old, new, event_type))
+    return tuple(sorted(boundaries))
+
+
+def _research_invalid_transition_reason(message: str) -> str | None:
+    """Classify only fresh-price failures explained by a certified complex event."""
+    match = re.match(
+        r"^(?P<date>\d{4}-\d{2}-\d{2}): (?:abertura|fechamento) fresca obrigatoria "
+        r"ausente para (?P<tickers>.+)$",
+        message.strip(),
+    )
+    if match is None:
+        return None
+    value_date = match.group("date")
+    missing = {item.strip().upper() for item in match.group("tickers").split(",")}
+    for effective, old, new, event_type in _certified_unsupported_transition_boundaries():
+        if effective <= value_date and old in missing:
+            successor = new or "TERMINAL"
+            return (
+                f"{value_date}:{old}->{successor}:{event_type}:"
+                "CERTIFIED_COMPLEX_TRANSITION_UNSUPPORTED_IN_PRICE_ONLY_RESEARCH"
+            )
+    return None
 
 
 def _install_transition_price_aliases(data) -> None:
