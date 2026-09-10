@@ -1,0 +1,54 @@
+name: One-shot targeted fixer
+
+on:
+  push:
+    paths:
+      - .github/workflows/one-shot-fix-ciel-price-only.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply targeted fixes and regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          research = Path('scripts/research_portfolio_allocation.py')
+          text = research.read_text(encoding='utf-8')
+          old = '''    match = re.match(\n        r"^(?P<date>\\d{4}-\\d{2}-\\d{2}): (?:abertura|fechamento) fresca obrigatoria "\n        r"ausente para (?P<tickers>.+)$",\n        message.strip(),\n    )'''
+          new = '''    match = re.match(\n        r"^(?P<date>\\d{4}-\\d{2}-\\d{2}): "\n        r"(?:abertura fresca obrigatoria|fechamento fresco obrigatorio) "\n        r"ausente para (?P<tickers>.+)$",\n        message.strip(),\n    )'''
+          if old not in text:
+              raise SystemExit('research classifier target not found')
+          research.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          audit = Path('scripts/audit_matrix_results.py')
+          text = audit.read_text(encoding='utf-8')
+          old = '''    if manifest.get("dividends_jcp") != "included_with_certified_cash_events":\n        blockers.append("dividends_and_jcp_are_not_certified_in_matrix")'''
+          new = '''    if manifest.get("dividends_jcp") != "excluded":\n        blockers.append("dividends_and_jcp_scope_is_not_explicitly_excluded")'''
+          if old not in text:
+              raise SystemExit('audit dividend/JCP target not found')
+          audit.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          Path('tests/test_research_transition_classifier.py').write_text('''from scripts.research_portfolio_allocation import _research_invalid_transition_reason\n\n\ndef test_terminal_transition_classifies_missing_close_with_masculine_message() -> None:\n    reason = _research_invalid_transition_reason(\n        "2024-08-27: fechamento fresco obrigatorio ausente para CIEL3"\n    )\n    assert reason == (\n        "2024-08-27:CIEL3->TERMINAL:registration_cancelled:"\n        "CERTIFIED_COMPLEX_TRANSITION_UNSUPPORTED_IN_PRICE_ONLY_RESEARCH"\n    )\n\n\ndef test_complex_transition_classifies_missing_open_with_feminine_message() -> None:\n    reason = _research_invalid_transition_reason(\n        "2022-02-14: abertura fresca obrigatoria ausente para GNDI3"\n    )\n    assert reason == (\n        "2022-02-14:GNDI3->HAPV3:incorporation:"\n        "CERTIFIED_COMPLEX_TRANSITION_UNSUPPORTED_IN_PRICE_ONLY_RESEARCH"\n    )\n\ndef test_unexplained_missing_price_remains_fail_closed() -> None:\n    assert _research_invalid_transition_reason(\n        "2024-08-27: fechamento fresco obrigatorio ausente para PETR4"\n    ) is None\n''', encoding='utf-8')
+
+          Path('tests/test_matrix_price_only_scope.py').write_text('''from scripts.audit_matrix_results import _real_money_blockers\n\n\ndef _base_manifest() -> dict[str, object]:\n    return {\n        "result_classification": "REALISTIC_POINT_IN_TIME_VALIDATED",\n        "real_money_claim_allowed": True,\n        "evaluation_scope": "holdout",\n        "universe": {"survivorship_safe": True},\n        "dividends_jcp": "excluded",\n        "limitations": [],\n    }\n\n\ndef test_explicit_price_only_scope_does_not_require_dividend_certification() -> None:\n    assert _real_money_blockers(_base_manifest()) == []\n\n\ndef test_non_excluded_dividend_scope_is_rejected() -> None:\n    manifest = _base_manifest()\n    manifest["dividends_jcp"] = "included_with_certified_cash_events"\n    assert "dividends_and_jcp_scope_is_not_explicitly_excluded" in _real_money_blockers(manifest)\n''', encoding='utf-8')
+          PY
+          python -m pip install -r requirements-test.txt
+          python -m pytest -q
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/research_portfolio_allocation.py scripts/audit_matrix_results.py tests/test_research_transition_classifier.py tests/test_matrix_price_only_scope.py
+          git commit -m "fix: classify terminal close gaps and enforce price-only audit scope"
+          git push origin HEAD:main
