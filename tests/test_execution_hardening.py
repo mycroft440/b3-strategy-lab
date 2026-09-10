@@ -199,7 +199,7 @@ class StrictResearchExecutionTests(unittest.TestCase):
             "AAA3": [1, 1, 1, 1],
             "BBB3": [0, 0, 0, 0, 0],
         }
-        with self.assertRaisesRegex(ValueError, "fechamento fresca obrigatoria"):
+        with self.assertRaisesRegex(ValueError, "fechamento fresco obrigatorio"):
             run_portfolio(data, config, initial_cash=1000.0, lot_size=1, eligibility=eligibility)
 
     def test_ranking_ties_are_name_deterministic(self) -> None:
