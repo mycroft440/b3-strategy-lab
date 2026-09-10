@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -16,7 +17,9 @@ from scripts import research_portfolio_allocation_core as _core
 
 _original_date_window = _core._date_window
 _original_is_rebalance_date = _core._is_rebalance_date
+_original_rebalance = _core._rebalance
 _DATE_WINDOW_CACHE: dict[tuple[int, str | None, str | None], tuple[list[str], list[str]]] = {}
+_TRANSITION_REVIEWS = PROJECT_ROOT / "data/corporate_actions/instrument_transition_reviews.json"
 
 
 def _date_window(values: list[str], start: str | None, end: str | None) -> list[str]:
@@ -27,7 +30,6 @@ def _date_window(values: list[str], start: str | None, end: str | None) -> list[
     if cached is not None and cached[0] is values:
         return cached[1]
     result = _original_date_window(values, start, end)
-    # Retaining the source list prevents Python id reuse from aliasing a stale entry.
     _DATE_WINDOW_CACHE[key] = (values, result)
     return result
 
@@ -35,6 +37,89 @@ def _date_window(values: list[str], start: str | None, end: str | None) -> list[
 @lru_cache(maxsize=None)
 def _is_rebalance_date(current_date: str, next_date: str, frequency: str) -> bool:
     return _original_is_rebalance_date(current_date, next_date, frequency)
+
+
+@lru_cache(maxsize=1)
+def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
+    """Load only source-reviewed 1:1 no-cash symbol/class changes.
+
+    Research replay must not fabricate an opening for a predecessor after its final
+    session. For transitions that the repository has already certified as preserving
+    units and tax basis with no cash leg, carrying the position into the successor is
+    the exact economic operation and avoids a fictitious sale/rebuy round-trip.
+    Anything more complex remains fail-closed in the dedicated realistic engine.
+    """
+    if not _TRANSITION_REVIEWS.exists():
+        return {}
+    payload = json.loads(_TRANSITION_REVIEWS.read_text(encoding="utf-8"))
+    reviews = payload.get("reviews", []) if isinstance(payload, dict) else []
+    by_date: dict[str, list[tuple[str, str]]] = {}
+    for raw in reviews:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            ratio = float(raw.get("share_ratio", 0.0))
+            cash = float(raw.get("cash_per_old_share", 0.0))
+        except (TypeError, ValueError):
+            continue
+        old = str(raw.get("old_ticker", "")).strip().upper()
+        new = str(raw.get("new_ticker", "")).strip().upper()
+        effective = str(raw.get("effective_date", "")).strip()[:10]
+        if (
+            raw.get("certification_status") != "certified"
+            or str(raw.get("event_type", "")) not in {"ticker_change", "class_change"}
+            or abs(ratio - 1.0) > 1e-12
+            or abs(cash) > 1e-12
+            or raw.get("fractional_treatment") != "preserve_units"
+            or raw.get("tax_basis_treatment") != "carry_total_basis"
+            or not old
+            or not new
+            or not effective
+        ):
+            continue
+        by_date.setdefault(effective, []).append((old, new))
+    return {day: tuple(items) for day, items in by_date.items()}
+
+
+def _rebalance(
+    current_date,
+    tickers,
+    today_candles,
+    last_prices,
+    shares,
+    cash,
+    target_weights,
+    cost_rate,
+    slippage_rate,
+    lot_size,
+):
+    """Carry certified unit-preserving ticker changes before execution checks."""
+    for old, new in _certified_unit_transitions().get(str(current_date)[:10], ()):
+        old_relevant = float(shares.get(old, 0.0)) > 0 or float(target_weights.get(old, 0.0)) > 0
+        if not old_relevant:
+            continue
+        if old not in shares or new not in shares:
+            raise ValueError(
+                f"{current_date}: transicao certificada {old}->{new} fora do escopo carregado"
+            )
+        shares[new] = float(shares.get(new, 0.0)) + float(shares.get(old, 0.0))
+        shares[old] = 0.0
+        if old in target_weights:
+            target_weights[new] = float(target_weights.get(new, 0.0)) + float(
+                target_weights.pop(old)
+            )
+    return _original_rebalance(
+        current_date,
+        tickers,
+        today_candles,
+        last_prices,
+        shares,
+        cash,
+        target_weights,
+        cost_rate,
+        slippage_rate,
+        lot_size,
+    )
 
 
 def _install_performance_caches(data) -> None:
@@ -74,11 +159,7 @@ def _price_roc(data, ticker: str, recent_index: int, window: int) -> float | Non
     else:
         recent_price = prices[recent_index]
         past_price = prices[past_index]
-        result = (
-            recent_price / past_price - 1
-            if recent_price > 0 and past_price > 0
-            else None
-        )
+        result = recent_price / past_price - 1 if recent_price > 0 and past_price > 0 else None
     if cache is not None:
         cache[key] = result
     return result
@@ -92,7 +173,6 @@ def _trend_average(data, ticker: str, index: int, window: int) -> float:
 
     prices = data.signal_prices[ticker]
     values = prices[index - window + 1 : index + 1]
-    # Keep the exact Python sum/division order used by the original implementation.
     result = sum(values) / len(values)
     if cache is not None:
         cache[key] = result
@@ -106,7 +186,6 @@ def _window_volatility(data, ticker: str, index: int, window: int) -> float:
         return cache[key]
 
     values = data.raw_returns[ticker][max(0, index - window + 1) : index + 1]
-    # Delegate to the canonical implementation so floating-point semantics stay exact.
     result = _core._annualized_volatility(values)
     if cache is not None:
         cache[key] = result
@@ -175,9 +254,7 @@ def _candidate_profile_uncached(data, ticker: str, index: int, config):
             if config.absolute_momentum and momentum <= 0:
                 return None
     if config.trend_window > 0:
-        if current_price <= _trend_average(
-            data, ticker, index, config.trend_window
-        ):
+        if current_price <= _trend_average(data, ticker, index, config.trend_window):
             return None
 
     volatility = _window_volatility(data, ticker, index, config.vol_window)
@@ -206,8 +283,6 @@ def _candidate_profile_uncached(data, ticker: str, index: int, config):
     }
 
 
-# Keep this symbol local so unittest.mock.patch and external instrumentation on
-# the public module still intercept candidate-profile computation.
 def _candidate_profile(data, ticker: str, index: int, config):
     cache = getattr(data, "candidate_profile_cache", None)
     cache_key = (
@@ -258,6 +333,7 @@ def _eligible_tickers(data, current_date: str, eligibility):
 
 _core._date_window = _date_window
 _core._is_rebalance_date = _is_rebalance_date
+_core._rebalance = _rebalance
 _core._candidate_profile = _candidate_profile
 _core._eligible_tickers = _eligible_tickers
 _core._target_weights = covariance_target_weights
@@ -287,9 +363,6 @@ class MarketData(_core.MarketData):
             for value in (data_dir, actions_dir, manifests_dir, split_evidence_path)
         )
         if not custom_roots:
-            # The public wrapper is an instrumentation boundary. Synchronize the
-            # core loader symbols immediately before delegation so unittest.mock
-            # patches and external diagnostics on this module intercept the same call.
             _core.load_verified_candles = load_verified_candles
             _core.load_candles = load_candles
             super().__init__(
