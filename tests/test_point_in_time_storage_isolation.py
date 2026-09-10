@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from scripts import audit_realistic_backtest_inputs as audit
 from scripts import backtest_strategy_management_realistic as backtest
@@ -167,7 +167,7 @@ class PointInTimeStorageIsolationTests(unittest.TestCase):
         ) as init:
             research.MarketData(["AAA3"], "1d", "adjusted")
         init.assert_called_once_with(
-            unittest.mock.ANY,
+            ANY,
             ["AAA3"],
             "1d",
             "adjusted",
