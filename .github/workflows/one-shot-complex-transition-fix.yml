@@ -40,7 +40,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/one-shot-complex-transition-fix.yml scripts/_one_shot_complex_transition_patch.py
+          git rm .github/workflows/one-shot-complex-transition-fix.yml
+          git rm -f scripts/_one_shot_complex_transition_patch.py
           git add scripts/research_portfolio_allocation.py scripts/backtest_strategy_management_combinations.py scripts/merge_matrix_shards.py scripts/audit_matrix_results.py tests/test_matrix_complex_transition_invalid.py
           git commit -m "fix: isolate certified complex transition matrix rows"
           git push origin HEAD:main
