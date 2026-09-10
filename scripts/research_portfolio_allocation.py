@@ -81,6 +81,31 @@ def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
     return {day: tuple(items) for day, items in by_date.items()}
 
 
+def _applicable_unit_transitions(current_date: str):
+    day = str(current_date)[:10]
+    for effective in sorted(_certified_unit_transitions()):
+        if effective > day:
+            break
+        for transition in _certified_unit_transitions()[effective]:
+            yield transition
+
+
+def _install_transition_price_aliases(data) -> None:
+    """Expose successor candles for a held predecessor after a certified 1:1 rename.
+
+    The alias is used only for same-session valuation/execution preflight. Signal and
+    ranking histories remain attached to their actual listed symbols. On the next trade
+    opportunity `_rebalance` moves holdings/targets to the successor before execution.
+    """
+    for effective, transitions in _certified_unit_transitions().items():
+        for old, new in transitions:
+            if old not in data.by_date or new not in data.by_date:
+                continue
+            for value_date, candle in data.by_date[new].items():
+                if value_date >= effective and value_date not in data.by_date[old]:
+                    data.by_date[old][value_date] = candle
+
+
 def _rebalance(
     current_date,
     tickers,
@@ -94,7 +119,7 @@ def _rebalance(
     lot_size,
 ):
     """Carry certified unit-preserving ticker changes before execution checks."""
-    for old, new in _certified_unit_transitions().get(str(current_date)[:10], ()):
+    for old, new in _applicable_unit_transitions(str(current_date)):
         old_relevant = float(shares.get(old, 0.0)) > 0 or float(target_weights.get(old, 0.0)) > 0
         if not old_relevant:
             continue
@@ -373,6 +398,7 @@ class MarketData(_core.MarketData):
                 require_verified_splits_from=require_verified_splits_from,
                 history_start=history_start,
             )
+            _install_transition_price_aliases(self)
             _install_performance_caches(self)
             return
 
@@ -434,6 +460,7 @@ class MarketData(_core.MarketData):
             dates.update(candle.date for candle in candles)
 
         self.dates = sorted(dates, key=_core._point_datetime)
+        _install_transition_price_aliases(self)
         _install_performance_caches(self)
 
 
