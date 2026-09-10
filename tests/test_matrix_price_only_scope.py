@@ -13,7 +13,9 @@ def _base_manifest() -> dict[str, object]:
 
 
 def test_explicit_price_only_scope_does_not_require_dividend_certification() -> None:
-    assert _real_money_blockers(_base_manifest()) == []
+    blockers = _real_money_blockers(_base_manifest())
+    assert blockers == []
+    assert "dividends_and_jcp_are_not_certified_in_matrix" not in blockers
 
 
 def test_non_excluded_dividend_scope_is_rejected() -> None:
