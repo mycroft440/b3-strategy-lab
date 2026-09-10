@@ -19,6 +19,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Repair temporary patch generator indentation
+        run: |
+          sed -i "s/'previous_sort_key:/'    previous_sort_key:/" scripts/_one_shot_complex_transition_patch.py
+          sed -i "s/'invalid_rows_are_explicit =/'    invalid_rows_are_explicit =/" scripts/_one_shot_complex_transition_patch.py
+          sed -i "s/'valid_rows_precede_invalid_rows =/'    valid_rows_precede_invalid_rows =/" scripts/_one_shot_complex_transition_patch.py
+          sed -i "s/'seen_invalid =/'    seen_invalid =/" scripts/_one_shot_complex_transition_patch.py
+          sed -i "s/'valid_row_count =/'    valid_row_count =/" scripts/_one_shot_complex_transition_patch.py
+          sed -i "s/'invalid_row_count =/'    invalid_row_count =/" scripts/_one_shot_complex_transition_patch.py
       - name: Apply deterministic patch
         run: python scripts/_one_shot_complex_transition_patch.py
       - name: Compile and test
