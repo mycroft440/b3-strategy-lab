@@ -21,6 +21,7 @@ _original_is_rebalance_date = _core._is_rebalance_date
 _original_rebalance = _core._rebalance
 _DATE_WINDOW_CACHE: dict[tuple[int, str | None, str | None], tuple[list[str], list[str]]] = {}
 _TRANSITION_REVIEWS = PROJECT_ROOT / "data/corporate_actions/instrument_transition_reviews.json"
+_SUPPORTED_UNIT_TRANSITION_TYPES = frozenset({"ticker_change", "class_change", "incorporation"})
 
 
 def _date_window(values: list[str], start: str | None, end: str | None) -> list[str]:
@@ -61,6 +62,8 @@ def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
         try:
             ratio = float(raw.get("share_ratio", 0.0))
             cash = float(raw.get("cash_per_old_share", 0.0))
+            old_factor = int(raw.get("old_quotation_factor", 1) or 1)
+            new_factor = int(raw.get("new_quotation_factor", 1) or 1)
         except (TypeError, ValueError):
             continue
         old = str(raw.get("old_ticker", "")).strip().upper()
@@ -68,9 +71,10 @@ def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
         effective = str(raw.get("effective_date", "")).strip()[:10]
         if (
             raw.get("certification_status") != "certified"
-            or str(raw.get("event_type", "")) not in {"ticker_change", "class_change", "incorporation"}
+            or str(raw.get("event_type", "")) not in _SUPPORTED_UNIT_TRANSITION_TYPES
             or abs(ratio - 1.0) > 1e-12
             or abs(cash) > 1e-12
+            or old_factor != new_factor
             or raw.get("fractional_treatment") != "preserve_units"
             or raw.get("tax_basis_treatment") != "carry_total_basis"
             or not old
@@ -109,13 +113,19 @@ def _certified_unsupported_transition_boundaries() -> tuple[tuple[str, str, str,
         try:
             ratio = float(raw.get("share_ratio", 0.0))
             cash = float(raw.get("cash_per_old_share", 0.0))
+            old_factor = int(raw.get("old_quotation_factor", 1) or 1)
+            new_factor = int(raw.get("new_quotation_factor", 1) or 1)
         except (TypeError, ValueError):
             ratio = 0.0
             cash = 0.0
+            old_factor = 0
+            new_factor = -1
         unit_preserving = (
             bool(new)
+            and event_type in _SUPPORTED_UNIT_TRANSITION_TYPES
             and abs(ratio - 1.0) <= 1e-12
             and abs(cash) <= 1e-12
+            and old_factor == new_factor
             and raw.get("fractional_treatment") == "preserve_units"
             and raw.get("tax_basis_treatment") == "carry_total_basis"
         )
