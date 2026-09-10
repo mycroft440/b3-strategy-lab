@@ -74,7 +74,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tickers",
         nargs="+",
-        help="Sobrescreve os tickers, que ainda precisam coincidir com --universe-manifest.",
+        help=(
+            "Sobrescreve o escopo de dados, que ainda precisa coincidir com "
+            "market_data_tickers do --universe-manifest."
+        ),
     )
     parser.add_argument(
         "--universe-manifest",
@@ -155,12 +158,24 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Estrategias fora do catalogo: " + ", ".join(unknown))
 
     universe = _load_universe(args.universe_manifest)
-    manifest_tickers = [str(ticker).upper() for ticker in universe["tickers"]]
-    tickers = [ticker.upper() for ticker in (args.tickers or manifest_tickers)]
-    if tickers != manifest_tickers:
+    selectable_tickers = [str(ticker).upper() for ticker in universe["tickers"]]
+    manifest_market_data_tickers = [
+        str(ticker).strip().upper()
+        for ticker in universe.get("market_data_tickers", selectable_tickers)
+        if str(ticker).strip()
+    ]
+    if not set(selectable_tickers).issubset(manifest_market_data_tickers):
         parser.error(
-            "--tickers diverge da uniao historica do --universe-manifest; "
-            "o universo PIT nao pode ser sobrescrito silenciosamente."
+            "market_data_tickers do manifesto precisa conter toda a uniao historica "
+            "selecionavel."
+        )
+    if len(manifest_market_data_tickers) != len(set(manifest_market_data_tickers)):
+        parser.error("market_data_tickers do manifesto contem simbolos duplicados.")
+    tickers = [ticker.upper() for ticker in (args.tickers or manifest_market_data_tickers)]
+    if tickers != manifest_market_data_tickers:
+        parser.error(
+            "--tickers diverge do escopo de dados do --universe-manifest; "
+            "tickers de continuidade certificados nao podem ser removidos silenciosamente."
         )
     selected_as_of = date.fromisoformat(str(universe["selected_as_of"]))
     selection_end = date.fromisoformat(str(universe["selection_end"]))
