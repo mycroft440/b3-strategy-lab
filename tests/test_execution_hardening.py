@@ -199,7 +199,7 @@ class StrictResearchExecutionTests(unittest.TestCase):
             "AAA3": [1, 1, 1, 1],
             "BBB3": [0, 0, 0, 0, 0],
         }
-        with self.assertRaisesRegex(ValueError, "fechamento fresco obrigatorio"):
+        with self.assertRaisesRegex(ValueError, "fechamento fresca obrigatoria"):
             run_portfolio(data, config, initial_cash=1000.0, lot_size=1, eligibility=eligibility)
 
     def test_ranking_ties_are_name_deterministic(self) -> None:
@@ -251,170 +251,78 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
             "2024-01-05",
         ]
         prices = [10.0, 11.0, 13.0, 14.0, 15.0, 16.0, 17.0]
-        candles = [
-            candle(value_date, "AAA3", price)
-            for value_date, price in zip(dates, prices)
-        ]
+        candles = [candle(value_date, "AAA3", price) for value_date, price in zip(dates, prices)]
         data = SimpleNamespace(
             tickers=["AAA3"],
             dates=dates,
             candles={"AAA3": candles},
             by_date={"AAA3": {item.date: item for item in candles}},
-            index_by_date={
-                "AAA3": {item.date: index for index, item in enumerate(candles)}
-            },
+            index_by_date={"AAA3": {item.date: index for index, item in enumerate(candles)}},
             signal_prices={"AAA3": prices},
-            raw_returns={
-                "AAA3": [
-                    0.0,
-                    *[
-                        prices[index] / prices[index - 1] - 1.0
-                        for index in range(1, len(prices))
-                    ],
-                ]
-            },
+            raw_returns={"AAA3": [0.0, *[prices[index] / prices[index - 1] - 1.0 for index in range(1, len(prices))]]},
             candidate_profile_cache={},
         )
-        pricebook = ExecutionPriceBook(
-            [
-                ExecutionQuote(
-                    value_date,
-                    "AAA3F",
-                    "020",
-                    price,
-                    price,
-                    1_000_000.0,
-                )
-                for value_date, price in zip(dates, prices)
-            ]
-        )
+        pricebook = ExecutionPriceBook([
+            ExecutionQuote(value_date, "AAA3F", "020", price, price, 1_000_000.0)
+            for value_date, price in zip(dates, prices)
+        ])
         eligibility = {"AAA3": [0, 0, 1, 1, 0, 1, 1]}
         config = PortfolioConfig(
-            name="monthly_signal_contract",
-            lookback=1,
-            top_n=1,
-            vol_window=2,
-            rebalance="monthly",
-            score="all",
-            weighting="equal",
-            absolute_momentum=False,
-            signal_mode="adjusted",
+            name="monthly_signal_contract", lookback=1, top_n=1, vol_window=2,
+            rebalance="monthly", score="all", weighting="equal",
+            absolute_momentum=False, signal_mode="adjusted",
         )
-
-        with patch(
-            "scripts.backtest_strategy_management_combinations._build_eligibility",
-            return_value={"dummy": eligibility},
-        ):
+        with patch("scripts.backtest_strategy_management_combinations._build_eligibility", return_value={"dummy": eligibility}):
             summary, curve, _account = run_realistic(
                 data=data,
-                universe=PointInTimeUniverse(
-                    [UniverseSnapshot(dates[0], frozenset({"AAA3"}))]
-                ),
+                universe=PointInTimeUniverse([UniverseSnapshot(dates[0], frozenset({"AAA3"}))]),
                 pricebook=pricebook,
                 cash_events=[],
-                fee_schedule=FeeSchedule(
-                    [FeeRule("2000-01-01", "2099-12-31", 0.0)]
-                ),
-                strategy="dummy",
-                config=config,
-                start="2024-01-02",
-                end="2024-01-05",
-                initial_cash=100.0,
-                base_slippage_bps=0.0,
-                participation_bps_at_1pct=0.0,
-                max_slippage_bps=0.0,
-                transitions={},
-                economic_gap_adjustment=False,
-                survivorship_safe=True,
-                cash_events_complete=True,
+                fee_schedule=FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)]),
+                strategy="dummy", config=config, start="2024-01-02", end="2024-01-05",
+                initial_cash=100.0, base_slippage_bps=0.0,
+                participation_bps_at_1pct=0.0, max_slippage_bps=0.0,
+                transitions={}, economic_gap_adjustment=False,
+                survivorship_safe=True, cash_events_complete=True,
             )
-
-        self.assertEqual(
-            [point.selected for point in curve],
-            ["AAA3", "AAA3", "", "AAA3"],
-        )
+        self.assertEqual([point.selected for point in curve], ["AAA3", "AAA3", "", "AAA3"])
         self.assertEqual(summary.trades, 3)
 
     def test_fractional_only_quote_cannot_mask_a_missing_standard_close(self) -> None:
-        dates = [
-            "2023-12-27",
-            "2023-12-28",
-            "2023-12-29",
-            "2024-01-02",
-            "2024-01-03",
-        ]
+        dates = ["2023-12-27", "2023-12-28", "2023-12-29", "2024-01-02", "2024-01-03"]
         prices = [10.0, 11.0, 13.0, 14.0]
-        items = [
-            candle(value_date, "PCAR3", price)
-            for value_date, price in zip(dates[:-1], prices)
-        ]
+        items = [candle(value_date, "PCAR3", price) for value_date, price in zip(dates[:-1], prices)]
         data = SimpleNamespace(
-            tickers=["PCAR3"],
-            dates=dates,
-            candles={"PCAR3": items},
+            tickers=["PCAR3"], dates=dates, candles={"PCAR3": items},
             by_date={"PCAR3": {item.date: item for item in items}},
-            index_by_date={
-                "PCAR3": {item.date: index for index, item in enumerate(items)}
-            },
+            index_by_date={"PCAR3": {item.date: index for index, item in enumerate(items)}},
             signal_prices={"PCAR3": prices},
-            raw_returns={
-                "PCAR3": [
-                    0.0,
-                    *[
-                        prices[index] / prices[index - 1] - 1.0
-                        for index in range(1, len(prices))
-                    ],
-                ]
-            },
+            raw_returns={"PCAR3": [0.0, *[prices[index] / prices[index - 1] - 1.0 for index in range(1, len(prices))]]},
             candidate_profile_cache={},
         )
-        pricebook = ExecutionPriceBook(
-            [
-                ExecutionQuote(value_date, "PCAR3F", "020", 10.0, 10.0, 1_000.0)
-                for value_date in dates
-            ]
-        )
+        pricebook = ExecutionPriceBook([
+            ExecutionQuote(value_date, "PCAR3F", "020", 10.0, 10.0, 1_000.0)
+            for value_date in dates
+        ])
         config = PortfolioConfig(
-            name="monthly_fractional_only_regression",
-            lookback=1,
-            top_n=1,
-            vol_window=2,
-            rebalance="monthly",
-            score="all",
-            weighting="equal",
-            absolute_momentum=False,
-            signal_mode="adjusted",
+            name="monthly_fractional_only_regression", lookback=1, top_n=1,
+            vol_window=2, rebalance="monthly", score="all", weighting="equal",
+            absolute_momentum=False, signal_mode="adjusted",
         )
-
         with (
-            patch(
-                "scripts.backtest_strategy_management_combinations._build_eligibility",
-                return_value={"dummy": {"PCAR3": [0, 0, 1, 1]}},
-            ),
+            patch("scripts.backtest_strategy_management_combinations._build_eligibility", return_value={"dummy": {"PCAR3": [0, 0, 1, 1]}}),
             self.assertRaisesRegex(ValueError, "held position lacks a fresh official close"),
         ):
             run_realistic(
                 data=data,
-                universe=PointInTimeUniverse(
-                    [UniverseSnapshot(dates[0], frozenset({"PCAR3"}))]
-                ),
-                pricebook=pricebook,
-                cash_events=[],
-                fee_schedule=FeeSchedule(
-                    [FeeRule("2000-01-01", "2099-12-31", 0.0)]
-                ),
-                strategy="dummy",
-                config=config,
-                start=dates[-2],
-                end=dates[-1],
-                initial_cash=100.0,
-                base_slippage_bps=0.0,
-                participation_bps_at_1pct=0.0,
-                max_slippage_bps=0.0,
-                transitions={},
-                economic_gap_adjustment=False,
-                survivorship_safe=True,
-                cash_events_complete=True,
+                universe=PointInTimeUniverse([UniverseSnapshot(dates[0], frozenset({"PCAR3"}))]),
+                pricebook=pricebook, cash_events=[],
+                fee_schedule=FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)]),
+                strategy="dummy", config=config, start=dates[-2], end=dates[-1],
+                initial_cash=100.0, base_slippage_bps=0.0,
+                participation_bps_at_1pct=0.0, max_slippage_bps=0.0,
+                transitions={}, economic_gap_adjustment=False,
+                survivorship_safe=True, cash_events_complete=True,
             )
 
     def test_proportional_buy_plan_does_not_starve_later_ticker(self) -> None:
@@ -423,29 +331,19 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
             FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)]),
             SlippageModel(base_bps=100.0, participation_bps_at_1pct=0.0, max_bps=100.0),
         )
-        pricebook = ExecutionPriceBook(
-            [
-                ExecutionQuote("2023-12-29", "AAA3", "010", 10.0, 10.0, 1_000_000.0),
-                ExecutionQuote("2023-12-29", "ZZZ3", "010", 10.0, 10.0, 1_000_000.0),
-                ExecutionQuote("2023-12-29", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
-                ExecutionQuote("2023-12-29", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
-                ExecutionQuote("2024-01-02", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
-                ExecutionQuote("2024-01-02", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
-            ]
-        )
-        data = SimpleNamespace(
-            by_date={
-                "AAA3": {"2024-01-02": candle("2024-01-02", "AAA3", 10.0)},
-                "ZZZ3": {"2024-01-02": candle("2024-01-02", "ZZZ3", 10.0)},
-            }
-        )
-        result = rebalance_atomic(
-            account,
-            data,
-            pricebook,
-            "2024-01-02",
-            {"AAA3": 0.5, "ZZZ3": 0.5},
-        )
+        pricebook = ExecutionPriceBook([
+            ExecutionQuote("2023-12-29", "AAA3", "010", 10.0, 10.0, 1_000_000.0),
+            ExecutionQuote("2023-12-29", "ZZZ3", "010", 10.0, 10.0, 1_000_000.0),
+            ExecutionQuote("2023-12-29", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
+            ExecutionQuote("2023-12-29", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
+            ExecutionQuote("2024-01-02", "AAA3F", "020", 10.0, 10.0, 1_000_000.0),
+            ExecutionQuote("2024-01-02", "ZZZ3F", "020", 10.0, 10.0, 1_000_000.0),
+        ])
+        data = SimpleNamespace(by_date={
+            "AAA3": {"2024-01-02": candle("2024-01-02", "AAA3", 10.0)},
+            "ZZZ3": {"2024-01-02": candle("2024-01-02", "ZZZ3", 10.0)},
+        })
+        result = rebalance_atomic(account, data, pricebook, "2024-01-02", {"AAA3": 0.5, "ZZZ3": 0.5})
         self.assertEqual(result.shares("AAA3"), result.shares("ZZZ3"))
         self.assertGreater(result.shares("AAA3"), 0)
 
@@ -453,44 +351,28 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
         days = ["2024-01-02", "2024-01-03"]
         items = [candle(day, "AAA3", 10.0) for day in days]
         data = SimpleNamespace(
-            tickers=["AAA3"],
-            dates=days,
-            candles={"AAA3": items},
+            tickers=["AAA3"], dates=days, candles={"AAA3": items},
             by_date={"AAA3": {item.date: item for item in items}},
             index_by_date={"AAA3": {item.date: index for index, item in enumerate(items)}},
-            signal_prices={"AAA3": [10.0, 10.0]},
-            raw_returns={"AAA3": [0.0, 0.0]},
+            signal_prices={"AAA3": [10.0, 10.0]}, raw_returns={"AAA3": [0.0, 0.0]},
             candidate_profile_cache={},
         )
         summary, _curve, _account = run_realistic(
             data=data,
             universe=PointInTimeUniverse([UniverseSnapshot("2024-01-02", frozenset({"AAA3"}))]),
-            pricebook=ExecutionPriceBook([]),
-            cash_events=[],
+            pricebook=ExecutionPriceBook([]), cash_events=[],
             fee_schedule=FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0.0)]),
             strategy="buy_and_hold",
             config=PortfolioConfig(
-                name="no_trade_short_window",
-                lookback=1,
-                top_n=1,
-                vol_window=21,
-                rebalance="daily",
-                score="all",
-                weighting="equal",
-                absolute_momentum=False,
-                signal_mode="adjusted",
+                name="no_trade_short_window", lookback=1, top_n=1, vol_window=21,
+                rebalance="daily", score="all", weighting="equal",
+                absolute_momentum=False, signal_mode="adjusted",
             ),
-            start=days[0],
-            end=days[-1],
-            initial_cash=1000.0,
-            base_slippage_bps=0.0,
-            participation_bps_at_1pct=0.0,
-            max_slippage_bps=0.0,
-            transitions={},
-            economic_gap_adjustment=False,
+            start=days[0], end=days[-1], initial_cash=1000.0,
+            base_slippage_bps=0.0, participation_bps_at_1pct=0.0,
+            max_slippage_bps=0.0, transitions={}, economic_gap_adjustment=False,
             selection_status="retrospective_hypothesis_replay",
-            survivorship_safe=False,
-            cash_events_complete=False,
+            survivorship_safe=False, cash_events_complete=False,
         )
         self.assertFalse(summary.survivorship_safe)
         self.assertFalse(summary.cash_events_complete)
@@ -500,9 +382,7 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
     def test_realistic_input_audit_is_runnable_from_repository_root(self) -> None:
         completed = subprocess.run(
             [sys.executable, "scripts/audit_realistic_backtest_inputs.py", "--help"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
+            cwd=ROOT, capture_output=True, text=True,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
@@ -510,9 +390,7 @@ class RealisticExecutionHardeningTests(unittest.TestCase):
 @unittest.skipIf((os.cpu_count() or 1) < 2, "parallel smoke requires at least 2 CPUs")
 class MatrixParallelDeterminismTests(unittest.TestCase):
     def test_full_matrix_workflow_declares_replay_and_snapshot_contracts(self) -> None:
-        workflow = (
-            ROOT / ".github/workflows/full-matrix-backtest-hardened.yml"
-        ).read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/full-matrix-backtest-hardened.yml").read_text(encoding="utf-8")
         self.assertIn('data/quality_reviews.json', workflow)
         self.assertIn('--allow-historical-cutoff', workflow)
         self.assertIn('REFRESH_DATA=false', workflow)
@@ -523,54 +401,30 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
         self.assertIn('DATA_READINESS.json', workflow)
         self.assertIn('data_age_calendar_days', workflow)
         self.assertIn('origin/backtest-results:${SNAPSHOT}', workflow)
-        self.assertIn('refresh_data=true', workflow)
-        announce = workflow.split("\n  announce:\n", 1)[1].split(
-            "\n  backtest:\n", 1
-        )[0]
-        self.assertIn(
-            "sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256",
-            announce,
-        )
+        self.assertIn('REFRESH_DATA=true', workflow)
+        announce = workflow.split("\n  announce:\n", 1)[1].split("\n  backtest:\n", 1)[0]
+        self.assertIn("sha256sum -c REALISTIC_INPUT_SNAPSHOT.sha256", announce)
         self.assertIn("git add -- reports/latest_attempt", announce)
-        self.assertIn(
-            "SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz",
-            announce,
-        )
+        self.assertIn("SNAPSHOT=reports/latest_certified/REALISTIC_INPUT_SNAPSHOT.tar.gz", announce)
         self.assertIn("mkdir -p reports/latest_attempt previous-certified-snapshot", announce)
-        self.assertIn(
-            '> previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz',
-            announce,
-        )
+        self.assertIn('> previous-certified-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz', announce)
         self.assertIn("cd previous-certified-snapshot", announce)
         self.assertNotIn('git show "origin/backtest-results:${SNAPSHOT}" > "$SNAPSHOT"', announce)
         publish = workflow.split("\n  publish:\n", 1)[1]
-        self.assertNotIn(
-            "elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]",
-            publish,
-        )
+        self.assertNotIn("elif [ -f previous-realistic-snapshot/REALISTIC_INPUT_SNAPSHOT.tar.gz ]", publish)
         self.assertIn("Publicar tentativa e promover certificado atomicamente", publish)
         self.assertIn("reports/latest_certified", publish)
         self.assertNotIn("reports/latest_backtest", workflow)
         self.assertIn("REALISTIC_SNAPSHOT_PUBLISHED=true", publish)
         self.assertIn('os.environ["REALISTIC_SNAPSHOT_PUBLISHED"]', publish)
 
-        realistic_ci = (
-            ROOT / ".github/workflows/realistic-backtest-ci-hardened.yml"
-        ).read_text(encoding="utf-8")
+        realistic_ci = (ROOT / ".github/workflows/realistic-backtest-ci-hardened.yml").read_text(encoding="utf-8")
         self.assertGreaterEqual(realistic_ci.count('data/quality_reviews.json'), 2)
         self.assertGreaterEqual(realistic_ci.count('scripts/sync_official_universe.py'), 3)
-        self.assertGreaterEqual(
-            realistic_ci.count('.github/workflows/full-matrix-backtest-hardened.yml'),
-            2,
-        )
-        self.assertIn(
-            "if: ${{ github.event_name == 'workflow_dispatch' }}",
-            realistic_ci,
-        )
+        self.assertGreaterEqual(realistic_ci.count('.github/workflows/full-matrix-backtest-hardened.yml'), 2)
+        self.assertIn("if: ${{ github.event_name == 'workflow_dispatch' }}", realistic_ci)
 
-        recovery = (
-            ROOT / ".github/workflows/recover-backtest-merge-hardened.yml"
-        ).read_text(encoding="utf-8")
+        recovery = (ROOT / ".github/workflows/recover-backtest-merge-hardened.yml").read_text(encoding="utf-8")
         self.assertIn('"status": "RESEARCH_SUCCESS_REALISTIC_BLOCKED"', recovery)
         self.assertIn("RESEARCH_TOP_10.md", recovery)
         self.assertIn("MATRIX.csv.gz", recovery)
@@ -600,28 +454,24 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
             )
             pit_manifest = directory_path / "pit_universe.json"
             pit_manifest.write_text(
-                json.dumps(
-                    {
-                        "schema_version": 8,
-                        "id": "parallel-determinism-pit-fixture",
-                        "selection_mode": "test_only_point_in_time_fixture",
-                        "selected_as_of": "2024-01-02",
-                        "selection_end": "2024-06-28",
-                        "warmup_start": "2017-01-01",
-                        "survivorship_safe": True,
-                        "point_in_time": True,
-                        "snapshot_file": str(snapshot),
-                        "bias_disclosure": "Synthetic unit-test fixture; not a research universe.",
-                        "selection_rules": {
-                            "weekly_candidates": 2,
-                            "future_continuity_filter": False,
-                            "future_return_filter": False,
-                        },
-                        "tickers": ["PETR4", "VALE3"],
-                    }
-                ),
-                encoding="utf-8",
-            )
+                json.dumps({
+                    "schema_version": 8,
+                    "id": "parallel-determinism-pit-fixture",
+                    "selection_mode": "test_only_point_in_time_fixture",
+                    "selected_as_of": "2024-01-02",
+                    "selection_end": "2024-06-28",
+                    "warmup_start": "2017-01-01",
+                    "survivorship_safe": True,
+                    "point_in_time": True,
+                    "snapshot_file": str(snapshot),
+                    "bias_disclosure": "Synthetic unit-test fixture; not a research universe.",
+                    "selection_rules": {
+                        "weekly_candidates": 2,
+                        "future_continuity_filter": False,
+                        "future_return_filter": False,
+                    },
+                    "tickers": ["PETR4", "VALE3"],
+                }), encoding="utf-8")
             common = [
                 sys.executable,
                 "scripts/backtest_strategy_management_combinations.py",
@@ -644,28 +494,20 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
             serial_annual = serial.with_suffix("").with_suffix("").with_name("serial_top3_annual.md")
             parallel_annual = parallel.with_suffix("").with_suffix("").with_name("parallel_top3_annual.md")
             self.assertEqual(serial_annual.read_bytes(), parallel_annual.read_bytes())
-            manifest = json.loads(
-                serial.with_suffix("").with_suffix(".manifest.json").read_text(
-                    encoding="utf-8"
-                )
-            )
+            manifest = json.loads(serial.with_suffix("").with_suffix(".manifest.json").read_text(encoding="utf-8"))
             self.assertFalse(manifest["catalog_complete"])
             self.assertEqual(manifest["catalog_strategy_count"], 249)
             self.assertEqual(manifest["catalog_management_count"], 478)
             self.assertEqual(manifest["catalog_combination_count"], 119_022)
             self.assertEqual(
                 manifest["signal_execution_policy"],
-                "designated_basket_binary_signal_changes_execute_next_open_"
-                "without_intraperiod_reranking",
+                "designated_basket_binary_signal_changes_execute_next_open_without_intraperiod_reranking",
             )
             self.assertEqual(
                 manifest["signal_calendar_policy"],
                 "verified_global_market_sessions_independent_of_ticker_price_path",
             )
-            self.assertIn(
-                "scripts/research_portfolio_allocation_core.py",
-                manifest["source_sha256"],
-            )
+            self.assertIn("scripts/research_portfolio_allocation_core.py", manifest["source_sha256"])
 
 
 if __name__ == "__main__":
