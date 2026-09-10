@@ -14,8 +14,6 @@ from b3_strategy_lab.realistic import (  # noqa: E402
     ExecutionPriceBook,
     FeeSchedule,
     PointInTimeUniverse,
-    cash_coverage_certification_issues,
-    load_cash_distributions,
     write_dataclass_csv,
 )
 from b3_strategy_lab.corporate_settlements import load_corporate_settlements  # noqa: E402
@@ -69,14 +67,17 @@ def _report_progress(completed: int, total: int, current_date: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Real-money-oriented B3 backtest: historical snapshots, official "
-            "standard/fractional openings, cash distributions, monthly Brazilian "
-            "tax accounting, liquidity-aware slippage and no stale-price fallback."
+            "Realistic B3 price-only replay: historical snapshots, official "
+            "standard/fractional openings, monthly Brazilian trading-tax accounting, "
+            "liquidity-aware slippage and no stale-price fallback. Dividends/JCP are "
+            "explicitly outside this replay scope."
         )
     )
     parser.add_argument("--universe-manifest", type=Path, default=DEFAULT_UNIVERSE)
     parser.add_argument("--snapshots", type=Path, default=DEFAULT_SNAPSHOTS)
     parser.add_argument("--execution-prices", type=Path, default=DEFAULT_EXECUTION)
+    # Retained only for CLI compatibility with older callers. These inputs are not
+    # read, certified, credited or used in signal generation in price-only mode.
     parser.add_argument("--cash-events", type=Path, default=DEFAULT_CASH_EVENTS)
     parser.add_argument("--cash-manifest", type=Path, default=DEFAULT_CASH_MANIFEST)
     parser.add_argument(
@@ -110,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--require-certified-inputs", action="store_true")
     parser.add_argument("--orders-output", type=Path)
     parser.add_argument("--corporate-settlements", type=Path)
+    # Retained as a compatibility flag, but deliberately ignored in price-only mode.
     parser.add_argument("--economic-gap-adjustment", action="store_true")
     parser.add_argument(
         "--selection-status",
@@ -134,14 +136,6 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(
             "A fixed/survivorship-biased universe is allowed only for a retrospective "
             "hypothesis replay; it cannot be labeled walk-forward or prospective."
-        )
-    cash_manifest = json.loads(args.cash_manifest.read_text(encoding="utf-8"))
-    if cash_manifest.get("complete") is not True:
-        parser.error("Refusing realistic mode: B3 cash-distribution response has unresolved parsing issues.")
-    cash_certification: dict[str, object] = {}
-    if args.cash_certification.exists():
-        cash_certification = json.loads(
-            args.cash_certification.read_text(encoding="utf-8")
         )
     universe = PointInTimeUniverse.from_csv(args.snapshots)
     selectable = {str(item).upper() for item in manifest["tickers"]}
@@ -179,37 +173,19 @@ def main(argv: list[str] | None = None) -> int:
         args.ticker_transition_manifest,
         expected_end=end,
     )
+    if args.require_certified_inputs and transition_issues:
+        parser.error("Maximum fidelity requires bound ticker transitions.")
 
-    cash_manifest_tickers = {
-        str(item).strip().upper()
-        for item in cash_manifest.get("market_data_tickers", [])
-        if str(item).strip()
-    }
-    market_data_set = set(market_data_tickers)
-    cash_manifest_scope_matches = (
-        cash_manifest_tickers == market_data_set
-        and int(cash_manifest.get("market_data_ticker_count", -1)) == len(cash_manifest_tickers)
-    )
-    cash_events_complete = (
-        cash_manifest_scope_matches
-        and bool(cash_certification)
-        and not cash_coverage_certification_issues(
-            cash_certification,
-            cash_events_path=args.cash_events,
-            cash_manifest_path=args.cash_manifest,
-            tickers=market_data_tickers,
-            start=args.start,
-            end=end,
-        )
-    )
-
-    if args.require_certified_inputs and (not cash_events_complete or transition_issues):
-        parser.error("Maximum fidelity requires certified cash coverage and bound transitions.")
+    # Explicit user scope: dividends and JCP do not participate in this experiment.
+    # An empty event set makes both cash accounting and gap-sensitive signal generation
+    # price-only while keeping trading taxes, fees, splits and transitions active.
+    cash_events: list = []
+    cash_events_complete = True
     summary, curve, account = run_realistic(
         data=data,
         universe=universe,
         pricebook=ExecutionPriceBook.from_csv(args.execution_prices),
-        cash_events=load_cash_distributions(args.cash_events),
+        cash_events=cash_events,
         fee_schedule=FeeSchedule.from_json(args.fee_schedule),
         strategy=args.strategy.strip().lower(),
         config=_config_by_name(args.management, "adjusted"),
@@ -223,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         corporate_settlement_rules=(load_corporate_settlements(args.corporate_settlements)
                                     if args.corporate_settlements else None),
         transitions=load_transitions(args.ticker_transitions),
-        economic_gap_adjustment=args.economic_gap_adjustment,
+        economic_gap_adjustment=False,
         selection_status=args.selection_status,
         survivorship_safe=bool(manifest.get("survivorship_safe")),
         cash_events_complete=cash_events_complete,
@@ -275,16 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     if outstanding_tax < -1e-9:
         raise RuntimeError("Outstanding tax liability cannot be negative.")
-    receivable = float(
-        getattr(account, "distribution_receivable_value", lambda: 0.0)()
-    )
-    if receivable < -1e-9:
-        raise RuntimeError("Distribution receivable cannot be negative.")
 
-    # ``final_equity`` is economic equity: accrued ordinary tax is already removed
-    # from investable cash and an earned unpaid distribution is already included as
-    # a non-spendable receivable. Add tax escrow back only to expose the gross broker
-    # balance before the unpaid DARF legally leaves the account.
     net_after_accrued_tax = float(payload["final_equity"])
     if net_after_accrued_tax <= 0:
         raise RuntimeError("Net final equity must be positive.")
@@ -293,18 +260,16 @@ def main(argv: list[str] | None = None) -> int:
     payload["brokerage_final_equity"] = brokerage_equity
     payload["outstanding_accrued_tax_liability"] = outstanding_tax
     payload["net_equity_after_accrued_tax"] = net_after_accrued_tax
-    payload["unpaid_distribution_receivable"] = receivable
-    payload["cash_certification_ticker_scope"] = "market_data_tickers_including_continuity_history"
-    payload["cash_manifest_scope_matches_market_data"] = cash_manifest_scope_matches
+    payload["unpaid_distribution_receivable"] = 0.0
+    payload["cash_distributions_scope"] = "OUT_OF_SCOPE_BY_USER"
+    payload["cash_distributions_used"] = False
+    payload["cash_distributions_certification_required"] = False
+    payload["cash_manifest_scope_matches_market_data"] = None
     payload["market_data_directory"] = str(args.data_dir)
     payload["action_directory"] = str(args.actions_dir)
     payload["market_data_manifest_directory"] = str(args.manifests_dir)
     payload["split_evidence_file"] = str(args.split_evidence)
-    payload["distribution_cash_availability_policy"] = (
-        "the right is recognized as economic receivable only after the cum-right close; "
-        "it is never spendable before payment; on payment the receivable is replaced by "
-        "cash, and a non-trading payment date becomes cash at the next simulated B3 session"
-    )
+    payload["distribution_cash_availability_policy"] = "OUT_OF_SCOPE_BY_USER"
     payload["ordinary_irrf_withheld"] = float(
         getattr(account, "ordinary_irrf_withheld", 0.0)
     )
