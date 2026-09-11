@@ -10,6 +10,10 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts import validate_matrix_top_realistic_core as _base
 
 
