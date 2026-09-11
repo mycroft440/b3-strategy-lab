@@ -55,6 +55,7 @@ def test_hapv3_source_bound_fractional_settlement_is_repository_default():
     assert math.isclose(float(rule["share_ratio"]), 1.0 / 15.0)
     assert math.isclose(float(rule["price_per_fractional_share"]), 36.87159881563)
     assert rule["realization_date"] == "2025-06-30"
+    assert rule["price_known_date"] == "2025-07-04"
     assert rule["payment_date"] == "2025-07-11"
     assert default_corporate_settlement_rules()[("2025-06-06", "HAPV3")] == rule
 
