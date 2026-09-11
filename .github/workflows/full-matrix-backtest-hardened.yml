@@ -190,18 +190,23 @@ jobs:
           START_YEAR="${START_DATE:0:4}"
           END_YEAR="${SYNC_END:0:4}"
           SOURCE_YEARS="$((10#$START_YEAR - 1)):$((10#$END_YEAR))"
+          DOWNLOAD_ARGS=()
+          PIT_SYNC_ARGS=()
+          if [ "$REFRESH_DATA" = "true" ]; then
+            DOWNLOAD_ARGS+=(--download)
+            PIT_SYNC_ARGS+=(--download --refresh-actions)
+          fi
           python scripts/build_survivorship_safe_realistic_universe.py \
             --start "$START_DATE" \
             --end "$SYNC_END" \
             --years "$SOURCE_YEARS" \
-            --download
+            "${DOWNLOAD_ARGS[@]}"
           python scripts/build_ticker_transitions.py \
             --years "$SOURCE_YEARS" \
-            --download
+            "${DOWNLOAD_ARGS[@]}"
           python scripts/sync_point_in_time_universe_realistic.py \
             --years "$SOURCE_YEARS" \
-            --download \
-            --refresh-actions
+            "${PIT_SYNC_ARGS[@]}"
 
       - name: Validar dados verificados
         run: |
