@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviews": [
+    {
+      "effective_date": "2023-08-23",
+      "cutoff_date": "2023-08-22",
+      "first_successor_trade_date": "2023-08-23",
+      "old_ticker": "PCAR3",
+      "new_ticker": "PCAR3",
+      "share_ratio": 1.0,
+      "old_quotation_factor": 1,
+      "new_quotation_factor": 1,
+      "cash_per_old_share": 0.0,
+      "event_type": "spin_off",
+      "fractional_treatment": "preserve_units",
+      "tax_basis_treatment": "source_specific",
+      "certification_status": "certified",
+      "source_authority": "B3",
+      "source_url": "https://www.b3.com.br/data/files/F3/01/D4/75/AF9F98101D7C7D98DC0D8AA8/OC%20144-2023%20PRE%20Tratamento%20de%20Posi%C3%A7%C3%B5es%2C%20Garantias%20e%20Carteiras%20de%20%C3%8Dndices%20-%20Redu%C3%A7%C3%A3o%20de%20Capital%20da%20GPA%20%28PT%29.pdf",
+      "source_reference": "B3 Ofício Circular 144/2023-PRE, 15/08/2023; GPA Fato Relevante de 08/08/2023",
+      "evidence_summary": "A redução de capital mantém cada ação PCAR3 e entrega 1 BDR EXCO32 por PCAR3 detida no fechamento de 22/08/2023. A B3 documenta a cesta econômica PCAR3+EXCO32 e define a parcela segregada da Éxito para repartir o valor econômico do evento. Não há componente em dinheiro nem dividendo/JCP.",
+      "distributed_ticker": "EXCO32",
+      "distributed_share_ratio": 1.0,
+      "distributed_basis_fraction": 0.5858295139
+    }
+  ]
+}
