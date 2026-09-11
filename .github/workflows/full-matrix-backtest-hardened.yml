@@ -42,6 +42,7 @@ on:
       - "scripts/**"
       - "data/candles/**"
       - "data/manifests/**"
+      - "data/manifests_point_in_time/**"
       - "data/corporate_actions/**"
       - "data/universes/**"
       - "data/quality_reviews.json"
