@@ -281,8 +281,15 @@ def snapshot_rows(
                     quote.financial_volume
                 )
 
+        # A trailing history alone cannot make a symbol selectable after it has
+        # stopped trading. Requiring an official quote on the decision session keeps
+        # ranking fully causal while preventing stale predecessor/delisted symbols
+        # from remaining in the next-open execution universe.
+        decision_tickers = {quote.ticker.upper() for quote in by_date[decision]}
         candidates: list[dict[str, object]] = []
         for item in stats.values():
+            if str(item["ticker"]) not in decision_tickers:
+                continue
             presence = int(item["days"]) / len(window_dates)
             if presence < minimum_presence:
                 continue
