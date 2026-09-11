@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "events": [
+    {
+      "effective_date": "2025-06-06",
+      "realization_date": "2025-06-30",
+      "price_known_date": "2025-07-04",
+      "payment_date": "2025-07-11",
+      "announcement_date": "2025-05-06",
+      "ticker": "HAPV3",
+      "kind": "fractional_sale",
+      "quantity_event": "reverse_split",
+      "source_authority": "issuer",
+      "source_url": "https://api.mziq.com/mzfilemanager/v2/d/6bbd1770-f9f4-44e8-a1b1-d26b7585eec1/eb085421-83ed-c7db-782e-55dc99f5d656?origin=1",
+      "source_reference": "Hapvida Aviso aos Acionistas - Pagamento das Fracoes Resultantes do Grupamento, 04/07/2025; continuidade aos avisos de 06/05/2025 e 27/06/2025",
+      "reviewed_by": "repository primary-source review",
+      "isin": "BRHAPVACNOR4",
+      "share_ratio": 0.06666666666666667,
+      "price_per_fractional_share": 36.87159881563,
+      "source_document": "corporate_settlements.d/hapv3_reverse_split_2025.json",
+      "source_sha256": "743f3eeb288d2b6c0411c641d3a2fa9e5e16f5192706762f7da81e627ca4167d"
+    }
+  ]
+}
