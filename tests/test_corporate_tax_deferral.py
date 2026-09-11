@@ -52,7 +52,9 @@ def test_unpriced_fractional_sale_defers_month_close_and_keeps_june_tax_competen
     june = account.tax._finalized["2025-06"]
     assert june.sales == 30_000.0
     assert june.realized_gain == 1_000.0
-    assert june.tax_due == 150.0
+    assert june.gross_tax_before_irrf == 150.0
+    assert june.irrf_withheld_month == 1.5
+    assert june.tax_due == 148.5
     assert account._corporate_tax_deferred_months == set()
 
 
