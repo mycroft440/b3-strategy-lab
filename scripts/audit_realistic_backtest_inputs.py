@@ -146,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     expected_union = _ticker_set(universe_payload, "tickers")
     market_data = _ticker_set(universe_payload, "market_data_tickers") or expected_union
     excluded = _ticker_set(universe_payload, "excluded_tickers")
+    continuity_only = _ticker_set(universe_payload, "continuity_only_tickers")
     survivorship_safe = universe_payload.get("survivorship_safe") is True
     no_replacements = universe_payload.get("no_replacements") is True
     tax_instrument_scope = str(universe_payload.get("tax_instrument_scope", "")).strip().upper()
@@ -154,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     checks["universe_declares_survivorship_safe"] = survivorship_safe
     checks["snapshot_union_matches_manifest"] = universe.union == expected_union
     checks["market_data_contains_selectable_universe"] = bool(market_data) and expected_union <= market_data
+    checks["continuity_only_tickers_within_market_data"] = continuity_only <= market_data
+    checks["continuity_only_tickers_not_selectable"] = not bool(continuity_only & expected_union)
     checks["excluded_tickers_absent"] = not bool(universe.union & excluded)
     checks["universe_policy_consistent"] = survivorship_safe or no_replacements
     checks["certified_tax_instrument_scope_is_on_pn_shares"] = (
@@ -186,7 +189,8 @@ def main(argv: list[str] | None = None) -> int:
     details["snapshot_count"] = len(universe.snapshots)
     details["historical_symbol_union"] = len(universe.union)
     details["market_data_ticker_count"] = len(market_data)
-    details["continuity_only_ticker_count"] = len(market_data - expected_union)
+    details["continuity_only_ticker_count"] = len(continuity_only)
+    details["continuity_only_tickers"] = sorted(continuity_only)
     details["minimum_snapshot_size"] = min(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["maximum_snapshot_size"] = max(len(snapshot.tickers) for snapshot in universe.snapshots)
     details["selection_mode"] = universe_payload.get("selection_mode", "")
@@ -313,7 +317,11 @@ def main(argv: list[str] | None = None) -> int:
     checks["execution_book_has_fractional_quotes"] = bool(fractional_base)
     checks["execution_book_has_no_duplicate_keys"] = len(keys) == len(set(keys))
     checks["execution_book_has_positive_prices_and_volume"] = not invalid_execution_rows
-    checks["execution_book_excludes_forbidden_tickers"] = not bool(execution_bases & excluded)
+    forbidden_execution = excluded - continuity_only
+    checks["execution_book_excludes_forbidden_tickers"] = not bool(
+        execution_bases & forbidden_execution
+    )
+    details["execution_forbidden_tickers"] = sorted(forbidden_execution)
     if no_replacements:
         checks["execution_book_within_allowed_universe"] = bool(allowed_tickers) and execution_bases <= allowed_tickers
     else:
@@ -352,6 +360,8 @@ def main(argv: list[str] | None = None) -> int:
         "universe_is_point_in_time",
         "snapshot_union_matches_manifest",
         "market_data_contains_selectable_universe",
+        "continuity_only_tickers_within_market_data",
+        "continuity_only_tickers_not_selectable",
         "universe_policy_consistent",
         "declared_replay_end_not_before_last_snapshot",
         "snapshot_union_within_allowed_universe",
