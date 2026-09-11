@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from b3_strategy_lab.candles import cache_path, load_candles
 from b3_strategy_lab.cotahist import load_verified_candles
+from b3_strategy_lab.instrument_transitions import load_transition_reviews
 from b3_strategy_lab.portfolio_risk import covariance_target_weights
 from scripts import research_portfolio_allocation_core as _core
 
@@ -22,6 +23,7 @@ _original_rebalance = _core._rebalance
 _DATE_WINDOW_CACHE: dict[tuple[int, str | None, str | None], tuple[list[str], list[str]]] = {}
 _TRANSITION_REVIEWS = PROJECT_ROOT / "data/corporate_actions/instrument_transition_reviews.json"
 _SUPPORTED_UNIT_TRANSITION_TYPES = frozenset({"ticker_change", "class_change", "incorporation"})
+_UNSUPPORTED_TRANSITION_TOKEN = "CERTIFIED_COMPLEX_TRANSITION_UNSUPPORTED_IN_PRICE_ONLY_RESEARCH"
 
 
 def _date_window(values: list[str], start: str | None, end: str | None) -> list[str]:
@@ -53,36 +55,24 @@ def _certified_unit_transitions() -> dict[str, tuple[tuple[str, str], ...]]:
     """
     if not _TRANSITION_REVIEWS.exists():
         return {}
-    payload = json.loads(_TRANSITION_REVIEWS.read_text(encoding="utf-8"))
-    reviews = payload.get("reviews", []) if isinstance(payload, dict) else []
     by_date: dict[str, list[tuple[str, str]]] = {}
-    for raw in reviews:
-        if not isinstance(raw, dict):
-            continue
-        try:
-            ratio = float(raw.get("share_ratio", 0.0))
-            cash = float(raw.get("cash_per_old_share", 0.0))
-            old_factor = int(raw.get("old_quotation_factor", 1) or 1)
-            new_factor = int(raw.get("new_quotation_factor", 1) or 1)
-        except (TypeError, ValueError):
-            continue
-        old = str(raw.get("old_ticker", "")).strip().upper()
-        new = str(raw.get("new_ticker", "")).strip().upper()
-        effective = str(raw.get("effective_date", "")).strip()[:10]
+    for item in load_transition_reviews(_TRANSITION_REVIEWS):
         if (
-            raw.get("certification_status") != "certified"
-            or str(raw.get("event_type", "")) not in _SUPPORTED_UNIT_TRANSITION_TYPES
-            or abs(ratio - 1.0) > 1e-12
-            or abs(cash) > 1e-12
-            or old_factor != new_factor
-            or raw.get("fractional_treatment") != "preserve_units"
-            or raw.get("tax_basis_treatment") != "carry_total_basis"
-            or not old
-            or not new
-            or not effective
+            item.certification_status != "certified"
+            or item.event_type not in _SUPPORTED_UNIT_TRANSITION_TYPES
+            or abs(item.share_ratio - 1.0) > 1e-12
+            or abs(item.cash_per_old_share) > 1e-12
+            or item.old_quotation_factor != item.new_quotation_factor
+            or item.fractional_treatment != "preserve_units"
+            or item.tax_basis_treatment != "carry_total_basis"
+            or not item.old_ticker
+            or not item.new_ticker
+            or not item.effective_date
         ):
             continue
-        by_date.setdefault(effective, []).append((old, new))
+        by_date.setdefault(item.effective_date, []).append(
+            (item.old_ticker, item.new_ticker)
+        )
     return {day: tuple(items) for day, items in by_date.items()}
 
 
@@ -100,47 +90,49 @@ def _certified_unsupported_transition_boundaries() -> tuple[tuple[str, str, str,
     """Return certified events the price-only research engine must not fabricate."""
     if not _TRANSITION_REVIEWS.exists():
         return ()
-    payload = json.loads(_TRANSITION_REVIEWS.read_text(encoding="utf-8"))
-    reviews = payload.get("reviews", []) if isinstance(payload, dict) else []
     boundaries: list[tuple[str, str, str, str]] = []
-    for raw in reviews:
-        if not isinstance(raw, dict) or raw.get("certification_status") != "certified":
+    for item in load_transition_reviews(_TRANSITION_REVIEWS):
+        if item.certification_status != "certified":
             continue
-        old = str(raw.get("old_ticker", "")).strip().upper()
-        new = str(raw.get("new_ticker", "")).strip().upper()
-        effective = str(raw.get("effective_date", "")).strip()[:10]
-        event_type = str(raw.get("event_type", "unknown")).strip() or "unknown"
-        try:
-            ratio = float(raw.get("share_ratio", 0.0))
-            cash = float(raw.get("cash_per_old_share", 0.0))
-            old_factor = int(raw.get("old_quotation_factor", 1) or 1)
-            new_factor = int(raw.get("new_quotation_factor", 1) or 1)
-        except (TypeError, ValueError):
-            ratio = 0.0
-            cash = 0.0
-            old_factor = 0
-            new_factor = -1
         unit_preserving = (
-            bool(new)
-            and event_type in _SUPPORTED_UNIT_TRANSITION_TYPES
-            and abs(ratio - 1.0) <= 1e-12
-            and abs(cash) <= 1e-12
-            and old_factor == new_factor
-            and raw.get("fractional_treatment") == "preserve_units"
-            and raw.get("tax_basis_treatment") == "carry_total_basis"
+            bool(item.new_ticker)
+            and item.event_type in _SUPPORTED_UNIT_TRANSITION_TYPES
+            and abs(item.share_ratio - 1.0) <= 1e-12
+            and abs(item.cash_per_old_share) <= 1e-12
+            and item.old_quotation_factor == item.new_quotation_factor
+            and item.fractional_treatment == "preserve_units"
+            and item.tax_basis_treatment == "carry_total_basis"
         )
-        if old and effective and not unit_preserving:
-            boundaries.append((effective, old, new, event_type))
+        if item.old_ticker and item.effective_date and not unit_preserving:
+            boundaries.append(
+                (item.effective_date, item.old_ticker, item.new_ticker, item.event_type)
+            )
     return tuple(sorted(boundaries))
 
 
+def _unsupported_held_transition_reason(current_date: str, shares) -> str | None:
+    """Reject only a portfolio that actually carries an unsupported event boundary."""
+    value_date = str(current_date)[:10]
+    for effective, old, new, event_type in _certified_unsupported_transition_boundaries():
+        if effective <= value_date and float(shares.get(old, 0.0)) > 0:
+            successor = new or "TERMINAL"
+            return (
+                f"{value_date}:{old}->{successor}:{event_type}:"
+                f"{_UNSUPPORTED_TRANSITION_TOKEN}"
+            )
+    return None
+
+
 def _research_invalid_transition_reason(message: str) -> str | None:
-    """Classify only fresh-price failures explained by a certified complex event."""
+    """Classify only failures explained by a certified complex corporate event."""
+    normalized = message.strip()
+    if normalized.endswith(_UNSUPPORTED_TRANSITION_TOKEN):
+        return normalized
     match = re.match(
         r"^(?P<date>\d{4}-\d{2}-\d{2}): "
         r"(?:abertura fresca obrigatoria|fechamento fresco obrigatorio) "
         r"ausente para (?P<tickers>.+)$",
-        message.strip(),
+        normalized,
     )
     if match is None:
         return None
@@ -151,7 +143,7 @@ def _research_invalid_transition_reason(message: str) -> str | None:
             successor = new or "TERMINAL"
             return (
                 f"{value_date}:{old}->{successor}:{event_type}:"
-                "CERTIFIED_COMPLEX_TRANSITION_UNSUPPORTED_IN_PRICE_ONLY_RESEARCH"
+                f"{_UNSUPPORTED_TRANSITION_TOKEN}"
             )
     return None
 
@@ -184,7 +176,10 @@ def _rebalance(
     slippage_rate,
     lot_size,
 ):
-    """Carry certified unit-preserving ticker changes before execution checks."""
+    """Carry certified unit transitions and reject held complex transitions."""
+    unsupported_reason = _unsupported_held_transition_reason(str(current_date), shares)
+    if unsupported_reason is not None:
+        raise ValueError(unsupported_reason)
     for old, new in _applicable_unit_transitions(str(current_date)):
         old_relevant = float(shares.get(old, 0.0)) > 0 or float(target_weights.get(old, 0.0)) > 0
         if not old_relevant:
