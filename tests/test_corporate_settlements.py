@@ -20,7 +20,7 @@ def account():
     return result
 
 
-def rule(tmp_path, kind="fractional_sale", price=220):
+def rule(tmp_path, kind="fractional_sale", price=220, price_known_date=None):
     evidence = tmp_path / "evidence.txt"
     evidence.write_text("Synthetic reviewed event fixture", encoding="utf-8")
     event = dict(kind=kind, quantity_event="reverse_split", effective_date="2024-01-03", realization_date="2024-01-05",
@@ -30,6 +30,8 @@ def rule(tmp_path, kind="fractional_sale", price=220):
                  source_authority="issuer", source_url="https://example.org/event",
                  source_reference="Synthetic fixture page 1", reviewed_by="test",
                  source_document="evidence.txt", source_sha256=hashlib.sha256(evidence.read_bytes()).hexdigest())
+    if price_known_date is not None:
+        event["price_known_date"] = price_known_date
     path = tmp_path / "events.json"
     path.write_text(json.dumps({"schema_version": 1, "events": [event]}), encoding="utf-8")
     return load_corporate_settlements(path)
@@ -75,6 +77,26 @@ def test_future_auction_price_cannot_change_prior_equity(tmp_path):
         _apply_split_from_adjustment_factors(cash, market, "2024-01-03")
         mark_and_pay_corporate_receivables(cash, market, "2024-01-03")
         assert cash.cash + cash.shares("AAA3") * 200 + cash._corporate_receivable_value == 300
+
+
+def test_published_auction_price_is_not_used_before_price_known_date(tmp_path):
+    cash = account()
+    cash._corporate_settlement_rules = rule(tmp_path, price=400, price_known_date="2024-01-08")
+    market = data()
+    _apply_split_from_adjustment_factors(cash, market, "2024-01-03")
+
+    mark_and_pay_corporate_receivables(cash, market, "2024-01-05")
+    claim = cash._corporate_receivables[("2024-01-03", "AAA3")]
+    assert claim["net"] is None
+    assert cash._corporate_receivable_value == 100
+    assert "2024-01" not in cash.tax._gains
+
+    mark_and_pay_corporate_receivables(cash, market, "2024-01-08")
+    assert cash.cash == 200
+    assert cash._corporate_receivable_value == 0
+    assert cash.tax._gains["2024-01"] == 100
+    assert cash.corporate_action_ledger[0]["realization_date"] == "2024-01-05"
+    assert cash.corporate_action_ledger[0]["price_known_date"] == "2024-01-08"
 
 
 def test_capital_return_preserves_economic_value_and_defers_cash(tmp_path):
