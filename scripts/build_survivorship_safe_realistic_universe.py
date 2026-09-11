@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import defaultdict
@@ -29,7 +30,62 @@ DEFAULT_SNAPSHOTS = Path("data/universes/point_in_time_weekly.csv")
 DEFAULT_MANIFEST = Path("data/universes/point_in_time_union.json")
 DEFAULT_EXECUTION = Path("data/execution/b3_standard_fractional_open.csv")
 DEFAULT_TRANSITION_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
+DEFAULT_SOURCE_LOCKS = Path("data/manifests")
 EXCLUDED_TICKERS = frozenset({"AZUL53", "AZUL54", "GOLL4", "GOLL54", "LAME4", "PCAR3"})
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _locked_source_archives(manifests_dir: Path = DEFAULT_SOURCE_LOCKS) -> dict[int, str]:
+    """Return the unique versioned SHA-256 lock for each official COTAHIST year."""
+    locks: dict[int, str] = {}
+    conflicts: dict[int, set[str]] = defaultdict(set)
+    for path in sorted(manifests_dir.glob("*_1d.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for item in payload.get("source_archives") or []:
+            try:
+                year = int(item["year"])
+                sha256 = str(item["sha256"]).strip().lower()
+            except (KeyError, TypeError, ValueError):
+                continue
+            if len(sha256) != 64 or any(char not in "0123456789abcdef" for char in sha256):
+                continue
+            conflicts[year].add(sha256)
+    for year, hashes in conflicts.items():
+        if len(hashes) != 1:
+            raise ValueError(
+                f"Versioned manifests disagree on COTAHIST_A{year}.ZIP SHA-256: {sorted(hashes)}"
+            )
+        locks[year] = next(iter(hashes))
+    return locks
+
+
+def _ensure_locked_archive(year: int, archives_dir: Path, locks: dict[int, str]) -> Path:
+    """Fetch a missing historical archive only when its exact bytes are version-locked."""
+    path = archives_dir / f"COTAHIST_A{year}.ZIP"
+    expected = locks.get(year)
+    if expected is None:
+        raise FileNotFoundError(
+            f"{path} is missing and no unique SHA-256 lock for {year} exists in {DEFAULT_SOURCE_LOCKS}."
+        )
+    if not path.exists():
+        path = download_cotahist(year, archives_dir, refresh=False)
+    actual = _sha256(path)
+    if actual != expected:
+        path.unlink(missing_ok=True)
+        raise ValueError(
+            f"Locked COTAHIST_A{year}.ZIP SHA-256 mismatch: expected {expected}, got {actual}."
+        )
+    return path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -77,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
     if max(years) < end_year:
         parser.error("COTAHIST years do not cover the requested --end year.")
 
+    locked_archives = _locked_source_archives() if not args.download else {}
     archives: list[Path] = []
     for year in years:
         path = args.archives_dir / f"COTAHIST_A{year}.ZIP"
@@ -86,10 +143,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.archives_dir,
                 refresh=year == date.today().year,
             )
-        if not path.exists():
-            raise FileNotFoundError(
-                f"{path} is missing; use --download or provide the official COTAHIST archive."
-            )
+        else:
+            path = _ensure_locked_archive(year, args.archives_dir, locked_archives)
         archives.append(path)
 
     standard_quotes = []
