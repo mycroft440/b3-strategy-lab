@@ -20,7 +20,7 @@ from .source_evidence import verify_source_documents
 
 DEFAULT_CORPORATE_SETTLEMENTS = (
     Path(__file__).resolve().parents[1]
-    / "data/corporate_actions/corporate_settlements.json"
+    / "data/manifests_point_in_time/corporate_settlements.json"
 )
 _DEFAULT_RULES = None
 
