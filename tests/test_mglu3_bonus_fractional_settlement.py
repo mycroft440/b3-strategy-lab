@@ -16,10 +16,11 @@ AUCTION_PRICE = 9.1474173
 
 def _account():
     result = RealCashAccount(
-        0,
+        1,
         FeeSchedule([FeeRule("2000-01-01", "2099-12-31", 0)]),
         SlippageModel(),
     )
+    result.cash = 0
     result.positions["MGLU3"].shares = 122
     result.positions["MGLU3"].average_cost = 20
     return result
