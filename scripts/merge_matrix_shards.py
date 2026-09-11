@@ -304,17 +304,17 @@ def main(argv: list[str] | None = None) -> int:
         strategies=expected_strategies,
         combinations=len(all_rows),
     )
-    manifest_path = report_base.with_suffix(".manifest.json")
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
     valid_rows = [row for row in all_rows if str(row.get("validity", "VALID")) == "VALID"]
     invalid_rows = [row for row in all_rows if str(row.get("validity", "VALID")) != "VALID"]
     if len(valid_rows) < args.top:
         raise ValueError(f"Somente {len(valid_rows)} combinacoes validas no merge; Top {args.top} indisponivel.")
     manifest["valid_combination_count"] = len(valid_rows)
     manifest["invalid_combination_count"] = len(invalid_rows)
+    manifest_path = report_base.with_suffix(".manifest.json")
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     top_rows = valid_rows[: args.top]
     annual_output = report_base.with_name(f"{report_base.name}_top{args.top}_annual.md")
     _write_annual_report(top_rows, annual_sections, annual_output)
