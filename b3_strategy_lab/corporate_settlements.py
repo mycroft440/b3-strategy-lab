@@ -17,6 +17,13 @@ from urllib.parse import urlparse
 from .source_evidence import verify_source_documents
 
 
+DEFAULT_CORPORATE_SETTLEMENTS = (
+    Path(__file__).resolve().parents[1]
+    / "data/corporate_actions/corporate_settlements.json"
+)
+_DEFAULT_RULES = None
+
+
 def load_corporate_settlements(path):
     source = Path(path)
     payload = json.loads(source.read_text(encoding="utf-8"))
@@ -55,6 +62,14 @@ def load_corporate_settlements(path):
     return rules
 
 
+def default_corporate_settlement_rules():
+    """Load the repository's source-bound settlement ledger on first use."""
+    global _DEFAULT_RULES
+    if _DEFAULT_RULES is None:
+        _DEFAULT_RULES = load_corporate_settlements(DEFAULT_CORPORATE_SETTLEMENTS)
+    return _DEFAULT_RULES
+
+
 def _claims(account):
     if not hasattr(account, "_corporate_receivables"):
         account._corporate_receivables = {}
@@ -64,7 +79,9 @@ def _claims(account):
 
 def apply_fractional_split(account, data, current, original):
     """Delegate unsupported events to the existing fail-closed split processor."""
-    rules = getattr(account, "_corporate_settlement_rules", {})
+    rules = getattr(account, "_corporate_settlement_rules", None)
+    if rules is None:
+        rules = default_corporate_settlement_rules()
     handled = {}
     for ticker, position in list(account.positions.items()):
         rule = rules.get((current, ticker))
