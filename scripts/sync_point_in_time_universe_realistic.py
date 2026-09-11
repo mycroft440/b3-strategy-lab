@@ -38,6 +38,7 @@ SYNC_RETRY_DELAYS_SECONDS = (20, 60)
 _BASE_PARSE_SUPPLEMENTAL_SPLITS = base.parse_supplemental_split_events
 _BASE_AUDIT_SHARE_MARKERS = base.audit_share_count_markers
 _BASE_WRITE_JSON_ATOMIC = base._write_json_atomic
+_OUT_OF_SCOPE_CASH_MANIFEST: Path | None = None
 
 
 class HistoricalTickerReviewCoverageError(RuntimeError):
@@ -292,6 +293,9 @@ def _install_evidence_addendum(payload: dict) -> None:
         return rows
 
     def write_json_with_primary_ticker_reviews(path: Path, value: object) -> None:
+        if _OUT_OF_SCOPE_CASH_MANIFEST is not None and Path(path) == _OUT_OF_SCOPE_CASH_MANIFEST:
+            Path(path).unlink(missing_ok=True)
+            return
         # The addendum may fill only unresolved historical rows. It must never
         # replace a current B3 review or any already-sourced generated review.
         if isinstance(value, dict) and value.get("schema_version") == 3:
@@ -348,6 +352,31 @@ def _install_evidence_addendum(payload: dict) -> None:
     base._write_json_atomic = write_json_with_primary_ticker_reviews
 
 
+def _disable_dividend_jcp_artifacts(arguments: list[str]) -> None:
+    """Make realistic price-only sync neither model nor persist dividend/JCP ledgers."""
+    global _OUT_OF_SCOPE_CASH_MANIFEST
+
+    if _option_value(arguments, "--cash-supplement") is not None:
+        raise ValueError(
+            "Dividend/JCP cash distributions are out of scope for realistic price-only sync."
+        )
+    cash_output = Path(
+        _option_value(arguments, "--cash-output") or str(base.DEFAULT_CASH)
+    )
+    cash_manifest = Path(
+        _option_value(arguments, "--cash-manifest") or str(base.DEFAULT_CASH_MANIFEST)
+    )
+    cash_output.unlink(missing_ok=True)
+    cash_manifest.unlink(missing_ok=True)
+    _OUT_OF_SCOPE_CASH_MANIFEST = cash_manifest
+
+    # The base synchronizer retains cash-ledger support for other callers. This
+    # wrapper intentionally removes that concern before delegation: no endpoint rows
+    # are interpreted and no CSV/manifest can be left for snapshot packaging.
+    base.build_cash_events = lambda *_args, **_kwargs: ([], [])
+    base._write_cash = lambda path, rows: Path(path).unlink(missing_ok=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
 
@@ -380,12 +409,12 @@ def main(argv: list[str] | None = None) -> int:
     if _option_value(arguments, "--action-workers") is None:
         arguments.extend(["--action-workers", str(DEFAULT_ACTION_WORKERS)])
 
-    # Project policy: dividend and JCP cash flows are outside the requested model.
-    # Keep building the documentary ledger for auditability, but unresolved cash
-    # coverage must not block synchronization when those flows are not consumed by
-    # the backtest. Split/share-count and all other evidence gates remain fail-closed.
+    # Price-only policy is explicit: dividend/JCP rows are not fetched into a model,
+    # certified, written, or packaged. Split/share-count and every unrelated
+    # evidence/integrity gate remain fail-closed in the delegated synchronizer.
     if "--allow-incomplete-cash-ledger" not in arguments:
         arguments.append("--allow-incomplete-cash-ledger")
+    _disable_dividend_jcp_artifacts(arguments)
 
     _install_evidence_addendum(_load_evidence_addendum())
 
