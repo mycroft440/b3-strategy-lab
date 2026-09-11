@@ -215,13 +215,23 @@ def week_key(value: str) -> tuple[int, int]:
 
 
 def weekly_decision_dates(all_dates: list[str], start: str, end: str) -> list[str]:
-    result: list[str] = []
+    in_range = [value for value in all_dates if start <= value <= end]
+    if not in_range:
+        return []
+
+    # The replay makes each decision after the current session's close and executes
+    # on the next session's open. Seed the PIT universe on the first in-range session
+    # so that the first close can produce a causal next-session decision. Subsequent
+    # snapshots retain the normal end-of-week cadence. Never borrow a later weekly
+    # close to cover this bootstrap boundary.
+    result: list[str] = [in_range[0]]
     for index, current in enumerate(all_dates):
         if current < start or current > end:
             continue
         following = all_dates[index + 1] if index + 1 < len(all_dates) else None
         if following is None or week_key(current) != week_key(following):
-            result.append(current)
+            if current != result[-1]:
+                result.append(current)
     return result
 
 
