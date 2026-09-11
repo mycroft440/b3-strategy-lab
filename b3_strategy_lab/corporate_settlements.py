@@ -42,8 +42,8 @@ def load_corporate_settlements(path):
             raise ValueError("Corporate settlement dates are not causal.")
         if row.get("kind") not in {"fractional_sale", "return_of_capital"}:
             raise ValueError("Unsupported corporate settlement tax treatment.")
-        if row["kind"] == "fractional_sale" and row.get("quantity_event") not in {"split", "reverse_split"}:
-            raise ValueError("Fractional settlement currently requires a reviewed split/reverse_split; bonus basis is unsupported.")
+        if row["kind"] == "fractional_sale" and row.get("quantity_event") not in {"split", "reverse_split", "bonus"}:
+            raise ValueError("Fractional settlement requires a reviewed split/reverse_split/bonus event.")
         url = urlparse(str(row.get("source_url", "")))
         if (row.get("source_authority") not in {"B3", "CVM", "issuer"}
                 or url.scheme != "https" or not url.hostname
@@ -56,6 +56,10 @@ def load_corporate_settlements(path):
         for field in (required_amount, "share_ratio"):
             if not math.isfinite(float(row[field])) or float(row[field]) <= 0:
                 raise ValueError(f"Corporate settlement requires positive {field}.")
+        if row.get("quantity_event") == "bonus":
+            bonus_cost = float(row.get("bonus_unit_cost", 0.0))
+            if not math.isfinite(bonus_cost) or bonus_cost <= 0 or float(row["share_ratio"]) <= 1:
+                raise ValueError("Bonus settlement requires positive source-assigned tax basis and share_ratio > 1.")
         key = (row["effective_date"], row["ticker"])
         if key in rules:
             raise ValueError("Duplicate corporate settlement rule.")
@@ -100,13 +104,24 @@ def apply_fractional_split(account, data, current, original):
         ratio = candle.adjustment_factor / previous.adjustment_factor
         if not math.isclose(ratio, float(rule["share_ratio"]), rel_tol=1e-10) or candle.isin != rule["isin"]:
             raise ValueError("Fraction settlement ratio/ISIN differs from official candles.")
-        exact = position.shares * ratio
+        original_shares = position.shares
+        exact = original_shares * ratio
         whole = math.floor(exact + 1e-9)
         fraction = max(0.0, exact - whole)
-        basis_per_share = position.average_cost / ratio
+        if rule.get("quantity_event") == "bonus":
+            bonus_unit_cost = float(rule["bonus_unit_cost"])
+            whole_bonus = whole - original_shares
+            if whole_bonus < 0:
+                raise ValueError("Bonus settlement cannot reduce an existing position.")
+            retained_basis = original_shares * position.average_cost + whole_bonus * bonus_unit_cost
+            fractional_basis = fraction * bonus_unit_cost
+            basis_per_share = retained_basis / whole if whole else 0.0
+        else:
+            basis_per_share = position.average_cost / ratio
+            fractional_basis = fraction * basis_per_share
         if fraction:
             _claims(account)[(current, ticker)] = dict(
-                rule=rule, units=fraction, basis=fraction * basis_per_share,
+                rule=rule, units=fraction, basis=fractional_basis,
                 net=None, withholding=0.0, value=0.0,
             )
         position.shares = whole

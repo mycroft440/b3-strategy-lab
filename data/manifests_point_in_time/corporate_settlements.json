@@ -19,6 +19,26 @@
       "price_per_fractional_share": 36.87159881563,
       "source_document": "corporate_settlements.d/hapv3_reverse_split_2025.json",
       "source_sha256": "743f3eeb288d2b6c0411c641d3a2fa9e5e16f5192706762f7da81e627ca4167d"
+    },
+    {
+      "effective_date": "2025-12-30",
+      "realization_date": "2026-03-05",
+      "price_known_date": "2026-03-18",
+      "payment_date": "2026-03-25",
+      "announcement_date": "2025-12-22",
+      "ticker": "MGLU3",
+      "kind": "fractional_sale",
+      "quantity_event": "bonus",
+      "source_authority": "CVM",
+      "source_url": "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx",
+      "source_reference": "Magazine Luiza IPE filings 022470IPE221220250123285121-79-v1 and 022470IPE180320260172041471-97-v1",
+      "reviewed_by": "repository primary-source review",
+      "isin": "BRMGLUACNOR2",
+      "share_ratio": 1.05,
+      "bonus_unit_cost": 10.82550951208,
+      "price_per_fractional_share": 9.1474173,
+      "source_document": "corporate_settlements.d/mglu3_bonus_2025_fractional_sale_2026.json",
+      "source_sha256": "1e8e94dcdf05f15d9851aa30b985c8d8f7ae31c0fcf14f22c5ab6c97eb345714"
     }
   ]
 }

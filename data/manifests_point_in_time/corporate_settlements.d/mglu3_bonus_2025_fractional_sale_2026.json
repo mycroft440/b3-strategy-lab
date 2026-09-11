@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "review": {
+    "ticker": "MGLU3",
+    "isin": "BRMGLUACNOR2",
+    "event": "bonus_fractional_sale",
+    "source_authority": "CVM",
+    "source_url": "https://www.rad.cvm.gov.br/ENET/frmConsultaExternaCVM.aspx",
+    "source_published": "2026-03-18",
+    "prior_notice_date": "2025-12-22",
+    "record_date": "2025-12-29",
+    "effective_date": "2025-12-30",
+    "bonus_credit_date": "2026-01-05",
+    "fraction_transfer_window": "2026-01-06/2026-02-04",
+    "auction_date": "2026-03-05",
+    "payment_date": "2026-03-25",
+    "bonus_ratio": "1 new share : 20 old shares",
+    "bonus_unit_cost_brl": 10.82550951208,
+    "shares_auctioned": 88864,
+    "auction_unit_price_brl": 9.1474173,
+    "source_reference": "Magazine Luiza IPE filings 022470IPE221220250123285121-79-v1 and 022470IPE180320260172041471-97-v1",
+    "review_note": "Primary-company filings archived in CVM RAD document the 5% stock bonus, tax acquisition cost assigned to bonus shares, auction of aggregated fractions, and payment date. This is a quantity/capital event settlement, not a dividend or JCP."
+  }
+}
