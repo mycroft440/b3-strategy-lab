@@ -1,6 +1,7 @@
 """Explicit source-backed settlement rules for fractions and capital returns.
 
 Auction proceeds are unavailable to the model until the documented realization
+date, and final auction prices are unavailable until their documented publication
 date. Before then, fractional rights are marked but cannot fund ordinary orders.
 Certified spin-offs are handled here too so a distribution is never mistaken for a
 ticker replacement by the frozen portfolio core.
@@ -34,7 +35,10 @@ def load_corporate_settlements(path):
         for key in ("effective_date", "realization_date", "payment_date", "announcement_date"):
             if date.fromisoformat(row[key]).isoformat() != row[key]:
                 raise ValueError("Corporate settlement dates must use ISO format.")
-        if not row["announcement_date"] <= row["effective_date"] <= row["realization_date"] <= row["payment_date"]:
+        price_known_date = row.get("price_known_date", row["realization_date"])
+        if date.fromisoformat(price_known_date).isoformat() != price_known_date:
+            raise ValueError("Corporate settlement dates must use ISO format.")
+        if not row["announcement_date"] <= row["effective_date"] <= row["realization_date"] <= price_known_date <= row["payment_date"]:
             raise ValueError("Corporate settlement dates are not causal.")
         if row.get("kind") not in {"fractional_sale", "return_of_capital"}:
             raise ValueError("Unsupported corporate settlement tax treatment.")
@@ -55,7 +59,9 @@ def load_corporate_settlements(path):
         key = (row["effective_date"], row["ticker"])
         if key in rules:
             raise ValueError("Duplicate corporate settlement rule.")
-        rules[key] = dict(row)
+        normalized = dict(row)
+        normalized["price_known_date"] = price_known_date
+        rules[key] = normalized
     verification = verify_source_documents(source.parent, [SimpleNamespace(**row) for row in rules.values()])
     if not verification["verified"]:
         raise ValueError(f"Unverified corporate settlement documents: {verification['blockers']}")
@@ -198,7 +204,7 @@ def mark_and_pay_corporate_receivables(account, data, current):
     claims = _claims(account)
     for key, claim in list(claims.items()):
         rule = claim["rule"]
-        if claim["net"] is None and current >= rule["realization_date"]:
+        if claim["net"] is None and current >= rule["price_known_date"]:
             gross = claim["units"] * float(rule["price_per_fractional_share"])
             account.tax.record_sale(rule["realization_date"], gross, gross - claim["basis"])
             withheld = account.tax.take_last_withholding_delta()
@@ -223,9 +229,10 @@ def mark_and_pay_corporate_receivables(account, data, current):
             account.ordinary_irrf_withheld += claim["withholding"]
             account.corporate_action_ledger.append(dict(
                 event_date=rule["effective_date"], realization_date=rule["realization_date"],
-                payment_date=rule["payment_date"], credited_session=current,
-                ticker=rule["ticker"], kind=rule["kind"], net=claim["net"],
-                withholding=claim["withholding"], source_sha256=rule["source_sha256"],
+                price_known_date=rule["price_known_date"], payment_date=rule["payment_date"],
+                credited_session=current, ticker=rule["ticker"], kind=rule["kind"],
+                net=claim["net"], withholding=claim["withholding"],
+                source_sha256=rule["source_sha256"],
             ))
             del claims[key]
     account._corporate_receivable_value = sum(claim["value"] for claim in claims.values())
