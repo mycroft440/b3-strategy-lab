@@ -38,6 +38,8 @@ SYNC_RETRY_DELAYS_SECONDS = (20, 60)
 _BASE_PARSE_SUPPLEMENTAL_SPLITS = base.parse_supplemental_split_events
 _BASE_AUDIT_SHARE_MARKERS = base.audit_share_count_markers
 _BASE_WRITE_JSON_ATOMIC = base._write_json_atomic
+_BASE_BUILD_CASH_EVENTS = base.build_cash_events
+_BASE_WRITE_CASH = base._write_cash
 _OUT_OF_SCOPE_CASH_MANIFEST: Path | None = None
 
 
@@ -378,6 +380,7 @@ def _disable_dividend_jcp_artifacts(arguments: list[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global _OUT_OF_SCOPE_CASH_MANIFEST
     arguments = list(sys.argv[1:] if argv is None else argv)
 
     defaults = (
@@ -409,8 +412,8 @@ def main(argv: list[str] | None = None) -> int:
     if _option_value(arguments, "--action-workers") is None:
         arguments.extend(["--action-workers", str(DEFAULT_ACTION_WORKERS)])
 
-    # Price-only policy is explicit: dividend/JCP rows are not fetched into a model,
-    # certified, written, or packaged. Split/share-count and every unrelated
+    # Price-only policy is explicit: dividend/JCP rows are not interpreted into a
+    # model, certified, written, or packaged. Split/share-count and every unrelated
     # evidence/integrity gate remain fail-closed in the delegated synchronizer.
     if "--allow-incomplete-cash-ledger" not in arguments:
         arguments.append("--allow-incomplete-cash-ledger")
@@ -423,21 +426,28 @@ def main(argv: list[str] | None = None) -> int:
     # transient source/transport failures receive a bounded whole-sync retry so
     # cached successes can be reused; deterministic evidence/integrity errors
     # propagate immediately and remain fail-closed.
-    for attempt in range(1, SYNC_ATTEMPTS + 1):
-        try:
-            return base.main(arguments)
-        except B3CorporateActionError as error:
-            if not _is_retryable_b3_transport_error(error):
-                raise
-            if attempt >= SYNC_ATTEMPTS:
-                raise
-            delay = SYNC_RETRY_DELAYS_SECONDS[attempt - 1]
-            print(
-                f"B3 supplement sync transient failure (attempt {attempt}/{SYNC_ATTEMPTS}): "
-                f"{error}. Retrying cached resume after {delay}s.",
-                flush=True,
-            )
-            time.sleep(delay)
+    try:
+        for attempt in range(1, SYNC_ATTEMPTS + 1):
+            try:
+                return base.main(arguments)
+            except B3CorporateActionError as error:
+                if not _is_retryable_b3_transport_error(error):
+                    raise
+                if attempt >= SYNC_ATTEMPTS:
+                    raise
+                delay = SYNC_RETRY_DELAYS_SECONDS[attempt - 1]
+                print(
+                    f"B3 supplement sync transient failure (attempt {attempt}/{SYNC_ATTEMPTS}): "
+                    f"{error}. Retrying cached resume after {delay}s.",
+                    flush=True,
+                )
+                time.sleep(delay)
+    finally:
+        # Do not leak the price-only suppression into callers/tests that invoke the
+        # general-purpose synchronizer in the same interpreter.
+        base.build_cash_events = _BASE_BUILD_CASH_EVENTS
+        base._write_cash = _BASE_WRITE_CASH
+        _OUT_OF_SCOPE_CASH_MANIFEST = None
 
     raise AssertionError("unreachable")
 
