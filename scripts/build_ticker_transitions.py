@@ -24,7 +24,7 @@ DEFAULT_OUTPUT = Path("data/corporate_actions/ticker_transitions.csv")
 DEFAULT_MANIFEST = Path("data/corporate_actions/ticker_transitions.manifest.json")
 DEFAULT_UNRESOLVED = Path("reports/unresolved_historical_delistings.csv")
 DEFAULT_REVIEWS = Path("data/corporate_actions/instrument_transition_reviews.json")
-EXCLUDED_TICKERS = {"AZUL53", "AZUL54", "BOAC34", "PCAR3"}
+EXCLUDED_TICKERS = {"AZUL53", "AZUL54", "BOAC34"}
 RECENT_STALE_DAYS = 45
 
 
@@ -229,6 +229,9 @@ def main(argv: list[str] | None = None) -> int:
                 "source_url": item.source_url,
                 "source_reference": item.source_reference,
                 "certification_status": item.certification_status,
+                "distributed_ticker": item.distributed_ticker,
+                "distributed_share_ratio": f"{item.distributed_share_ratio:.15g}",
+                "distributed_basis_fraction": f"{item.distributed_basis_fraction:.15g}",
                 "evidence": "source_reviewed_instrument_transition",
                 "isin": item.old_isin,
                 "last_old_quote": item.cutoff_date,
@@ -266,6 +269,9 @@ def main(argv: list[str] | None = None) -> int:
             "source_url",
             "source_reference",
             "certification_status",
+            "distributed_ticker",
+            "distributed_share_ratio",
+            "distributed_basis_fraction",
             "evidence",
             "isin",
             "last_old_quote",
