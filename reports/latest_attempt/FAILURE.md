@@ -1,0 +1,51 @@
+# Backtest não aprovado
+
+{
+  "status": "FAILED",
+  "generated_at_utc": "2026-09-11T14:42:58.960439+00:00",
+  "run_id": 34611726020,
+  "run_number": 323,
+  "workflow_sha": "cbe922212ccf6149735cefffa26e4729becc5667",
+  "calculation_sha": null,
+  "source_sha_matches": false,
+  "jobs": {
+    "prepare": "failure",
+    "announce": "skipped",
+    "backtest": "skipped",
+    "merge": "skipped",
+    "realistic_validation": "skipped"
+  },
+  "strategy_count": 0,
+  "management_count": 0,
+  "combination_count": 0,
+  "top_n": 10,
+  "research_ranking_ready": false,
+  "research_matrix_completed": false,
+  "research_matrix_real_money_ready": false,
+  "realistic_finalist_validation_ready": false,
+  "result_classification": null,
+  "data_cutoff": null,
+  "data_freshness_reference_date": null,
+  "data_age_calendar_days": null,
+  "data_is_recent": null,
+  "historical_cutoff_accepted": null,
+  "real_money_claim_allowed": false,
+  "counterfactual_execution_exact": false,
+  "ex_ante_selection_claim_allowed": false,
+  "universe_selection_bias_remaining": false,
+  "strategy_selection_bias_remaining": true,
+  "selection_bias_remaining": true,
+  "selection_validation_runner": "scripts/walk_forward_certified.py --all-strategies --require-full-scope",
+  "verified_data_snapshot_included": false,
+  "verified_data_snapshot_paths": [
+    "data/candles",
+    "data/manifests",
+    "data/corporate_actions",
+    "data/universes/fixed_40_2018.json",
+    "data/quality_reviews.json"
+  ],
+  "research_matrix_path": null,
+  "realistic_input_snapshot_path": null,
+  "realistic_input_snapshot_current_run": false,
+  "realistic_input_snapshot_reused": false
+}
