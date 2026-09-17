@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.archives_dir,
                 refresh=year == date.today().year,
             )
-        else:
+        elif not path.exists():
             path = _ensure_locked_archive(year, args.archives_dir, locked_archives)
         archives.append(path)
 

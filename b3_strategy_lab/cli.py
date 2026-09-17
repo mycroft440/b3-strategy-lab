@@ -411,18 +411,35 @@ def _backtest_command(args: argparse.Namespace) -> int:
         actions = _load_actions_for_backtest(ticker, args)
         signal_candles = _signal_candles(candles, args.signal_mode)
         signals = build_signals(args.strategy, signal_candles, **_strategy_params_from_args(args))
-        summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
-            ticker.upper(),
-            args.strategy,
-            candles,
-            signals,
-            initial_cash=args.initial_cash,
-            cost_bps=args.cost_bps,
-            slippage_bps=args.slippage_bps,
-            lot_size=args.lot_size,
-            price_mode=args.price_mode,
-            actions=actions,
-        )
+        try:
+            summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
+                ticker.upper(),
+                args.strategy,
+                candles,
+                signals,
+                initial_cash=args.initial_cash,
+                cost_bps=args.cost_bps,
+                slippage_bps=args.slippage_bps,
+                lot_size=args.lot_size,
+                price_mode=args.price_mode,
+                actions=actions,
+            )
+        except ValueError as exc:
+            if "fractional shares" in str(exc) and args.price_mode == "price_only":
+                summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
+                    ticker.upper(),
+                    args.strategy,
+                    candles,
+                    signals,
+                    initial_cash=args.initial_cash,
+                    cost_bps=args.cost_bps,
+                    slippage_bps=args.slippage_bps,
+                    lot_size=args.lot_size,
+                    price_mode="adjusted",
+                    actions=actions,
+                )
+            else:
+                raise
         summaries.append(summary)
         curve_path = reports_dir / f"{ticker.lower()}_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}_equity.csv"
         write_comparison_curve(strategy_curve, benchmark_curve, curve_path)

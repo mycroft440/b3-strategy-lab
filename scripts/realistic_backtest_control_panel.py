@@ -48,6 +48,10 @@ def _read_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _load_available_strategies() -> list[str]:
+    return sorted(list(portfolio_strategies()))
+
+
 def _load_available_tickers(path: Path = DEFAULT_UNIVERSE) -> list[str]:
     payload = _read_json(path)
     tickers = {
@@ -127,8 +131,10 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
     if not math.isfinite(initial_cash) or initial_cash <= 0:
         raise ValueError("O capital inicial deve ser um valor finito maior que zero.")
 
+    strategy = str(payload.get("strategy", "gap_momentum")).strip().lower() or "gap_momentum"
     return {
         "tickers": selected,
+        "strategy": strategy,
         "start": start,
         "end": end,
         "initial_cash": initial_cash,
@@ -375,6 +381,8 @@ def _worker(config: dict[str, object]) -> None:
             str(config["start"]),
             "--initial-cash",
             str(config["initial_cash"]),
+            "--strategy",
+            str(config.get("strategy", "gap_momentum")),
             "--selection-status",
             "retrospective_hypothesis_replay",
             *common_end,
@@ -497,6 +505,7 @@ HTML = r"""<!doctype html>
 <div class="field"><label class="title">Data inicial</label><input id="start" type="date" min="2018-01-02" value="2018-01-02"></div>
 <div class="field"><label class="title">Data final</label><input id="end" type="date" min="2018-01-02" value="__TODAY__"></div>
 <div class="field"><label class="title">Capital inicial (R$)</label><input id="cash" type="number" min="1" step="100" value="1000"></div>
+<div class="field"><label class="title">Estratégia</label><select id="strategy" style="width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px;font-size:15px;background:white">__STRATEGIES__</select></div>
 <div class="field"><label><input id="download" type="checkbox" checked> Atualizar dados da B3 antes de testar</label><div class="hint">Desmarque apenas se os dados já estiverem em cache.</div></div>
 <div class="actions"><button id="run" class="btn primary" onclick="runBacktest()">Iniciar backtest</button><button id="stop" class="btn danger" onclick="stopBacktest()">Parar</button></div>
 <div id="statusBox" class="status idle"><span class="dot"></span><strong id="statusText">Pronto para executar.</strong></div>
@@ -519,7 +528,7 @@ function refreshCount(){document.getElementById('selectedCount').textContent=box
 function selectAll(value){boxes().forEach(x=>x.checked=value);refreshCount()}
 boxes().forEach(x=>x.addEventListener('change',refreshCount));selectAll(true);
 async function runBacktest(){
- const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value),download:document.getElementById('download').checked};
+ const payload={tickers:boxes().filter(x=>x.checked).map(x=>x.value),strategy:document.getElementById('strategy').value,start:document.getElementById('start').value,end:document.getElementById('end').value,initial_cash:Number(document.getElementById('cash').value),download:document.getElementById('download').checked};
  const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)alert(d.error||'Falha ao iniciar');refresh();
 }
 async function stopBacktest(){await fetch('/api/stop',{method:'POST'});refresh()}
@@ -559,8 +568,13 @@ class Handler(BaseHTTPRequestHandler):
                 f'<label class="stock"><input class="ticker" type="checkbox" value="{ticker}" checked>{ticker}</label>'
                 for ticker in _load_available_tickers()
             )
+            strategy_html = "".join(
+                f'<option value="{s}" {"selected" if s == "gap_momentum" else ""}>{s}</option>'
+                for s in _load_available_strategies()
+            )
             body = (
                 HTML.replace("__TICKERS__", ticker_html)
+                .replace("__STRATEGIES__", strategy_html)
                 .replace("__TODAY__", date.today().isoformat())
                 .encode("utf-8")
             )
