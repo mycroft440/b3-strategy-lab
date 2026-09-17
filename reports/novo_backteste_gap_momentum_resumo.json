@@ -1,0 +1,22 @@
+{
+  "estrategia": "gap_momentum",
+  "gerenciamento": "top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted",
+  "inicio": "2018-01-02",
+  "fim": "2026-08-19",
+  "sessoes_b3": 2146,
+  "capital_inicial_brl": 1000.0,
+  "capital_final_brl": 14218.29,
+  "retorno_total_pct": 1321.83,
+  "cagr_anualizado_pct": 36.03,
+  "drawdown_maximo_pct": -57.89,
+  "volatilidade_anual_pct": 38.86,
+  "indice_sharpe": 0.99,
+  "indice_calmar": 0.62,
+  "indice_sortino": 0.99,
+  "total_trades": 507,
+  "tentativas_rebalanceamento": 598,
+  "pulos_rebalanceamento": 0,
+  "turnover_anual": 501.43,
+  "taxas_b3_pagas_brl": 818.46,
+  "custo_slippage_brl": 2557.7
+}

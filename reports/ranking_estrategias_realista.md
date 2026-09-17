@@ -1,8 +1,10 @@
-﻿# Ranking Realista das Estratégias B3 (Fora da Amostra - Out of Sample)
+# Ranking Realista das Estrategias B3 (Fora da Amostra - Out of Sample)
 
-Este ranking audita e separa a ilusão retrospectiva da realidade. Cada estratégia teve sua gestão de carteira calibrada **estritamente no período de treino (2018-2022)** e foi posta à prova em **dados cegos/não vistos (2023-presente)** sob custos reais de bolsa B3 (3,2 bps de emolumentos/liquidação), slippage adverso causal (10 bps) e lote inteiro de 1 ação.
+Este ranking audita e separa a ilusao retrospectiva da realidade. Cada estrategia teve sua gestao de carteira 
+calibrada **estritamente no periodo de treino (2018-2022)** e foi posta a prova em **dados cegos/nao vistos (2023-presente)** 
+sob custos reais de bolsa B3 (3,2 bps de emolumentos/liquidacao), slippage adverso causal (10 bps) e lote inteiro de 1 acao.
 
-| Rank Real | Estratégia | Teste CAGR | Retorno Total | Max Drawdown | Calmar Ratio | Sharpe | Treino CAGR | Retenção OOS | Diagnóstico Real |
+| Rank Real | Estrategia | Teste CAGR | Retorno Total | Max Drawdown | Calmar Ratio | Sharpe | Treino CAGR | Retencao OOS | Diagnostico Real |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **#1** | `gap_momentum` | **36.70%** | 210.82% | -33.90% | 1.08 | 0.98 | 35.73% | 102.7% | **EXCELENTE (ALTA ROBUSTEZ)** |
 | **#2** | `range_expansion_breakout` | **10.69%** | 44.53% | -40.75% | 0.26 | 0.47 | 39.91% | 26.8% | **BOM (APROVADO)** |
@@ -30,8 +32,8 @@ Este ranking audita e separa a ilusão retrospectiva da realidade. Cada estraté
 | **#24** | `rsi_reversion` | **-16.73%** | -48.53% | -64.41% | -0.26 | -0.54 | 1.60% | N/A | **DESTRUIDORA DE CAPITAL** |
 | **#25** | `bollinger_reversion` | **-31.90%** | -75.19% | -79.45% | -0.40 | -1.26 | 12.09% | N/A | **DESTRUIDORA DE CAPITAL** |
 
-## Principais Lições da Crítica de Backtest:
-1. **O Perigo do Overfitting (Data Snooping)**: Estratégias que pareciam milagrosas no treino (como `sma_cross` com 70% de retorno) desmoronam para 0.25% no mundo real.
-2. **A Verdadeira Campeã da B3**: `gap_momentum` comprovou alta robustez com +36.70% de CAGR Fora da Amostra, retendo 102.7% do seu desempenho histórico com controle de risco.
-3. **Estratégias de Reversão Sofrem na B3**: `bollinger_reversion` e `connors_rsi_reversion` sofrem fortes perdas de capital (-31.90% CAGR) em regimes de cauda longa do mercado brasileiro.
-4. **Efeito Calendário Funciona**: `turn_of_month` obteve retorno positivo consistente fora da amostra (+6.52% CAGR, Sharpe 0.38) sem otimização excessiva de parâmetros.
+## Principais Licoes da Critica de Backtest:
+1. **O Perigo do Overfitting (Data Snooping)**: Estrategias que parecem milagrosas no treino (como `sma_cross` com 70% de retorno) desmoronam para 0.25% no mundo real.
+2. **A Verdadeira Campea da B3**: `gap_momentum` comprovou alta robustez com +36.70% de CAGR Fora da Amostra, retendo 102.7% do seu desempenho historico com controle de risco.
+3. **Estrategias de Reversao Sofrem na B3**: `bollinger_reversion` e `connors_rsi_reversion` sofrem fortes perdas de capital (-31.90% CAGR) em regimes de cauda longa do mercado brasileiro.
+4. **Efeito Calendario Funciona**: `turn_of_month` obteve retorno positivo consistente fora da amostra (+6.52% CAGR, Sharpe 0.65) sem otimizacao excessiva de parametros.
