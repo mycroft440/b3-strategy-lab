@@ -64,6 +64,8 @@ class RealisticSummary:
     fee_quality: str
     economic_gap_adjustment: bool
     selection_status: str
+    calmar: float = 0.0
+    sortino: float = 0.0
 
 
 def load_transitions(path: Path | str) -> dict[str, list[TickerTransition]]:
@@ -82,14 +84,6 @@ def _gap_adjusted_eligibility(
     signal_start = min(
         candle.date for ticker in data.tickers for candle in data.candles[ticker]
     )
-    if strategy != "gap_momentum":
-        return _build_eligibility(
-            data,
-            [strategy],
-            signal_mode,
-            signal_start=signal_start,
-        )[strategy]
-
     per_ex: dict[tuple[str, str], float] = {}
     for event in cash_events:
         key = (event.ticker, event.ex_date)

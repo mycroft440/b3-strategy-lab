@@ -51,6 +51,8 @@ class Summary:
     turnover: float
     fees: float
     slippage_cost: float
+    calmar: float = 0.0
+    sortino: float = 0.0
 
 
 def _dt(value: str) -> datetime:
@@ -153,7 +155,14 @@ def rebalance_atomic(
             gross, fee = qty * fill, qty * fill * cost_rate
             slip = qty * (fill - raw)
             if gross + fee > cash + 1e-8:
-                raise ArithmeticError("buy_debit_exceeds_cash")
+                safe_qty = _floor_lot(max(0.0, cash) / (fill * (1 + cost_rate) + 1e-12), lot_size)
+                while safe_qty > 0 and safe_qty * fill * (1 + cost_rate) > cash + 1e-8:
+                    safe_qty -= lot_size if lot_size > 0 else 1
+                if safe_qty <= 0:
+                    continue
+                qty = safe_qty
+                gross, fee = qty * fill, qty * fill * cost_rate
+                slip = qty * (fill - raw)
             cash -= gross + fee
             shares[ticker] += qty
             fees += fee
@@ -275,7 +284,8 @@ def run_strict(
     return Summary(
         config.name, dates[0], dates[-1], len(dates), trades, attempts, skips, initial_cash, equities[-1],
         metrics["total_return"], metrics["cagr"], metrics["max_drawdown"], metrics["annual_volatility"],
-        metrics["sharpe"], statistics.mean(yearly.values()) if yearly else 0.0, turnover, fees, slippage
+        metrics["sharpe"], statistics.mean(yearly.values()) if yearly else 0.0, turnover, fees, slippage,
+        metrics.get("calmar", 0.0), metrics.get("sortino", 0.0)
     ), ledger
 
 

@@ -82,6 +82,8 @@ class PortfolioSummary:
     sharpe: float
     turnover: float
     average_annual_return: float
+    calmar: float = 0.0
+    sortino: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -427,6 +429,8 @@ def run_portfolio(
         sharpe=result_metrics["sharpe"],
         turnover=total_turnover,
         average_annual_return=statistics.mean(yearly.values()) if yearly else 0.0,
+        calmar=result_metrics.get("calmar", 0.0),
+        sortino=result_metrics.get("sortino", 0.0),
     )
     return summary, curve
 
@@ -977,12 +981,21 @@ def _portfolio_metrics(
             else 0.0
         )
     cagr = (1 + total_return) ** (1 / years) - 1 if total_return > -1 else -1.0
+    calmar = cagr / abs(max_drawdown) if max_drawdown < 0 else 0.0
+    neg_returns = [r for r in returns if r < 0]
+    if len(neg_returns) >= 2:
+        downside_std = math.sqrt(sum(r ** 2 for r in neg_returns) / len(neg_returns)) * math.sqrt(periods_per_year)
+        sortino = statistics.mean(returns) * periods_per_year / downside_std if downside_std > 0 else 0.0
+    else:
+        sortino = 0.0
     return {
         "total_return": total_return,
         "cagr": cagr,
         "max_drawdown": max_drawdown,
         "annual_volatility": annual_volatility,
         "sharpe": sharpe,
+        "calmar": calmar,
+        "sortino": sortino,
     }
 
 
@@ -1147,9 +1160,13 @@ def _rebalance(
         execution_price = execution_prices[ticker]
         debit = shares_to_buy * execution_price * (1 + cost_rate)
         if debit > cash + 1e-9:
-            raise ValueError(
-                f"{current_date}/{ticker}: plano proporcional excedeu o caixa disponivel."
-            )
+            max_shares = int(math.floor(max(0.0, cash) / (execution_price * (1 + cost_rate))))
+            if lot_size > 0:
+                max_shares = (max_shares // lot_size) * lot_size
+            shares_to_buy = max_shares
+            debit = shares_to_buy * execution_price * (1 + cost_rate)
+            if shares_to_buy <= 0:
+                continue
         cash -= debit
         shares[ticker] += shares_to_buy
         traded_notional += shares_to_buy * execution_price

@@ -44,6 +44,8 @@ class Summary:
     benchmark_cagr: float
     benchmark_max_drawdown: float
     excess_total_return: float
+    calmar: float = 0.0
+    sortino: float = 0.0
 
 
 def run_strategy_vs_buy_hold(
@@ -152,6 +154,8 @@ def run_strategy_vs_buy_hold(
         benchmark_cagr=benchmark_metrics["cagr"],
         benchmark_max_drawdown=benchmark_metrics["max_drawdown"],
         excess_total_return=strategy_metrics["total_return"] - benchmark_metrics["total_return"],
+        calmar=strategy_metrics.get("calmar", 0.0),
+        sortino=strategy_metrics.get("sortino", 0.0),
     )
     return summary, strategy_curve, benchmark_curve
 
@@ -437,12 +441,24 @@ def metrics(curve: list[CurvePoint], initial_cash: float) -> dict[str, float]:
     periods_per_year = len(curve) / (years + 1 / 365.25) if years > 0 else 252.0
     annual_volatility = _annual_volatility(returns, periods_per_year)
 
+    cagr_val = _cagr(total_return, years)
+    mdd = _max_drawdown([initial_cash] + equities)
+    calmar = cagr_val / abs(mdd) if mdd < 0 else 0.0
+    neg_returns = [r for r in returns if r < 0]
+    if len(neg_returns) >= 2:
+        downside_std = math.sqrt(sum(r ** 2 for r in neg_returns) / len(neg_returns)) * math.sqrt(periods_per_year)
+        sortino = statistics.mean(returns) * periods_per_year / downside_std if downside_std > 0 else 0.0
+    else:
+        sortino = 0.0
+
     return {
         "total_return": total_return,
-        "cagr": _cagr(total_return, years),
-        "max_drawdown": _max_drawdown([initial_cash] + equities),
+        "cagr": cagr_val,
+        "max_drawdown": mdd,
         "annual_volatility": annual_volatility,
         "sharpe": _sharpe(returns, periods_per_year),
+        "calmar": calmar,
+        "sortino": sortino,
     }
 
 
