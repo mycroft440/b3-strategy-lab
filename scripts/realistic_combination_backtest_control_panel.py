@@ -248,6 +248,9 @@ def _read_winner(path: Path = REPORT_PATH) -> dict[str, object] | None:
             "total_return": float(row["total_return"]),
             "cagr": float(row["cagr"]),
             "max_drawdown": float(row["max_drawdown"]),
+            "sharpe": float(row["sharpe"]) if "sharpe" in row and row["sharpe"] else 0.0,
+            "calmar": float(row["calmar"]) if "calmar" in row and row["calmar"] else 0.0,
+            "sortino": float(row["sortino"]) if "sortino" in row and row["sortino"] else 0.0,
             "trades": int(float(row["trades"])),
             "start": manifest.get("start"),
             "end": manifest.get("end"),
@@ -576,7 +579,14 @@ async function refresh(){
   document.getElementById('speed').textContent=d.combinations_per_second?Number(d.combinations_per_second).toLocaleString('pt-BR',{maximumFractionDigits:1})+' comb/s':'—';
   document.getElementById('log').textContent=d.log||'Nenhum log.';document.getElementById('log').scrollTop=999999;
   document.getElementById('run').disabled=d.state==='running';document.getElementById('stop').disabled=d.state!=='running';
-  if(d.winner){const w=document.getElementById('winner');w.style.display='block';document.getElementById('winnerName').textContent=d.winner.strategy+' + '+d.winner.management;const period=d.winner.start&&d.winner.end?' • período efetivo '+d.winner.start+' a '+d.winner.end:'';document.getElementById('winnerReturn').textContent=money(d.winner.final_equity)+' • retorno '+pct(d.winner.total_return)+' • CAGR '+pct(d.winner.cagr)+period}
+    if(d.winner){
+   const w=document.getElementById('winner');w.style.display='block';
+   document.getElementById('winnerName').textContent='#'+d.winner.rank+' '+d.winner.strategy+' + '+d.winner.management;
+   const period=d.winner.start&&d.winner.end?' | Período: '+d.winner.start+' a '+d.winner.end:'';
+   const sh=d.winner.sharpe!==undefined&&d.winner.sharpe!==null?Number(d.winner.sharpe).toFixed(2):'—';
+   const cal=d.winner.calmar!==undefined&&d.winner.calmar!==null?Number(d.winner.calmar).toFixed(2):'—';
+   document.getElementById('winnerReturn').innerHTML='<div style="margin-top:5px">Patrimônio: <b>'+money(d.winner.final_equity)+'</b> | Retorno: <b>'+pct(d.winner.total_return)+'</b> | CAGR: <b>'+pct(d.winner.cagr)+'</b> | Drawdown: <b style="color:#b42318">'+pct(d.winner.max_drawdown)+'</b></div><div style="margin-top:4px;color:#475467">Sharpe: <b>'+sh+'</b> | Calmar: <b>'+cal+'</b> | Trades: <b>'+d.winner.trades+'</b>'+period+'</div>';
+  }
  }catch(e){}
 }
 setInterval(refresh,1000);refresh();

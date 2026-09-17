@@ -486,6 +486,8 @@ def _strategy_rows(
                 "max_drawdown": summary.max_drawdown,
                 "annual_volatility": summary.annual_volatility,
                 "sharpe": summary.sharpe,
+                "calmar": summary.calmar,
+                "sortino": summary.sortino,
                 "turnover": summary.turnover,
             }
         )
@@ -591,6 +593,8 @@ def _write_results(rows: list[dict[str, object]], output: Path) -> None:
         "max_drawdown",
         "annual_volatility",
         "sharpe",
+        "calmar",
+        "sortino",
         "turnover",
     ]
     output.parent.mkdir(parents=True, exist_ok=True)

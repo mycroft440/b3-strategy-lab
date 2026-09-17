@@ -639,6 +639,8 @@ def run_realistic(
         max_drawdown=metrics["max_drawdown"],
         annual_volatility=metrics["annual_volatility"],
         sharpe=metrics["sharpe"],
+        calmar=metrics.get("calmar", 0.0),
+        sortino=metrics.get("sortino", 0.0),
         average_annual_return=statistics.mean(yearly.values()) if yearly else 0.0,
         trades=len(account.trade_ledger) - starting_trades,
         fees_paid=account.fees_paid - starting_fees,

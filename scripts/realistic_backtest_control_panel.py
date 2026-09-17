@@ -474,15 +474,31 @@ def _result_summary() -> dict[str, object] | None:
         return None
     try:
         payload = _read_json(STATUS_PATH)
-        raw = payload.get("raw_gap", {})
-        economic = payload.get("economic_gap", {})
+        raw = payload.get("raw_gap", {}) if isinstance(payload.get("raw_gap"), dict) else {}
+        economic = payload.get("economic_gap", {}) if isinstance(payload.get("economic_gap"), dict) else {}
         return {
             "selected_count": payload.get("selected_count"),
             "selected_tickers": payload.get("selected_tickers"),
-            "raw_final_equity": raw.get("final_equity") if isinstance(raw, dict) else None,
-            "raw_total_return": raw.get("total_return") if isinstance(raw, dict) else None,
-            "economic_final_equity": economic.get("final_equity") if isinstance(economic, dict) else None,
-            "economic_total_return": economic.get("total_return") if isinstance(economic, dict) else None,
+            "raw_final_equity": raw.get("final_equity"),
+            "raw_total_return": raw.get("total_return"),
+            "raw_cagr": raw.get("cagr"),
+            "raw_max_drawdown": raw.get("max_drawdown"),
+            "raw_sharpe": raw.get("sharpe"),
+            "raw_calmar": raw.get("calmar"),
+            "raw_sortino": raw.get("sortino"),
+            "raw_trades": raw.get("trades"),
+            "raw_fees": raw.get("fees_paid"),
+            "raw_tax": raw.get("ordinary_income_tax_paid"),
+            "economic_final_equity": economic.get("final_equity"),
+            "economic_total_return": economic.get("total_return"),
+            "economic_cagr": economic.get("cagr"),
+            "economic_max_drawdown": economic.get("max_drawdown"),
+            "economic_sharpe": economic.get("sharpe"),
+            "economic_calmar": economic.get("calmar"),
+            "economic_sortino": economic.get("sortino"),
+            "economic_trades": economic.get("trades"),
+            "economic_fees": economic.get("fees_paid"),
+            "economic_tax": economic.get("ordinary_income_tax_paid"),
         }
     except Exception:
         return None
@@ -495,7 +511,7 @@ HTML = r"""<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Painel de Backtest B3</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:30px auto;padding:0 18px}.hero{margin-bottom:18px}.hero h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;color:#667085}.grid{display:grid;grid-template-columns:1fr 1.45fr;gap:18px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(15,23,42,.05)}label.title{display:block;font-weight:700;margin-bottom:8px}.field{margin-bottom:16px}input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px;font-size:15px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}.primary{background:#172033;color:white}.danger{background:#fee4e2;color:#b42318}.soft{background:#eef2f6;color:#344054}.btn:disabled{opacity:.45;cursor:not-allowed}.stocks-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.count{font-size:13px;color:#667085}.stocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:390px;overflow:auto}.stock{display:flex;align-items:center;gap:7px;border:1px solid #eaecf0;border-radius:9px;padding:9px;font-weight:650}.status{display:flex;align-items:center;gap:9px;margin:18px 0 8px}.dot{width:10px;height:10px;border-radius:50%;background:#98a2b3}.running .dot{background:#f79009}.success .dot{background:#12b76a}.error .dot,.stopped .dot{background:#f04438}.progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px}.progress-head span{font-size:12px;color:#667085;text-align:right}.progress-track{height:12px;background:#eaecf0;border-radius:999px;overflow:hidden;margin-top:7px}.progress-bar{height:100%;width:0%;background:#172033;border-radius:999px;transition:width .35s ease}.running .progress-bar{background:#f79009}.success .progress-bar{background:#12b76a}.error .progress-bar,.stopped .progress-bar{background:#f04438}.result{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}.metric{background:#f8fafc;border-radius:10px;padding:12px}.metric b{display:block;font-size:19px;margin-top:4px}.log{margin-top:12px;background:#101828;color:#d0d5dd;border-radius:12px;padding:14px;height:270px;overflow:auto;white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}.hint{font-size:12px;color:#667085;margin-top:6px}@media(max-width:850px){.grid{grid-template-columns:1fr}.stocks{grid-template-columns:repeat(3,1fr)}}@media(max-width:520px){.stocks{grid-template-columns:repeat(2,1fr)}}
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f4f6f8}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:30px auto;padding:0 18px}.hero{margin-bottom:18px}.hero h1{margin:0 0 6px;font-size:30px}.hero p{margin:0;color:#667085}.grid{display:grid;grid-template-columns:1fr 1.45fr;gap:18px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(15,23,42,.05)}label.title{display:block;font-weight:700;margin-bottom:8px}.field{margin-bottom:16px}input[type=date],input[type=number]{width:100%;border:1px solid #d0d5dd;border-radius:10px;padding:11px;font-size:15px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}.primary{background:#172033;color:white}.danger{background:#fee4e2;color:#b42318}.soft{background:#eef2f6;color:#344054}.btn:disabled{opacity:.45;cursor:not-allowed}.stocks-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.count{font-size:13px;color:#667085}.stocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:390px;overflow:auto}.stock{display:flex;align-items:center;gap:7px;border:1px solid #eaecf0;border-radius:9px;padding:9px;font-weight:650}.status{display:flex;align-items:center;gap:9px;margin:18px 0 8px}.dot{width:10px;height:10px;border-radius:50%;background:#98a2b3}.running .dot{background:#f79009}.success .dot{background:#12b76a}.error .dot,.stopped .dot{background:#f04438}.progress-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px}.progress-head span{font-size:12px;color:#667085;text-align:right}.progress-track{height:12px;background:#eaecf0;border-radius:999px;overflow:hidden;margin-top:7px}.progress-bar{height:100%;width:0%;background:#172033;border-radius:999px;transition:width .35s ease}.running .progress-bar{background:#f79009}.success .progress-bar{background:#12b76a}.error .progress-bar,.stopped .progress-bar{background:#f04438}.result{display:block;margin-top:12px;background:#f8fafc;border:1px solid #eaecf0;border-radius:12px;padding:14px;overflow-x:auto}.result-table{width:100%;border-collapse:collapse;font-size:13px}.result-table th,.result-table td{padding:7px 10px;text-align:right;border-bottom:1px solid #eaecf0}.result-table th:first-child,.result-table td:first-child{text-align:left;font-weight:650}.result-table th{background:#edf2f7;color:#334155;font-weight:700}.result-table tr:last-child td{border-bottom:none}.metric-good{color:#087443;font-weight:650}.metric-bad{color:#b42318;font-weight:650}.log{margin-top:12px;background:#101828;color:#d0d5dd;border-radius:12px;padding:14px;height:270px;overflow:auto;white-space:pre-wrap;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}.hint{font-size:12px;color:#667085;margin-top:6px}@media(max-width:850px){.grid{grid-template-columns:1fr}.stocks{grid-template-columns:repeat(3,1fr)}}@media(max-width:520px){.stocks{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
@@ -537,7 +553,24 @@ function pct(v){if(v===null||v===undefined)return '—';const n=Number(v)*100;re
 async function refresh(){
  try{const r=await fetch('/api/status');const d=await r.json();const box=document.getElementById('statusBox');box.className='status '+d.state;document.getElementById('statusText').textContent=d.message||d.state;document.getElementById('step').textContent=d.current_step||'';document.getElementById('log').textContent=d.log||'Nenhum log.';document.getElementById('log').scrollTop=999999;document.getElementById('run').disabled=d.state==='running';document.getElementById('stop').disabled=d.state!=='running';
  const progress=Math.min(100,Math.max(0,Number(d.progress_percent||0)));document.getElementById('progressPercent').textContent=progress.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';document.getElementById('progressDetail').textContent=d.progress_detail||'';document.getElementById('progressBar').style.width=progress+'%';
- if(d.result){document.getElementById('result').innerHTML=`<div class="metric">raw_gap final<b>${money(d.result.raw_final_equity)}</b><span>${pct(d.result.raw_total_return)}</span></div><div class="metric">economic_gap final<b>${money(d.result.economic_final_equity)}</b><span>${pct(d.result.economic_total_return)}</span></div>`}
+ function num(v,dec=2){if(v===null||v===undefined||isNaN(v))return '—';return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec})}
+ function intg(v){if(v===null||v===undefined||isNaN(v))return '—';return Number(v).toLocaleString('pt-BR')}
+ if(d.result){
+  const r=d.result;
+  document.getElementById('result').innerHTML=`<table class="result-table">
+<thead><tr><th>Métrica</th><th>Raw Gap</th><th>Economic Gap</th></tr></thead>
+<tbody>
+<tr><td>Patrimônio Final</td><td><b>${money(r.raw_final_equity)}</b></td><td><b>${money(r.economic_final_equity)}</b></td></tr>
+<tr><td>Retorno Total</td><td class="${r.raw_total_return>=0?'metric-good':'metric-bad'}">${pct(r.raw_total_return)}</td><td class="${r.economic_total_return>=0?'metric-good':'metric-bad'}">${pct(r.economic_total_return)}</td></tr>
+<tr><td>CAGR (Retorno Anual)</td><td class="${r.raw_cagr>=0?'metric-good':'metric-bad'}">${pct(r.raw_cagr)}</td><td class="${r.economic_cagr>=0?'metric-good':'metric-bad'}">${pct(r.economic_cagr)}</td></tr>
+<tr><td>Drawdown Máximo</td><td class="metric-bad">${pct(r.raw_max_drawdown)}</td><td class="metric-bad">${pct(r.economic_max_drawdown)}</td></tr>
+<tr><td>Índice Sharpe</td><td>${num(r.raw_sharpe)}</td><td>${num(r.economic_sharpe)}</td></tr>
+<tr><td>Índice Calmar</td><td>${num(r.raw_calmar)}</td><td>${num(r.economic_calmar)}</td></tr>
+<tr><td>Total de Trades</td><td>${intg(r.raw_trades)}</td><td>${intg(r.economic_trades)}</td></tr>
+<tr><td>Taxas B3 Pagas</td><td>${money(r.raw_fees)}</td><td>${money(r.economic_fees)}</td></tr>
+<tr><td>IR / DARF Acumulado</td><td>${money(r.raw_tax)}</td><td>${money(r.economic_tax)}</td></tr>
+</tbody></table>`;
+ }
  }catch(e){}
 }
 setInterval(refresh,1000);refresh();
