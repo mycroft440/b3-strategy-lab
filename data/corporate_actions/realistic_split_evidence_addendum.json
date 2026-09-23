@@ -228,6 +228,15 @@
       "source_url": "https://ri.oi.com.br/arquivos/aviso-aos-acionistas-grupamento-de-acoes/"
     },
     {
+      "ticker": "OIBR3",
+      "ex_date": "2024-06-17",
+      "last_date_prior": "2024-06-14",
+      "split_ratio": 0.1,
+      "event": "GRUPAMENTO 10 PARA 1 APROVADO NA AGOE DE 10/05/2024",
+      "source_authority": "issuer",
+      "source_url": "https://api.mziq.com/mzfilemanager/v2/d/6aebbd40-9373-4b5a-8461-9839bd41cbbb/076a2447-925e-ca7f-8261-2925591f3731?origin=1"
+    },
+    {
       "ticker": "POMO4",
       "ex_date": "2024-03-08",
       "last_date_prior": "2024-03-07",
@@ -287,6 +296,14 @@
       "event": "GRUPAMENTO 10 PARA 1",
       "source_authority": "issuer",
       "source_url": "https://ri.oi.com.br/arquivos/aviso-aos-acionistas-grupamento-de-acoes/"
+    },
+    {
+      "ticker": "OIBR3",
+      "marker_date": "2024-06-17",
+      "specification": "ON EG N1",
+      "event": "GRUPAMENTO 10 PARA 1 APROVADO NA AGOE DE 10/05/2024",
+      "source_authority": "issuer",
+      "source_url": "https://api.mziq.com/mzfilemanager/v2/d/6aebbd40-9373-4b5a-8461-9839bd41cbbb/076a2447-925e-ca7f-8261-2925591f3731?origin=1"
     },
     {
       "ticker": "POMO4",

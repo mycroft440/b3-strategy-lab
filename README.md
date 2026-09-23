@@ -232,6 +232,11 @@ Ele modela universo point-in-time, lote padrão/fracionário, proventos, tarifas
 slippage e tributação, mantendo `cash_events_complete=false` enquanto não houver
 certificação independente de cobertura histórica.
 
+A [auditoria de 23/09/2026](reports/auditoria_resultados_realistas.md) substitui o
+ranking e o "novo backteste" de 17/09: no motor realista, `gap_momentum` com o
+gerenciamento padrão transformou R$ 1.000 em R$ 1.122,14 de 2018-01-02 a 2026-08-19,
+abaixo do CDI.
+
 Arquivos gerados:
 
 - `data/candles/<ticker>_1d.csv`: candles COTAHIST brutos e normalizados por splits.
