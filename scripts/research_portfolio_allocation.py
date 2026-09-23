@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
+from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -148,20 +150,47 @@ def _research_invalid_transition_reason(message: str) -> str | None:
     return None
 
 
+def _rescaled_candle(candle, scale: float):
+    """Express a candle in another split-normalization basis; raw fields are unchanged."""
+    if scale == 1.0:
+        return candle
+    return replace(
+        candle,
+        open=candle.open * scale,
+        high=candle.high * scale,
+        low=candle.low * scale,
+        close=candle.close * scale,
+        adj_close=candle.adj_close * scale,
+        adjustment_factor=candle.adjustment_factor * scale,
+    )
+
+
 def _install_transition_price_aliases(data) -> None:
     """Expose successor candles for a held predecessor after a certified 1:1 rename.
 
     The alias is used only for same-session valuation/execution preflight. Signal and
     ranking histories remain attached to their actual listed symbols. On the next trade
     opportunity `_rebalance` moves holdings/targets to the successor before execution.
+
+    Each series is normalized by its own later splits (AMER3 by its 2024 100:1 reverse
+    split, for example), so the successor candles are rescaled into the predecessor's
+    basis. Otherwise a carried position would be revalued by the ratio of the two
+    adjustment factors instead of the traded price change.
     """
     for effective, transitions in _certified_unit_transitions().items():
         for old, new in transitions:
             if old not in data.by_date or new not in data.by_date:
                 continue
+            prior = [candle for candle in data.candles.get(old, []) if candle.date < effective]
+            successor = [candle for candle in data.candles.get(new, []) if candle.date >= effective]
+            if not prior or not successor:
+                continue
+            scale = float(prior[-1].adjustment_factor) / float(successor[0].adjustment_factor)
+            if not math.isfinite(scale) or scale <= 0:
+                raise ValueError(f"{old}->{new}: fator de ajuste invalido na transicao.")
             for value_date, candle in data.by_date[new].items():
                 if value_date >= effective and value_date not in data.by_date[old]:
-                    data.by_date[old][value_date] = candle
+                    data.by_date[old][value_date] = _rescaled_candle(candle, scale)
 
 
 def _rebalance(
@@ -188,7 +217,17 @@ def _rebalance(
             raise ValueError(
                 f"{current_date}: transicao certificada {old}->{new} fora do escopo carregado"
             )
-        shares[new] = float(shares.get(new, 0.0)) + float(shares.get(old, 0.0))
+        carried = float(shares.get(old, 0.0))
+        if carried > 0:
+            # The predecessor alias is the successor candle in the predecessor's split
+            # basis, so the price ratio converts the quantity between the two bases.
+            old_candle, new_candle = today_candles.get(old), today_candles.get(new)
+            if old_candle is None or new_candle is None or new_candle.open <= 0:
+                raise ValueError(
+                    f"{current_date}: abertura fresca obrigatoria ausente para {old}->{new}"
+                )
+            carried *= old_candle.open / new_candle.open
+        shares[new] = float(shares.get(new, 0.0)) + carried
         shares[old] = 0.0
         if old in target_weights:
             target_weights[new] = float(target_weights.get(new, 0.0)) + float(
