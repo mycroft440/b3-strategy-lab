@@ -235,7 +235,9 @@ certificação independente de cobertura histórica.
 A [auditoria de 23/09/2026](reports/auditoria_resultados_realistas.md) substitui o
 ranking e o "novo backteste" de 17/09: no motor realista, `gap_momentum` com o
 gerenciamento padrão transformou R$ 1.000 em R$ 1.122,14 de 2018-01-02 a 2026-08-19,
-abaixo do CDI.
+abaixo do CDI. A [revisão da matriz completa](reports/matriz_completa/REVISAO.md)
+documenta a melhor combinação atual, sua verificação no motor realista e por que a
+escolha feita somente no treino perdeu dinheiro de 2023 a 2026.
 
 Arquivos gerados:
 
