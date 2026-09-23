@@ -84,6 +84,17 @@ def _gap_adjusted_eligibility(
     signal_start = min(
         candle.date for ticker in data.tickers for candle in data.candles[ticker]
     )
+    if strategy != "gap_momentum":
+        # The dividend-open correction is specific to the gap ratio. Other
+        # strategies keep the shared eligibility path, including the verified
+        # session calendar used by seasonal rules.
+        return _build_eligibility(
+            data,
+            [strategy],
+            signal_mode,
+            signal_start=signal_start,
+        )[strategy]
+
     per_ex: dict[tuple[str, str], float] = {}
     for event in cash_events:
         key = (event.ticker, event.ex_date)

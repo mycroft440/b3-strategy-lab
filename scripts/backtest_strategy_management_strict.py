@@ -84,6 +84,12 @@ def _rebalance_close(current: str, following: str, frequency: str) -> bool:
     raise ValueError(f"Frequencia desconhecida: {frequency}")
 
 
+def _historical_open(candle: object) -> float | None:
+    """Official unadjusted open; shares and reference_open use the simulated price basis."""
+    value = getattr(candle, "raw_open", None)
+    return float(value) if value is not None else None
+
+
 def _floor_lot(value: float, lot: int) -> float:
     return value if lot <= 0 else math.floor((value + 1e-12) / lot) * lot
 
@@ -138,7 +144,7 @@ def rebalance_atomic(
             fees += fee
             slippage += slip
             notional += gross
-            ledger.append({"date": current_date, "side": "SELL", "ticker": ticker, "shares": qty, "raw_open": raw, "execution_price": fill, "fee": fee, "slippage_cost": slip})
+            ledger.append({"date": current_date, "side": "SELL", "ticker": ticker, "shares": qty, "reference_open": raw, "historical_raw_open": _historical_open(candles[ticker]), "execution_price": fill, "fee": fee, "slippage_cost": slip})
 
         for ticker, weight in sorted(targets.items()):
             if weight <= 0:
@@ -168,7 +174,7 @@ def rebalance_atomic(
             fees += fee
             slippage += slip
             notional += gross
-            ledger.append({"date": current_date, "side": "BUY", "ticker": ticker, "shares": qty, "raw_open": raw, "execution_price": fill, "fee": fee, "slippage_cost": slip})
+            ledger.append({"date": current_date, "side": "BUY", "ticker": ticker, "shares": qty, "reference_open": raw, "historical_raw_open": _historical_open(candles[ticker]), "execution_price": fill, "fee": fee, "slippage_cost": slip})
 
         if cash < -1e-7 or not math.isfinite(cash) or any(value < -1e-9 or not math.isfinite(value) for value in shares.values()):
             raise ArithmeticError("invalid_portfolio_state")
@@ -192,6 +198,7 @@ def run_strict(
     lot_size: int,
     eligibility: dict[str, list[int]],
     collect_trades: bool = False,
+    equity_curve: list[tuple[str, float]] | None = None,
 ) -> tuple[Summary, list[dict[str, object]]]:
     _validate_economic_assumptions(
         initial_cash=initial_cash,
@@ -279,6 +286,8 @@ def run_strict(
             if signal_targets != active_targets:
                 pending = signal_targets
 
+    if equity_curve is not None:
+        equity_curve.extend(zip(dates, equities))
     metrics = _portfolio_metrics(equities, dates, initial_cash)
     yearly = _yearly_returns(equities, dates, initial_cash)
     return Summary(

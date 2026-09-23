@@ -404,6 +404,7 @@ def _backtest_command(args: argparse.Namespace) -> int:
         return _backtest_by_year_command(args)
 
     summaries = []
+    blocked: list[tuple[str, str]] = []
     reports_dir = Path(args.reports_dir)
 
     for ticker in args.tickers:
@@ -425,30 +426,32 @@ def _backtest_command(args: argparse.Namespace) -> int:
                 actions=actions,
             )
         except ValueError as exc:
+            # A fractional remainder needs an official cash-in-lieu settlement.
+            # Never replace it with another price mode under the price_only label.
             if "fractional shares" in str(exc) and args.price_mode == "price_only":
-                summary, strategy_curve, benchmark_curve = run_strategy_vs_buy_hold(
-                    ticker.upper(),
-                    args.strategy,
-                    candles,
-                    signals,
-                    initial_cash=args.initial_cash,
-                    cost_bps=args.cost_bps,
-                    slippage_bps=args.slippage_bps,
-                    lot_size=args.lot_size,
-                    price_mode="adjusted",
-                    actions=actions,
-                )
-            else:
-                raise
+                blocked.append((ticker.upper(), str(exc)))
+                continue
+            raise
         summaries.append(summary)
         curve_path = reports_dir / f"{ticker.lower()}_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}_equity.csv"
         write_comparison_curve(strategy_curve, benchmark_curve, curve_path)
 
-    summary_path = reports_dir / f"summary_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}.csv"
-    write_summary_csv(summaries, summary_path)
-    _print_summary_table(summaries)
-    print(f"\nResumo salvo em: {summary_path}")
-    print(f"Curvas salvas em: {reports_dir}")
+    if summaries:
+        summary_path = reports_dir / f"summary_{args.strategy}_{args.price_mode}_{args.signal_mode}_{args.interval}.csv"
+        write_summary_csv(summaries, summary_path)
+        _print_summary_table(summaries)
+        print(f"\nResumo salvo em: {summary_path}")
+        print(f"Curvas salvas em: {reports_dir}")
+    if blocked:
+        print(f"\n{len(blocked)} ativo(s) bloqueado(s) em price_only com lote inteiro:")
+        for ticker, reason in blocked:
+            print(f"- {ticker}: {reason}")
+        print(
+            "Nenhum resultado foi substituido por outro modo de preco. Use um --start "
+            "posterior ao evento, --lot-size 0 para diagnostico fracionario ou "
+            "--price-mode adjusted de forma explicita."
+        )
+        return 2
     return 0
 
 

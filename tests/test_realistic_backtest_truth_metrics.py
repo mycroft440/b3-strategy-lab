@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import gzip
 import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from b3_strategy_lab.realistic_portfolio_core import RealisticSummary
 from scripts.backtest_strategy_management_combinations import _write_results
 from scripts.realistic_backtest_control_panel import _result_summary
 from scripts.realistic_combination_backtest_control_panel import _read_winner
+from scripts.research_portfolio_allocation_core import _portfolio_metrics
 
 
 class RealisticBacktestTruthMetricsTests(unittest.TestCase):
@@ -49,6 +51,22 @@ class RealisticBacktestTruthMetricsTests(unittest.TestCase):
         self.assertEqual(summary.sortino, 1.10)
         self.assertEqual(summary.strategy, "gap_momentum")
         self.assertTrue(summary.economic_gap_adjustment)
+
+    def test_sortino_downside_deviation_averages_over_all_periods(self) -> None:
+        returns = [0.02, -0.01, 0.02, -0.01]
+        equities = []
+        equity = 1000.0
+        for value in returns:
+            equity *= 1 + value
+            equities.append(equity)
+        dates = ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"]
+
+        metrics = _portfolio_metrics(equities, dates, 1000.0)
+
+        periods_per_year = len(returns) / (4 / 365.25)
+        downside = math.sqrt(sum(min(value, 0.0) ** 2 for value in returns) / len(returns))
+        expected = (sum(returns) / len(returns)) * periods_per_year / (downside * math.sqrt(periods_per_year))
+        self.assertAlmostEqual(metrics["sortino"], expected, places=6)
 
     def test_control_panel_result_summary_extracts_truth_metrics(self) -> None:
         mock_payload = {

@@ -56,6 +56,28 @@ Resultados principais:
 - `reports/strict_holdout_strategy_management.csv`
 - `reports/strict_holdout_winner_ledger.csv`
 
+No ledger, `shares` e `reference_open` estao na mesma base de preco simulada
+(normalizada por splits no modo padrao). `historical_raw_open` traz a abertura
+oficial daquele pregao para conferencia. Como o lote inteiro e aplicado sobre o
+preco normalizado, o ledger nao e uma lista de ordens executaveis.
+
+## Ranking por estrategia
+
+`scripts/rank_strategies_realistic.py` escolhe o gerenciamento de cada estrategia
+somente no treino e mede o teste com o mesmo motor estrito:
+
+```powershell
+python scripts\sync_cdi_benchmark.py --end 2026-08-19
+python scripts\rank_strategies_realistic.py
+```
+
+O par do protocolo e o melhor do treino entre todas as estrategias; somente o
+teste desse par mede a selecao fora da amostra. A tabela tambem mostra a posicao
+de cada estrategia no teste, mas escolher a primeira linha por esse criterio e
+selecao no holdout. Por isso o relatorio compara cada linha com o CDI e aplica
+Bonferroni ao p-valor unilateral do excesso diario (aproximacao normal). As
+conclusoes do Markdown sao geradas a partir dos numeros da execucao.
+
 ## Viés de universo que ainda permanece
 
 O manifesto atual `data/universes/fixed_40_2018.json` declara `survivorship_safe=false`.

@@ -168,6 +168,47 @@ class SafeDataLoadingTests(unittest.TestCase):
             loaded = _load_or_fetch_for_backtest("TEST3", args)
             self.assertEqual(len(loaded), 2)
 
+    def test_price_only_blocks_fractional_corporate_action_without_mode_fallback(self) -> None:
+        from dataclasses import replace
+
+        from b3_strategy_lab import cli
+
+        clean = [candle(f"2024-01-0{day}", 10.0, 10.0) for day in range(1, 6)]
+        # A 10% bonus on 2024-01-04 turns an integer position into a fraction.
+        bonus = [
+            replace(item, adjustment_factor=1 / 1.1, raw_open=11.0, raw_high=11.0, raw_low=11.0, raw_close=11.0)
+            if item.date < "2024-01-04"
+            else item
+            for item in clean
+        ]
+        by_ticker = {"GOOD3": clean, "BONS3": bonus}
+
+        with tempfile.TemporaryDirectory() as reports_dir, patch.object(
+            cli, "_load_or_fetch_for_backtest", side_effect=lambda ticker, _args: by_ticker[ticker]
+        ), patch.object(cli, "_load_actions_for_backtest", return_value=None), patch.object(
+            cli, "run_strategy_vs_buy_hold", wraps=cli.run_strategy_vs_buy_hold
+        ) as runner:
+            result = cli.main(
+                [
+                    "backtest",
+                    "--strategy",
+                    "buy_and_hold",
+                    "--tickers",
+                    "GOOD3",
+                    "BONS3",
+                    "--initial-cash",
+                    "1003",
+                    "--reports-dir",
+                    reports_dir,
+                ]
+            )
+            written = sorted(path.name for path in Path(reports_dir).iterdir())
+
+        self.assertEqual(result, 2)
+        self.assertEqual({call.kwargs["price_mode"] for call in runner.call_args_list}, {"price_only"})
+        self.assertIn("summary_buy_and_hold_price_only_adjusted_1d.csv", written)
+        self.assertFalse(any(name.startswith("bons3_") for name in written))
+
     def test_legacy_refresh_cannot_overwrite_canonical_directories(self) -> None:
         args = argparse.Namespace(
             interval="1d",

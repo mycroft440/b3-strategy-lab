@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "source_authority": "BCB",
+  "series": 12,
+  "name": "CDI",
+  "unit": "decimal_daily_return",
+  "benchmark_is_net_of_tax": false,
+  "requested_start": "2017-01-01",
+  "requested_end": "2026-08-19",
+  "start": "2017-01-02",
+  "end": "2026-08-19",
+  "observations": 2417,
+  "retrieved_at_utc": "2026-09-23T11:50:23.675499+00:00",
+  "csv_sha256": "eefff3060d56c3020fcd10a516c1e1e475c5404bc4c79ce41f793b4ad39ef7b6",
+  "sources": [
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2017&dataFinal=31%2F12%2F2017",
+      "path": "cdi_sources/2017.json",
+      "sha256": "af3e121c1b4dda274278972c72d9059587fcb0c373dbc9126b9bcfaa572db1cc"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2018&dataFinal=31%2F12%2F2018",
+      "path": "cdi_sources/2018.json",
+      "sha256": "43a7c15639e6b1d15394fd576c6f220aa93c8218111ba97ced1c16576a4ff64b"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2019&dataFinal=31%2F12%2F2019",
+      "path": "cdi_sources/2019.json",
+      "sha256": "36345e197168f46e0299d4baf99b06ce1e8ca89ee70ce1f943c7b518fd365f33"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2020&dataFinal=31%2F12%2F2020",
+      "path": "cdi_sources/2020.json",
+      "sha256": "02920804615c09ebc6dffce3dbec5f78e270d9f71e0fb5dc1c105d00de21cde4"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2021&dataFinal=31%2F12%2F2021",
+      "path": "cdi_sources/2021.json",
+      "sha256": "db3cb053a4b768ac3dcb08fbeb5f70562b09930b7e913aea82fcfc91728d9c6a"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2022&dataFinal=31%2F12%2F2022",
+      "path": "cdi_sources/2022.json",
+      "sha256": "70910e1a53cfaf43bb002c5683c9e832ada15e53a17c29bd4791c712e5b41369"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2023&dataFinal=31%2F12%2F2023",
+      "path": "cdi_sources/2023.json",
+      "sha256": "2cb63bb8faacf6a1e5389dada4a7ae306c27f752b2710198e936b77ea23a978f"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2024&dataFinal=31%2F12%2F2024",
+      "path": "cdi_sources/2024.json",
+      "sha256": "760e8e84909441fc205f31b476375b31b17d36a1596274c5cdefaf8d9eb85e29"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2025&dataFinal=31%2F12%2F2025",
+      "path": "cdi_sources/2025.json",
+      "sha256": "161d2fcdb7102e22ec73dce80dd75f79d5be1fe0318422f080dd0cda8f5db675"
+    },
+    {
+      "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=01%2F01%2F2026&dataFinal=19%2F08%2F2026",
+      "path": "cdi_sources/2026.json",
+      "sha256": "c21df2c0907cbf6141f7713dc3a44380accca41743170d6234dc9aa730e70d00"
+    }
+  ]
+}

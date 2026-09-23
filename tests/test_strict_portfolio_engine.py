@@ -116,6 +116,21 @@ class StrictPortfolioEngineTests(unittest.TestCase):
         self.assertGreater(fees, 0.0)
         self.assertGreater(slip, 0.0)
 
+    def test_ledger_separates_simulated_open_from_official_raw_open(self) -> None:
+        shares = {"AAA3": 0.0}
+        # Split-normalized open 10 for an official historical open of 30.
+        candles = {"AAA3": SimpleNamespace(open=10.0, close=10.0, raw_open=30.0)}
+
+        *_state, ok, reason, ledger = rebalance_atomic(
+            "2024-01-08", ["AAA3"], candles, shares, 100.0, {"AAA3": 1.0}, 0.0, 0.0, 1
+        )
+
+        self.assertTrue(ok, reason)
+        self.assertEqual(len(ledger), 1)
+        self.assertNotIn("raw_open", ledger[0])
+        self.assertEqual(ledger[0]["reference_open"], 10.0)
+        self.assertEqual(ledger[0]["historical_raw_open"], 30.0)
+
     def test_common_dates_use_intersection_not_union(self) -> None:
         data = SimpleNamespace(
             tickers=["AAA3", "BBB3"],

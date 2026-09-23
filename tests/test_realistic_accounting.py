@@ -185,6 +185,36 @@ class GapAdjustmentTests(unittest.TestCase):
 
         self.assertAlmostEqual(captured["open"], 10.0)
 
+    def test_dividend_open_correction_is_limited_to_gap_momentum(self) -> None:
+        candles = [
+            self._candle("2020-01-02", 10.0, 10.0, 0.5),
+            self._candle("2020-01-03", 9.0, 9.5, 0.5),
+        ]
+        data = SimpleNamespace(tickers=["AAA3"], candles={"AAA3": candles})
+        event = CashDistribution(
+            ticker="AAA3",
+            label="DIVIDENDO",
+            last_date_prior="2020-01-02",
+            ex_date="2020-01-03",
+            payment_date="2020-01-10",
+            gross_per_share=2.0,
+        )
+        shared = {"turn_of_month": {"AAA3": [0, 1]}}
+
+        with patch(
+            "scripts.backtest_strategy_management_combinations._build_eligibility",
+            return_value=shared,
+        ) as build_eligibility, patch(
+            "b3_strategy_lab.realistic_portfolio_core.build_signals"
+        ) as build_signals:
+            result = _gap_adjusted_eligibility(data, "turn_of_month", [event], "adjusted")
+
+        self.assertEqual(result, {"AAA3": [0, 1]})
+        build_eligibility.assert_called_once_with(
+            data, ["turn_of_month"], "adjusted", signal_start="2020-01-02"
+        )
+        build_signals.assert_not_called()
+
     def test_distribution_identity_includes_payment_date(self) -> None:
         one = CashDistribution("AAA3", "DIVIDENDO", "2024-01-02", "2024-01-03", "2024-01-10", 1.0)
         two = CashDistribution("AAA3", "DIVIDENDO", "2024-01-02", "2024-01-03", "2024-02-10", 1.0)

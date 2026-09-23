@@ -16,6 +16,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from b3_strategy_lab.strategies import portfolio_strategies  # noqa: E402
+
 DEFAULT_UNIVERSE = ROOT / "data/universes/fixed_40_2018.json"
 CACHE_DIR = ROOT / ".cache/control_panel"
 SELECTED_UNIVERSE = CACHE_DIR / "selected_universe.json"
@@ -132,6 +137,8 @@ def _parse_run_request(payload: dict[str, object]) -> dict[str, object]:
         raise ValueError("O capital inicial deve ser um valor finito maior que zero.")
 
     strategy = str(payload.get("strategy", "gap_momentum")).strip().lower() or "gap_momentum"
+    if strategy not in _load_available_strategies():
+        raise ValueError(f"Estratégia desconhecida: {strategy}")
     return {
         "tickers": selected,
         "strategy": strategy,

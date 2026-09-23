@@ -446,7 +446,9 @@ def metrics(curve: list[CurvePoint], initial_cash: float) -> dict[str, float]:
     calmar = cagr_val / abs(mdd) if mdd < 0 else 0.0
     neg_returns = [r for r in returns if r < 0]
     if len(neg_returns) >= 2:
-        downside_std = math.sqrt(sum(r ** 2 for r in neg_returns) / len(neg_returns)) * math.sqrt(periods_per_year)
+        # Downside deviation against a zero target averages over every period,
+        # not only the losing ones.
+        downside_std = math.sqrt(sum(r ** 2 for r in neg_returns) / len(returns)) * math.sqrt(periods_per_year)
         sortino = statistics.mean(returns) * periods_per_year / downside_std if downside_std > 0 else 0.0
     else:
         sortino = 0.0

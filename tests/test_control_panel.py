@@ -48,6 +48,16 @@ class ControlPanelTests(unittest.TestCase):
         self.assertEqual(parsed["initial_cash"], 1000.0)
         self.assertFalse(parsed["download"])
 
+    def test_request_validates_strategy_against_catalog(self) -> None:
+        request = {"tickers": ["PETR4"], "start": "2018-01-02", "initial_cash": 1000}
+        self.assertEqual(_parse_run_request(request)["strategy"], "gap_momentum")
+        self.assertEqual(
+            _parse_run_request({**request, "strategy": "turn_of_month"})["strategy"],
+            "turn_of_month",
+        )
+        with self.assertRaises(ValueError):
+            _parse_run_request({**request, "strategy": "nao_existe"})
+
     def test_request_rejects_inverted_period(self) -> None:
         with self.assertRaises(ValueError):
             _parse_run_request(
