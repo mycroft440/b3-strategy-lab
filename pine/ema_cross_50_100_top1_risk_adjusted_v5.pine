@@ -1,0 +1,283 @@
+//@version=5
+indicator("B3 EMA 50/100 + Top 1 Momentum Ajustado", shorttitle="EMA50/100 Top1 B3", overlay=false, dynamic_requests=true, max_bars_back=500)
+
+// Recria em Pine v5 a vencedora da matriz sem acoes problematicas
+// (reports/matriz_sem_problematicas/REVISAO.md):
+// ema_cross_50_100
+// + top1_risk_adjusted_lb126_skip21_trend0_vol21_equal_monthly_abs_cap1_adjusted
+//
+// Regras, iguais ao motor Python:
+// - dados diarios, sessao regular, ajuste somente por splits, warm-up desde 01/01/2017;
+// - sinal: EMA(50) > EMA(100) do fechamento; cada EMA comeca pela media simples dos
+//   primeiros N pregoes do warm-up;
+// - score = (fechamento de 21 pregoes atras / fechamento de 147 pregoes atras - 1)
+//   / volatilidade anualizada dos ultimos 21 retornos diarios (desvio-padrao amostral);
+//   o retorno precisa ser positivo;
+// - no ultimo fechamento de cada mes, entre as acoes com sinal ligado, escolhe a de
+//   maior score e compra 100% na abertura do primeiro pregao do mes seguinte;
+// - entre rebalanceamentos o ranking nao muda: se o sinal da escolhida desliga no
+//   fechamento, vende na abertura seguinte; se religa, recompra;
+// - custos de 3,2 bps + slippage de 10 bps por ordem, lote de 1 acao, sem IR.
+//
+// Diferencas em relacao ao backtest:
+// - o universo aqui e fixo: as 40 acoes mais liquidas do snapshot point-in-time de
+//   19/08/2026. O backtest recalcula o universo a cada semana com as acoes que eram
+//   liquidas na epoca, inclusive as que sairam da bolsa. A curva historica abaixo,
+//   portanto, nao reproduz os 39% a.a. do relatorio: com este universo fixo, o motor
+//   Python da R$ 1.000 -> cerca de R$ 4.490 (19% a.a.) de 02/01/2018 a 19/08/2026;
+// - EMBJ3, AXIA3 e MBRF3 ainda nao entram no snapshot porque mudaram de codigo no fim
+//   de 2025 e nao completaram o historico minimo de liquidez exigido pela regra;
+// - feed TradingView x COTAHIST da B3; dividendos/JCP ficam de fora nos dois.
+//
+// Use em um grafico DIARIO de um ativo da B3 (por exemplo BMFBOVESPA:IBOV).
+
+string GP_SIM = "Simulacao"
+int startTime = input.time(timestamp("America/Sao_Paulo", 2018, 1, 2, 0, 0), "Inicio", group=GP_SIM)
+float initialCash = input.float(1000.0, "Capital inicial (R$)", minval=1.0, group=GP_SIM)
+float costBps = input.float(3.2, "Custos por ordem (bps)", minval=0.0, step=0.1, group=GP_SIM)
+float slippageBps = input.float(10.0, "Slippage por ordem (bps)", minval=0.0, step=0.5, group=GP_SIM)
+
+string GP_VIEW = "Visual"
+bool showTable = input.bool(true, "Mostrar painel", group=GP_VIEW)
+string txtSizeInput = input.string("small", "Tamanho do texto", options=["tiny", "small", "normal"], group=GP_VIEW)
+string txtSize = txtSizeInput == "tiny" ? size.tiny : txtSizeInput == "normal" ? size.normal : size.small
+
+int FAST_LEN = 50
+int SLOW_LEN = 100
+int LOOKBACK = 126
+int SKIP = 21
+int VOL_LEN = 21
+int WARMUP_TS = timestamp("America/Sao_Paulo", 2017, 1, 1, 0, 0)
+
+type StockMetrics
+    float openPrice
+    float closePrice
+    bool bull
+    float momentum
+    float volatility
+    float score
+    bool bullPrev
+    float scorePrev
+
+// Indice 0 = primeiro candle disponivel em/apos 01/01/2017.
+f_history_index() =>
+    bool firstWarmupBar = time >= WARMUP_TS and (na(time[1]) or time[1] < WARMUP_TS)
+    ta.barssince(firstWarmupBar)
+
+// Igual a additional_strategies._ema_optional: semente = media simples dos N primeiros.
+f_seeded_ema(float src, int len, int historyIndex) =>
+    float seed = ta.sma(src, len)
+    var float value = na
+    if na(historyIndex) or historyIndex < len - 1
+        value := na
+    else if historyIndex == len - 1
+        value := seed
+    else
+        float alpha = 2.0 / (len + 1)
+        value := src * alpha + value * (1.0 - alpha)
+    value
+
+f_metrics() =>
+    int historyIndex = f_history_index()
+    float fastEma = f_seeded_ema(close, FAST_LEN, historyIndex)
+    float slowEma = f_seeded_ema(close, SLOW_LEN, historyIndex)
+    bool bull = not na(fastEma) and not na(slowEma) and fastEma > slowEma
+
+    // O Python cria returns[0] = 0 e nao usa candles anteriores ao warm-up.
+    float dailyReturn = na(historyIndex) ? na : historyIndex == 0 ? 0.0 : close / close[1] - 1.0
+    bool enoughHistory = not na(historyIndex) and historyIndex >= SKIP + LOOKBACK
+    float momentum = enoughHistory and close[SKIP + LOOKBACK] > 0 and close[SKIP] > 0 ? close[SKIP] / close[SKIP + LOOKBACK] - 1.0 : na
+    // statistics.stdev() no Python = estimativa amostral; biased=false replica isso.
+    float volatility = not na(historyIndex) and historyIndex >= VOL_LEN ? ta.stdev(dailyReturn, VOL_LEN, false) * math.sqrt(252.0) : na
+    float score = bull and not na(momentum) and momentum > 0 and not na(volatility) and volatility > 0 ? momentum / volatility : na
+
+    StockMetrics.new(open, close, bull, momentum, volatility, score, bull[1], score[1])
+
+// Snapshot point-in-time de 19/08/2026 (top 40 por liquidez), sem acoes problematicas.
+var array<string> names = array.from(
+     "VALE3", "PETR4", "ITUB4", "BBDC4", "BBAS3", "B3SA3", "PRIO3", "SBSP3", "ABEV3", "RENT3",
+     "WEGE3", "ITSA4", "EQTL3", "SUZB3", "ENEV3", "RDOR3", "VBBR3", "LREN3", "CPLE3", "GGBR4",
+     "RADL3", "BBSE3", "RAIL3", "CSMG3", "CSAN3", "UGPA3", "VIVT3", "TOTS3", "BRAV3", "MGLU3",
+     "CYRE3", "TIMS3", "CMIG4", "MOTV3", "ALOS3", "HAPV3", "ASAI3", "SMFT3", "CURY3", "MULT3")
+
+int n = array.size(names)
+array<float> opens = array.new_float(n, na)
+array<float> closes = array.new_float(n, na)
+array<bool> bullNow = array.new_bool(n, false)
+array<float> momNow = array.new_float(n, na)
+array<float> volNow = array.new_float(n, na)
+array<float> scoreNow = array.new_float(n, na)
+array<bool> bullPrev = array.new_bool(n, false)
+array<float> scorePrev = array.new_float(n, na)
+
+for i = 0 to n - 1
+    // adjustment.splits normaliza splits sem aplicar ajuste por dividendos.
+    string symbolId = ticker.new("BMFBOVESPA", array.get(names, i), session.regular, adjustment.splits)
+    StockMetrics m = request.security(symbolId, "D", f_metrics(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+    array.set(opens, i, m.openPrice)
+    array.set(closes, i, m.closePrice)
+    array.set(bullNow, i, m.bull)
+    array.set(momNow, i, m.momentum)
+    array.set(volNow, i, m.volatility)
+    array.set(scoreNow, i, m.score)
+    array.set(bullPrev, i, m.bullPrev)
+    array.set(scorePrev, i, m.scorePrev)
+
+f_best(array<float> scores, array<bool> bulls) =>
+    int best = -1
+    float bestScore = na
+    for i = 0 to array.size(scores) - 1
+        float s = array.get(scores, i)
+        if array.get(bulls, i) and not na(s) and (na(bestScore) or s > bestScore)
+            best := i
+            bestScore := s
+    best
+
+// ---------------------------------------------------------------------------
+// Simulacao da carteira: decisao no fechamento anterior, execucao na abertura.
+// ---------------------------------------------------------------------------
+float costRate = costBps / 10000.0
+float slipRate = slippageBps / 10000.0
+bool newMonth = timeframe.change("M")
+bool active = time >= startTime
+
+var bool started = false
+var float cash = na
+var float shares = 0.0
+var int held = -1
+var int designated = -1
+var int decisionTime = na
+var float peak = na
+var float maxDrawdown = 0.0
+var int trades = 0
+
+if active and not started
+    started := true
+    cash := initialCash
+    peak := initialCash
+
+if started
+    bool rebalance = newMonth
+    if rebalance
+        // Ranking do ultimo fechamento do mes anterior (valores [1] de cada acao).
+        designated := f_best(scorePrev, bullPrev)
+        decisionTime := time[1]
+    // Pine v5 avalia os dois lados de and/or: os indices sao protegidos com if.
+    int target = -1
+    if designated >= 0
+        if rebalance or array.get(bullPrev, designated)
+            target := designated
+
+    if rebalance or target != held
+        float heldOpen = na
+        if held >= 0
+            heldOpen := array.get(opens, held)
+        float equityOpen = cash + (held >= 0 ? shares * heldOpen : 0.0)
+        // Venda do que nao e mais alvo.
+        if held >= 0 and held != target and shares > 0
+            float sellFill = heldOpen * (1.0 - slipRate)
+            cash += shares * sellFill * (1.0 - costRate)
+            shares := 0.0
+            held := -1
+            trades += 1
+        // Compra do alvo ate o peso de 100%, como research_portfolio_allocation_core._rebalance.
+        if target >= 0
+            float price = array.get(opens, target)
+            float buyFill = price * (1.0 + slipRate)
+            float currentValue = held == target ? shares * price : 0.0
+            float planned = math.floor(math.max(0.0, equityOpen - currentValue) / price)
+            float plannedCost = planned * buyFill * (1.0 + costRate)
+            if plannedCost > cash and plannedCost > 0
+                planned := math.floor(planned * math.max(0.0, math.min(1.0, cash / plannedCost)))
+            if planned * buyFill * (1.0 + costRate) > cash
+                planned := math.floor(math.max(0.0, cash) / (buyFill * (1.0 + costRate)))
+            if planned > 0
+                cash -= planned * buyFill * (1.0 + costRate)
+                shares += planned
+                held := target
+                trades += 1
+
+float equity = na
+if started
+    equity := cash
+    if held >= 0
+        equity += shares * array.get(closes, held)
+if started
+    peak := math.max(peak, equity)
+    maxDrawdown := math.min(maxDrawdown, equity / peak - 1.0)
+
+plot(equity, "Patrimonio (R$)", color=color.new(color.teal, 0), linewidth=2)
+plot(started ? initialCash : na, "Capital inicial", color=color.new(color.gray, 50), style=plot.style_linebr)
+
+// ---------------------------------------------------------------------------
+// Painel.
+// ---------------------------------------------------------------------------
+f_pct(float x) =>
+    na(x) ? "—" : str.tostring(x * 100.0, "#.##") + "%"
+
+f_num(float x) =>
+    na(x) ? "—" : str.tostring(x, "#.###")
+
+f_money(float x) =>
+    na(x) ? "—" : "R$ " + str.tostring(x, "#,##0.00")
+
+color C_BG = color.rgb(17, 20, 26)
+color C_HEADER = color.rgb(39, 45, 55)
+color C_ON = color.rgb(25, 105, 65)
+color C_OFF = color.rgb(130, 45, 45)
+color C_TOP = color.rgb(63, 78, 110)
+color C_TEXT = color.white
+color C_MUTED = color.rgb(185, 190, 200)
+
+var table dash = table.new(position.top_left, 5, 16, bgcolor=C_BG, frame_color=color.gray, frame_width=1, border_color=color.new(color.gray, 55), border_width=1)
+
+if barstate.isfirst
+    for row in array.from(0, 1, 2, 3, 4, 12, 13)
+        table.merge_cells(dash, 0, row, 4, row)
+
+if barstate.islast and showTable
+    table.cell(dash, 0, 0, "EMA 50/100 + TOP 1 MOMENTUM AJUSTADO", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    string designatedName = "caixa"
+    bool designatedOn = false
+    if designated >= 0
+        designatedName := array.get(names, designated)
+        designatedOn := array.get(bullNow, designated)
+    string refDate = na(decisionTime) ? "aguardando fim de mes" : str.format_time(decisionTime, "dd/MM/yyyy", "America/Sao_Paulo")
+    string nextAction = designated < 0 ? "ficar em caixa ate o fim do mes" : designatedOn ? (held == designated ? "manter " + designatedName : "comprar " + designatedName + " na proxima abertura") : (held == designated ? "vender " + designatedName + " na proxima abertura" : "ficar em caixa")
+    table.cell(dash, 0, 1, "Escolha do mes (fechamento de " + refDate + "): " + designatedName, text_color=C_TEXT, bgcolor=designated < 0 ? C_HEADER : designatedOn ? C_ON : C_OFF, text_size=txtSize)
+    table.cell(dash, 0, 2, "Sinal EMA agora: " + (designated < 0 ? "—" : designatedOn ? "LIGADO" : "DESLIGADO") + " | Proxima abertura: " + nextAction, text_color=C_TEXT, bgcolor=C_BG, text_size=txtSize)
+
+    float days = (time - startTime) / 86400000.0
+    float cagr = started and days > 0 ? math.pow(equity / initialCash, 365.25 / days) - 1.0 : na
+    table.cell(dash, 0, 3, "Simulacao: " + f_money(equity) + " | CAGR " + f_pct(cagr) + " | Queda max " + f_pct(maxDrawdown) + " | " + str.tostring(trades) + " ordens", text_color=C_TEXT, bgcolor=C_BG, text_size=txtSize)
+    table.cell(dash, 0, 4, "Ranking se o mes fechasse hoje (top 5 com sinal ligado)", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    table.cell(dash, 0, 5, "#", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 1, 5, "Acao", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 2, 5, "Ret 6m (-1m)", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 3, 5, "Vol 21d", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+    table.cell(dash, 4, 5, "Score", text_color=C_TEXT, bgcolor=C_HEADER, text_size=txtSize)
+
+    array<float> sortKey = array.new_float(n, -1.0e12)
+    int onCount = 0
+    for i = 0 to n - 1
+        if array.get(bullNow, i)
+            onCount += 1
+        float s = array.get(scoreNow, i)
+        if array.get(bullNow, i) and not na(s)
+            array.set(sortKey, i, s)
+    array<int> ranked = array.sort_indices(sortKey, order.descending)
+    for r = 0 to 4
+        int row = 6 + r
+        int idx = array.get(ranked, r)
+        bool valid = array.get(sortKey, idx) > -1.0e11
+        table.cell(dash, 0, row, valid ? str.tostring(r + 1) : "—", text_color=C_TEXT, bgcolor=C_TOP, text_size=txtSize)
+        table.cell(dash, 1, row, valid ? array.get(names, idx) : "—", text_color=C_TEXT, bgcolor=C_TOP, text_size=txtSize)
+        table.cell(dash, 2, row, valid ? f_pct(array.get(momNow, idx)) : "", text_color=C_TEXT, bgcolor=C_TOP, text_size=txtSize)
+        table.cell(dash, 3, row, valid ? f_pct(array.get(volNow, idx)) : "", text_color=C_TEXT, bgcolor=C_TOP, text_size=txtSize)
+        table.cell(dash, 4, row, valid ? f_num(array.get(scoreNow, idx)) : "", text_color=C_TEXT, bgcolor=C_TOP, text_size=txtSize)
+
+    table.cell(dash, 0, 12, "Acoes com EMA 50 > EMA 100 agora: " + str.tostring(onCount) + "/" + str.tostring(n), text_color=C_MUTED, bgcolor=C_BG, text_size=txtSize)
+    string warning = timeframe.period == "D" ? "Universo fixo (top 40 de 19/08/2026): curva historica com vies de sobrevivencia" : "ATENCAO: use o grafico 1D para equivalencia com o backtest"
+    table.cell(dash, 0, 13, warning, text_color=timeframe.period == "D" ? C_MUTED : color.yellow, bgcolor=C_BG, text_size=txtSize)

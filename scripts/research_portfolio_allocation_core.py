@@ -1119,8 +1119,13 @@ def _rebalance(
         if current_value <= target_value:
             continue
         execution_price = _slipped_price(price, "SELL", slippage_rate)
-        shares_to_sell = min(shares[ticker], (current_value - target_value) / price)
-        shares_to_sell = _floor_lot(shares_to_sell, lot_size)
+        if target_value <= 0:
+            # A full exit sells the whole position; (shares * price) / price can land
+            # just below an integer and the lot floor would leave one share behind.
+            shares_to_sell = shares[ticker]
+        else:
+            shares_to_sell = min(shares[ticker], (current_value - target_value) / price)
+            shares_to_sell = _floor_lot(shares_to_sell, lot_size)
         if shares_to_sell <= 0:
             continue
         cash += shares_to_sell * execution_price * (1 - cost_rate)
