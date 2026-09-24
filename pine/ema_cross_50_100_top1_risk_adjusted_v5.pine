@@ -88,7 +88,8 @@ f_metrics() =>
     bool enoughHistory = not na(historyIndex) and historyIndex >= SKIP + LOOKBACK
     float momentum = enoughHistory and close[SKIP + LOOKBACK] > 0 and close[SKIP] > 0 ? close[SKIP] / close[SKIP + LOOKBACK] - 1.0 : na
     // statistics.stdev() no Python = estimativa amostral; biased=false replica isso.
-    float volatility = not na(historyIndex) and historyIndex >= VOL_LEN ? ta.stdev(dailyReturn, VOL_LEN, false) * math.sqrt(252.0) : na
+    float rawVolatility = ta.stdev(dailyReturn, VOL_LEN, false) * math.sqrt(252.0)
+    float volatility = not na(historyIndex) and historyIndex >= VOL_LEN ? rawVolatility : na
     float score = bull and not na(momentum) and momentum > 0 and not na(volatility) and volatility > 0 ? momentum / volatility : na
 
     StockMetrics.new(open, close, bull, momentum, volatility, score, bull[1], score[1])
@@ -114,14 +115,16 @@ for i = 0 to n - 1
     // adjustment.splits normaliza splits sem aplicar ajuste por dividendos.
     string symbolId = ticker.new("BMFBOVESPA", array.get(names, i), session.regular, adjustment.splits)
     StockMetrics m = request.security(symbolId, "D", f_metrics(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
-    array.set(opens, i, m.openPrice)
-    array.set(closes, i, m.closePrice)
-    array.set(bullNow, i, m.bull)
-    array.set(momNow, i, m.momentum)
-    array.set(volNow, i, m.volatility)
-    array.set(scoreNow, i, m.score)
-    array.set(bullPrev, i, m.bullPrev)
-    array.set(scorePrev, i, m.scorePrev)
+    // Antes da listagem da acao nao ha candle: o objeto vem na e a acao fica fora.
+    if not na(m)
+        array.set(opens, i, m.openPrice)
+        array.set(closes, i, m.closePrice)
+        array.set(bullNow, i, m.bull)
+        array.set(momNow, i, m.momentum)
+        array.set(volNow, i, m.volatility)
+        array.set(scoreNow, i, m.score)
+        array.set(bullPrev, i, m.bullPrev)
+        array.set(scorePrev, i, m.scorePrev)
 
 f_best(array<float> scores, array<bool> bulls) =>
     int best = -1
