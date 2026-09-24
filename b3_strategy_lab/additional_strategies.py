@@ -731,12 +731,18 @@ def _cci_trend(
     trend = _sma(closes, trend_window)
     position = 0
     signals = []
+    # entry below exit means buying a pullback (CCI <= entry) and selling strength
+    # (CCI >= exit); with momentum comparisons both conditions overlap and the
+    # signal flips every session while CCI stays between the two levels.
+    reversion_mode = entry_level < exit_level
     for index, value in enumerate(values):
         if value is not None and trend[index] is not None:
             trend_ok = closes[index] > trend[index]
-            if position == 0 and trend_ok and value >= entry_level:
+            entry = value <= entry_level if reversion_mode else value >= entry_level
+            exit_ = value >= exit_level if reversion_mode else value <= exit_level
+            if position == 0 and trend_ok and entry:
                 position = 1
-            elif position == 1 and (not trend_ok or value <= exit_level):
+            elif position == 1 and (not trend_ok or exit_):
                 position = 0
         signals.append(position)
     return signals
