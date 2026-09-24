@@ -620,7 +620,14 @@ def run_realistic(
                 for ticker, weight in designated_targets.items()
                 if ticker in strategy_eligible
             }
-            if signal_targets != active_targets:
+            # Orders expire each session. A sale cut short by odd-lot capacity leaves
+            # shares the rule already wants gone; re-issue the exit at the next open
+            # instead of carrying them until the next management decision.
+            residual_exit = any(
+                position.shares > 0 and ticker not in signal_targets
+                for ticker, position in account.positions.items()
+            )
+            if signal_targets != active_targets or residual_exit:
                 pending_targets = signal_targets
 
         if pending_targets is not None:
