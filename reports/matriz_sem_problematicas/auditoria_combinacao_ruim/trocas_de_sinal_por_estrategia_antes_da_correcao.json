@@ -1,0 +1,1745 @@
+[
+ {
+  "strategy": "cci_trend_10_m100_100_sma50",
+  "flip_rate": 0.35967464702271335,
+  "exposure": 0.30860650705954573,
+  "median_on_run": 1.0,
+  "share_1day_runs": 0.7343099091716179
+ },
+ {
+  "strategy": "cci_trend_14_m100_100_sma100",
+  "flip_rate": 0.3298403928790669,
+  "exposure": 0.29313075506445674,
+  "median_on_run": 1.0,
+  "share_1day_runs": 0.7771986000446794
+ },
+ {
+  "strategy": "cci_trend_20_m100_100_sma100",
+  "flip_rate": 0.31933701657458563,
+  "exposure": 0.3052363413136894,
+  "median_on_run": 1,
+  "share_1day_runs": 0.7972541629811944
+ },
+ {
+  "strategy": "cci_trend_20_m100_100_sma200",
+  "flip_rate": 0.29099447513812154,
+  "exposure": 0.2679680785758134,
+  "median_on_run": 1,
+  "share_1day_runs": 0.8125764929309981
+ },
+ {
+  "strategy": "ibs_reversion",
+  "flip_rate": 0.2810374462860651,
+  "exposure": 0.3432412523020258,
+  "median_on_run": 3,
+  "share_1day_runs": 0.20154767629956719
+ },
+ {
+  "strategy": "cci_trend_30_m100_100_sma200",
+  "flip_rate": 0.27937998772252914,
+  "exposure": 0.2788888888888889,
+  "median_on_run": 1,
+  "share_1day_runs": 0.8320657669143183
+ },
+ {
+  "strategy": "smi_ergodic_histogram_momentum",
+  "flip_rate": 0.2562185389809699,
+  "exposure": 0.27427869858809084,
+  "median_on_run": 2.0,
+  "share_1day_runs": 0.39643268124280784
+ },
+ {
+  "strategy": "klinger_volume_oscillator",
+  "flip_rate": 0.1607550644567219,
+  "exposure": 0.4790300798035605,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.2756272949816401
+ },
+ {
+  "strategy": "frama_trend",
+  "flip_rate": 0.15755678330263967,
+  "exposure": 0.44775322283609575,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.26158527071305976
+ },
+ {
+  "strategy": "smi_ergodic_crossover",
+  "flip_rate": 0.14786372007366483,
+  "exposure": 0.4874278698588091,
+  "median_on_run": 5,
+  "share_1day_runs": 0.15318087318087317
+ },
+ {
+  "strategy": "kama_trend",
+  "flip_rate": 0.14153468385512585,
+  "exposure": 0.5022836095764273,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.29117442668519805
+ },
+ {
+  "strategy": "macd_5_35_5",
+  "flip_rate": 0.13521792510742786,
+  "exposure": 0.4912891344383057,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.15105492906511458
+ },
+ {
+  "strategy": "efi_zero_cross",
+  "flip_rate": 0.12794352363413136,
+  "exposure": 0.5273542050337631,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.25297962322183776
+ },
+ {
+  "strategy": "precision_trend_ehlers",
+  "flip_rate": 0.11571516267648864,
+  "exposure": 0.5002271332105587,
+  "median_on_run": 6,
+  "share_1day_runs": 0.13317036879583377
+ },
+ {
+  "strategy": "smi_ergodic_macd_confirm",
+  "flip_rate": 0.11246777163904235,
+  "exposure": 0.37155310006138736,
+  "median_on_run": 5,
+  "share_1day_runs": 0.1328816522784395
+ },
+ {
+  "strategy": "connors_rsi_reversion",
+  "flip_rate": 0.10739717618170656,
+  "exposure": 0.27368324125230203,
+  "median_on_run": 4,
+  "share_1day_runs": 0.14071273060616477
+ },
+ {
+  "strategy": "ease_of_movement",
+  "flip_rate": 0.10480662983425415,
+  "exposure": 0.5086617556783303,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.21743722130955176
+ },
+ {
+  "strategy": "eom_zero_cross",
+  "flip_rate": 0.10480662983425415,
+  "exposure": 0.5086617556783303,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.21743722130955176
+ },
+ {
+  "strategy": "cmf_efi_confirm",
+  "flip_rate": 0.10448741559238797,
+  "exposure": 0.33683241252302026,
+  "median_on_run": 3,
+  "share_1day_runs": 0.3121543711024826
+ },
+ {
+  "strategy": "adx_trend_7_15_sma50",
+  "flip_rate": 0.1029220380601596,
+  "exposure": 0.3454327808471455,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.24199713330148112
+ },
+ {
+  "strategy": "macd_8_17_9",
+  "flip_rate": 0.10157151626764886,
+  "exposure": 0.4956353591160221,
+  "median_on_run": 8.0,
+  "share_1day_runs": 0.10799031476997578
+ },
+ {
+  "strategy": "vortex_trend",
+  "flip_rate": 0.10028852056476366,
+  "exposure": 0.5141866175567833,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.21645818003433898
+ },
+ {
+  "strategy": "macd_12_26_5",
+  "flip_rate": 0.09886433394720688,
+  "exposure": 0.49515039901780233,
+  "median_on_run": 8,
+  "share_1day_runs": 0.11618360492598583
+ },
+ {
+  "strategy": "elder_force_index",
+  "flip_rate": 0.09875383670963782,
+  "exposure": 0.3961817065684469,
+  "median_on_run": 4,
+  "share_1day_runs": 0.269331341053418
+ },
+ {
+  "strategy": "rsi2_reversion_10_70",
+  "flip_rate": 0.09701043585021485,
+  "exposure": 0.25755064456721916,
+  "median_on_run": 5,
+  "share_1day_runs": 0.05900266463646745
+ },
+ {
+  "strategy": "turn_of_month",
+  "flip_rate": 0.09626151012891344,
+  "exposure": 0.19241252302025783,
+  "median_on_run": 4,
+  "share_1day_runs": 0.0008929710422247736
+ },
+ {
+  "strategy": "gap_momentum",
+  "flip_rate": 0.09043585021485574,
+  "exposure": 0.47095150399017804,
+  "median_on_run": 4,
+  "share_1day_runs": 0.26483021955543434
+ },
+ {
+  "strategy": "parabolic_sar_trend",
+  "flip_rate": 0.09013505217925108,
+  "exposure": 0.5038551258440761,
+  "median_on_run": 10,
+  "share_1day_runs": 0.035066175467321596
+ },
+ {
+  "strategy": "adx_trend_7_20_sma100",
+  "flip_rate": 0.08837323511356661,
+  "exposure": 0.2958195211786372,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.22962447844228095
+ },
+ {
+  "strategy": "smi_ergodic_123_reversal",
+  "flip_rate": 0.0876304481276857,
+  "exposure": 0.30030693677102516,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.07435465768799102
+ },
+ {
+  "strategy": "cmf_zero_cross",
+  "flip_rate": 0.08632903621853898,
+  "exposure": 0.4728115408225905,
+  "median_on_run": 3,
+  "share_1day_runs": 0.3052586575459598
+ },
+ {
+  "strategy": "smi_ergodic_ema_trend",
+  "flip_rate": 0.08591774094536525,
+  "exposure": 0.23029465930018417,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.22268306636155608
+ },
+ {
+  "strategy": "efi_trend_confirm",
+  "flip_rate": 0.08549416820135051,
+  "exposure": 0.34411295273173725,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.2667529479436296
+ },
+ {
+  "strategy": "nr7_breakout",
+  "flip_rate": 0.08370779619398404,
+  "exposure": 0.4785819521178637,
+  "median_on_run": 11,
+  "share_1day_runs": 0.07454786060873402
+ },
+ {
+  "strategy": "true_strength_index",
+  "flip_rate": 0.08352977286678945,
+  "exposure": 0.4810865561694291,
+  "median_on_run": 9,
+  "share_1day_runs": 0.09247533500220881
+ },
+ {
+  "strategy": "mfi_efi_confirm",
+  "flip_rate": 0.08260282381829342,
+  "exposure": 0.38693063228974833,
+  "median_on_run": 6,
+  "share_1day_runs": 0.16257257704332292
+ },
+ {
+  "strategy": "ultimate_oscillator_ehlers",
+  "flip_rate": 0.08095764272559852,
+  "exposure": 0.4750214855739718,
+  "median_on_run": 11,
+  "share_1day_runs": 0.03417894576940605
+ },
+ {
+  "strategy": "macd_10_30_9",
+  "flip_rate": 0.07996316758747699,
+  "exposure": 0.4933149171270718,
+  "median_on_run": 10.0,
+  "share_1day_runs": 0.08615384615384615
+ },
+ {
+  "strategy": "cci_momentum_10_0_m100_sma50",
+  "flip_rate": 0.07968078575813382,
+  "exposure": 0.41638428483732354,
+  "median_on_run": 6,
+  "share_1day_runs": 0.19376254438783388
+ },
+ {
+  "strategy": "macd",
+  "flip_rate": 0.07705954573357889,
+  "exposure": 0.494499693063229,
+  "median_on_run": 10.0,
+  "share_1day_runs": 0.08620689655172414
+ },
+ {
+  "strategy": "adx_trend_14_15_sma50",
+  "flip_rate": 0.07663597298956415,
+  "exposure": 0.36721301411909146,
+  "median_on_run": 4,
+  "share_1day_runs": 0.24362060664419835
+ },
+ {
+  "strategy": "macd_zero_trend",
+  "flip_rate": 0.07578882750153468,
+  "exposure": 0.42608348680171887,
+  "median_on_run": 5,
+  "share_1day_runs": 0.20467456581723747
+ },
+ {
+  "strategy": "macd_12_26_9_trend50",
+  "flip_rate": 0.07426642111724985,
+  "exposure": 0.30767341927562925,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.20397350993377483
+ },
+ {
+  "strategy": "turtle_soup",
+  "flip_rate": 0.07420503376304481,
+  "exposure": 0.08847145488029466,
+  "median_on_run": 2,
+  "share_1day_runs": 0.3240019877422561
+ },
+ {
+  "strategy": "smi_ergodic_adx_filter",
+  "flip_rate": 0.0734683855125844,
+  "exposure": 0.18837937384898712,
+  "median_on_run": 4,
+  "share_1day_runs": 0.17728717176785416
+ },
+ {
+  "strategy": "smi_ergodic_volume_filter",
+  "flip_rate": 0.07322283609576427,
+  "exposure": 0.25171884591774096,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.12634408602150538
+ },
+ {
+  "strategy": "mfi_momentum_7_50_30_sma50",
+  "flip_rate": 0.07307550644567219,
+  "exposure": 0.41325966850828727,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.1904040404040404
+ },
+ {
+  "strategy": "eom_trend_confirm",
+  "flip_rate": 0.07230202578268877,
+  "exposure": 0.3335666052793125,
+  "median_on_run": 4,
+  "share_1day_runs": 0.24400612140792383
+ },
+ {
+  "strategy": "ema_fast_slow_trend",
+  "flip_rate": 0.07195825659914058,
+  "exposure": 0.32715776550030695,
+  "median_on_run": 4,
+  "share_1day_runs": 0.24893217153596447
+ },
+ {
+  "strategy": "smi_ergodic_ema_zero",
+  "flip_rate": 0.07175567833026397,
+  "exposure": 0.188158379373849,
+  "median_on_run": 4,
+  "share_1day_runs": 0.2104812467888337
+ },
+ {
+  "strategy": "adx_rsi_trend_14_20_sma100",
+  "flip_rate": 0.07167587476979742,
+  "exposure": 0.25823818293431555,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.22650891632373113
+ },
+ {
+  "strategy": "rsi_reversion_hold",
+  "flip_rate": 0.0707182320441989,
+  "exposure": 0.7054205033763045,
+  "median_on_run": 20,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "adx_rsi_trend_21_20_sma200",
+  "flip_rate": 0.07027010435850214,
+  "exposure": 0.15050337630448127,
+  "median_on_run": 3,
+  "share_1day_runs": 0.27749606574575975
+ },
+ {
+  "strategy": "macd_12_26_12",
+  "flip_rate": 0.06911602209944752,
+  "exposure": 0.4930632289748312,
+  "median_on_run": 12,
+  "share_1day_runs": 0.07815559907423891
+ },
+ {
+  "strategy": "inside_bar_breakout",
+  "flip_rate": 0.06549416820135052,
+  "exposure": 0.3690914671577655,
+  "median_on_run": 10,
+  "share_1day_runs": 0.07981220657276995
+ },
+ {
+  "strategy": "smi_ergodic_atr_filter",
+  "flip_rate": 0.06395948434622467,
+  "exposure": 0.20355432780847146,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.15756060023085802
+ },
+ {
+  "strategy": "atr_trailing_trend",
+  "flip_rate": 0.06341927562922038,
+  "exposure": 0.4771147943523634,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.25669383003492435
+ },
+ {
+  "strategy": "mfi_cmf_confirm",
+  "flip_rate": 0.06335174953959484,
+  "exposure": 0.32453038674033147,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.2007766990291262
+ },
+ {
+  "strategy": "macd_12_26_9_trend100",
+  "flip_rate": 0.062154696132596686,
+  "exposure": 0.2605217925107428,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.18651107594936708
+ },
+ {
+  "strategy": "sma_cross_5_20",
+  "flip_rate": 0.06150399017802333,
+  "exposure": 0.5073296500920811,
+  "median_on_run": 13.0,
+  "share_1day_runs": 0.05582232893157263
+ },
+ {
+  "strategy": "ema_cross_5_20",
+  "flip_rate": 0.059815837937384896,
+  "exposure": 0.5095641497851443,
+  "median_on_run": 11.0,
+  "share_1day_runs": 0.09818855496088925
+ },
+ {
+  "strategy": "rsi3_reversion_15_70",
+  "flip_rate": 0.05973603437691836,
+  "exposure": 0.26460405156537753,
+  "median_on_run": 8.0,
+  "share_1day_runs": 0.011368334022323274
+ },
+ {
+  "strategy": "smi_ergodic_zero_regime",
+  "flip_rate": 0.0596439533456108,
+  "exposure": 0.5080478821362799,
+  "median_on_run": 11.0,
+  "share_1day_runs": 0.09826589595375723
+ },
+ {
+  "strategy": "mfi_price_trend",
+  "flip_rate": 0.05922651933701657,
+  "exposure": 0.39118477593615714,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.13258520365752285
+ },
+ {
+  "strategy": "eom_nvi_confirm",
+  "flip_rate": 0.05903007980356047,
+  "exposure": 0.250036832412523,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.21916666666666668
+ },
+ {
+  "strategy": "macd_19_39_9",
+  "flip_rate": 0.058698588090853286,
+  "exposure": 0.4931184775936157,
+  "median_on_run": 13.0,
+  "share_1day_runs": 0.07571308724832215
+ },
+ {
+  "strategy": "rsi2_reversion_5_70",
+  "flip_rate": 0.05852056476365869,
+  "exposure": 0.15713934929404544,
+  "median_on_run": 5,
+  "share_1day_runs": 0.05706464518846073
+ },
+ {
+  "strategy": "adx_trend_14_20_sma100",
+  "flip_rate": 0.05778391651319828,
+  "exposure": 0.28378759975445056,
+  "median_on_run": 5,
+  "share_1day_runs": 0.2268567780378804
+ },
+ {
+  "strategy": "schaff_trend_cycle",
+  "flip_rate": 0.057630448127685696,
+  "exposure": 0.4798281154082259,
+  "median_on_run": 14.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "typical_price_sma_trend",
+  "flip_rate": 0.05759975445058318,
+  "exposure": 0.49896255371393494,
+  "median_on_run": 5.5,
+  "share_1day_runs": 0.19974337040205303
+ },
+ {
+  "strategy": "cci_momentum_14_0_m100_sma100",
+  "flip_rate": 0.05684468999386127,
+  "exposure": 0.38627378759975445,
+  "median_on_run": 8.0,
+  "share_1day_runs": 0.15865800865800866
+ },
+ {
+  "strategy": "laguerre_rsi_reversal",
+  "flip_rate": 0.05675874769797422,
+  "exposure": 0.49187845303867406,
+  "median_on_run": 14,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "roc_stack_trend",
+  "flip_rate": 0.05542664211172498,
+  "exposure": 0.26479435236341314,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.30612244897959184
+ },
+ {
+  "strategy": "macd_signal_long_trend",
+  "flip_rate": 0.055058317986494784,
+  "exposure": 0.24456108041743402,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.15832961143367574
+ },
+ {
+  "strategy": "cmf_price_trend",
+  "flip_rate": 0.05422958870472683,
+  "exposure": 0.3349355432780847,
+  "median_on_run": 5,
+  "share_1day_runs": 0.18584070796460178
+ },
+ {
+  "strategy": "dsma_trend_fast",
+  "flip_rate": 0.053670963781461016,
+  "exposure": 0.36901780233271947,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.2324621733149931
+ },
+ {
+  "strategy": "smi_ergodic_histogram_continuation",
+  "flip_rate": 0.05338858195211786,
+  "exposure": 0.14900552486187846,
+  "median_on_run": 4,
+  "share_1day_runs": 0.18996085655077136
+ },
+ {
+  "strategy": "volume_triple_confirm",
+  "flip_rate": 0.05330877839165132,
+  "exposure": 0.3663106200122775,
+  "median_on_run": 10,
+  "share_1day_runs": 0.07596398060494113
+ },
+ {
+  "strategy": "know_sure_thing",
+  "flip_rate": 0.053222836095764274,
+  "exposure": 0.471890730509515,
+  "median_on_run": 16,
+  "share_1day_runs": 0.03284755956511682
+ },
+ {
+  "strategy": "adx_rsi_trend_14_25_sma200",
+  "flip_rate": 0.05225291589932474,
+  "exposure": 0.18243707796193984,
+  "median_on_run": 4,
+  "share_1day_runs": 0.22760404420409122
+ },
+ {
+  "strategy": "macd_12_26_9_trend200",
+  "flip_rate": 0.051878453038674034,
+  "exposure": 0.23171270718232045,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.16777251184834124
+ },
+ {
+  "strategy": "smi_ergodic_oversold_cross",
+  "flip_rate": 0.05147943523634131,
+  "exposure": 0.18772252915899323,
+  "median_on_run": 7,
+  "share_1day_runs": 0.0809648913303081
+ },
+ {
+  "strategy": "time_series_momentum_3m",
+  "flip_rate": 0.05135052179251074,
+  "exposure": 0.5034254143646408,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.2880095923261391
+ },
+ {
+  "strategy": "donchian_breakout_10_5",
+  "flip_rate": 0.05078575813382443,
+  "exposure": 0.38772252915899325,
+  "median_on_run": 11.0,
+  "share_1day_runs": 0.007025193798449613
+ },
+ {
+  "strategy": "ema_rsi_stochastic_adx_10_30",
+  "flip_rate": 0.05076120319214242,
+  "exposure": 0.3439717618170657,
+  "median_on_run": 11.0,
+  "share_1day_runs": 0.09772065955383123
+ },
+ {
+  "strategy": "ema_triple_alignment_trend",
+  "flip_rate": 0.050503376304481276,
+  "exposure": 0.22603437691835482,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.25255723331709695
+ },
+ {
+  "strategy": "cci_momentum_20_0_m100_sma100",
+  "flip_rate": 0.04877839165131983,
+  "exposure": 0.40005524861878455,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.17785065590312815
+ },
+ {
+  "strategy": "mfi_momentum_10_50_30_sma100",
+  "flip_rate": 0.04780233271945979,
+  "exposure": 0.40351749539594844,
+  "median_on_run": 9,
+  "share_1day_runs": 0.1794079794079794
+ },
+ {
+  "strategy": "coppock_curve",
+  "flip_rate": 0.047004297114794355,
+  "exposure": 0.4773235113566605,
+  "median_on_run": 15.0,
+  "share_1day_runs": 0.01234892275354703
+ },
+ {
+  "strategy": "mfi_trend_follow",
+  "flip_rate": 0.04674033149171271,
+  "exposure": 0.3328790669122161,
+  "median_on_run": 9,
+  "share_1day_runs": 0.1403000789681495
+ },
+ {
+  "strategy": "trix_signal",
+  "flip_rate": 0.04591160220994475,
+  "exposure": 0.46902394106813994,
+  "median_on_run": 18.5,
+  "share_1day_runs": 0.013687600644122383
+ },
+ {
+  "strategy": "chaikin_money_flow",
+  "flip_rate": 0.04519337016574586,
+  "exposure": 0.2225475751995089,
+  "median_on_run": 3,
+  "share_1day_runs": 0.3289795918367347
+ },
+ {
+  "strategy": "atr_breakout_10_atr7_x2",
+  "flip_rate": 0.04480049109883364,
+  "exposure": 0.44267648864333947,
+  "median_on_run": 15,
+  "share_1day_runs": 0.0038472107721901623
+ },
+ {
+  "strategy": "ema_rsi_stochastic_adx_20_50",
+  "flip_rate": 0.043898096992019645,
+  "exposure": 0.2932535297728668,
+  "median_on_run": 10,
+  "share_1day_runs": 0.10372862349313149
+ },
+ {
+  "strategy": "roc_dual_horizon_trend",
+  "flip_rate": 0.04340085942295887,
+  "exposure": 0.3622651933701658,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.30005672149744755
+ },
+ {
+  "strategy": "nvi_mfi_confirm",
+  "flip_rate": 0.04292203806015961,
+  "exposure": 0.2516329036218539,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.11318051575931232
+ },
+ {
+  "strategy": "time_series_momentum_6m_trend100",
+  "flip_rate": 0.04285451197053407,
+  "exposure": 0.3759914057704113,
+  "median_on_run": 3,
+  "share_1day_runs": 0.2964665326055731
+ },
+ {
+  "strategy": "smi_ergodic_divergence",
+  "flip_rate": 0.042406384284837326,
+  "exposure": 0.17604665438919584,
+  "median_on_run": 7,
+  "share_1day_runs": 0.09712960278341548
+ },
+ {
+  "strategy": "awesome_oscillator",
+  "flip_rate": 0.04193984039287907,
+  "exposure": 0.5067710251688152,
+  "median_on_run": 17.0,
+  "share_1day_runs": 0.03470588235294118
+ },
+ {
+  "strategy": "adx_trend_14_25_sma200",
+  "flip_rate": 0.04192756292203806,
+  "exposure": 0.20458563535911603,
+  "median_on_run": 5,
+  "share_1day_runs": 0.21635883905013192
+ },
+ {
+  "strategy": "adx_trend_21_20_sma100",
+  "flip_rate": 0.0416329036218539,
+  "exposure": 0.2705033763044813,
+  "median_on_run": 5,
+  "share_1day_runs": 0.22274741506646972
+ },
+ {
+  "strategy": "realized_vol_low_momentum",
+  "flip_rate": 0.04117863720073665,
+  "exposure": 0.3954327808471455,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.27960526315789475
+ },
+ {
+  "strategy": "cmf_threshold_hysteresis",
+  "flip_rate": 0.04088397790055249,
+  "exposure": 0.43742173112338856,
+  "median_on_run": 15.0,
+  "share_1day_runs": 0.040988547317661245
+ },
+ {
+  "strategy": "cci_momentum_20_50_m50_sma200",
+  "flip_rate": 0.039287906691221605,
+  "exposure": 0.2970288520564764,
+  "median_on_run": 9,
+  "share_1day_runs": 0.12871907297212654
+ },
+ {
+  "strategy": "mfi_momentum_14_55_35_sma100",
+  "flip_rate": 0.03900552486187845,
+  "exposure": 0.38242480049109884,
+  "median_on_run": 10.0,
+  "share_1day_runs": 0.16256313131313133
+ },
+ {
+  "strategy": "momentum",
+  "flip_rate": 0.03883977900552486,
+  "exposure": 0.4880540208717004,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.29174603174603175
+ },
+ {
+  "strategy": "time_series_momentum_6m",
+  "flip_rate": 0.03883977900552486,
+  "exposure": 0.4880540208717004,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.29174603174603175
+ },
+ {
+  "strategy": "low_vol_momentum_trend",
+  "flip_rate": 0.03881522406384285,
+  "exposure": 0.2987538367096378,
+  "median_on_run": 4,
+  "share_1day_runs": 0.29381933438985736
+ },
+ {
+  "strategy": "sma_triple_alignment_trend",
+  "flip_rate": 0.03841620626151013,
+  "exposure": 0.17422344996930633,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.25112107623318386
+ },
+ {
+  "strategy": "cmf_ema_trend",
+  "flip_rate": 0.038317986494782075,
+  "exposure": 0.32137507673419274,
+  "median_on_run": 8.0,
+  "share_1day_runs": 0.16098971722365038
+ },
+ {
+  "strategy": "nvi_price_confirm",
+  "flip_rate": 0.038317986494782075,
+  "exposure": 0.2780724370779619,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.24373795761078998
+ },
+ {
+  "strategy": "ema_slope_price_trend",
+  "flip_rate": 0.03813382443216697,
+  "exposure": 0.4071577655003069,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.22577519379844962
+ },
+ {
+  "strategy": "nvi_ema_trend",
+  "flip_rate": 0.036556169429097604,
+  "exposure": 0.40147943523634133,
+  "median_on_run": 5,
+  "share_1day_runs": 0.15345699831365936
+ },
+ {
+  "strategy": "macd_24_52_18",
+  "flip_rate": 0.03639042357274402,
+  "exposure": 0.4969367710251688,
+  "median_on_run": 23,
+  "share_1day_runs": 0.043434000678656264
+ },
+ {
+  "strategy": "range_expansion_breakout",
+  "flip_rate": 0.03637814610190301,
+  "exposure": 0.4709699201964395,
+  "median_on_run": 26.0,
+  "share_1day_runs": 0.0016960651289009499
+ },
+ {
+  "strategy": "time_series_momentum_12m_trend100",
+  "flip_rate": 0.03473910374462861,
+  "exposure": 0.2847268262737876,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.3022678951098512
+ },
+ {
+  "strategy": "realized_vol_breakout",
+  "flip_rate": 0.03452424800491099,
+  "exposure": 0.27610804174340087,
+  "median_on_run": 13,
+  "share_1day_runs": 0.01105169340463458
+ },
+ {
+  "strategy": "dsma_trend",
+  "flip_rate": 0.03410681399631676,
+  "exposure": 0.3428729281767956,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.24620938628158845
+ },
+ {
+  "strategy": "ema_cross_10_30",
+  "flip_rate": 0.03403314917127072,
+  "exposure": 0.5077593615715162,
+  "median_on_run": 19,
+  "share_1day_runs": 0.051142546245919476
+ },
+ {
+  "strategy": "supertrend_stochastic_10_3_14",
+  "flip_rate": 0.0338182934315531,
+  "exposure": 0.10467771639042357,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.21345454545454545
+ },
+ {
+  "strategy": "ema_cross",
+  "flip_rate": 0.03372621240024555,
+  "exposure": 0.5093738489871087,
+  "median_on_run": 20.0,
+  "share_1day_runs": 0.054538799414348464
+ },
+ {
+  "strategy": "sma_stop",
+  "flip_rate": 0.03361571516267649,
+  "exposure": 0.44990178023327193,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.28539985326485695
+ },
+ {
+  "strategy": "bollinger_reversion",
+  "flip_rate": 0.033302639656230815,
+  "exposure": 0.2505340699815838,
+  "median_on_run": 13,
+  "share_1day_runs": 0.0167348456675344
+ },
+ {
+  "strategy": "rsi_bollinger",
+  "flip_rate": 0.0332780847145488,
+  "exposure": 0.2503928790669122,
+  "median_on_run": 13,
+  "share_1day_runs": 0.016747301823595087
+ },
+ {
+  "strategy": "rsi5_reversion_20_65",
+  "flip_rate": 0.03323511356660528,
+  "exposure": 0.22503990178023328,
+  "median_on_run": 14.0,
+  "share_1day_runs": 0.003355704697986577
+ },
+ {
+  "strategy": "roc_trend",
+  "flip_rate": 0.03320441988950276,
+  "exposure": 0.40184162062615103,
+  "median_on_run": 4,
+  "share_1day_runs": 0.2903824730783513
+ },
+ {
+  "strategy": "time_series_momentum_6m_trend200",
+  "flip_rate": 0.03320441988950276,
+  "exposure": 0.40184162062615103,
+  "median_on_run": 4,
+  "share_1day_runs": 0.2903824730783513
+ },
+ {
+  "strategy": "atr_breakout_20_atr10_x2",
+  "flip_rate": 0.03268876611418048,
+  "exposure": 0.33284837323511357,
+  "median_on_run": 15.0,
+  "share_1day_runs": 0.00452147701582517
+ },
+ {
+  "strategy": "down_streak_reversion",
+  "flip_rate": 0.03207489257213014,
+  "exposure": 0.05805402087170043,
+  "median_on_run": 3,
+  "share_1day_runs": 0.278267535454197
+ },
+ {
+  "strategy": "cci_momentum_30_50_m50_sma200",
+  "flip_rate": 0.031927562922038064,
+  "exposure": 0.3134315531000614,
+  "median_on_run": 9.0,
+  "share_1day_runs": 0.14737654320987653
+ },
+ {
+  "strategy": "price_sma",
+  "flip_rate": 0.031817065684469,
+  "exposure": 0.4509085328422345,
+  "median_on_run": 4,
+  "share_1day_runs": 0.2950756107018224
+ },
+ {
+  "strategy": "aroon_trend",
+  "flip_rate": 0.031565377532228364,
+  "exposure": 0.5125414364640885,
+  "median_on_run": 25,
+  "share_1day_runs": 0.012123582323034806
+ },
+ {
+  "strategy": "rsi_bollinger_14_35_bb10_15",
+  "flip_rate": 0.03152854511970534,
+  "exposure": 0.13211786372007367,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.023529411764705882
+ },
+ {
+  "strategy": "mfi_momentum_14_55_35_sma200",
+  "flip_rate": 0.03119705340699816,
+  "exposure": 0.3363720073664825,
+  "median_on_run": 12,
+  "share_1day_runs": 0.1551519936833794
+ },
+ {
+  "strategy": "typical_price_pullback",
+  "flip_rate": 0.03096378146101903,
+  "exposure": 0.40480049109883365,
+  "median_on_run": 17.0,
+  "share_1day_runs": 0.01725521669341894
+ },
+ {
+  "strategy": "fisher_transform_reversal",
+  "flip_rate": 0.03038060159607121,
+  "exposure": 0.4833824432166974,
+  "median_on_run": 25.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "ichimoku_cloud",
+  "flip_rate": 0.03038060159607121,
+  "exposure": 0.364597912829957,
+  "median_on_run": 19.0,
+  "share_1day_runs": 0.05150040551500405
+ },
+ {
+  "strategy": "low_vol_trend",
+  "flip_rate": 0.02969306322897483,
+  "exposure": 0.2713566605279312,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.2669983416252073
+ },
+ {
+  "strategy": "donchian_breakout_20_10",
+  "flip_rate": 0.029410681399631676,
+  "exposure": 0.3950767341927563,
+  "median_on_run": 20.0,
+  "share_1day_runs": 0.0016778523489932886
+ },
+ {
+  "strategy": "rsi7_reversion_25_65",
+  "flip_rate": 0.02896255371393493,
+  "exposure": 0.23569674647022712,
+  "median_on_run": 20,
+  "share_1day_runs": 0.0004278990158322636
+ },
+ {
+  "strategy": "sma_slope_price_trend",
+  "flip_rate": 0.028772252915899323,
+  "exposure": 0.3693370165745856,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.2403598971722365
+ },
+ {
+  "strategy": "atr_breakout_20_atr14_x25",
+  "flip_rate": 0.028391651319828116,
+  "exposure": 0.39704112952731735,
+  "median_on_run": 21,
+  "share_1day_runs": 0.00303951367781155
+ },
+ {
+  "strategy": "time_series_momentum_9m",
+  "flip_rate": 0.028115408225905462,
+  "exposure": 0.46463474524248005,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.30369718309859156
+ },
+ {
+  "strategy": "rsi_bollinger_2_5_bb20_2",
+  "flip_rate": 0.028047882136279928,
+  "exposure": 0.09183548189073051,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.022026431718061675
+ },
+ {
+  "strategy": "chandelier_breakout",
+  "flip_rate": 0.027918968692449357,
+  "exposure": 0.39769183548189074,
+  "median_on_run": 21,
+  "share_1day_runs": 0.004415011037527594
+ },
+ {
+  "strategy": "adx_trend_21_25_sma200",
+  "flip_rate": 0.027833026396562308,
+  "exposure": 0.1825475751995089,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.20114942528735633
+ },
+ {
+  "strategy": "donchian_breakout_20_10_trend50",
+  "flip_rate": 0.027826887661141806,
+  "exposure": 0.3755862492326581,
+  "median_on_run": 20,
+  "share_1day_runs": 0.0017738359201773836
+ },
+ {
+  "strategy": "time_series_momentum_12m_trend200",
+  "flip_rate": 0.02768569674647023,
+  "exposure": 0.3283670963781461,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.3048128342245989
+ },
+ {
+  "strategy": "atr_channel_trend",
+  "flip_rate": 0.026525475751995087,
+  "exposure": 0.3717065684468999,
+  "median_on_run": 17,
+  "share_1day_runs": 0.007895959126799815
+ },
+ {
+  "strategy": "sma_cross_10_50",
+  "flip_rate": 0.02630448127685697,
+  "exposure": 0.5006200122774709,
+  "median_on_run": 28,
+  "share_1day_runs": 0.028678890456041373
+ },
+ {
+  "strategy": "supertrend_stochastic_21_4_21",
+  "flip_rate": 0.026034376918354817,
+  "exposure": 0.11186003683241252,
+  "median_on_run": 6,
+  "share_1day_runs": 0.1639111950873878
+ },
+ {
+  "strategy": "smi_ergodic_pullback",
+  "flip_rate": 0.026028238182934316,
+  "exposure": 0.08198895027624309,
+  "median_on_run": 5,
+  "share_1day_runs": 0.11100614076523382
+ },
+ {
+  "strategy": "ema_rsi_stochastic_adx_50_100",
+  "flip_rate": 0.025788827501534686,
+  "exposure": 0.22942295887047268,
+  "median_on_run": 13.0,
+  "share_1day_runs": 0.11376673040152964
+ },
+ {
+  "strategy": "supertrend_follow",
+  "flip_rate": 0.02558011049723757,
+  "exposure": 0.5036157151626764,
+  "median_on_run": 29,
+  "share_1day_runs": 0.0028971511347175277
+ },
+ {
+  "strategy": "time_series_momentum_12m",
+  "flip_rate": 0.025555555555555557,
+  "exposure": 0.45187231430325353,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.29008746355685133
+ },
+ {
+  "strategy": "nvi_dual_ema_trend",
+  "flip_rate": 0.025352977286678943,
+  "exposure": 0.25324125230202577,
+  "median_on_run": 9,
+  "share_1day_runs": 0.10510948905109489
+ },
+ {
+  "strategy": "atr_breakout",
+  "flip_rate": 0.025058317986494782,
+  "exposure": 0.45591160220994476,
+  "median_on_run": 27.0,
+  "share_1day_runs": 0.0019704433497536944
+ },
+ {
+  "strategy": "sma100_stochastic_14_20_80",
+  "flip_rate": 0.02483732351135666,
+  "exposure": 0.10468385512584408,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.13366336633663367
+ },
+ {
+  "strategy": "time_series_momentum_12m_no_skip",
+  "flip_rate": 0.024757519950890115,
+  "exposure": 0.45265193370165746,
+  "median_on_run": 4,
+  "share_1day_runs": 0.28492739108662996
+ },
+ {
+  "strategy": "profit_only_exit_sma_atr_catastrophe",
+  "flip_rate": 0.024248004910988337,
+  "exposure": 0.7288827501534684,
+  "median_on_run": 50,
+  "share_1day_runs": 0.0010303967027305513
+ },
+ {
+  "strategy": "keltner_breakout",
+  "flip_rate": 0.023922651933701657,
+  "exposure": 0.21443216697360343,
+  "median_on_run": 14.0,
+  "share_1day_runs": 0.004629629629629629
+ },
+ {
+  "strategy": "supertrend_stochastic_14_3_21",
+  "flip_rate": 0.023885819521178638,
+  "exposure": 0.06878453038674033,
+  "median_on_run": 4,
+  "share_1day_runs": 0.28769943386515695
+ },
+ {
+  "strategy": "atr_breakout_20_atr14_x3_trend50",
+  "flip_rate": 0.0238182934315531,
+  "exposure": 0.4343646408839779,
+  "median_on_run": 27,
+  "share_1day_runs": 0.002073613271124935
+ },
+ {
+  "strategy": "rsi_bollinger_3_10_bb20_2",
+  "flip_rate": 0.023787599754450585,
+  "exposure": 0.1331123388581952,
+  "median_on_run": 9.0,
+  "share_1day_runs": 0.0078125
+ },
+ {
+  "strategy": "rsi_bollinger_5_20_bb20_2",
+  "flip_rate": 0.023640270104358502,
+  "exposure": 0.18624309392265193,
+  "median_on_run": 13,
+  "share_1day_runs": 0.0068241469816272965
+ },
+ {
+  "strategy": "donchian_breakout_20_10_trend100",
+  "flip_rate": 0.023572744014732964,
+  "exposure": 0.32387968078575813,
+  "median_on_run": 20,
+  "share_1day_runs": 0.0026164311878597592
+ },
+ {
+  "strategy": "dsma_trend_slow",
+  "flip_rate": 0.023499079189686925,
+  "exposure": 0.380988336402701,
+  "median_on_run": 6,
+  "share_1day_runs": 0.22806095638465582
+ },
+ {
+  "strategy": "sma200_stochastic_14_20_80",
+  "flip_rate": 0.023425414364640886,
+  "exposure": 0.12753222836095765,
+  "median_on_run": 9,
+  "share_1day_runs": 0.1045717288491855
+ },
+ {
+  "strategy": "sma200_stochastic_21_30_75",
+  "flip_rate": 0.023339472068753836,
+  "exposure": 0.13025782688766113,
+  "median_on_run": 8.0,
+  "share_1day_runs": 0.14135021097046413
+ },
+ {
+  "strategy": "ema200_stochastic_14_20_80",
+  "flip_rate": 0.023265807243707796,
+  "exposure": 0.11700429711479435,
+  "median_on_run": 8,
+  "share_1day_runs": 0.10999471179270227
+ },
+ {
+  "strategy": "time_series_momentum_18m_skip1m",
+  "flip_rate": 0.02316144874155924,
+  "exposure": 0.2783057090239411,
+  "median_on_run": 3,
+  "share_1day_runs": 0.311134789557805
+ },
+ {
+  "strategy": "ema100_stochastic_14_20_80",
+  "flip_rate": 0.02305095150399018,
+  "exposure": 0.08725598526703499,
+  "median_on_run": 6,
+  "share_1day_runs": 0.15573333333333333
+ },
+ {
+  "strategy": "mfi_momentum_21_60_40_sma200",
+  "flip_rate": 0.02216697360343769,
+  "exposure": 0.2982136279926335,
+  "median_on_run": 16.0,
+  "share_1day_runs": 0.14516129032258066
+ },
+ {
+  "strategy": "sma50_stochastic_14_20_80",
+  "flip_rate": 0.021424186617556785,
+  "exposure": 0.057022713321055865,
+  "median_on_run": 4.0,
+  "share_1day_runs": 0.2158438576349024
+ },
+ {
+  "strategy": "profit_only_exit_sma100_atr3_catastrophe6",
+  "flip_rate": 0.020988336402701042,
+  "exposure": 0.6823081645181093,
+  "median_on_run": 54.0,
+  "share_1day_runs": 0.0005924170616113745
+ },
+ {
+  "strategy": "supertrend_stochastic_7_2_14",
+  "flip_rate": 0.02079803560466544,
+  "exposure": 0.04423572744014733,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.31678486997635935
+ },
+ {
+  "strategy": "atr_breakout_20_atr14_x4",
+  "flip_rate": 0.020337630448127687,
+  "exposure": 0.5563167587476979,
+  "median_on_run": 42,
+  "share_1day_runs": 0.0006101281269066504
+ },
+ {
+  "strategy": "atr_breakout_20_atr14_x3_trend100",
+  "flip_rate": 0.020227133210558624,
+  "exposure": 0.37405770411295275,
+  "median_on_run": 28,
+  "share_1day_runs": 0.003050640634533252
+ },
+ {
+  "strategy": "supertrend_stochastic_10_2_14",
+  "flip_rate": 0.02020257826887661,
+  "exposure": 0.042608962553713936,
+  "median_on_run": 3,
+  "share_1day_runs": 0.30432136335970783
+ },
+ {
+  "strategy": "rsi2_trend_reversion",
+  "flip_rate": 0.020006138735420502,
+  "exposure": 0.040865561694290974,
+  "median_on_run": 3,
+  "share_1day_runs": 0.12968653964351567
+ },
+ {
+  "strategy": "efficiency_ratio_trend",
+  "flip_rate": 0.019607120933087783,
+  "exposure": 0.0554573357888275,
+  "median_on_run": 2.0,
+  "share_1day_runs": 0.34316185696361357
+ },
+ {
+  "strategy": "rsi2_reversion_5_70_trend200",
+  "flip_rate": 0.019496623695518724,
+  "exposure": 0.05144874155923879,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.06502525252525253
+ },
+ {
+  "strategy": "supertrend_rsi_7_2_7",
+  "flip_rate": 0.019269490484960097,
+  "exposure": 0.0867219152854512,
+  "median_on_run": 7,
+  "share_1day_runs": 0.1148691767708998
+ },
+ {
+  "strategy": "ema_cross_20_50",
+  "flip_rate": 0.01892572130141191,
+  "exposure": 0.5030018416206261,
+  "median_on_run": 36,
+  "share_1day_runs": 0.026160889470241987
+ },
+ {
+  "strategy": "smi_ergodic_dynamic_zones",
+  "flip_rate": 0.01858195211786372,
+  "exposure": 0.461853898096992,
+  "median_on_run": 44,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "negative_volume_index",
+  "flip_rate": 0.018514426028238183,
+  "exposure": 0.3211479435236341,
+  "median_on_run": 6.0,
+  "share_1day_runs": 0.12767379679144386
+ },
+ {
+  "strategy": "ema50_stochastic_21_30_75",
+  "flip_rate": 0.018385512584407612,
+  "exposure": 0.043867403314917126,
+  "median_on_run": 3,
+  "share_1day_runs": 0.2729096989966555
+ },
+ {
+  "strategy": "rsi2_reversion_5_70_trend100",
+  "flip_rate": 0.018244321669736035,
+  "exposure": 0.04741559238796808,
+  "median_on_run": 5,
+  "share_1day_runs": 0.06473364801078894
+ },
+ {
+  "strategy": "ema50_stochastic_14_20_80",
+  "flip_rate": 0.018225905463474523,
+  "exposure": 0.047194597912829955,
+  "median_on_run": 4,
+  "share_1day_runs": 0.222521915037087
+ },
+ {
+  "strategy": "ema_rsi_stochastic_adx_50_200",
+  "flip_rate": 0.018207489257213015,
+  "exposure": 0.1668999386126458,
+  "median_on_run": 14,
+  "share_1day_runs": 0.08666215301286391
+ },
+ {
+  "strategy": "heikin_ashi_stochastic",
+  "flip_rate": 0.01805402087170043,
+  "exposure": 0.031884591774094535,
+  "median_on_run": 3,
+  "share_1day_runs": 0.2658486707566462
+ },
+ {
+  "strategy": "vertical_horizontal_filter",
+  "flip_rate": 0.01770411295273174,
+  "exposure": 0.20714548802946592,
+  "median_on_run": 22.0,
+  "share_1day_runs": 0.04798331015299027
+ },
+ {
+  "strategy": "highest_close_breakout_trend",
+  "flip_rate": 0.017630448127685695,
+  "exposure": 0.30971761817065685,
+  "median_on_run": 28,
+  "share_1day_runs": 0.0013995801259622112
+ },
+ {
+  "strategy": "donchian_40_20_trend",
+  "flip_rate": 0.016341313689379987,
+  "exposure": 0.3846715776550031,
+  "median_on_run": 37,
+  "share_1day_runs": 0.001514004542013626
+ },
+ {
+  "strategy": "donchian_breakout_40_20",
+  "flip_rate": 0.016341313689379987,
+  "exposure": 0.3846715776550031,
+  "median_on_run": 37,
+  "share_1day_runs": 0.001514004542013626
+ },
+ {
+  "strategy": "mfi_reversal",
+  "flip_rate": 0.0160036832412523,
+  "exposure": 0.3272130141190915,
+  "median_on_run": 30.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "supertrend_rsi_14_3_14",
+  "flip_rate": 0.015678330263965624,
+  "exposure": 0.12463474524248006,
+  "median_on_run": 11.0,
+  "share_1day_runs": 0.08555729984301413
+ },
+ {
+  "strategy": "supertrend_rsi_10_3_14",
+  "flip_rate": 0.015297728667894413,
+  "exposure": 0.16647022713321055,
+  "median_on_run": 15,
+  "share_1day_runs": 0.06607574536663981
+ },
+ {
+  "strategy": "ema_pullback_trend",
+  "flip_rate": 0.015193370165745856,
+  "exposure": 0.2662185389809699,
+  "median_on_run": 15.0,
+  "share_1day_runs": 0.052845528455284556
+ },
+ {
+  "strategy": "atr_breakout_55_atr14_x3",
+  "flip_rate": 0.015064456721915285,
+  "exposure": 0.28629220380601594,
+  "median_on_run": 29,
+  "share_1day_runs": 0.001638001638001638
+ },
+ {
+  "strategy": "mfi_trend_7_20_80_sma50",
+  "flip_rate": 0.014450583179864947,
+  "exposure": 0.06376918354818907,
+  "median_on_run": 7.0,
+  "share_1day_runs": 0.15102389078498293
+ },
+ {
+  "strategy": "atr_breakout_55_atr14_x3_trend100",
+  "flip_rate": 0.014389195825659914,
+  "exposure": 0.27681399631675874,
+  "median_on_run": 30.0,
+  "share_1day_runs": 0.0017152658662092624
+ },
+ {
+  "strategy": "rsi_ibs_reversion",
+  "flip_rate": 0.014192756292203805,
+  "exposure": 0.020515653775322284,
+  "median_on_run": 2.0,
+  "share_1day_runs": 0.3223570190641248
+ },
+ {
+  "strategy": "breakout",
+  "flip_rate": 0.013855125844076121,
+  "exposure": 0.3294720687538367,
+  "median_on_run": 38.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "donchian_breakout_55_20",
+  "flip_rate": 0.013855125844076121,
+  "exposure": 0.3294720687538367,
+  "median_on_run": 38.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "sma_pullback_trend",
+  "flip_rate": 0.01376304481276857,
+  "exposure": 0.2870841006752609,
+  "median_on_run": 23.0,
+  "share_1day_runs": 0.04308797127468582
+ },
+ {
+  "strategy": "choppiness_breakout",
+  "flip_rate": 0.013554327808471454,
+  "exposure": 0.10266421117249847,
+  "median_on_run": 13.0,
+  "share_1day_runs": 0.0027223230490018148
+ },
+ {
+  "strategy": "donchian_breakout_55_20_trend100",
+  "flip_rate": 0.01325352977286679,
+  "exposure": 0.31705954573357886,
+  "median_on_run": 39,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "sma_cross_20_100",
+  "flip_rate": 0.013143032535297729,
+  "exposure": 0.489036218538981,
+  "median_on_run": 57.0,
+  "share_1day_runs": 0.010396975425330813
+ },
+ {
+  "strategy": "rsi_reversion_atr",
+  "flip_rate": 0.012805402087170042,
+  "exposure": 0.9296746470227133,
+  "median_on_run": 55,
+  "share_1day_runs": 0.001001001001001001
+ },
+ {
+  "strategy": "atr_breakout_55_atr21_x4",
+  "flip_rate": 0.012535297728667894,
+  "exposure": 0.35882136279926335,
+  "median_on_run": 44,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "profit_only_exit_sma200_atr4_catastrophe8",
+  "flip_rate": 0.011804788213627992,
+  "exposure": 0.6397053406998159,
+  "median_on_run": 91.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "donchian_breakout_55_20_trend200",
+  "flip_rate": 0.011485573971761818,
+  "exposure": 0.2714610190300798,
+  "median_on_run": 37.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "sma_cross_50_100",
+  "flip_rate": 0.01096378146101903,
+  "exposure": 0.4927501534683855,
+  "median_on_run": 69.0,
+  "share_1day_runs": 0.004555808656036446
+ },
+ {
+  "strategy": "rsi_bollinger_14_30_bb20_2",
+  "flip_rate": 0.010816451810926948,
+  "exposure": 0.09190914671577655,
+  "median_on_run": 15,
+  "share_1day_runs": 0.0011534025374855825
+ },
+ {
+  "strategy": "atr_breakout_55_atr21_x4_trend200",
+  "flip_rate": 0.010270104358502148,
+  "exposure": 0.2982136279926335,
+  "median_on_run": 45.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "high_vol_breakout",
+  "flip_rate": 0.010079803560466545,
+  "exposure": 0.2217986494782075,
+  "median_on_run": 36.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "donchian_80_30_trend",
+  "flip_rate": 0.009926335174953959,
+  "exposure": 0.3254573357888275,
+  "median_on_run": 50.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "trend_pullback",
+  "flip_rate": 0.009883364027010436,
+  "exposure": 0.1332658072437078,
+  "median_on_run": 18,
+  "share_1day_runs": 0.1113892365456821
+ },
+ {
+  "strategy": "squeeze_breakout",
+  "flip_rate": 0.009551872314303253,
+  "exposure": 0.07790669122160834,
+  "median_on_run": 13,
+  "share_1day_runs": 0.01032258064516129
+ },
+ {
+  "strategy": "supertrend_rsi_21_4_21",
+  "flip_rate": 0.009337016574585636,
+  "exposure": 0.1321915285451197,
+  "median_on_run": 18,
+  "share_1day_runs": 0.05019815059445178
+ },
+ {
+  "strategy": "ema_cross_50_100",
+  "flip_rate": 0.008741559238796808,
+  "exposure": 0.48520564763658686,
+  "median_on_run": 72,
+  "share_1day_runs": 0.018651362984218076
+ },
+ {
+  "strategy": "mfi_trend_10_20_80_sma100",
+  "flip_rate": 0.00809085328422345,
+  "exposure": 0.06268262737875997,
+  "median_on_run": 11,
+  "share_1day_runs": 0.1141552511415525
+ },
+ {
+  "strategy": "halloween_effect",
+  "flip_rate": 0.008011049723756906,
+  "exposure": 0.4853222836095764,
+  "median_on_run": 120.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "rsi5_reversion_20_65_trend100",
+  "flip_rate": 0.007802332719459792,
+  "exposure": 0.05503990178023327,
+  "median_on_run": 16.0,
+  "share_1day_runs": 0.0015772870662460567
+ },
+ {
+  "strategy": "rsi_bollinger_2_5_bb20_2_trend200",
+  "flip_rate": 0.007716390423572744,
+  "exposure": 0.02460405156537753,
+  "median_on_run": 5.0,
+  "share_1day_runs": 0.027156549520766772
+ },
+ {
+  "strategy": "rsi_reversion",
+  "flip_rate": 0.007194597912829957,
+  "exposure": 0.41622467771639043,
+  "median_on_run": 85.5,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "donchian_breakout_100_50",
+  "flip_rate": 0.007151626764886433,
+  "exposure": 0.3516635972989564,
+  "median_on_run": 71.5,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "rvi_reversal",
+  "flip_rate": 0.0068937998772252915,
+  "exposure": 0.06960098219766728,
+  "median_on_run": 16.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "rsi_bollinger_14_30_bb30_25",
+  "flip_rate": 0.006875383670963782,
+  "exposure": 0.0849294045426642,
+  "median_on_run": 24.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "donchian_breakout_100_50_trend200",
+  "flip_rate": 0.006666666666666667,
+  "exposure": 0.32101289134438304,
+  "median_on_run": 71,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "mfi_trend_14_25_75_sma200",
+  "flip_rate": 0.006623695518723143,
+  "exposure": 0.08082872928176796,
+  "median_on_run": 17,
+  "share_1day_runs": 0.09497206703910614
+ },
+ {
+  "strategy": "sma_cross",
+  "flip_rate": 0.006157151626764886,
+  "exposure": 0.4557888275015347,
+  "median_on_run": 98.5,
+  "share_1day_runs": 0.00823045267489712
+ },
+ {
+  "strategy": "rsi_bollinger_2_5_bb20_2_trend100",
+  "flip_rate": 0.005555555555555556,
+  "exposure": 0.017526089625537138,
+  "median_on_run": 5,
+  "share_1day_runs": 0.022172949002217297
+ },
+ {
+  "strategy": "rsi14_reversion_25_60",
+  "flip_rate": 0.0055494168201350525,
+  "exposure": 0.0747329650092081,
+  "median_on_run": 30.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "sma_cross_100_200",
+  "flip_rate": 0.0053284223449969305,
+  "exposure": 0.4640085942295887,
+  "median_on_run": 134.0,
+  "share_1day_runs": 0.004807692307692308
+ },
+ {
+  "strategy": "rsi_bollinger_5_20_bb20_2_trend100",
+  "flip_rate": 0.004917127071823205,
+  "exposure": 0.0390791896869245,
+  "median_on_run": 13,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "mass_index_reversal",
+  "flip_rate": 0.004616329036218539,
+  "exposure": 0.012885205647636587,
+  "median_on_run": 3.0,
+  "share_1day_runs": 0.2526595744680851
+ },
+ {
+  "strategy": "ema_cross_100_200",
+  "flip_rate": 0.004419889502762431,
+  "exposure": 0.4603744628606507,
+  "median_on_run": 124,
+  "share_1day_runs": 0.002932551319648094
+ },
+ {
+  "strategy": "rsi_cross_reversion",
+  "flip_rate": 0.0038919582565991404,
+  "exposure": 0.9185144260282382,
+  "median_on_run": 240,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "rsi_reversion_trend_entry",
+  "flip_rate": 0.003149171270718232,
+  "exposure": 0.816292203806016,
+  "median_on_run": 329.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "supertrend_rsi_10_2_14",
+  "flip_rate": 0.003032535297728668,
+  "exposure": 0.024647022713321056,
+  "median_on_run": 11,
+  "share_1day_runs": 0.06882591093117409
+ },
+ {
+  "strategy": "mfi_trend_14_20_80_sma100",
+  "flip_rate": 0.002860650705954573,
+  "exposure": 0.024444444444444446,
+  "median_on_run": 11,
+  "share_1day_runs": 0.17316017316017315
+ },
+ {
+  "strategy": "mfi_trend_21_25_75_sma200",
+  "flip_rate": 0.002252915899324739,
+  "exposure": 0.03535911602209945,
+  "median_on_run": 17.5,
+  "share_1day_runs": 0.1043956043956044
+ },
+ {
+  "strategy": "ema20_stochastic_14_20_80",
+  "flip_rate": 0.0015715162676488642,
+  "exposure": 0.002148557397176182,
+  "median_on_run": 2.0,
+  "share_1day_runs": 0.375
+ },
+ {
+  "strategy": "rsi14_reversion_30_70_trend200",
+  "flip_rate": 0.0013812154696132596,
+  "exposure": 0.020135052179251073,
+  "median_on_run": 30.0,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "rsi_bollinger_14_30_bb20_2_trend200",
+  "flip_rate": 0.001160220994475138,
+  "exposure": 0.009551872314303253,
+  "median_on_run": 14.5,
+  "share_1day_runs": 0.0
+ },
+ {
+  "strategy": "sma20_stochastic_14_20_80",
+  "flip_rate": 0.0006875383670963782,
+  "exposure": 0.0007612031921424186,
+  "median_on_run": 2.0,
+  "share_1day_runs": 0.44642857142857145
+ },
+ {
+  "strategy": "buy_and_hold",
+  "flip_rate": 0.0,
+  "exposure": 1.0,
+  "median_on_run": null,
+  "share_1day_runs": null
+ }
+]
