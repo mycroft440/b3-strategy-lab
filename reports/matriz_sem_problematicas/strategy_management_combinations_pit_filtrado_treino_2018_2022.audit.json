@@ -1,6 +1,6 @@
 {
   "annual_report": "reports/matriz_sem_problematicas/strategy_management_combinations_pit_filtrado_treino_2018_2022_top10_annual.md",
-  "annual_report_sha256": "a9e0fda8e115328ae4e667097a9dfe250daaf631f1f19a2424833d9a4d9bc527",
+  "annual_report_sha256": "cb3b6e5061ea0405b072f744135bfb1b55eaaca436dbf9210413b76ecdd43f3c",
   "annual_report_top_n": 10,
   "checks": {
     "all_critical_sources_are_hashed": true,
@@ -9,7 +9,7 @@
     "annual_report_top_matches_csv": true,
     "buy_allocation_policy_is_declared": true,
     "calculation_worktree_scope_is_explicit": true,
-    "calculation_worktree_was_clean": false,
+    "calculation_worktree_was_clean": true,
     "certified_complex_transition_invalid_rows_are_explicit": true,
     "dataset_hashes_match": true,
     "execution_policy_is_fail_closed": true,
@@ -36,14 +36,14 @@
     "universe_hash_matches": true,
     "valid_rows_precede_invalid_rows": true
   },
-  "generated_at_utc": "2026-09-24T11:40:41+00:00",
+  "generated_at_utc": "2026-09-24T15:43:01+00:00",
   "invalid_rows": 0,
   "management_count": 478,
   "manifest": "reports/matriz_sem_problematicas/strategy_management_combinations_pit_filtrado_treino_2018_2022.manifest.json",
-  "manifest_sha256": "70f46aa36b1122d8861b06428a4602d04026674da769e111371505012ccf74e1",
-  "ready": false,
+  "manifest_sha256": "d171edff91bf773337bf6db13c4e488b09afd826b514f0b659173d468edb1d35",
+  "ready": true,
   "ready_for_real_money": false,
-  "ready_for_research_ranking": false,
+  "ready_for_research_ranking": true,
   "real_money_blockers": [
     "fractional_market_execution_is_not_modeled",
     "manifest_forbids_real_money_claim",
@@ -54,7 +54,7 @@
   "real_money_claim_allowed": false,
   "result_classification": "RETROSPECTIVE_PRICE_ONLY_RESEARCH",
   "results": "reports/matriz_sem_problematicas/strategy_management_combinations_pit_filtrado_treino_2018_2022.csv.gz",
-  "results_sha256": "1aab18aca3330b77229ca2c1e65f5792f3361eb8098f536cf13c40d45a7f0695",
+  "results_sha256": "1ec5caa0240acf6b16c596e755f7145f7c90e1890bc3ba99849b9e4e737d146a",
   "rows": 119022,
   "strategy_count": 249,
   "valid_rows": 119022

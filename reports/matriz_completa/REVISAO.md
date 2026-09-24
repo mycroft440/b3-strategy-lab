@@ -5,6 +5,11 @@ Matriz completa: 249 estratégias × 478 gerenciamentos = 119.022 combinações,
 ordem, lote de 1 ação, universo point-in-time survivorship-safe (top 40 por liquidez
 passada, recalculado a cada semana). Dividendos/JCP não entram.
 
+> Os números desta revisão são anteriores à correção de `89889e6`: ao zerar uma posição,
+> o motor podia deixar uma ação residual. A referência atual é a
+> [matriz sem ações problemáticas](../matriz_sem_problematicas/REVISAO.md), executada
+> com o motor corrigido.
+
 ## Veredito
 
 A campeã agora está **calculada corretamente**: os preços batem com a B3, os sinais

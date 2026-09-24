@@ -1,7 +1,7 @@
 {
-  "generated_at_utc": "2026-09-24T11:39:43.153027+00:00",
-  "git_commit": "e497b12c446e4931b77a61f3ae24b7284924a510",
-  "git_dirty": true,
+  "generated_at_utc": "2026-09-24T13:50:58.427017+00:00",
+  "git_commit": "5d064931c7c5a401dcd91a849277721b065477fa",
+  "git_dirty": false,
   "git_dirty_scope": "calculation_sources_and_workflows_excluding_hashed_market_data",
   "source_sha256": {
     "b3_strategy_lab/backtest.py": "e98d960113035f5cef6a6247a74d8a217ced76b4bf3504be1eabded3b9171e00",
@@ -22,7 +22,7 @@
     "b3_strategy_lab/extended_strategies.py": "d433dcea99eb42f6f0972941bd773e207b55a03ff72b3e0e49ccd9b1b16f4508",
     "scripts/backtest_strategy_management_combinations.py": "551dd530c236b927d25a72c847649a32d4db2316ffd803bea145cfb64cab14df",
     "scripts/research_portfolio_allocation.py": "842aece0799c0d477ec4e25a8cdf73e3949c248d411bae63847f13094026486e",
-    "scripts/research_portfolio_allocation_core.py": "19c9bf27bd4be65164f21c227bc889f3db3753e904342faf5a4c6421384bf61f"
+    "scripts/research_portfolio_allocation_core.py": "35c082dc11c378f03e885d153b9ef2f1f7b62f52ee9288caf44ddc1f5367693a"
   },
   "universe": {
     "manifest": "reports/matriz_sem_problematicas/universo_filtrado.json",
@@ -10833,6 +10833,6 @@
     "certified_complex_corporate_transition_crossings_excluded_from_ranking"
   ],
   "final_valuation": "liquidated_at_last_verified_close_with_costs_and_slippage",
-  "workers": 3,
-  "elapsed_seconds": 3231.665627684
+  "workers": 4,
+  "elapsed_seconds": 6374.916347160999
 }

@@ -5,157 +5,157 @@
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 44.50% |
-| 2020 | 129.57% |
-| 2021 | 139.12% |
-| 2022 | 8.96% |
-| 2023 | -23.51% |
-| 2024 | 47.68% |
-| 2025 | 68.30% |
-| 2026 | -26.24% |
+| 2019 | 42.60% |
+| 2020 | 126.84% |
+| 2021 | 138.89% |
+| 2022 | 8.92% |
+| 2023 | -23.50% |
+| 2024 | 47.74% |
+| 2025 | 68.26% |
+| 2026 | -26.32% |
 
-Media dos anos-calendario completos: 57.60%
+Media dos anos-calendario completos: 56.99%
 
 ## 2. profit_only_exit_sma200_atr4_catastrophe8 + top1_risk_adjusted_lb126_skip21_trend0_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
-| 2018 | 29.97% |
-| 2019 | 40.32% |
-| 2020 | 98.00% |
-| 2021 | 158.87% |
-| 2022 | -2.52% |
-| 2023 | -0.08% |
-| 2024 | 42.64% |
-| 2025 | 62.49% |
-| 2026 | -19.92% |
+| 2018 | 31.07% |
+| 2019 | 39.70% |
+| 2020 | 100.06% |
+| 2021 | 159.19% |
+| 2022 | -2.55% |
+| 2023 | -0.10% |
+| 2024 | 42.62% |
+| 2025 | 62.42% |
+| 2026 | -20.00% |
 
-Media dos anos-calendario completos: 53.71%
+Media dos anos-calendario completos: 54.05%
 
 ## 3. buy_and_hold + top1_risk_adjusted_lb126_skip21_trend0_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | -4.40% |
-| 2023 | -11.41% |
-| 2024 | 47.70% |
-| 2025 | 62.54% |
-| 2026 | -22.42% |
+| 2023 | -11.44% |
+| 2024 | 47.69% |
+| 2025 | 62.56% |
+| 2026 | -22.43% |
 
-Media dos anos-calendario completos: 55.30%
+Media dos anos-calendario completos: 55.36%
 
 ## 4. sma_cross + top1_risk_adjusted_lb126_skip21_trend0_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | -4.40% |
-| 2023 | -11.41% |
-| 2024 | 47.70% |
-| 2025 | 62.54% |
-| 2026 | -22.42% |
+| 2023 | -11.44% |
+| 2024 | 47.69% |
+| 2025 | 62.56% |
+| 2026 | -22.43% |
 
-Media dos anos-calendario completos: 55.30%
+Media dos anos-calendario completos: 55.36%
 
 ## 5. sma_cross_100_200 + top1_risk_adjusted_lb126_skip21_trend0_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | -4.40% |
-| 2023 | -11.41% |
-| 2024 | 47.70% |
-| 2025 | 62.54% |
-| 2026 | -22.42% |
+| 2023 | -11.44% |
+| 2024 | 47.69% |
+| 2025 | 62.56% |
+| 2026 | -22.43% |
 
-Media dos anos-calendario completos: 55.30%
+Media dos anos-calendario completos: 55.36%
 
 ## 6. time_series_momentum_12m + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 29.42% |
-| 2020 | 117.93% |
-| 2021 | 138.93% |
-| 2022 | 21.75% |
-| 2023 | -23.77% |
-| 2024 | 47.72% |
-| 2025 | 55.53% |
-| 2026 | -22.37% |
+| 2019 | 29.21% |
+| 2020 | 125.62% |
+| 2021 | 138.55% |
+| 2022 | 21.80% |
+| 2023 | -23.76% |
+| 2024 | 47.75% |
+| 2025 | 55.55% |
+| 2026 | -22.39% |
 
-Media dos anos-calendario completos: 54.21%
+Media dos anos-calendario completos: 55.11%
 
-## 7. buy_and_hold + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
+## 7. profit_only_exit_sma200_atr4_catastrophe8 + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
+
+| Ano | Retorno |
+|---:|---:|
+| 2018 | 31.07% |
+| 2019 | 39.70% |
+| 2020 | 100.06% |
+| 2021 | 159.19% |
+| 2022 | 11.96% |
+| 2023 | -14.63% |
+| 2024 | 42.67% |
+| 2025 | 57.93% |
+| 2026 | -20.00% |
+
+Media dos anos-calendario completos: 53.49%
+
+## 8. buy_and_hold + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | 9.79% |
-| 2023 | -23.77% |
+| 2023 | -23.76% |
 | 2024 | 47.76% |
 | 2025 | 57.74% |
-| 2026 | -22.36% |
+| 2026 | -22.38% |
 
-Media dos anos-calendario completos: 54.94%
+Media dos anos-calendario completos: 55.00%
 
-## 8. ema_cross_100_200 + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
+## 9. ema_cross_100_200 + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | 9.79% |
-| 2023 | -23.77% |
+| 2023 | -23.76% |
 | 2024 | 47.76% |
 | 2025 | 57.74% |
-| 2026 | -22.36% |
+| 2026 | -22.38% |
 
-Media dos anos-calendario completos: 54.94%
+Media dos anos-calendario completos: 55.00%
 
-## 9. sma_cross + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
+## 10. sma_cross + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
 
 | Ano | Retorno |
 |---:|---:|
 | 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
+| 2019 | 32.73% |
+| 2020 | 130.77% |
+| 2021 | 138.82% |
 | 2022 | 9.79% |
-| 2023 | -23.77% |
+| 2023 | -23.76% |
 | 2024 | 47.76% |
 | 2025 | 57.74% |
-| 2026 | -22.36% |
+| 2026 | -22.38% |
 
-Media dos anos-calendario completos: 54.94%
-
-## 10. sma_cross_100_200 + top1_risk_adjusted_lb126_skip21_trend200_vol21_equal_monthly_abs_cap1_adjusted
-
-| Ano | Retorno |
-|---:|---:|
-| 2018 | 46.15% |
-| 2019 | 33.33% |
-| 2020 | 129.68% |
-| 2021 | 138.84% |
-| 2022 | 9.79% |
-| 2023 | -23.77% |
-| 2024 | 47.76% |
-| 2025 | 57.74% |
-| 2026 | -22.36% |
-
-Media dos anos-calendario completos: 54.94%
+Media dos anos-calendario completos: 55.00%

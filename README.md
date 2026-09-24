@@ -241,8 +241,9 @@ escolha feita somente no treino perdeu dinheiro de 2023 a 2026. Sem as 11 açõe
 eventos societários os motores não valoram, a
 [matriz filtrada](reports/matriz_sem_problematicas/REVISAO.md) aponta
 `ema_cross_50_100` com o gerenciamento `top1_risk_adjusted_lb126_skip21` mensal:
-38,70% a.a. no motor realista de 2018 a 2026 e 11,44% a.a. de 2023 a 2026, abaixo do
-CDI nesse trecho.
+38,70% a.a. no motor realista de 2018 a 2026. Escolhendo só com 2018–2022, a carteira
+rendeu 10,26% a.a. de 2023 a 2026, abaixo do CDI. A vencedora está recriada em
+[Pine v5](pine/ema_cross_50_100_top1_risk_adjusted_v5.pine).
 
 Arquivos gerados:
 
