@@ -92,3 +92,18 @@ def test_frozen_quantity_reserves_fees_before_choosing_the_market_leg():
     assert 0 < result.shares("AAA3") < 100
     assert result.order_ledger[0]["market_type"] == "020"
     assert result.cash > 0
+
+
+@pytest.mark.parametrize(
+    ("cash", "opening", "expected_lot", "expected_odd"),
+    [(1375.0, 10.05, 100, 36), (2130.0, 10.02, 200, 12)],
+)
+def test_small_cash_shortfall_keeps_the_standard_lot_leg(cash, opening, expected_lot, expected_odd):
+    # Regression: scaling each leg separately floored the 100-share leg to zero (or one
+    # lot less) for any shortfall, leaving most of the cash idle until the next rebalance.
+    result = rebalance_atomic(account(cash), None, book(opening=opening), CURRENT, {"AAA3": 1.0})
+    legs = {row["market_type"]: row for row in result.order_ledger}
+    assert legs["010"]["filled_shares"] == expected_lot
+    assert legs["020"]["filled_shares"] == expected_odd
+    assert result.shares("AAA3") == expected_lot + expected_odd
+    assert 0 <= result.cash < opening

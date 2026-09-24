@@ -129,6 +129,28 @@ def _adjust_pending_quantities(quantities, data, current, transitions):
     return result
 
 
+def _scaled_buy_plan(buys, scale: float) -> list[int]:
+    """Scale each ticker's whole buy, then fill its standard-lot leg before the odd lot.
+
+    Scaling the legs separately floors a 100-share leg to zero (or to one lot less) for
+    any scale below one, so a shortfall of a few reais left most of the cash idle.
+    Each leg still never exceeds its own frozen, capacity-limited quantity.
+    """
+
+    legs: dict[str, list[int]] = {}
+    for position, order in enumerate(buys):
+        legs.setdefault(order[0], []).append(position)
+    plan = [0] * len(buys)
+    for positions in legs.values():
+        remaining = int(math.floor(sum(buys[position][2] for position in positions) * scale + 1e-9))
+        for position in sorted(positions, key=lambda item: -buys[item][3]):
+            unit = buys[position][3]
+            quantity = min(buys[position][2], remaining // unit * unit)
+            plan[position] = quantity
+            remaining -= quantity
+    return plan
+
+
 def rebalance_atomic(
     account, data, pricebook, current: str, targets: dict[str, float],
     *, frozen_quantities=None, decision_date=None,
@@ -205,7 +227,7 @@ def rebalance_atomic(
         best = [0] * len(buys)
         for _ in range(48):
             scale = (low + high) / 2
-            candidate = [int(math.floor(order[2] * scale / order[3])) * order[3] for order in buys]
+            candidate = _scaled_buy_plan(buys, scale)
             if costs(candidate) <= available_cash + 1e-9:
                 best, low = candidate, scale
             else:
