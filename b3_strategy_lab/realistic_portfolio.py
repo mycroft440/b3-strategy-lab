@@ -609,12 +609,16 @@ def run_realistic(
             )
             pending_targets = dict(designated_targets)
         elif next_date is not None:
+            # As in the research matrix, the universe is applied only at management
+            # decisions: the designated basket stays fixed until the next one and only
+            # the strategy signal exits/re-enters it. Dropping a holding because its
+            # liquidity rank slipped from 40th to 41st mid-month diverged from the
+            # matrix contract being replayed.
             strategy_eligible = _eligible_tickers(data, current, eligibility) or set()
-            investable = universe.tickers_on(current)
             signal_targets = {
                 ticker: weight
                 for ticker, weight in designated_targets.items()
-                if ticker in strategy_eligible and ticker in investable
+                if ticker in strategy_eligible
             }
             if signal_targets != active_targets:
                 pending_targets = signal_targets
