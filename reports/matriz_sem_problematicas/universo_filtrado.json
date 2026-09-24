@@ -1,0 +1,840 @@
+{
+  "schema_version": 8,
+  "id": "control_panel_combinations_subset",
+  "selection_mode": "full_b3_on_pn_trailing_liquidity_point_in_time",
+  "selected_as_of": "2018-01-02",
+  "selection_end": "2026-08-19",
+  "requested_end": "2026-08-19",
+  "warmup_start": "2017-01-01",
+  "source_years": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "survivorship_safe": true,
+  "point_in_time": true,
+  "snapshot_file": "/home/user/b3-strategy-lab/data/universes/point_in_time_weekly.csv",
+  "allowed_universe_file": "",
+  "excluded_tickers": [
+    "AZUL53",
+    "AZUL54",
+    "GOLL4",
+    "GOLL54",
+    "LAME4",
+    "PCAR3"
+  ],
+  "excluded_instrument_classes": [
+    "UNT",
+    "BDR",
+    "ETF",
+    "funds",
+    "rights",
+    "receipts"
+  ],
+  "tax_instrument_scope": "ON_PN_SHARES_ONLY",
+  "no_replacements": false,
+  "selection_rules": {
+    "source": "B3_COTAHIST_full_historical_ON_PN_share_market",
+    "instrument_filter": "company shares only; equity-status BDI 02/05/06/07/08/09/11 plus conditional BDI58 in market010 ON/PN classes. UNITS are excluded from the certified R$20k tax scope because B3 classifies them as deposit certificates and no Receita source is assumed to extend the share-only exemption automatically",
+    "lookback_sessions": 252,
+    "minimum_presence": 0.9,
+    "weekly_candidates": 40,
+    "issuer_deduplication": true,
+    "decision_frequency": "weekly",
+    "ranking_metric": "trailing_average_financial_volume",
+    "future_continuity_filter": false,
+    "future_return_filter": false,
+    "continuity_scope_end": "2026-08-19",
+    "replacement_policy": "full historical eligible-share market re-ranked from trailing data only"
+  },
+  "execution_sources": {
+    "standard": {
+      "market_type": "010",
+      "bdi_codes": [
+        "02",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "11",
+        "58"
+      ],
+      "bdi58_policy": "ON_PN_valid_ticker_only"
+    },
+    "fractional": {
+      "market_type": "020",
+      "bdi_code": "96"
+    }
+  },
+  "tickers": [
+    "ABEV3",
+    "ALOS3",
+    "AMER3",
+    "ARZZ3",
+    "ASAI3",
+    "AZUL4",
+    "B3SA3",
+    "BBAS3",
+    "BBDC4",
+    "BBSE3",
+    "BRAP4",
+    "BRAV3",
+    "BRDT3",
+    "BRFS3",
+    "BRML3",
+    "BTOW3",
+    "BVMF3",
+    "CASH3",
+    "CCRO3",
+    "CIEL3",
+    "CMIG4",
+    "COGN3",
+    "CPLE3",
+    "CRFB3",
+    "CSAN3",
+    "CSMG3",
+    "CSNA3",
+    "CURY3",
+    "CVCB3",
+    "CYRE3",
+    "ELET3",
+    "EMBR3",
+    "ENEV3",
+    "EQTL3",
+    "ESTC3",
+    "FIBR3",
+    "FLRY3",
+    "GGBR4",
+    "GNDI3",
+    "GOAU4",
+    "HAPV3",
+    "HYPE3",
+    "IRBR3",
+    "ITSA4",
+    "ITUB4",
+    "JBSS3",
+    "KROT3",
+    "LREN3",
+    "LWSA3",
+    "MGLU3",
+    "MOTV3",
+    "MRFG3",
+    "MRVE3",
+    "MULT3",
+    "NATU3",
+    "NTCO3",
+    "OIBR3",
+    "PCAR4",
+    "PETR4",
+    "PETZ3",
+    "POMO4",
+    "PRIO3",
+    "PSSA3",
+    "QUAL3",
+    "RADL3",
+    "RAIL3",
+    "RDOR3",
+    "RENT3",
+    "RRRP3",
+    "SBSP3",
+    "SMFT3",
+    "SMLS3",
+    "SUZB3",
+    "TIMP3",
+    "TIMS3",
+    "TOTS3",
+    "UGPA3",
+    "VALE3",
+    "VBBR3",
+    "VIIA3",
+    "VIVA3",
+    "VIVT3",
+    "VIVT4",
+    "VVAR3",
+    "WEGE3",
+    "YDUQ3"
+  ],
+  "market_data_tickers": [
+    "ABEV3",
+    "ALOS3",
+    "ALSO3",
+    "AMER3",
+    "ARZZ3",
+    "ASAI3",
+    "AXIA3",
+    "AZUL4",
+    "AZZA3",
+    "B3SA3",
+    "BBAS3",
+    "BBDC4",
+    "BBSE3",
+    "BHIA3",
+    "BRAP4",
+    "BRAV3",
+    "BRDT3",
+    "BRFS3",
+    "BRML3",
+    "BTOW3",
+    "BVMF3",
+    "CASH3",
+    "CCRO3",
+    "CIEL3",
+    "CMIG4",
+    "COGN3",
+    "CPLE3",
+    "CRFB3",
+    "CSAN3",
+    "CSMG3",
+    "CSNA3",
+    "CURY3",
+    "CVCB3",
+    "CYRE3",
+    "ELET3",
+    "EMBJ3",
+    "EMBR3",
+    "ENEV3",
+    "EQTL3",
+    "ESTC3",
+    "FIBR3",
+    "FLRY3",
+    "GGBR4",
+    "GNDI3",
+    "GOAU4",
+    "HAPV3",
+    "HYPE3",
+    "IRBR3",
+    "ITSA4",
+    "ITUB4",
+    "JBSS3",
+    "KROT3",
+    "LREN3",
+    "LWSA3",
+    "MBRF3",
+    "MGLU3",
+    "MOTV3",
+    "MRFG3",
+    "MRVE3",
+    "MULT3",
+    "NATU3",
+    "NTCO3",
+    "OIBR3",
+    "PCAR3",
+    "PCAR4",
+    "PETR4",
+    "PETZ3",
+    "POMO4",
+    "PRIO3",
+    "PSSA3",
+    "QUAL3",
+    "RADL3",
+    "RAIL3",
+    "RDOR3",
+    "RENT3",
+    "RRRP3",
+    "SBSP3",
+    "SMFT3",
+    "SMLS3",
+    "SUZB3",
+    "TIMP3",
+    "TIMS3",
+    "TOTS3",
+    "UGPA3",
+    "VALE3",
+    "VBBR3",
+    "VIIA3",
+    "VIVA3",
+    "VIVT3",
+    "VIVT4",
+    "VVAR3",
+    "WEGE3",
+    "YDUQ3"
+  ],
+  "continuity_only_tickers": [
+    "ALSO3",
+    "AXIA3",
+    "AZZA3",
+    "BHIA3",
+    "EMBJ3",
+    "MBRF3",
+    "PCAR3"
+  ],
+  "source_reviewed_successor_tickers": [
+    "ALSO3",
+    "AXIA3",
+    "AZZA3",
+    "BHIA3",
+    "EMBJ3",
+    "MBRF3",
+    "PCAR3"
+  ],
+  "instrument_transition_review_file": "data/corporate_actions/instrument_transition_reviews.json",
+  "continuity_rule": "same_isin_ON_PN_history plus certified source-reviewed instrument successors effective at or before selection_end; continuity never grants selection eligibility",
+  "issuing_company_by_ticker": {
+    "ABEV3": "ABEV",
+    "ARZZ3": "ARZZ",
+    "AZUL4": "AZUL",
+    "BBAS3": "BBAS",
+    "BBDC4": "BBDC",
+    "BBSE3": "BBSE",
+    "BRAP4": "BRAP",
+    "BRDT3": "BRDT",
+    "BRFS3": "BRFS",
+    "BRML3": "BRML",
+    "BTOW3": "BTOW",
+    "BVMF3": "BVMF",
+    "CCRO3": "CCRO",
+    "CIEL3": "CIEL",
+    "CMIG4": "CMIG",
+    "CPLE3": "CPLE",
+    "CRFB3": "CRFB",
+    "CSAN3": "CSAN",
+    "CSMG3": "CSMG",
+    "CSNA3": "CSNA",
+    "CVCB3": "CVCB",
+    "CYRE3": "CYRE",
+    "ELET3": "ELET",
+    "EMBR3": "EMBR",
+    "ENEV3": "ENEV",
+    "EQTL3": "EQTL",
+    "ESTC3": "ESTC",
+    "FIBR3": "FIBR",
+    "FLRY3": "FLRY",
+    "GGBR4": "GGBR",
+    "GOAU4": "GOAU",
+    "HYPE3": "HYPE",
+    "IRBR3": "IRBR",
+    "ITSA4": "ITSA",
+    "ITUB4": "ITUB",
+    "JBSS3": "JBSS",
+    "KROT3": "KROT",
+    "LREN3": "LREN",
+    "MGLU3": "MGLU",
+    "MRFG3": "MRFG",
+    "MRVE3": "MRVE",
+    "MULT3": "MULT",
+    "NATU3": "NATU",
+    "OIBR3": "OIBR",
+    "PCAR3": "PCAR",
+    "PCAR4": "PCAR",
+    "PETR4": "PETR",
+    "POMO4": "POMO",
+    "PRIO3": "PRIO",
+    "PSSA3": "PSSA",
+    "QUAL3": "QUAL",
+    "RADL3": "RADL",
+    "RAIL3": "RAIL",
+    "RENT3": "RENT",
+    "SBSP3": "SBSP",
+    "SMLS3": "SMLS",
+    "SUZB3": "SUZB",
+    "TIMP3": "TIMP",
+    "TOTS3": "TOTS",
+    "UGPA3": "UGPA",
+    "VALE3": "VALE",
+    "VIVT3": "VIVT",
+    "VIVT4": "VIVT",
+    "VVAR3": "VVAR",
+    "WEGE3": "WEGE",
+    "B3SA3": "B3SA",
+    "GNDI3": "GNDI",
+    "HAPV3": "HAPV",
+    "ALSO3": "ALSO",
+    "COGN3": "COGN",
+    "NTCO3": "NTCO",
+    "VIVA3": "VIVA",
+    "YDUQ3": "YDUQ",
+    "CASH3": "CASH",
+    "CURY3": "CURY",
+    "LWSA3": "LWSA",
+    "PETZ3": "PETZ",
+    "RDOR3": "RDOR",
+    "RRRP3": "RRRP",
+    "TIMS3": "TIMS",
+    "AMER3": "AMER",
+    "ASAI3": "ASAI",
+    "SMFT3": "SMFT",
+    "VBBR3": "VBBR",
+    "VIIA3": "VIIA",
+    "ALOS3": "ALOS",
+    "BHIA3": "BHIA",
+    "AZZA3": "AZZA",
+    "BRAV3": "BRAV",
+    "AXIA3": "AXIA",
+    "EMBJ3": "EMBJ",
+    "MBRF3": "MBRF",
+    "MOTV3": "MOTV"
+  },
+  "issuer_name_by_ticker": {
+    "ABEV3": "AMBEV S/A",
+    "ARZZ3": "AREZZO CO",
+    "AZUL4": "AZUL",
+    "BBAS3": "BRASIL",
+    "BBDC4": "BRADESCO",
+    "BBSE3": "BBSEGURIDADE",
+    "BRAP4": "BRADESPAR",
+    "BRDT3": "PETROBRAS BR",
+    "BRFS3": "BRF SA",
+    "BRML3": "BR MALLS PAR",
+    "BTOW3": "B2W DIGITAL",
+    "BVMF3": "B3",
+    "CCRO3": "CCR SA",
+    "CIEL3": "CIELO",
+    "CMIG4": "CEMIG",
+    "CPLE3": "COPEL",
+    "CRFB3": "CARREFOUR BR",
+    "CSAN3": "COSAN",
+    "CSMG3": "COPASA",
+    "CSNA3": "SID NACIONAL",
+    "CVCB3": "CVC BRASIL",
+    "CYRE3": "CYRELA REALT",
+    "ELET3": "ELETROBRAS",
+    "EMBR3": "EMBRAER",
+    "ENEV3": "ENEVA",
+    "EQTL3": "EQUATORIAL",
+    "ESTC3": "ESTACIO PART",
+    "FIBR3": "FIBRIA",
+    "FLRY3": "FLEURY",
+    "GGBR4": "GERDAU",
+    "GOAU4": "GERDAU MET",
+    "HYPE3": "HYPERA",
+    "IRBR3": "IRBBRASIL RE",
+    "ITSA4": "ITAUSA",
+    "ITUB4": "ITAUUNIBANCO",
+    "JBSS3": "JBS",
+    "KROT3": "KROTON",
+    "LREN3": "LOJAS RENNER",
+    "MGLU3": "MAGAZ LUIZA",
+    "MRFG3": "MARFRIG",
+    "MRVE3": "MRV",
+    "MULT3": "MULTIPLAN",
+    "NATU3": "NATURA",
+    "OIBR3": "OI",
+    "PCAR3": "P.ACUCAR-CBD",
+    "PCAR4": "P.ACUCAR-CBD",
+    "PETR4": "PETROBRAS",
+    "POMO4": "MARCOPOLO",
+    "PRIO3": "PRIO",
+    "PSSA3": "PORTO SEGURO",
+    "QUAL3": "QUALICORP",
+    "RADL3": "RAIADROGASIL",
+    "RAIL3": "RUMO S.A.",
+    "RENT3": "LOCALIZA",
+    "SBSP3": "SABESP",
+    "SMLS3": "SMILES",
+    "SUZB3": "SUZANO S.A.",
+    "TIMP3": "TIM PART S/A",
+    "TOTS3": "TOTVS",
+    "UGPA3": "ULTRAPAR",
+    "VALE3": "VALE",
+    "VIVT3": "TELEF BRASIL",
+    "VIVT4": "TELEF BRASIL",
+    "VVAR3": "VIAVAREJO",
+    "WEGE3": "WEG",
+    "B3SA3": "B3",
+    "GNDI3": "INTERMEDICA",
+    "HAPV3": "HAPVIDA",
+    "ALSO3": "ALIANSCSONAE",
+    "COGN3": "COGNA ON",
+    "NTCO3": "GRUPO NATURA",
+    "VIVA3": "VIVARA S.A.",
+    "YDUQ3": "YDUQS PART",
+    "CASH3": "MELIUZ",
+    "CURY3": "CURY S/A",
+    "LWSA3": "LWSA",
+    "PETZ3": "PETZ",
+    "RDOR3": "REDE D OR",
+    "RRRP3": "3R PETROLEUM",
+    "TIMS3": "TIM",
+    "AMER3": "AMERICANAS",
+    "ASAI3": "ASSAI",
+    "SMFT3": "SMART FIT",
+    "VBBR3": "VIBRA",
+    "VIIA3": "VIA",
+    "ALOS3": "ALLOS",
+    "BHIA3": "CASAS BAHIA",
+    "AZZA3": "AZZAS 2154",
+    "BRAV3": "BRAVA",
+    "AXIA3": "AXIA ENERGIA",
+    "EMBJ3": "EMBRAER",
+    "MBRF3": "MARFRIG",
+    "MOTV3": "MOTIVA SA"
+  },
+  "isins_by_ticker": {
+    "ABEV3": [
+      "BRABEVACNOR1"
+    ],
+    "ARZZ3": [
+      "BRARZZACNOR3"
+    ],
+    "AZUL4": [
+      "BRAZULACNPR4"
+    ],
+    "BBAS3": [
+      "BRBBASACNOR3"
+    ],
+    "BBDC4": [
+      "BRBBDCACNPR8"
+    ],
+    "BBSE3": [
+      "BRBBSEACNOR5"
+    ],
+    "BRAP4": [
+      "BRBRAPACNPR2"
+    ],
+    "BRDT3": [
+      "BRBRDTACNOR1"
+    ],
+    "BRFS3": [
+      "BRBRFSACNOR8"
+    ],
+    "BRML3": [
+      "BRBRMLACNOR9"
+    ],
+    "BTOW3": [
+      "BRBTOWACNOR8"
+    ],
+    "BVMF3": [
+      "BRBVMFACNOR3"
+    ],
+    "CCRO3": [
+      "BRCCROACNOR2"
+    ],
+    "CIEL3": [
+      "BRCIELACNOR3"
+    ],
+    "CMIG4": [
+      "BRCMIGACNPR3"
+    ],
+    "CPLE3": [
+      "BRCPLEACNOR8"
+    ],
+    "CRFB3": [
+      "BRCRFBACNOR2"
+    ],
+    "CSAN3": [
+      "BRCSANACNOR6"
+    ],
+    "CSMG3": [
+      "BRCSMGACNOR5"
+    ],
+    "CSNA3": [
+      "BRCSNAACNOR6"
+    ],
+    "CVCB3": [
+      "BRCVCBACNOR1"
+    ],
+    "CYRE3": [
+      "BRCYREACNOR7"
+    ],
+    "ELET3": [
+      "BRELETACNOR6"
+    ],
+    "EMBR3": [
+      "BREMBRACNOR4"
+    ],
+    "ENEV3": [
+      "BRENEVACNOR8"
+    ],
+    "EQTL3": [
+      "BREQTLACNOR0"
+    ],
+    "ESTC3": [
+      "BRESTCACNOR5"
+    ],
+    "FIBR3": [
+      "BRFIBRACNOR9"
+    ],
+    "FLRY3": [
+      "BRFLRYACNOR5"
+    ],
+    "GGBR4": [
+      "BRGGBRACNPR8"
+    ],
+    "GOAU4": [
+      "BRGOAUACNPR8"
+    ],
+    "HYPE3": [
+      "BRHYPEACNOR0"
+    ],
+    "IRBR3": [
+      "BRIRBRACNOR4"
+    ],
+    "ITSA4": [
+      "BRITSAACNPR7"
+    ],
+    "ITUB4": [
+      "BRITUBACNPR1"
+    ],
+    "JBSS3": [
+      "BRJBSSACNOR8"
+    ],
+    "KROT3": [
+      "BRKROTACNOR9"
+    ],
+    "LREN3": [
+      "BRLRENACNOR1"
+    ],
+    "MGLU3": [
+      "BRMGLUACNOR2"
+    ],
+    "MRFG3": [
+      "BRMRFGACNOR0"
+    ],
+    "MRVE3": [
+      "BRMRVEACNOR2"
+    ],
+    "MULT3": [
+      "BRMULTACNOR5"
+    ],
+    "NATU3": [
+      "BRNATUACNOR6"
+    ],
+    "OIBR3": [
+      "BROIBRACNOR1"
+    ],
+    "PCAR3": [
+      "BRPCARACNOR3"
+    ],
+    "PCAR4": [
+      "BRPCARACNPR0"
+    ],
+    "PETR4": [
+      "BRPETRACNPR6"
+    ],
+    "POMO4": [
+      "BRPOMOACNPR7"
+    ],
+    "PRIO3": [
+      "BRPRIOACNOR1"
+    ],
+    "PSSA3": [
+      "BRPSSAACNOR7"
+    ],
+    "QUAL3": [
+      "BRQUALACNOR6"
+    ],
+    "RADL3": [
+      "BRRADLACNOR0"
+    ],
+    "RAIL3": [
+      "BRRAILACNOR9"
+    ],
+    "RENT3": [
+      "BRRENTACNOR4"
+    ],
+    "SBSP3": [
+      "BRSBSPACNOR5"
+    ],
+    "SMLS3": [
+      "BRSMLSACNOR1"
+    ],
+    "SUZB3": [
+      "BRSUZBACNOR0"
+    ],
+    "TIMP3": [
+      "BRTIMPACNOR1"
+    ],
+    "TOTS3": [
+      "BRTOTSACNOR8"
+    ],
+    "UGPA3": [
+      "BRUGPAACNOR8"
+    ],
+    "VALE3": [
+      "BRVALEACNOR0"
+    ],
+    "VIVT3": [
+      "BRVIVTACNOR0"
+    ],
+    "VIVT4": [
+      "BRVIVTACNPR7"
+    ],
+    "VVAR3": [
+      "BRVVARACNOR1"
+    ],
+    "WEGE3": [
+      "BRWEGEACNOR0"
+    ],
+    "B3SA3": [
+      "BRB3SAACNOR6"
+    ],
+    "GNDI3": [
+      "BRGNDIACNOR2"
+    ],
+    "HAPV3": [
+      "BRHAPVACNOR4"
+    ],
+    "ALSO3": [
+      "BRALSOACNOR5"
+    ],
+    "COGN3": [
+      "BRCOGNACNOR2"
+    ],
+    "NTCO3": [
+      "BRNTCOACNOR5"
+    ],
+    "VIVA3": [
+      "BRVIVAACNOR0"
+    ],
+    "YDUQ3": [
+      "BRYDUQACNOR3"
+    ],
+    "CASH3": [
+      "BRCASHACNOR8"
+    ],
+    "CURY3": [
+      "BRCURYACNOR3"
+    ],
+    "LWSA3": [
+      "BRLWSAACNOR8"
+    ],
+    "PETZ3": [
+      "BRPETZACNOR2"
+    ],
+    "RDOR3": [
+      "BRRDORACNOR8"
+    ],
+    "RRRP3": [
+      "BRRRRPACNOR5"
+    ],
+    "TIMS3": [
+      "BRTIMSACNOR5"
+    ],
+    "AMER3": [
+      "BRAMERACNOR6"
+    ],
+    "ASAI3": [
+      "BRASAIACNOR0"
+    ],
+    "SMFT3": [
+      "BRSMFTACNOR1"
+    ],
+    "VBBR3": [
+      "BRVBBRACNOR1"
+    ],
+    "VIIA3": [
+      "BRVIIAACNOR7"
+    ],
+    "ALOS3": [
+      "BRALOSACNOR5"
+    ],
+    "BHIA3": [
+      "BRBHIAACNOR1"
+    ],
+    "AZZA3": [
+      "BRAZZAACNOR9"
+    ],
+    "BRAV3": [
+      "BRBRAVACNOR3"
+    ],
+    "AXIA3": [
+      "BRAXIAACNOR0"
+    ],
+    "EMBJ3": [
+      "BREMBJACNOR1"
+    ],
+    "MBRF3": [
+      "BRMBRFACNOR1"
+    ],
+    "MOTV3": [
+      "BRMOTVACNOR7"
+    ]
+  },
+  "bias_disclosure": "Each weekly candidate set is reconstructed from the full historical B3 ON/PN company-share COTAHIST scope using only trailing observations available by that decision date. No requirement uses future survival, future returns, current index membership, post-horizon same-ISIN symbols, or the project's later fixed-40 list. Strategy/model selection can still be retrospective and is reported separately from universe validity. UNITS and other instrument classes are intentionally out of this certified share-tax scope.",
+  "generated_at_utc": "2026-09-23T22:06:23+00:00",
+  "control_panel": {
+    "mode": "strategy_management_combinations",
+    "selected_tickers": [
+      "ABEV3",
+      "ALOS3",
+      "AMER3",
+      "ARZZ3",
+      "ASAI3",
+      "B3SA3",
+      "BBAS3",
+      "BBDC4",
+      "BBSE3",
+      "BRAP4",
+      "BRAV3",
+      "BRDT3",
+      "BTOW3",
+      "BVMF3",
+      "CASH3",
+      "CCRO3",
+      "CMIG4",
+      "COGN3",
+      "CPLE3",
+      "CSAN3",
+      "CSMG3",
+      "CSNA3",
+      "CURY3",
+      "CVCB3",
+      "CYRE3",
+      "ELET3",
+      "EMBR3",
+      "ENEV3",
+      "EQTL3",
+      "ESTC3",
+      "FLRY3",
+      "GGBR4",
+      "GOAU4",
+      "HAPV3",
+      "HYPE3",
+      "IRBR3",
+      "ITSA4",
+      "ITUB4",
+      "KROT3",
+      "LREN3",
+      "LWSA3",
+      "MGLU3",
+      "MOTV3",
+      "MRFG3",
+      "MRVE3",
+      "MULT3",
+      "NATU3",
+      "NTCO3",
+      "OIBR3",
+      "PCAR4",
+      "PETR4",
+      "POMO4",
+      "PRIO3",
+      "PSSA3",
+      "QUAL3",
+      "RADL3",
+      "RAIL3",
+      "RDOR3",
+      "RENT3",
+      "RRRP3",
+      "SBSP3",
+      "SMFT3",
+      "SUZB3",
+      "TIMS3",
+      "TOTS3",
+      "UGPA3",
+      "VALE3",
+      "VBBR3",
+      "VIIA3",
+      "VIVA3",
+      "VIVT3",
+      "VIVT4",
+      "VVAR3",
+      "WEGE3",
+      "YDUQ3"
+    ],
+    "no_replacements": true,
+    "use_full_universe": false,
+    "selection_is_retrospective_user_filter": true,
+    "excluded_tickers": [
+      "BOAC34"
+    ],
+    "generated_at_utc": "2026-09-23T22:11:03+00:00"
+  }
+}

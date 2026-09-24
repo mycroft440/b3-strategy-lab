@@ -237,7 +237,12 @@ ranking e o "novo backteste" de 17/09: no motor realista, `gap_momentum` com o
 gerenciamento padrão transformou R$ 1.000 em R$ 1.122,14 de 2018-01-02 a 2026-08-19,
 abaixo do CDI. A [revisão da matriz completa](reports/matriz_completa/REVISAO.md)
 documenta a melhor combinação atual, sua verificação no motor realista e por que a
-escolha feita somente no treino perdeu dinheiro de 2023 a 2026.
+escolha feita somente no treino perdeu dinheiro de 2023 a 2026. Sem as 11 ações cujos
+eventos societários os motores não valoram, a
+[matriz filtrada](reports/matriz_sem_problematicas/REVISAO.md) aponta
+`ema_cross_50_100` com o gerenciamento `top1_risk_adjusted_lb126_skip21` mensal:
+38,70% a.a. no motor realista de 2018 a 2026 e 11,44% a.a. de 2023 a 2026, abaixo do
+CDI nesse trecho.
 
 Arquivos gerados:
 
