@@ -8,7 +8,9 @@ passada, recalculado a cada semana). Dividendos/JCP não entram.
 > Os números desta revisão são anteriores à correção de `89889e6`: ao zerar uma posição,
 > o motor podia deixar uma ação residual. A referência atual é a
 > [matriz sem ações problemáticas](../matriz_sem_problematicas/REVISAO.md), executada
-> com o motor corrigido.
+> com o motor corrigido. Os replays realistas daqui também são anteriores às correções
+> do motor realista de 25/09/2026 (`157111a`, `e04f91a`, `93f4751`) e ao conserto do
+> sinal `cci_trend` (`19ddaf6`).
 
 ## Veredito
 

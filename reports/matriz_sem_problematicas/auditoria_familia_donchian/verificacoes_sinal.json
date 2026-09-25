@@ -1,0 +1,170 @@
+{
+ "strategies": [
+  "donchian_breakout_100_50",
+  "donchian_breakout_100_50_trend200",
+  "donchian_breakout_10_5",
+  "donchian_breakout_20_10",
+  "donchian_breakout_20_10_trend100",
+  "donchian_breakout_20_10_trend50",
+  "donchian_breakout_40_20",
+  "donchian_breakout_55_20",
+  "donchian_breakout_55_20_trend100",
+  "donchian_breakout_55_20_trend200"
+ ],
+ "ohlc_inconsistent": 0,
+ "ohlc_examples": [],
+ "high_low_factor_mismatch": 0,
+ "factor_examples": [],
+ "per_strategy": {
+  "donchian_breakout_100_50": {
+   "params": {
+    "entry_window": 100,
+    "exit_window": 50,
+    "trend_window": 0
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 593,
+   "exits": 572,
+   "rule_violations": 0,
+   "median_holding_days": 72
+  },
+  "donchian_breakout_100_50_trend200": {
+   "params": {
+    "entry_window": 100,
+    "exit_window": 50,
+    "trend_window": 200
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1092,
+   "causality_mismatches": 0,
+   "entries": 553,
+   "exits": 533,
+   "rule_violations": 0,
+   "median_holding_days": 71
+  },
+  "donchian_breakout_10_5": {
+   "params": {
+    "entry_window": 10,
+    "exit_window": 5,
+    "trend_window": 0
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 4145,
+   "exits": 4128,
+   "rule_violations": 0,
+   "median_holding_days": 11
+  },
+  "donchian_breakout_20_10": {
+   "params": {
+    "entry_window": 20,
+    "exit_window": 10,
+    "trend_window": 0
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 2407,
+   "exits": 2384,
+   "rule_violations": 0,
+   "median_holding_days": 20
+  },
+  "donchian_breakout_20_10_trend100": {
+   "params": {
+    "entry_window": 20,
+    "exit_window": 10,
+    "trend_window": 100
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 1929,
+   "exits": 1911,
+   "rule_violations": 0,
+   "median_holding_days": 20
+  },
+  "donchian_breakout_20_10_trend50": {
+   "params": {
+    "entry_window": 20,
+    "exit_window": 10,
+    "trend_window": 50
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 2278,
+   "exits": 2255,
+   "rule_violations": 0,
+   "median_holding_days": 20
+  },
+  "donchian_breakout_40_20": {
+   "params": {
+    "entry_window": 40,
+    "exit_window": 20,
+    "trend_window": 0
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 1341,
+   "exits": 1321,
+   "rule_violations": 0,
+   "median_holding_days": 37
+  },
+  "donchian_breakout_55_20": {
+   "params": {
+    "entry_window": 55,
+    "exit_window": 20,
+    "trend_window": 0
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 1137,
+   "exits": 1120,
+   "rule_violations": 0,
+   "median_holding_days": 38
+  },
+  "donchian_breakout_55_20_trend100": {
+   "params": {
+    "entry_window": 55,
+    "exit_window": 20,
+    "trend_window": 100
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1116,
+   "causality_mismatches": 0,
+   "entries": 1088,
+   "exits": 1071,
+   "rule_violations": 0,
+   "median_holding_days": 39
+  },
+  "donchian_breakout_55_20_trend200": {
+   "params": {
+    "entry_window": 55,
+    "exit_window": 20,
+    "trend_window": 200
+   },
+   "ticker_days": 162900,
+   "mismatches_vs_independent": 0,
+   "causality_checks": 1092,
+   "causality_mismatches": 0,
+   "entries": 943,
+   "exits": 928,
+   "rule_violations": 0,
+   "median_holding_days": 37
+  }
+ }
+}

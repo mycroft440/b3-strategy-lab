@@ -1,6 +1,6 @@
 {
-  "generated_at_utc": "2026-09-24T13:50:58.427017+00:00",
-  "git_commit": "5d064931c7c5a401dcd91a849277721b065477fa",
+  "generated_at_utc": "2026-09-24T17:51:24.661516+00:00",
+  "git_commit": "93f47512bc42a8a00f55cdb9b06cc4060dc942cf",
   "git_dirty": false,
   "git_dirty_scope": "calculation_sources_and_workflows_excluding_hashed_market_data",
   "source_sha256": {
@@ -17,7 +17,7 @@
     "b3_strategy_lab/indicator_strategies.py": "61bc30be7eda19db28b8cc13764be3c2407c91a1a35ef747e1f3f0cba7c7d0ca",
     "b3_strategy_lab/trend_strategies.py": "fab07c888b15e4686c09b2ec5a4d83499362dcc59f246e4db9252382e3ce8a58",
     "b3_strategy_lab/user_extensions.py": "032e2dff4ee7b0d5bda6914b3b052ebc5b314274a1f2d043190d3362514f7e06",
-    "b3_strategy_lab/additional_strategies.py": "a45b090199555d01c8628b829c81b30ad66903ae15b34c43bd88f34c350bea00",
+    "b3_strategy_lab/additional_strategies.py": "db16cac23abf2307190d1271a62908a13bc8df792d1f79f1d6208977b56f0b55",
     "b3_strategy_lab/researched_strategies.py": "a047c00b532e59941f61d29945a19dc3a80b4634b9d4a0e6a9b926088f39506a",
     "b3_strategy_lab/extended_strategies.py": "d433dcea99eb42f6f0972941bd773e207b55a03ff72b3e0e49ccd9b1b16f4508",
     "scripts/backtest_strategy_management_combinations.py": "551dd530c236b927d25a72c847649a32d4db2316ffd803bea145cfb64cab14df",
@@ -34,7 +34,7 @@
     "warmup_start": "2017-01-01",
     "survivorship_safe": true,
     "point_in_time": true,
-    "snapshot_file": "data/universes/point_in_time_weekly.csv",
+    "snapshot_file": "/home/user/b3-strategy-lab/data/universes/point_in_time_weekly.csv",
     "snapshot_sha256": "2f8885845f534ea822a38fbfd1e9bfa09a0e2ea93cdda2d7c712af202d896bd1",
     "bias_disclosure": "Each weekly candidate set is reconstructed from the full historical B3 ON/PN company-share COTAHIST scope using only trailing observations available by that decision date. No requirement uses future survival, future returns, current index membership, post-horizon same-ISIN symbols, or the project's later fixed-40 list. Strategy/model selection can still be retrospective and is reported separately from universe validity. UNITS and other instrument classes are intentionally out of this certified share-tax scope."
   },
@@ -10833,6 +10833,6 @@
     "certified_complex_corporate_transition_crossings_excluded_from_ranking"
   ],
   "final_valuation": "liquidated_at_last_verified_close_with_costs_and_slippage",
-  "workers": 4,
-  "elapsed_seconds": 6374.916347160999
+  "workers": 2,
+  "elapsed_seconds": 5490.260035269999
 }

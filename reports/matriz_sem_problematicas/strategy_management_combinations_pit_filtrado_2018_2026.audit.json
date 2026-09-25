@@ -36,11 +36,11 @@
     "universe_hash_matches": true,
     "valid_rows_precede_invalid_rows": true
   },
-  "generated_at_utc": "2026-09-24T15:42:58+00:00",
+  "generated_at_utc": "2026-09-25T04:39:15+00:00",
   "invalid_rows": 0,
   "management_count": 478,
   "manifest": "reports/matriz_sem_problematicas/strategy_management_combinations_pit_filtrado_2018_2026.manifest.json",
-  "manifest_sha256": "84bb24fecf40fcf031456dbeee49d06f6abb67bc2eaec46e561c9240ba94fad5",
+  "manifest_sha256": "8de65ad56c34ab94eee14b58f7922c1c54635f1a5cc5ca2426a8e10811d9a996",
   "ready": true,
   "ready_for_real_money": false,
   "ready_for_research_ranking": true,
@@ -54,7 +54,7 @@
   "real_money_claim_allowed": false,
   "result_classification": "RETROSPECTIVE_PRICE_ONLY_RESEARCH",
   "results": "reports/matriz_sem_problematicas/strategy_management_combinations_pit_filtrado_2018_2026.csv.gz",
-  "results_sha256": "c9d349b627f72c0dd9d8578d0874dccf88bd050672b3176c01bd9e0dcf9d6eac",
+  "results_sha256": "bbccb44388552d27e6d1717bc479915bec2a2ed41f141548772073b16dbdcd08",
   "rows": 119022,
   "strategy_count": 249,
   "valid_rows": 119022

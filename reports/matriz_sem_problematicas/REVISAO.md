@@ -4,7 +4,11 @@ Mesma matriz da [revisão anterior](../matriz_completa/REVISAO.md) (249 estraté
 478 gerenciamentos = 119.022 combinações, 2018-01-02 a 2026-08-19, R$ 1.000, custos de
 3,2 bps + slippage de 10 bps, universo point-in-time), sem as ações cujos eventos os
 motores não sabem valorar. Executada com o motor corrigido no commit `89889e6` (venda
-total quando o alvo é zero); as duas auditorias oficiais passam sem nenhuma falha.
+total quando o alvo é zero) e de novo depois da correção do sinal `cci_trend`
+(`19ddaf6`); as duas auditorias oficiais passam sem nenhuma falha. Os números do motor
+realista foram refeitos em 25/09/2026, depois de três correções nele (`157111a`,
+`e04f91a`, `93f4751`); detalhes em
+[`AUDITORIAS_COMBINACOES_SORTEADAS.md`](AUDITORIAS_COMBINACOES_SORTEADAS.md).
 
 ## Ações removidas
 
@@ -43,10 +47,10 @@ marcado como `selection_is_retrospective_user_filter`.
 
 | R$ 1.000 investidos | Matriz | Motor realista |
 | :--- | ---: | ---: |
-| 2018-01-02 a 2026-08-19 | R$ 17.235,41 | **R$ 16.809,62** |
-| Ganho médio composto (CAGR) | 39,10% a.a. | **38,70% a.a.** |
-| Média simples dos anos completos (2018–2025) | 56,99% a.a. | 55,26% a.a. |
-| Drawdown máximo | −50,44% | −51,52% |
+| 2018-01-02 a 2026-08-19 | R$ 17.235,41 | **R$ 15.766,04** |
+| Ganho médio composto (CAGR) | 39,10% a.a. | **37,67% a.a.** |
+| Média simples dos anos completos (2018–2025) | 56,99% a.a. | 55,01% a.a. |
+| Drawdown máximo | −50,44% | −51,58% |
 | CDI bruto no mesmo período | R$ 2.121,49 (9,11% a.a.) | |
 
 A média simples é maior porque os anos de +120% a +147% pesam mais do que as perdas; o
@@ -54,15 +58,15 @@ CAGR é o ganho anual que, repetido, leva de R$ 1.000 ao valor final.
 
 | Ano | Matriz | Motor realista |
 | :--- | ---: | ---: |
-| 2018 | +46,1% | +46,0% |
-| 2019 | +42,6% | +41,5% |
-| 2020 | +126,8% | +122,2% |
-| 2021 | +138,9% | +146,8% |
-| 2022 | +8,9% | −1,5% |
-| 2023 | −23,5% | −19,7% |
-| 2024 | +47,7% | +38,5% |
-| 2025 | +68,3% | +68,4% |
-| 2026 (até 19/08) | −26,3% | −19,5% |
+| 2018 | +46,1% | +46,1% |
+| 2019 | +42,6% | +41,2% |
+| 2020 | +126,8% | +122,3% |
+| 2021 | +138,9% | +137,3% |
+| 2022 | +8,9% | +9,4% |
+| 2023 | −23,5% | −23,5% |
+| 2024 | +47,7% | +39,3% |
+| 2025 | +68,3% | +68,0% |
+| 2026 (até 19/08) | −26,3% | −26,0% |
 
 ## Teste honesto: escolha só com 2018–2022
 
@@ -75,7 +79,7 @@ período inteiro a primeira do treino fica em sexto (38,72% a.a.).
 | 2023-01-02 a 2026-08-19 (R$ 1.000) | Primeira do treino | Campeã do período inteiro |
 | :--- | ---: | ---: |
 | Matriz | R$ 1.372,60 (9,12% a.a.) | R$ 1.423,21 (10,22% a.a.) |
-| Motor realista | **R$ 1.425,15 (10,26% a.a.; drawdown −32,13%)** | R$ 1.481,53 (11,44% a.a.; drawdown −35,42%) |
+| Motor realista | **R$ 1.421,38 (10,18% a.a.; drawdown −31,65%)** | R$ 1.429,15 (10,34% a.a.; drawdown −35,58%) |
 | CDI bruto | R$ 1.560,01 (13,04% a.a.) | R$ 1.560,01 |
 
 Escolhendo só com o passado, a carteira ganhou dinheiro fora da amostra, mas **menos que
@@ -85,11 +89,12 @@ o CDI**, com risco muito maior.
 
 | Verificação | Resultado |
 | :--- | :--- |
-| Auditoria oficial das duas matrizes | Aprovadas para pesquisa, sem nenhuma falha; hashes das fontes conferem com o commit `5d06493` |
+| Auditoria oficial das duas matrizes | Aprovadas para pesquisa, sem nenhuma falha; hashes das fontes conferem com o commit `93f4751` |
 | Ações removidas | Nenhuma delas aparece nas negociações do motor realista |
 | Uso de dados do futuro | 1.080 cortes por estratégia, nenhuma divergência |
 | Saltos suspeitos | Os maiores dias são reais: Covid em março de 2020 (MGLU3 ±20%) e EMBR3 (+16% em 21/12/2021; +15,5% em 05/02/2025) |
-| Motor realista | Preços oficiais, lotes padrão/fracionário, slippage por liquidez, tarifas B3 e IR: 259 ordens, R$ 399,71 de tarifas, R$ 8,94 de IR |
+| Motor realista | Preços oficiais, lotes padrão/fracionário, slippage por liquidez, tarifas B3 e IR: 264 ordens, R$ 418,73 de tarifas, R$ 9,03 de IR; mesma carteira da matriz em 2.140 de 2.145 pregões |
+| Diferença entre os motores | O motor realista termina 8,5% abaixo. A maior parte vem de 01/07/2024: a EMBR3 abriu acima do fechamento da decisão, o caixa não cobria o lote de 300 ações e foram compradas 200, com um terço do patrimônio em caixa até agosto (cerca de −5,7%). O motor não cria ordem fracionária nova na abertura. O resto vem de custos e do limite de liquidez do mercado fracionário |
 | Custos maiores | Slippage de 20/30/50 bps: 36,8% / 34,5% / 30,1% a.a. no período inteiro; 8,1% / 6,7% / 3,6% a.a. no teste |
 | Pine v5 | Um espelho em Python do algoritmo do Pine reproduz o motor da matriz em 2.145 de 2.146 pregões com o mesmo universo fixo |
 
@@ -104,12 +109,11 @@ ASAI3 (+R$ 2.899). Maiores perdas: CSMG3 (−R$ 3.775), COGN3 (−R$ 3.093), CYR
   treino e do período inteiro é dominado por essa mesma família de gerenciamento.
 - Ainda assim é um pico: a mediana da mesma estratégia com os 478 gerenciamentos é
   6,56% a.a., a do mesmo gerenciamento com as 249 estratégias é 3,66% a.a., e a de todas
-  as combinações é −0,57% a.a. (7,6% delas acima do CDI).
+  as combinações é −0,51% a.a. (7,6% delas acima do CDI).
 - Quase todo o ganho está em 2018–2021. Uma ação por vez gera quedas de 50%.
 - EMBR3, ELET3, BRFS3 e MRFG3 saem do universo depois de mudarem de código no fim de
   2025: os novos códigos ainda não têm o histórico mínimo de 90% de 252 pregões.
-- Dividendos/JCP não entram. A fração de 0,4 ação de ITSA4 na bonificação de
-  2018-06-01 (cerca de R$ 4) foi valorizada em zero.
+- Dividendos/JCP não entram.
 
 ## Como reproduzir
 

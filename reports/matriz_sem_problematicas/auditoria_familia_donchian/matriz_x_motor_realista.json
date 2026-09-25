@@ -1,0 +1,236 @@
+{
+ "campea_2018_2026": {
+  "matriz": 17235.41450998494,
+  "matriz_cagr": 0.39097890966512217,
+  "realista": 15766.035018165641,
+  "realista_cagr": 0.3766853774797696,
+  "realista_dd": -0.5157583680795804,
+  "ordens": 264,
+  "tarifas": 418.7315023317481,
+  "ir": 9.030637194869277,
+  "dias_carteira_diferente": 5,
+  "dias": 2145,
+  "exemplos": [
+   [
+    "2018-05-02",
+    "RENT3",
+    "ITSA4;RENT3"
+   ],
+   [
+    "2018-06-01",
+    "VALE3",
+    "RENT3;VALE3"
+   ],
+   [
+    "2019-06-03",
+    "VIVT4",
+    "ELET3;VIVT4"
+   ],
+   [
+    "2024-05-02",
+    "EMBR3",
+    "EMBR3;UGPA3"
+   ],
+   [
+    "2025-05-02",
+    "EMBR3",
+    "EMBR3;TOTS3"
+   ]
+  ]
+ },
+ "campea_teste_2023_2026": {
+  "matriz": 1423.2054841568038,
+  "matriz_cagr": 0.10217309881771253,
+  "realista": 1429.1456111242421,
+  "realista_cagr": 0.10343928294169391,
+  "realista_dd": -0.35584717846313885,
+  "ordens": 66,
+  "tarifas": 23.97383471179451,
+  "ir": 0.0,
+  "dias_carteira_diferente": 0,
+  "dias": 906,
+  "exemplos": []
+ },
+ "campea_do_treino_2018_2026": {
+  "matriz": 16833.27209564655,
+  "matriz_cagr": 0.3871775154733097,
+  "realista": 15403.67811563634,
+  "realista_cagr": 0.3729798956643515,
+  "realista_dd": -0.5202534085822795,
+  "ordens": 256,
+  "tarifas": 390.33672462146046,
+  "ir": 5.791765705472415,
+  "dias_carteira_diferente": 6,
+  "dias": 2145,
+  "exemplos": [
+   [
+    "2018-05-02",
+    "RENT3",
+    "ITSA4;RENT3"
+   ],
+   [
+    "2018-06-01",
+    "VALE3",
+    "RENT3;VALE3"
+   ],
+   [
+    "2019-06-03",
+    "VIVT4",
+    "ELET3;VIVT4"
+   ],
+   [
+    "2024-05-02",
+    "EMBR3",
+    "EMBR3;UGPA3"
+   ],
+   [
+    "2025-08-01",
+    "ASAI3",
+    "ASAI3;TOTS3"
+   ],
+   [
+    "2025-08-13",
+    "",
+    "ASAI3"
+   ]
+  ]
+ },
+ "campea_do_treino_teste_2023_2026": {
+  "matriz": 1372.6017838414982,
+  "matriz_cagr": 0.09122821090884292,
+  "realista": 1421.3843922742938,
+  "realista_cagr": 0.10178415240877325,
+  "realista_dd": -0.31649744358022136,
+  "ordens": 69,
+  "tarifas": 24.583827659254407,
+  "ir": 0.0,
+  "dias_carteira_diferente": 0,
+  "dias": 906,
+  "exemplos": []
+ },
+ "cci_depois": {
+  "matriz": 664.9115598012191,
+  "matriz_cagr": -0.04620383404948736,
+  "realista": 622.0999654925182,
+  "realista_cagr": -0.05353364035328734,
+  "realista_dd": -0.6200283678912621,
+  "ordens": 532,
+  "tarifas": 139.94035933066374,
+  "ir": 0.0,
+  "dias_carteira_diferente": 8,
+  "dias": 2145,
+  "exemplos": [
+   [
+    "2018-01-29",
+    "BRAP4",
+    "BRAP4;ESTC3"
+   ],
+   [
+    "2018-02-14",
+    "MGLU3",
+    "BRAP4;MGLU3"
+   ],
+   [
+    "2018-02-15",
+    "MGLU3",
+    "BRAP4;MGLU3"
+   ],
+   [
+    "2018-03-08",
+    "",
+    "ESTC3"
+   ],
+   [
+    "2018-04-09",
+    "PETR4",
+    "ELET3;PETR4"
+   ],
+   [
+    "2018-04-10",
+    "PETR4",
+    "ELET3;PETR4"
+   ]
+  ]
+ },
+ "macd": {
+  "matriz": 1141.2158508494124,
+  "matriz_cagr": 0.015429605487509601,
+  "realista": 1011.7669685869218,
+  "realista_cagr": 0.001356932293671509,
+  "realista_dd": -0.6027302083152224,
+  "ordens": 272,
+  "tarifas": 91.04053079100791,
+  "ir": 0.0,
+  "dias_carteira_diferente": 0,
+  "dias": 2145,
+  "exemplos": []
+ },
+ "don_full": {
+  "matriz": 11103.947764670991,
+  "matriz_cagr": 0.32186505853340197,
+  "realista": 9968.75184299396,
+  "realista_cagr": 0.3054433436758628,
+  "realista_dd": -0.5362386096388432,
+  "ordens": 242,
+  "tarifas": 228.4455914603296,
+  "ir": 1.3432521135462105,
+  "dias_carteira_diferente": 5,
+  "dias": 2145,
+  "exemplos": [
+   [
+    "2025-10-01",
+    "ELET3",
+    "ELET3;UGPA3"
+   ],
+   [
+    "2025-11-10",
+    "ELET3",
+    "AXIA3"
+   ],
+   [
+    "2025-11-11",
+    "",
+    "AXIA3"
+   ],
+   [
+    "2025-11-12",
+    "",
+    "AXIA3"
+   ],
+   [
+    "2025-11-13",
+    "",
+    "AXIA3"
+   ]
+  ]
+ },
+ "don_teste": {
+  "matriz": 1867.337584840635,
+  "matriz_cagr": 0.18786036071343104,
+  "realista": 1772.5168173940908,
+  "realista_cagr": 0.17091808463396196,
+  "realista_dd": -0.3773303605613151,
+  "ordens": 73,
+  "tarifas": 29.23981386194588,
+  "ir": 0.0,
+  "dias_carteira_diferente": 3,
+  "dias": 906,
+  "exemplos": [
+   [
+    "2025-11-10",
+    "ELET3",
+    "AXIA3"
+   ],
+   [
+    "2025-11-11",
+    "",
+    "AXIA3"
+   ],
+   [
+    "2025-11-12",
+    "",
+    "AXIA3"
+   ]
+  ]
+ }
+}

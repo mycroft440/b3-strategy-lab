@@ -77,8 +77,8 @@
     "reason": "capacity"
   },
   {
-    "date": "2018-06-01",
-    "decision_date": "2018-05-30",
+    "date": "2018-05-03",
+    "decision_date": "2018-05-02",
     "ticker": "ITSA4",
     "side": "SELL",
     "market_type": "020",
@@ -88,12 +88,23 @@
     "reason": ""
   },
   {
+    "date": "2018-05-03",
+    "decision_date": "2018-05-02",
+    "ticker": "RENT3",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 7,
+    "filled_shares": 7,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
     "date": "2018-06-01",
     "decision_date": "2018-05-30",
     "ticker": "RENT3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 31,
+    "requested_shares": 38,
     "filled_shares": 27,
     "status": "PARTIAL",
     "reason": "capacity"
@@ -105,9 +116,31 @@
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 18,
-    "filled_shares": 17,
+    "filled_shares": 14,
     "status": "PARTIAL",
     "reason": "cash"
+  },
+  {
+    "date": "2018-06-04",
+    "decision_date": "2018-06-01",
+    "ticker": "RENT3",
+    "side": "SELL",
+    "market_type": "020",
+    "requested_shares": 11,
+    "filled_shares": 11,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2018-06-04",
+    "decision_date": "2018-06-01",
+    "ticker": "VALE3",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 5,
+    "filled_shares": 5,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2018-07-02",
@@ -123,22 +156,11 @@
   {
     "date": "2018-07-02",
     "decision_date": "2018-06-29",
-    "ticker": "RENT3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 4,
-    "filled_shares": 4,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2018-07-02",
-    "decision_date": "2018-06-29",
     "ticker": "VALE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 17,
-    "filled_shares": 17,
+    "requested_shares": 19,
+    "filled_shares": 19,
     "status": "FILLED",
     "reason": ""
   },
@@ -270,9 +292,9 @@
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 20,
-    "filled_shares": 19,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 20,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2019-04-01",
@@ -291,8 +313,8 @@
     "ticker": "EQTL3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 19,
-    "filled_shares": 19,
+    "requested_shares": 20,
+    "filled_shares": 20,
     "status": "FILLED",
     "reason": ""
   },
@@ -319,8 +341,8 @@
     "reason": "cash"
   },
   {
-    "date": "2019-06-11",
-    "decision_date": "2019-06-10",
+    "date": "2019-06-04",
+    "decision_date": "2019-06-03",
     "ticker": "ELET3",
     "side": "SELL",
     "market_type": "020",
@@ -330,13 +352,24 @@
     "reason": ""
   },
   {
+    "date": "2019-06-04",
+    "decision_date": "2019-06-03",
+    "ticker": "VIVT4",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 5,
+    "filled_shares": 5,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
     "date": "2019-06-11",
     "decision_date": "2019-06-10",
     "ticker": "VIVT4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 25,
-    "filled_shares": 25,
+    "requested_shares": 30,
+    "filled_shares": 30,
     "status": "FILLED",
     "reason": ""
   },
@@ -346,8 +379,8 @@
     "ticker": "VIVT4",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 30,
-    "filled_shares": 30,
+    "requested_shares": 29,
+    "filled_shares": 29,
     "status": "FILLED",
     "reason": ""
   },
@@ -357,8 +390,8 @@
     "ticker": "VIVT4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 30,
-    "filled_shares": 30,
+    "requested_shares": 29,
+    "filled_shares": 29,
     "status": "FILLED",
     "reason": ""
   },
@@ -401,8 +434,8 @@
     "ticker": "CSNA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 90,
-    "filled_shares": 90,
+    "requested_shares": 89,
+    "filled_shares": 89,
     "status": "FILLED",
     "reason": ""
   },
@@ -418,6 +451,17 @@
     "reason": ""
   },
   {
+    "date": "2019-08-01",
+    "decision_date": "2019-07-31",
+    "ticker": "CSNA3",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 1,
+    "filled_shares": 1,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
     "date": "2019-10-01",
     "decision_date": "2019-09-30",
     "ticker": "CSNA3",
@@ -467,8 +511,8 @@
     "ticker": "VVAR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 82,
-    "filled_shares": 82,
+    "requested_shares": 81,
+    "filled_shares": 81,
     "status": "FILLED",
     "reason": ""
   },
@@ -500,8 +544,8 @@
     "ticker": "VVAR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 82,
-    "filled_shares": 82,
+    "requested_shares": 81,
+    "filled_shares": 81,
     "status": "FILLED",
     "reason": ""
   },
@@ -589,9 +633,9 @@
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 44,
-    "filled_shares": 44,
-    "status": "FILLED",
-    "reason": ""
+    "filled_shares": 43,
+    "status": "PARTIAL",
+    "reason": "cash"
   },
   {
     "date": "2020-08-03",
@@ -600,9 +644,9 @@
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 24,
-    "filled_shares": 24,
-    "status": "FILLED",
-    "reason": ""
+    "filled_shares": 23,
+    "status": "PARTIAL",
+    "reason": "cash"
   },
   {
     "date": "2020-08-03",
@@ -610,8 +654,8 @@
     "ticker": "WEGE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 44,
-    "filled_shares": 44,
+    "requested_shares": 43,
+    "filled_shares": 43,
     "status": "FILLED",
     "reason": ""
   },
@@ -621,8 +665,8 @@
     "ticker": "BTOW3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 24,
-    "filled_shares": 24,
+    "requested_shares": 23,
+    "filled_shares": 23,
     "status": "FILLED",
     "reason": ""
   },
@@ -643,8 +687,8 @@
     "ticker": "MGLU3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 30,
-    "filled_shares": 30,
+    "requested_shares": 29,
+    "filled_shares": 29,
     "status": "FILLED",
     "reason": ""
   },
@@ -676,8 +720,8 @@
     "ticker": "MGLU3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 20,
-    "filled_shares": 20,
+    "requested_shares": 16,
+    "filled_shares": 16,
     "status": "FILLED",
     "reason": ""
   },
@@ -687,8 +731,8 @@
     "ticker": "OIBR3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 1900,
-    "filled_shares": 1900,
+    "requested_shares": 1800,
+    "filled_shares": 1800,
     "status": "FILLED",
     "reason": ""
   },
@@ -698,8 +742,8 @@
     "ticker": "OIBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 17,
-    "filled_shares": 17,
+    "requested_shares": 90,
+    "filled_shares": 90,
     "status": "FILLED",
     "reason": ""
   },
@@ -710,9 +754,9 @@
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 30,
-    "filled_shares": 30,
-    "status": "FILLED",
-    "reason": ""
+    "filled_shares": 29,
+    "status": "PARTIAL",
+    "reason": "cash"
   },
   {
     "date": "2021-02-01",
@@ -731,8 +775,8 @@
     "ticker": "CSNA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 31,
-    "filled_shares": 31,
+    "requested_shares": 30,
+    "filled_shares": 30,
     "status": "FILLED",
     "reason": ""
   },
@@ -753,8 +797,8 @@
     "ticker": "OIBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 47,
-    "filled_shares": 47,
+    "requested_shares": 19,
+    "filled_shares": 19,
     "status": "FILLED",
     "reason": ""
   },
@@ -764,8 +808,8 @@
     "ticker": "CSNA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 2,
-    "filled_shares": 2,
+    "requested_shares": 1,
+    "filled_shares": 1,
     "status": "FILLED",
     "reason": ""
   },
@@ -786,8 +830,8 @@
     "ticker": "CSNA3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 33,
-    "filled_shares": 33,
+    "requested_shares": 31,
+    "filled_shares": 31,
     "status": "FILLED",
     "reason": ""
   },
@@ -797,8 +841,8 @@
     "ticker": "PRIO3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 70,
-    "filled_shares": 70,
+    "requested_shares": 69,
+    "filled_shares": 69,
     "status": "FILLED",
     "reason": ""
   },
@@ -819,8 +863,8 @@
     "ticker": "CSNA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 52,
-    "filled_shares": 52,
+    "requested_shares": 50,
+    "filled_shares": 50,
     "status": "FILLED",
     "reason": ""
   },
@@ -839,6 +883,28 @@
     "date": "2021-06-01",
     "decision_date": "2021-05-31",
     "ticker": "PRIO3",
+    "side": "SELL",
+    "market_type": "020",
+    "requested_shares": 45,
+    "filled_shares": 45,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2021-07-01",
+    "decision_date": "2021-06-30",
+    "ticker": "CSNA3",
+    "side": "SELL",
+    "market_type": "010",
+    "requested_shares": 100,
+    "filled_shares": 100,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2021-07-01",
+    "decision_date": "2021-06-30",
+    "ticker": "CSNA3",
     "side": "SELL",
     "market_type": "020",
     "requested_shares": 50,
@@ -849,35 +915,13 @@
   {
     "date": "2021-07-01",
     "decision_date": "2021-06-30",
-    "ticker": "CSNA3",
-    "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 100,
-    "filled_shares": 100,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2021-07-01",
-    "decision_date": "2021-06-30",
-    "ticker": "CSNA3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 52,
-    "filled_shares": 52,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2021-07-01",
-    "decision_date": "2021-06-30",
     "ticker": "PRIO3",
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 300,
-    "filled_shares": 200,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 300,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2021-07-01",
@@ -885,8 +929,8 @@
     "ticker": "PRIO3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 44,
-    "filled_shares": 43,
+    "requested_shares": 39,
+    "filled_shares": 38,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -907,8 +951,8 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 36,
-    "filled_shares": 36,
+    "requested_shares": 21,
+    "filled_shares": 21,
     "status": "FILLED",
     "reason": ""
   },
@@ -918,8 +962,8 @@
     "ticker": "PRIO3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 200,
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
@@ -929,8 +973,8 @@
     "ticker": "PRIO3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 43,
-    "filled_shares": 43,
+    "requested_shares": 38,
+    "filled_shares": 38,
     "status": "FILLED",
     "reason": ""
   },
@@ -951,8 +995,8 @@
     "ticker": "EMBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 36,
-    "filled_shares": 36,
+    "requested_shares": 21,
+    "filled_shares": 21,
     "status": "FILLED",
     "reason": ""
   },
@@ -973,8 +1017,8 @@
     "ticker": "MRFG3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 81,
-    "filled_shares": 81,
+    "requested_shares": 65,
+    "filled_shares": 65,
     "status": "FILLED",
     "reason": ""
   },
@@ -985,73 +1029,40 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 400,
-    "filled_shares": 300,
-    "status": "PARTIAL",
-    "reason": "cash"
-  },
-  {
-    "date": "2021-10-01",
-    "decision_date": "2021-09-30",
-    "ticker": "EMBR3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 23,
-    "filled_shares": 22,
-    "status": "PARTIAL",
-    "reason": "cash"
-  },
-  {
-    "date": "2021-10-01",
-    "decision_date": "2021-09-30",
-    "ticker": "MRFG3",
-    "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 300,
-    "filled_shares": 300,
+    "filled_shares": 400,
     "status": "FILLED",
     "reason": ""
   },
   {
     "date": "2021-10-01",
     "decision_date": "2021-09-30",
-    "ticker": "MRFG3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 81,
-    "filled_shares": 81,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2021-11-01",
-    "decision_date": "2021-10-29",
-    "ticker": "EMBR3",
-    "side": "BUY",
-    "market_type": "010",
-    "requested_shares": 100,
-    "filled_shares": 100,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2021-11-01",
-    "decision_date": "2021-10-29",
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
     "requested_shares": 5,
-    "filled_shares": 5,
+    "filled_shares": 4,
+    "status": "PARTIAL",
+    "reason": "cash"
+  },
+  {
+    "date": "2021-10-01",
+    "decision_date": "2021-09-30",
+    "ticker": "MRFG3",
+    "side": "SELL",
+    "market_type": "010",
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
   {
-    "date": "2021-12-01",
-    "decision_date": "2021-11-30",
-    "ticker": "EMBR3",
-    "side": "BUY",
+    "date": "2021-10-01",
+    "decision_date": "2021-09-30",
+    "ticker": "MRFG3",
+    "side": "SELL",
     "market_type": "020",
-    "requested_shares": 1,
-    "filled_shares": 1,
+    "requested_shares": 65,
+    "filled_shares": 65,
     "status": "FILLED",
     "reason": ""
   },
@@ -1072,8 +1083,8 @@
     "ticker": "EMBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 28,
-    "filled_shares": 28,
+    "requested_shares": 4,
+    "filled_shares": 4,
     "status": "FILLED",
     "reason": ""
   },
@@ -1094,8 +1105,8 @@
     "ticker": "MRFG3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 76,
-    "filled_shares": 76,
+    "requested_shares": 50,
+    "filled_shares": 50,
     "status": "FILLED",
     "reason": ""
   },
@@ -1127,8 +1138,8 @@
     "ticker": "MRFG3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 80,
-    "filled_shares": 80,
+    "requested_shares": 54,
+    "filled_shares": 54,
     "status": "FILLED",
     "reason": ""
   },
@@ -1138,10 +1149,10 @@
     "ticker": "PETR4",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 300,
+    "requested_shares": 200,
     "filled_shares": 200,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2022-03-02",
@@ -1149,8 +1160,8 @@
     "ticker": "PETR4",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 10,
-    "filled_shares": 9,
+    "requested_shares": 93,
+    "filled_shares": 87,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -1171,8 +1182,8 @@
     "ticker": "PETR4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 9,
-    "filled_shares": 9,
+    "requested_shares": 87,
+    "filled_shares": 87,
     "status": "FILLED",
     "reason": ""
   },
@@ -1184,17 +1195,6 @@
     "market_type": "010",
     "requested_shares": 400,
     "filled_shares": 300,
-    "status": "PARTIAL",
-    "reason": "cash"
-  },
-  {
-    "date": "2022-04-01",
-    "decision_date": "2022-03-31",
-    "ticker": "PRIO3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 29,
-    "filled_shares": 28,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -1215,8 +1215,8 @@
     "ticker": "BBSE3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 35,
-    "filled_shares": 35,
+    "requested_shares": 5,
+    "filled_shares": 5,
     "status": "FILLED",
     "reason": ""
   },
@@ -1228,17 +1228,6 @@
     "market_type": "010",
     "requested_shares": 300,
     "filled_shares": 300,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2022-05-02",
-    "decision_date": "2022-04-29",
-    "ticker": "PRIO3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 28,
-    "filled_shares": 28,
     "status": "FILLED",
     "reason": ""
   },
@@ -1254,8 +1243,8 @@
     "reason": ""
   },
   {
-    "date": "2022-07-04",
-    "decision_date": "2022-07-01",
+    "date": "2022-08-01",
+    "decision_date": "2022-07-29",
     "ticker": "BBSE3",
     "side": "SELL",
     "market_type": "010",
@@ -1265,13 +1254,13 @@
     "reason": ""
   },
   {
-    "date": "2022-07-04",
-    "decision_date": "2022-07-01",
+    "date": "2022-08-01",
+    "decision_date": "2022-07-29",
     "ticker": "BBSE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 38,
-    "filled_shares": 38,
+    "requested_shares": 8,
+    "filled_shares": 8,
     "status": "FILLED",
     "reason": ""
   },
@@ -1292,8 +1281,8 @@
     "ticker": "ELET3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 46,
-    "filled_shares": 46,
+    "requested_shares": 55,
+    "filled_shares": 55,
     "status": "FILLED",
     "reason": ""
   },
@@ -1303,8 +1292,8 @@
     "ticker": "ELET3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 3,
-    "filled_shares": 3,
+    "requested_shares": 2,
+    "filled_shares": 2,
     "status": "FILLED",
     "reason": ""
   },
@@ -1325,8 +1314,8 @@
     "ticker": "ELET3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 49,
-    "filled_shares": 49,
+    "requested_shares": 57,
+    "filled_shares": 57,
     "status": "FILLED",
     "reason": ""
   },
@@ -1337,9 +1326,9 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 300,
-    "filled_shares": 200,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 300,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2022-11-01",
@@ -1347,8 +1336,8 @@
     "ticker": "PRIO3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 46,
-    "filled_shares": 45,
+    "requested_shares": 58,
+    "filled_shares": 48,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -1358,8 +1347,8 @@
     "ticker": "PRIO3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 200,
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
@@ -1369,8 +1358,8 @@
     "ticker": "PRIO3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 45,
-    "filled_shares": 45,
+    "requested_shares": 48,
+    "filled_shares": 48,
     "status": "FILLED",
     "reason": ""
   },
@@ -1386,6 +1375,17 @@
     "reason": ""
   },
   {
+    "date": "2022-12-01",
+    "decision_date": "2022-11-30",
+    "ticker": "SBSP3",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 6,
+    "filled_shares": 6,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
     "date": "2023-01-02",
     "decision_date": "2022-12-29",
     "ticker": "SBSP3",
@@ -1399,13 +1399,24 @@
   {
     "date": "2023-01-02",
     "decision_date": "2022-12-29",
+    "ticker": "SBSP3",
+    "side": "SELL",
+    "market_type": "020",
+    "requested_shares": 6,
+    "filled_shares": 6,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2023-01-02",
+    "decision_date": "2022-12-29",
     "ticker": "WEGE3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 100,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "requested_shares": 300,
+    "filled_shares": 300,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2023-01-02",
@@ -1413,19 +1424,19 @@
     "ticker": "WEGE3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 99,
-    "filled_shares": 98,
+    "requested_shares": 8,
+    "filled_shares": 6,
     "status": "PARTIAL",
     "reason": "cash"
   },
   {
-    "date": "2023-02-01",
-    "decision_date": "2023-01-31",
-    "ticker": "WEGE3",
+    "date": "2023-06-01",
+    "decision_date": "2023-05-31",
+    "ticker": "RADL3",
     "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 99,
-    "filled_shares": 99,
+    "market_type": "010",
+    "requested_shares": 400,
+    "filled_shares": 400,
     "status": "FILLED",
     "reason": ""
   },
@@ -1434,6 +1445,17 @@
     "decision_date": "2023-05-31",
     "ticker": "RADL3",
     "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 2,
+    "filled_shares": 2,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2023-06-01",
+    "decision_date": "2023-05-31",
+    "ticker": "WEGE3",
+    "side": "SELL",
     "market_type": "010",
     "requested_shares": 300,
     "filled_shares": 300,
@@ -1443,33 +1465,11 @@
   {
     "date": "2023-06-01",
     "decision_date": "2023-05-31",
-    "ticker": "RADL3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 91,
-    "filled_shares": 91,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2023-06-01",
-    "decision_date": "2023-05-31",
-    "ticker": "WEGE3",
-    "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 200,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2023-06-01",
-    "decision_date": "2023-05-31",
     "ticker": "WEGE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 97,
-    "filled_shares": 97,
+    "requested_shares": 6,
+    "filled_shares": 6,
     "status": "FILLED",
     "reason": ""
   },
@@ -1501,8 +1501,8 @@
     "ticker": "BBAS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 36,
-    "filled_shares": 36,
+    "requested_shares": 42,
+    "filled_shares": 42,
     "status": "FILLED",
     "reason": ""
   },
@@ -1512,8 +1512,8 @@
     "ticker": "RADL3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 300,
-    "filled_shares": 300,
+    "requested_shares": 400,
+    "filled_shares": 400,
     "status": "FILLED",
     "reason": ""
   },
@@ -1523,8 +1523,8 @@
     "ticker": "RADL3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 97,
-    "filled_shares": 97,
+    "requested_shares": 8,
+    "filled_shares": 8,
     "status": "FILLED",
     "reason": ""
   },
@@ -1545,8 +1545,8 @@
     "ticker": "BBAS3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 36,
-    "filled_shares": 36,
+    "requested_shares": 42,
+    "filled_shares": 42,
     "status": "FILLED",
     "reason": ""
   },
@@ -1556,8 +1556,8 @@
     "ticker": "CYRE3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 400,
-    "filled_shares": 400,
+    "requested_shares": 500,
+    "filled_shares": 500,
     "status": "FILLED",
     "reason": ""
   },
@@ -1567,41 +1567,30 @@
     "ticker": "CYRE3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 93,
-    "filled_shares": 93,
+    "requested_shares": 6,
+    "filled_shares": 6,
     "status": "FILLED",
     "reason": ""
   },
   {
-    "date": "2023-10-02",
-    "decision_date": "2023-09-29",
-    "ticker": "CYRE3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 1,
-    "filled_shares": 1,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2023-10-16",
-    "decision_date": "2023-10-13",
+    "date": "2023-11-01",
+    "decision_date": "2023-10-31",
     "ticker": "CYRE3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 400,
-    "filled_shares": 400,
+    "requested_shares": 500,
+    "filled_shares": 500,
     "status": "FILLED",
     "reason": ""
   },
   {
-    "date": "2023-10-16",
-    "decision_date": "2023-10-13",
+    "date": "2023-11-01",
+    "decision_date": "2023-10-31",
     "ticker": "CYRE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 94,
-    "filled_shares": 94,
+    "requested_shares": 6,
+    "filled_shares": 6,
     "status": "FILLED",
     "reason": ""
   },
@@ -1622,8 +1611,8 @@
     "ticker": "PETR4",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 67,
-    "filled_shares": 67,
+    "requested_shares": 59,
+    "filled_shares": 59,
     "status": "FILLED",
     "reason": ""
   },
@@ -1644,8 +1633,8 @@
     "ticker": "PETR4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 67,
-    "filled_shares": 67,
+    "requested_shares": 59,
+    "filled_shares": 59,
     "status": "FILLED",
     "reason": ""
   },
@@ -1655,8 +1644,8 @@
     "ticker": "VBBR3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 400,
-    "filled_shares": 400,
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
@@ -1666,8 +1655,8 @@
     "ticker": "VBBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 7,
-    "filled_shares": 7,
+    "requested_shares": 99,
+    "filled_shares": 99,
     "status": "FILLED",
     "reason": ""
   },
@@ -1688,8 +1677,8 @@
     "ticker": "UGPA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 48,
-    "filled_shares": 48,
+    "requested_shares": 40,
+    "filled_shares": 40,
     "status": "FILLED",
     "reason": ""
   },
@@ -1699,8 +1688,8 @@
     "ticker": "VBBR3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 400,
-    "filled_shares": 400,
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
@@ -1710,8 +1699,8 @@
     "ticker": "VBBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 7,
-    "filled_shares": 7,
+    "requested_shares": 99,
+    "filled_shares": 99,
     "status": "FILLED",
     "reason": ""
   },
@@ -1721,8 +1710,8 @@
     "ticker": "UGPA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 4,
-    "filled_shares": 4,
+    "requested_shares": 5,
+    "filled_shares": 5,
     "status": "FILLED",
     "reason": ""
   },
@@ -1743,8 +1732,8 @@
     "ticker": "SBSP3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 29,
-    "filled_shares": 29,
+    "requested_shares": 26,
+    "filled_shares": 26,
     "status": "FILLED",
     "reason": ""
   },
@@ -1765,8 +1754,8 @@
     "ticker": "UGPA3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 52,
-    "filled_shares": 52,
+    "requested_shares": 45,
+    "filled_shares": 45,
     "status": "FILLED",
     "reason": ""
   },
@@ -1787,8 +1776,8 @@
     "ticker": "SBSP3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 29,
-    "filled_shares": 29,
+    "requested_shares": 26,
+    "filled_shares": 26,
     "status": "FILLED",
     "reason": ""
   },
@@ -1809,7 +1798,7 @@
     "ticker": "UGPA3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 82,
+    "requested_shares": 75,
     "filled_shares": 71,
     "status": "PARTIAL",
     "reason": "capacity"
@@ -1831,8 +1820,8 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 99,
-    "filled_shares": 99,
+    "requested_shares": 93,
+    "filled_shares": 93,
     "status": "FILLED",
     "reason": ""
   },
@@ -1859,13 +1848,24 @@
     "reason": "capacity"
   },
   {
-    "date": "2024-06-03",
-    "decision_date": "2024-05-31",
+    "date": "2024-05-03",
+    "decision_date": "2024-05-02",
     "ticker": "EMBR3",
+    "side": "BUY",
+    "market_type": "020",
+    "requested_shares": 7,
+    "filled_shares": 7,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2024-05-03",
+    "decision_date": "2024-05-02",
+    "ticker": "UGPA3",
     "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 200,
+    "market_type": "020",
+    "requested_shares": 8,
+    "filled_shares": 8,
     "status": "FILLED",
     "reason": ""
   },
@@ -1874,9 +1874,9 @@
     "decision_date": "2024-05-31",
     "ticker": "EMBR3",
     "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 99,
-    "filled_shares": 99,
+    "market_type": "010",
+    "requested_shares": 300,
+    "filled_shares": 300,
     "status": "FILLED",
     "reason": ""
   },
@@ -1897,19 +1897,8 @@
     "ticker": "SBSP3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 48,
-    "filled_shares": 48,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2024-06-03",
-    "decision_date": "2024-05-31",
-    "ticker": "UGPA3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 8,
-    "filled_shares": 8,
+    "requested_shares": 45,
+    "filled_shares": 45,
     "status": "FILLED",
     "reason": ""
   },
@@ -1930,10 +1919,10 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 6,
-    "filled_shares": 5,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "requested_shares": 1,
+    "filled_shares": 1,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2024-07-01",
@@ -1952,8 +1941,8 @@
     "ticker": "SBSP3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 48,
-    "filled_shares": 48,
+    "requested_shares": 45,
+    "filled_shares": 45,
     "status": "FILLED",
     "reason": ""
   },
@@ -1963,6 +1952,28 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
+    "requested_shares": 79,
+    "filled_shares": 79,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2024-09-02",
+    "decision_date": "2024-08-30",
+    "ticker": "EMBR3",
+    "side": "SELL",
+    "market_type": "010",
+    "requested_shares": 200,
+    "filled_shares": 200,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2024-09-02",
+    "decision_date": "2024-08-30",
+    "ticker": "EMBR3",
+    "side": "SELL",
+    "market_type": "020",
     "requested_shares": 80,
     "filled_shares": 80,
     "status": "FILLED",
@@ -1971,28 +1982,6 @@
   {
     "date": "2024-09-02",
     "decision_date": "2024-08-30",
-    "ticker": "EMBR3",
-    "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 200,
-    "filled_shares": 200,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2024-09-02",
-    "decision_date": "2024-08-30",
-    "ticker": "EMBR3",
-    "side": "SELL",
-    "market_type": "020",
-    "requested_shares": 85,
-    "filled_shares": 85,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2024-09-02",
-    "decision_date": "2024-08-30",
     "ticker": "WEGE3",
     "side": "BUY",
     "market_type": "010",
@@ -2007,8 +1996,8 @@
     "ticker": "WEGE3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 44,
-    "filled_shares": 44,
+    "requested_shares": 40,
+    "filled_shares": 40,
     "status": "FILLED",
     "reason": ""
   },
@@ -2030,9 +2019,9 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 200,
-    "filled_shares": 100,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 200,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2025-01-02",
@@ -2040,10 +2029,10 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 28,
-    "filled_shares": 27,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "requested_shares": 24,
+    "filled_shares": 24,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2025-01-02",
@@ -2062,30 +2051,8 @@
     "ticker": "WEGE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 45,
-    "filled_shares": 45,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2025-02-03",
-    "decision_date": "2025-01-31",
-    "ticker": "EMBR3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 94,
-    "filled_shares": 94,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2025-03-05",
-    "decision_date": "2025-02-28",
-    "ticker": "EMBR3",
-    "side": "BUY",
-    "market_type": "020",
-    "requested_shares": 1,
-    "filled_shares": 1,
+    "requested_shares": 41,
+    "filled_shares": 41,
     "status": "FILLED",
     "reason": ""
   },
@@ -2106,8 +2073,8 @@
     "ticker": "EMBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 22,
-    "filled_shares": 22,
+    "requested_shares": 24,
+    "filled_shares": 24,
     "status": "FILLED",
     "reason": ""
   },
@@ -2128,8 +2095,8 @@
     "ticker": "TOTS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 33,
-    "filled_shares": 33,
+    "requested_shares": 37,
+    "filled_shares": 37,
     "status": "FILLED",
     "reason": ""
   },
@@ -2150,8 +2117,8 @@
     "ticker": "EMBR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 50,
-    "filled_shares": 50,
+    "requested_shares": 52,
+    "filled_shares": 52,
     "status": "FILLED",
     "reason": ""
   },
@@ -2172,8 +2139,8 @@
     "ticker": "TOTS3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 33,
-    "filled_shares": 33,
+    "requested_shares": 37,
+    "filled_shares": 37,
     "status": "FILLED",
     "reason": ""
   },
@@ -2194,8 +2161,8 @@
     "ticker": "EMBR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 50,
-    "filled_shares": 50,
+    "requested_shares": 52,
+    "filled_shares": 52,
     "status": "FILLED",
     "reason": ""
   },
@@ -2216,10 +2183,10 @@
     "ticker": "TOTS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 84,
-    "filled_shares": 84,
-    "status": "FILLED",
-    "reason": ""
+    "requested_shares": 87,
+    "filled_shares": 85,
+    "status": "PARTIAL",
+    "reason": "capacity"
   },
   {
     "date": "2025-07-01",
@@ -2227,8 +2194,8 @@
     "ticker": "TOTS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 7,
-    "filled_shares": 7,
+    "requested_shares": 9,
+    "filled_shares": 9,
     "status": "FILLED",
     "reason": ""
   },
@@ -2238,8 +2205,8 @@
     "ticker": "ASAI3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 1700,
-    "filled_shares": 1600,
+    "requested_shares": 1800,
+    "filled_shares": 1700,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -2249,10 +2216,10 @@
     "ticker": "ASAI3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 94,
-    "filled_shares": 93,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "requested_shares": 10,
+    "filled_shares": 10,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2025-08-01",
@@ -2271,41 +2238,41 @@
     "ticker": "TOTS3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 91,
+    "requested_shares": 94,
     "filled_shares": 75,
     "status": "PARTIAL",
     "reason": "capacity"
   },
   {
-    "date": "2025-08-11",
-    "decision_date": "2025-08-08",
+    "date": "2025-08-04",
+    "decision_date": "2025-08-01",
     "ticker": "ASAI3",
-    "side": "SELL",
-    "market_type": "010",
-    "requested_shares": 1600,
-    "filled_shares": 1600,
-    "status": "FILLED",
-    "reason": ""
-  },
-  {
-    "date": "2025-08-11",
-    "decision_date": "2025-08-08",
-    "ticker": "ASAI3",
-    "side": "SELL",
+    "side": "BUY",
     "market_type": "020",
-    "requested_shares": 93,
-    "filled_shares": 88,
+    "requested_shares": 99,
+    "filled_shares": 90,
     "status": "PARTIAL",
     "reason": "capacity"
   },
   {
-    "date": "2025-08-11",
-    "decision_date": "2025-08-08",
+    "date": "2025-08-04",
+    "decision_date": "2025-08-01",
     "ticker": "TOTS3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 16,
-    "filled_shares": 16,
+    "requested_shares": 19,
+    "filled_shares": 19,
+    "status": "FILLED",
+    "reason": ""
+  },
+  {
+    "date": "2025-08-11",
+    "decision_date": "2025-08-08",
+    "ticker": "ASAI3",
+    "side": "SELL",
+    "market_type": "010",
+    "requested_shares": 1800,
+    "filled_shares": 1800,
     "status": "FILLED",
     "reason": ""
   },
@@ -2316,9 +2283,9 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 1700,
-    "filled_shares": 1600,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 1700,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2025-08-12",
@@ -2326,10 +2293,10 @@
     "ticker": "ASAI3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 77,
-    "filled_shares": 76,
+    "requested_shares": 98,
+    "filled_shares": 87,
     "status": "PARTIAL",
-    "reason": "cash"
+    "reason": "capacity"
   },
   {
     "date": "2025-08-13",
@@ -2337,8 +2304,8 @@
     "ticker": "ASAI3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 1600,
-    "filled_shares": 1600,
+    "requested_shares": 1700,
+    "filled_shares": 1700,
     "status": "FILLED",
     "reason": ""
   },
@@ -2348,8 +2315,19 @@
     "ticker": "ASAI3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 81,
-    "filled_shares": 81,
+    "requested_shares": 87,
+    "filled_shares": 85,
+    "status": "PARTIAL",
+    "reason": "capacity"
+  },
+  {
+    "date": "2025-08-14",
+    "decision_date": "2025-08-13",
+    "ticker": "ASAI3",
+    "side": "SELL",
+    "market_type": "020",
+    "requested_shares": 2,
+    "filled_shares": 2,
     "status": "FILLED",
     "reason": ""
   },
@@ -2370,8 +2348,8 @@
     "ticker": "ASAI3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 49,
-    "filled_shares": 49,
+    "requested_shares": 69,
+    "filled_shares": 69,
     "status": "FILLED",
     "reason": ""
   },
@@ -2392,8 +2370,8 @@
     "ticker": "ASAI3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 49,
-    "filled_shares": 49,
+    "requested_shares": 69,
+    "filled_shares": 69,
     "status": "FILLED",
     "reason": ""
   },
@@ -2414,8 +2392,8 @@
     "ticker": "TIMS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 6,
-    "filled_shares": 6,
+    "requested_shares": 16,
+    "filled_shares": 16,
     "status": "FILLED",
     "reason": ""
   },
@@ -2425,8 +2403,8 @@
     "ticker": "TIMS3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 16,
-    "filled_shares": 16,
+    "requested_shares": 15,
+    "filled_shares": 15,
     "status": "FILLED",
     "reason": ""
   },
@@ -2447,8 +2425,8 @@
     "ticker": "RDOR3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 56,
-    "filled_shares": 56,
+    "requested_shares": 61,
+    "filled_shares": 61,
     "status": "FILLED",
     "reason": ""
   },
@@ -2469,8 +2447,8 @@
     "ticker": "TIMS3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 22,
-    "filled_shares": 22,
+    "requested_shares": 31,
+    "filled_shares": 31,
     "status": "FILLED",
     "reason": ""
   },
@@ -2491,8 +2469,8 @@
     "ticker": "BBDC4",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 72,
-    "filled_shares": 72,
+    "requested_shares": 84,
+    "filled_shares": 84,
     "status": "FILLED",
     "reason": ""
   },
@@ -2513,8 +2491,8 @@
     "ticker": "RDOR3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 56,
-    "filled_shares": 56,
+    "requested_shares": 61,
+    "filled_shares": 61,
     "status": "FILLED",
     "reason": ""
   },
@@ -2535,8 +2513,8 @@
     "ticker": "BBDC4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 72,
-    "filled_shares": 72,
+    "requested_shares": 84,
+    "filled_shares": 84,
     "status": "FILLED",
     "reason": ""
   },
@@ -2557,8 +2535,8 @@
     "ticker": "RADL3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 25,
-    "filled_shares": 25,
+    "requested_shares": 35,
+    "filled_shares": 35,
     "status": "FILLED",
     "reason": ""
   },
@@ -2579,8 +2557,8 @@
     "ticker": "COGN3",
     "side": "BUY",
     "market_type": "010",
-    "requested_shares": 5800,
-    "filled_shares": 5800,
+    "requested_shares": 5900,
+    "filled_shares": 5900,
     "status": "FILLED",
     "reason": ""
   },
@@ -2590,8 +2568,8 @@
     "ticker": "COGN3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 71,
-    "filled_shares": 71,
+    "requested_shares": 40,
+    "filled_shares": 40,
     "status": "FILLED",
     "reason": ""
   },
@@ -2612,8 +2590,8 @@
     "ticker": "RADL3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 27,
-    "filled_shares": 27,
+    "requested_shares": 37,
+    "filled_shares": 37,
     "status": "FILLED",
     "reason": ""
   },
@@ -2623,8 +2601,8 @@
     "ticker": "COGN3",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 5800,
-    "filled_shares": 5800,
+    "requested_shares": 5900,
+    "filled_shares": 5900,
     "status": "FILLED",
     "reason": ""
   },
@@ -2634,8 +2612,8 @@
     "ticker": "COGN3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 71,
-    "filled_shares": 71,
+    "requested_shares": 40,
+    "filled_shares": 40,
     "status": "FILLED",
     "reason": ""
   },
@@ -2656,8 +2634,8 @@
     "ticker": "VALE3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 26,
-    "filled_shares": 26,
+    "requested_shares": 28,
+    "filled_shares": 28,
     "status": "FILLED",
     "reason": ""
   },
@@ -2678,8 +2656,8 @@
     "ticker": "CSMG3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 38,
-    "filled_shares": 38,
+    "requested_shares": 42,
+    "filled_shares": 42,
     "status": "FILLED",
     "reason": ""
   },
@@ -2700,8 +2678,8 @@
     "ticker": "VALE3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 26,
-    "filled_shares": 26,
+    "requested_shares": 28,
+    "filled_shares": 28,
     "status": "FILLED",
     "reason": ""
   },
@@ -2722,8 +2700,8 @@
     "ticker": "CSMG3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 38,
-    "filled_shares": 38,
+    "requested_shares": 42,
+    "filled_shares": 42,
     "status": "FILLED",
     "reason": ""
   },
@@ -2734,9 +2712,9 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 400,
-    "filled_shares": 300,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 400,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2026-06-01",
@@ -2744,8 +2722,8 @@
     "ticker": "PETR4",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 24,
-    "filled_shares": 23,
+    "requested_shares": 29,
+    "filled_shares": 28,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -2755,8 +2733,8 @@
     "ticker": "PETR4",
     "side": "SELL",
     "market_type": "010",
-    "requested_shares": 300,
-    "filled_shares": 300,
+    "requested_shares": 400,
+    "filled_shares": 400,
     "status": "FILLED",
     "reason": ""
   },
@@ -2766,8 +2744,8 @@
     "ticker": "PETR4",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 23,
-    "filled_shares": 23,
+    "requested_shares": 28,
+    "filled_shares": 28,
     "status": "FILLED",
     "reason": ""
   },
@@ -2788,8 +2766,8 @@
     "ticker": "PRIO3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 12,
-    "filled_shares": 12,
+    "requested_shares": 7,
+    "filled_shares": 7,
     "status": "FILLED",
     "reason": ""
   },
@@ -2800,9 +2778,9 @@
     "side": "BUY",
     "market_type": "010",
     "requested_shares": 200,
-    "filled_shares": 100,
-    "status": "PARTIAL",
-    "reason": "cash"
+    "filled_shares": 200,
+    "status": "FILLED",
+    "reason": ""
   },
   {
     "date": "2026-08-03",
@@ -2810,8 +2788,8 @@
     "ticker": "CSMG3",
     "side": "BUY",
     "market_type": "020",
-    "requested_shares": 95,
-    "filled_shares": 94,
+    "requested_shares": 90,
+    "filled_shares": 81,
     "status": "PARTIAL",
     "reason": "cash"
   },
@@ -2832,8 +2810,8 @@
     "ticker": "PRIO3",
     "side": "SELL",
     "market_type": "020",
-    "requested_shares": 12,
-    "filled_shares": 12,
+    "requested_shares": 7,
+    "filled_shares": 7,
     "status": "FILLED",
     "reason": ""
   }

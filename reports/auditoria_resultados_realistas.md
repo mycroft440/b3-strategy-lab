@@ -13,14 +13,14 @@ Os números publicados não eram realistas. Com as mesmas regras corrigidas:
 | :--- | ---: | ---: |
 | Par escolhido só no treino, teste 2023-01-02 a 2026-08-19 (motor estrito) | não informado | `sma_cross`: R$ 1.008,97 (0,25% a.a.) |
 | `gap_momentum`, teste 2023-01-02 a 2026-08-19 (motor estrito, universo fixo) | R$ 3.108 (36,70% a.a.) | R$ 3.161,07 (37,34% a.a.), não significativo contra o CDI |
-| `gap_momentum`, teste 2023-01-02 a 2026-08-19 (motor realista, Nível 2) | — | **R$ 820,32 (−5,31% a.a.)** |
-| `gap_momentum`, 2018-01-02 a 2026-08-19 (motor realista, Nível 2) | R$ 14.218,29 (36,03% a.a.) | **R$ 1.122,14 (1,34% a.a.)**, drawdown −76,6% |
+| `gap_momentum`, teste 2023-01-02 a 2026-08-19 (motor realista, Nível 2) | — | **R$ 849,61 (−4,39% a.a.)** |
+| `gap_momentum`, 2018-01-02 a 2026-08-19 (motor realista, Nível 2) | R$ 14.218,29 (36,03% a.a.) | **R$ 1.017,64 (0,20% a.a.)**, drawdown −77,2% |
 | CDI bruto, 2023-01-02 a 2026-08-19 | não informado | R$ 1.560,01 (13,04% a.a.) |
 | CDI bruto, 2018-01-02 a 2026-08-19 | não informado | R$ 2.121,49 (9,11% a.a.) |
 
 Nenhuma das 25 estratégias superou o CDI de forma estatisticamente significativa no
 teste. No motor realista, `gap_momentum` + `top1_momentum_lb63_skip0_trend0_vol21_equal_weekly_abs_cap1_adjusted`
-perdeu dinheiro em 2023, 2024 e 2026 e ficou abaixo do CDI no período inteiro.
+perdeu dinheiro de 2023 a 2026 e ficou abaixo do CDI no período inteiro.
 
 ## Problemas encontrados
 
@@ -82,25 +82,31 @@ estrito.
 
 | Replay | Patrimônio final | CAGR | Drawdown máx. | Trades | Tarifas | IR |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2018-01-02 a 2026-08-19 | R$ 1.122,14 | 1,34% | −76,58% | 756 | R$ 286,78 | R$ 1,03 |
-| 2023-01-02 a 2026-08-19 | R$ 820,32 | −5,31% | −38,01% | 321 | R$ 77,32 | R$ 0,00 |
+| 2018-01-02 a 2026-08-19 | R$ 1.017,64 | 0,20% | −77,20% | 747 | R$ 273,21 | R$ 0,00 |
+| 2023-01-02 a 2026-08-19 | R$ 849,61 | −4,39% | −41,52% | 325 | R$ 80,87 | R$ 0,00 |
 
-Retorno por ano do replay completo: 2018 −5,8%; 2019 +56,4%; 2020 +53,1%;
-2021 −10,3%; 2022 −25,9%; 2023 −14,3%; 2024 −8,7%; 2025 +0,9%; 2026 −5,3%.
+Retorno por ano do replay completo: 2018 −10,8%; 2019 +57,0%; 2020 +53,3%;
+2021 −12,2%; 2022 −24,2%; 2023 −17,5%; 2024 −7,8%; 2025 −0,3%; 2026 −6,0%.
+
+Os números desta seção foram recalculados em 25/09/2026, depois de três correções no
+motor realista (`157111a`, `e04f91a` e `93f4751`, descritas em
+[`matriz_sem_problematicas/AUDITORIAS_COMBINACOES_SORTEADAS.md`](matriz_sem_problematicas/AUDITORIAS_COMBINACOES_SORTEADAS.md)).
+Antes delas, o replay completo dava R$ 1.122,14 e o de teste, R$ 820,32; a conclusão
+não muda.
 
 Decomposição: repetindo o replay completo com slippage fixo de 10 bps (como no motor
-estrito), o resultado sobe para R$ 1.383,93 (3,84% a.a.). O custo de execução explica
+estrito), o resultado sobe para R$ 1.083,54 (0,93% a.a.). O custo de execução explica
 uma parte pequena da diferença; a maior parte vem do universo.
 
 Limites deste replay, também registrados no campo `validity`:
 
 - `__DIAGNOSTIC_FRACTIONS_AT_ZERO`: a bonificação de 4% da RADL3 em 2023-05-22 gerou
-  0,56 ação fracionária (0,08 no replay de teste). O leilão de frações não está em
+  0,44 ação fracionária no replay completo (nenhuma no de teste). O leilão de frações não está em
   `corporate_settlements.json` porque o aviso primário da RD com o valor líquido não
   foi localizado; a imprensa informa R$ 28,28 por ação. O diagnóstico valoriza a
-  fração em zero, o que reduz o resultado em no máximo cerca de R$ 16.
+  fração em zero, o que reduz o resultado em no máximo cerca de R$ 12.
 - `__BONUS_TAX_BASIS_UNCERTIFIED`: o custo fiscal da mesma bonificação não é aplicado
-  pelo motor; o IR total do replay é R$ 1,03.
+  pelo motor; o IR total do replay é zero.
 - `__UNBOUND_TICKER_TRANSITIONS`: o manifesto de transições tem três
   desaparecimentos sem sucessor documentado (AZUL4, PETZ3, TIMP3). O replay não
   detinha nenhum deles nessas datas.
