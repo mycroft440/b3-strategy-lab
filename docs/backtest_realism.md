@@ -22,6 +22,9 @@ os valores. Zerar custos permanece uma referência diagnóstica explícita.
 
 `price_only` exclui dividendos/JCP e não substitui o motor realista. Seu lote agora
 respeita o preço histórico bruto e aplica mudanças de quantidade por splits.
+O modo legado `adjusted` rejeita lotes inteiros quando os preços de execução ou
+marcação diferem dos preços brutos. Nesse caso, use `price_only` ou o motor
+realista; `lot_size=0` mantém apenas o diagnóstico com frações sintéticas de ações.
 A matriz de combinações continua sendo triagem retrospectiva; a avaliação econômica
 e fora da amostra deve usar o motor realista. O painel usa o universo histórico PIT,
 preservando inclusive semanas em que nenhum ativo selecionado era elegível.
