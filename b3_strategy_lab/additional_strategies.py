@@ -644,8 +644,9 @@ def _stochastic_trend(
         trend_ok = trend[index] is not None and closes[index] > trend[index]
         if value is not None:
             if position == 0:
-                armed = armed or (trend_ok and value <= lower)
-                if armed and trend_ok and index > 0 and stochastic[index - 1] is not None and value > stochastic[index - 1]:
+                # A pullback only arms the entry inside the trend it belongs to.
+                armed = trend_ok and (armed or value <= lower)
+                if armed and index > 0 and stochastic[index - 1] is not None and value > stochastic[index - 1]:
                     position = 1
                     armed = False
             elif value >= upper or not trend_ok:
@@ -676,8 +677,9 @@ def _supertrend_oscillator(
     for index, value in enumerate(values):
         if value is not None:
             if position == 0:
-                armed = armed or (trend[index] == 1 and value <= lower)
-                if armed and trend[index] == 1 and index > 0 and values[index - 1] is not None and value > values[index - 1]:
+                # A pullback only arms the entry inside the SuperTrend uptrend it belongs to.
+                armed = trend[index] == 1 and (armed or value <= lower)
+                if armed and index > 0 and values[index - 1] is not None and value > values[index - 1]:
                     position = 1
                     armed = False
             elif trend[index] == 0 or value >= upper:
@@ -1007,9 +1009,11 @@ def _adx(
         down = candles[index - 1].low - candles[index].low
         plus_dm[index] = up if up > down and up > 0 else 0.0
         minus_dm[index] = down if down > up and down > 0 else 0.0
-    atr_values = _sma(true_ranges, period)
-    plus_average = _sma(plus_dm, period)
-    minus_average = _sma(minus_dm, period)
+    # Wilder's ADX smooths TR, +DM, -DM and DX recursively; simple means gave a
+    # different indicator (median 43% off) under thresholds calibrated for Wilder.
+    atr_values = _wilder(true_ranges, period)
+    plus_average = _wilder(plus_dm, period)
+    minus_average = _wilder(minus_dm, period)
     plus_di: list[float | None] = []
     minus_di: list[float | None] = []
     dx: list[float | None] = []
@@ -1025,7 +1029,27 @@ def _adx(
         minus_di.append(minus)
         total = plus + minus
         dx.append(0.0 if total == 0 else 100.0 * abs(plus - minus) / total)
-    return _rolling_optional_mean(dx, period), plus_di, minus_di
+    return _wilder(dx, period), plus_di, minus_di
+
+
+def _wilder(values: list[float | None], period: int) -> list[float | None]:
+    result: list[float | None] = []
+    seed: list[float] = []
+    current: float | None = None
+    for value in values:
+        if value is None:
+            result.append(None)
+            continue
+        if current is None:
+            seed.append(value)
+            if len(seed) < period:
+                result.append(None)
+                continue
+            current = sum(seed) / period
+        else:
+            current = (current * (period - 1) + value) / period
+        result.append(current)
+    return result
 
 
 def _cci(candles: list[Candle], period: int) -> list[float | None]:
@@ -1063,17 +1087,6 @@ def _mfi(candles: list[Candle], period: int) -> list[float | None]:
             result.append(100.0 if positive_sum > 0 else 50.0)
         else:
             result.append(100.0 - 100.0 / (1.0 + positive_sum / negative_sum))
-    return result
-
-
-def _rolling_optional_mean(values: list[float | None], period: int) -> list[float | None]:
-    result: list[float | None] = []
-    for index in range(len(values)):
-        if index + 1 < period:
-            result.append(None)
-            continue
-        window = values[index - period + 1 : index + 1]
-        result.append(sum(value for value in window if value is not None) / period if all(value is not None for value in window) else None)
     return result
 
 
