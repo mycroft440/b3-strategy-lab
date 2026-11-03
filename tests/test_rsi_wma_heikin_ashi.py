@@ -145,3 +145,17 @@ class OneStockRocSelectionTests(unittest.TestCase):
         # BBBB3 sai no pregao 7; CCCC3 nao esta mais no primeiro candle do sinal, entao nunca entra.
         self.assertEqual(sells[0]["date"], dates[7])
         self.assertEqual(len(buys), 1)
+
+
+class SignalTradesFreshEntryTests(unittest.TestCase):
+    def test_signal_already_active_at_start_is_not_entered_late(self) -> None:
+        from scripts.backtest_rsi_wma_heikin_ashi import signal_trades
+
+        data = _FakeMarketData({"AAAA3": [10.0] * 8})
+        signals = [1, 1, 1, 0, 0, 1, 1, 0]
+        start = data.candles["AAAA3"][2].date
+        end = data.candles["AAAA3"][-1].date
+        trades = signal_trades("AAAA3", data, signals, [0] * 8, start, end, 0.0, 0.0)
+        self.assertEqual(len(trades), 1)
+        self.assertEqual(trades[0]["entry_date"], data.candles["AAAA3"][6].date)
+        self.assertEqual(trades[0]["exit_date"], data.candles["AAAA3"][-1].date)

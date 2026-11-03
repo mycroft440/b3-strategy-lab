@@ -266,7 +266,10 @@ def signal_trades(
         if day < start or day > end:
             continue
         wanted = signals[index - 1]
-        if open_trade is None and wanted == 1:
+        fresh = index < 2 or signals[index - 2] == 0
+        # Entrada apenas no primeiro candle do sinal; sinais ja ativos no inicio do
+        # periodo sao ignorados (nunca ha entrada tardia).
+        if open_trade is None and wanted == 1 and fresh:
             fill = candles[index].open * (1 + slip_rate)
             open_trade = {"ticker": ticker, "entry_date": day, "entry_index": index,
                           "entry_price": fill, "priority": priority[index - 1]}
@@ -530,12 +533,24 @@ def main(argv: list[str] | None = None) -> int:
             portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
             if period == "2018+" and name == main_name:
                 default_result = res
+        # Diagnostico: mesma regra principal sem custos/slippage, para medir o peso dos custos.
+        main_options = variants[0][2]
+        res = simulate_portfolio(data, signals, priority, dates, name=f"{main_name}_sem_custos",
+                                 max_positions=slots, **main_options,
+                                 **dict(common, cost_bps=0.0, slippage_bps=0.0))
+        portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
+        # Referencia com fracoes de acao (lot_size=0): com lote inteiro, acoes de preco
+        # ajustado alto (ex.: IRBR3 acima de R$ 250 por vaga) ficariam fora do peso igual.
         res = simulate_portfolio(data, always, priority, dates, name="buy_and_hold_peso_igual",
-                                 max_positions=len(tickers), use_priority=False, **common)
+                                 max_positions=len(tickers), use_priority=False,
+                                 **dict(common, lot_size=0))
         portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
         print(f"Periodo {period} concluido.", flush=True)
     variant_descriptions = {name: text for name, text, _ in variants}
-    variant_descriptions["buy_and_hold_peso_igual"] = "Referencia: as 40 acoes compradas em peso igual, sem rebalancear."
+    variant_descriptions[f"{main_name}_sem_custos"] = (
+        "Diagnostico: regra principal com custos e slippage zerados (mostra quanto os custos pesam).")
+    variant_descriptions["buy_and_hold_peso_igual"] = (
+        "Referencia: as 40 acoes compradas em peso igual (com fracoes de acao), sem rebalancear.")
 
     # Todos os trades do sinal por ativo (sem limite de vagas) e efeito da prioridade.
     all_trades: list[dict[str, object]] = []
@@ -554,8 +569,15 @@ def main(argv: list[str] | None = None) -> int:
         candles = data.candles[t]
         first = next(i for i, c in enumerate(candles) if c.date >= args.start)
         last = max(i for i, c in enumerate(candles) if c.date <= end)
+        window_signals = list(signals[t][first:last + 1])
+        # Se o sinal ja estava ativo antes do inicio, espera ele terminar: a entrada
+        # so pode ocorrer no primeiro candle de um sinal novo.
+        index = 0
+        while index < len(window_signals) and window_signals[index] == 1:
+            window_signals[index] = 0
+            index += 1
         summary, _, _ = run_strategy_vs_buy_hold(
-            t, STRATEGY, candles[first:last + 1], signals[t][first:last + 1],
+            t, STRATEGY, candles[first:last + 1], window_signals,
             price_mode="adjusted", **common,
         )
         per_asset.append({

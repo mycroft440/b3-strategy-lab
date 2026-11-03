@@ -18,7 +18,13 @@ saida usa a linha 50, o padrao interpreta o criterio como RSI centralizado
 
 from __future__ import annotations
 
+import math
+
 from .candles import Candle
+
+# Variacao relativa da WMA abaixo deste limite e tratada como media estavel
+# (nem subindo nem caindo), evitando sinais gerados por ruido de ponto flutuante.
+SLOPE_TOLERANCE = 1e-12
 
 
 def _rsi(values: list[float], period: int) -> list[float | None]:
@@ -60,14 +66,11 @@ def wma(values: list[float], period: int) -> list[float | None]:
 def sma(values: list[float], period: int) -> list[float | None]:
     if period <= 0:
         raise ValueError("period precisa ser maior que zero.")
+    # Soma exata de cada janela (math.fsum): uma soma acumulada introduz erro de
+    # arredondamento e altera comparacoes de igualdade como fechamento == SMA50.
     result: list[float | None] = [None] * len(values)
-    running = 0.0
-    for index, value in enumerate(values):
-        running += value
-        if index >= period:
-            running -= values[index - period]
-        if index + 1 >= period:
-            result[index] = running / period
+    for index in range(period - 1, len(values)):
+        result[index] = math.fsum(values[index + 1 - period : index + 1]) / period
     return result
 
 
@@ -79,7 +82,10 @@ def ha_wma_slope(candles: list[Candle], wma_period: int) -> list[int]:
         current, previous = values[index], values[index - 1]
         if current is None or previous is None:
             continue
-        slope[index] = 1 if current > previous else -1 if current < previous else 0
+        change = current - previous
+        if abs(change) <= SLOPE_TOLERANCE * max(abs(current), abs(previous)):
+            continue
+        slope[index] = 1 if change > 0 else -1
     return slope
 
 
