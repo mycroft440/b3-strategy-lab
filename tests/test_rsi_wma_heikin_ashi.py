@@ -74,3 +74,74 @@ class RsiWmaHeikinAshiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _FakeMarketData:
+    """Estrutura minima usada pelo simulador (tickers, candles, by_date, index_by_date)."""
+
+    def __init__(self, closes: dict[str, list[float]]) -> None:
+        from datetime import date, timedelta
+        from types import SimpleNamespace
+
+        self.tickers = sorted(closes)
+        self.candles = {}
+        self.by_date = {}
+        self.index_by_date = {}
+        start = date(2024, 1, 1)
+        for ticker, series in closes.items():
+            candles = [
+                SimpleNamespace(date=(start + timedelta(days=i)).isoformat(), open=value, close=value)
+                for i, value in enumerate(series)
+            ]
+            self.candles[ticker] = candles
+            self.by_date[ticker] = {c.date: c for c in candles}
+            self.index_by_date[ticker] = {c.date: i for i, c in enumerate(candles)}
+
+
+class OneStockRocSelectionTests(unittest.TestCase):
+    def test_rate_of_change_and_signal_ages(self) -> None:
+        from scripts.backtest_rsi_wma_heikin_ashi import rate_of_change, signal_ages
+
+        data = _FakeMarketData({"AAAA3": [10.0, 11.0, 12.0, 15.0]})
+        values = rate_of_change(data.candles["AAAA3"], 2)
+        self.assertEqual(values[:2], [None, None])
+        self.assertAlmostEqual(values[2], 0.2)
+        self.assertAlmostEqual(values[3], 15 / 11 - 1)
+        self.assertEqual(signal_ages([0, 1, 1, 0, 1]), [None, 0, 1, None, 0])
+
+    def test_picks_single_stock_with_best_roc_among_recent_signals(self) -> None:
+        from scripts.backtest_rsi_wma_heikin_ashi import rate_of_change, signal_ages, simulate_portfolio
+
+        closes = {
+            "AAAA3": [10, 10, 10, 12, 12, 12, 12, 12],  # ROC alto, mas sinal antigo
+            "BBBB3": [10, 10, 10, 11, 11, 11, 11, 11],  # sinal recente, ROC medio
+            "CCCC3": [10, 10, 10, 10.5, 10.5, 10.5, 10.5, 10.5],  # sinal recente, ROC baixo
+        }
+        signals = {
+            "AAAA3": [1, 1, 1, 1, 1, 1, 1, 1],
+            "BBBB3": [0, 0, 0, 1, 1, 1, 0, 0],
+            "CCCC3": [0, 0, 0, 1, 1, 1, 1, 1],
+        }
+        data = _FakeMarketData({k: [float(v) for v in vals] for k, vals in closes.items()})
+        roc = {t: rate_of_change(data.candles[t], 2) for t in data.tickers}
+        ages = {t: signal_ages(signals[t]) for t in data.tickers}
+        priority = {t: [0] * 8 for t in data.tickers}
+        dates = [c.date for c in data.candles["AAAA3"]]
+        result = simulate_portfolio(
+            data, signals, priority, dates, name="t", max_positions=1, use_priority=False,
+            initial_cash=1000.0, cost_bps=0.0, slippage_bps=0.0, lot_size=1,
+            roc=roc, signal_age=ages, recent_window=2,
+        )
+        buys = [row for row in result.ledger if row["side"] == "BUY"]
+        sells = [row for row in result.ledger if row["side"] == "SELL"]
+        # Decisao no fechamento do pregao 3 (BBBB3 e CCCC3 com sinal novo), compra no pregao 4.
+        self.assertEqual(buys[0]["ticker"], "BBBB3")
+        self.assertEqual(buys[0]["date"], dates[4])
+        # Nunca mais de 1 acao ao mesmo tempo.
+        held = 0
+        for row in result.ledger:
+            held += 1 if row["side"] == "BUY" else -1
+            self.assertLessEqual(held, 1)
+        # BBBB3 sai no pregao 7; CCCC3 ja tem sinal antigo (idade >= 2), entao fica em caixa.
+        self.assertEqual(sells[0]["date"], dates[7])
+        self.assertEqual(len(buys), 1)

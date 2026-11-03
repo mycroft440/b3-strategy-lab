@@ -4,36 +4,58 @@
 
 - **Compra**: RSI(14) do fechamento acima de 50 e WMA(20) do fechamento Heikin Ashi subindo (WMA[t] > WMA[t-1]).
 - **Venda**: RSI abaixo de 50 ou WMA Heikin Ashi caindo (WMA[t] < WMA[t-1]).
-- **Prioridade**: sinal de compra com fechamento OU SMA20 acima da SMA50 entra antes dos demais.
-- "RSI acima de 0" foi lido como RSI centralizado (RSI - 50 > 0), ou seja RSI > 50; a leitura literal (RSI > 0) aparece como variante.
+- **Selecao**: somente 1 acao por vez. Entre as acoes com sinal de compra recente (iniciado ha menos de 5 pregoes no fechamento da decisao), compra-se a de maior ROC de 3 meses (63 pregoes). A posicao fica ate o sinal de venda; so depois outra e escolhida.
+- **Prioridade** (variantes de comparacao): fechamento OU SMA20 acima da SMA50.
+- "RSI acima de 0" foi lido como RSI centralizado (RSI - 50 > 0), ou seja RSI > 50.
 - Sinal no fechamento, execucao na abertura seguinte; custos 3.2 bps + slippage 10.0 bps por ordem; lote de 1 acao.
 - Universo: 40 acoes (`fixed_research_universe_40_2018`), candles ajustados por splits, sem dividendos/JCP. O universo tem vies de sobrevivencia declarado.
-- **Sem gerenciamento**: sem ranking, sem rebalanceamento e sem alvo de volatilidade. Cada vaga recebe patrimonio/vagas na entrada e fica parada ate o sinal de venda.
+- **Sem gerenciamento**: sem rebalanceamento periodico e sem alvo de volatilidade. Todo o patrimonio vai para a acao escolhida e fica parado ate o sinal de venda.
+
+## Variantes
+
+- `roc3m_sinal_recente`: PRINCIPAL. Sinal iniciado ha menos de 5 pregoes; maior ROC 63.
+- `roc3m_sinal_recente_1p`: Igual a principal, com sinal iniciado ha menos de 1 pregoes.
+- `roc3m_sinal_recente_3p`: Igual a principal, com sinal iniciado ha menos de 3 pregoes.
+- `roc3m_sinal_recente_10p`: Igual a principal, com sinal iniciado ha menos de 10 pregoes.
+- `roc3m_prioridade_sinal_recente`: Igual a principal, mas sinais prioritarios (preco ou SMA20 > SMA50) antes do ROC.
+- `roc3m_qualquer_sinal`: Maior ROC entre todos os sinais ativos, sem exigir sinal recente.
+- `anterior_prioridade_alfabetica`: Regra anterior: prioritarios primeiro e empate pela ordem alfabetica, sem ROC.
+- `buy_and_hold_peso_igual`: Referencia: as 40 acoes compradas em peso igual, sem rebalancear.
 
 ## Carteira seguindo o sinal
 
 | Periodo | Variante | Vagas | CAGR | Retorno total | Max DD | Sharpe | Calmar | Exposicao | Trades | Acerto | Fator lucro | Dias-sinal sem vaga |
 | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2018+ | `com_prioridade` | 1 | **-6.63%** | -44.66% | -75.24% | -0.02 | -0.09 | 99.07% | 177 | 31.07% | 0.97 | 37273 |
-| 2018+ | `sem_prioridade` | 1 | **-14.70%** | -74.63% | -85.33% | -0.29 | -0.17 | 99.07% | 195 | 30.26% | 0.77 | 37273 |
-| 2018+ | `com_prioridade` | 3 | **-4.99%** | -35.69% | -59.24% | -0.08 | -0.08 | 99.07% | 559 | 28.98% | 0.95 | 33085 |
-| 2018+ | `sem_prioridade` | 3 | **-7.72%** | -50.02% | -63.59% | -0.20 | -0.12 | 99.07% | 604 | 28.31% | 0.89 | 33085 |
-| 2018+ | `com_prioridade` | 5 | **-1.84%** | -14.81% | -58.78% | 0.03 | -0.03 | 99.07% | 935 | 29.41% | 1.02 | 29043 |
-| 2018+ | `sem_prioridade` | 5 | **-4.31%** | -31.59% | -58.39% | -0.08 | -0.07 | 99.07% | 1012 | 27.96% | 0.96 | 29043 |
-| 2018+ | `com_prioridade` | 10 | **0.80%** | 7.13% | -55.37% | 0.14 | 0.01 | 99.07% | 1889 | 28.37% | 1.06 | 19968 |
-| 2018+ | `sem_prioridade` | 10 | **0.71%** | 6.30% | -52.31% | 0.13 | 0.01 | 99.07% | 1974 | 28.17% | 1.05 | 19968 |
-| 2018+ | `rsi_acima_de_0_literal` | 5 | **-1.75%** | -14.12% | -57.75% | 0.04 | -0.03 | 99.21% | 986 | 30.22% | 1.03 | 30700 |
+| 2018+ | `roc3m_sinal_recente` | 1 | **-3.92%** | -29.20% | -87.71% | 0.09 | -0.04 | 97.86% | 185 | 29.73% | 1.06 | 13918 |
+| 2018+ | `roc3m_sinal_recente_1p` | 1 | **-17.36%** | -80.70% | -90.81% | -0.39 | -0.19 | 93.20% | 224 | 26.34% | 0.75 | 4048 |
+| 2018+ | `roc3m_sinal_recente_3p` | 1 | **-14.72%** | -74.67% | -81.93% | -0.24 | -0.18 | 95.95% | 220 | 27.73% | 0.82 | 9729 |
+| 2018+ | `roc3m_sinal_recente_10p` | 1 | **-12.40%** | -68.09% | -87.77% | -0.16 | -0.14 | 98.28% | 177 | 32.77% | 0.89 | 21222 |
+| 2018+ | `roc3m_prioridade_sinal_recente` | 1 | **-3.72%** | -27.90% | -86.99% | 0.09 | -0.04 | 97.81% | 188 | 29.79% | 1.07 | 13913 |
+| 2018+ | `roc3m_qualquer_sinal` | 1 | **5.60%** | 60.05% | -84.86% | 0.34 | 0.07 | 99.07% | 162 | 33.95% | 1.28 | 37250 |
+| 2018+ | `anterior_prioridade_alfabetica` | 1 | **-6.63%** | -44.66% | -75.24% | -0.02 | -0.09 | 99.07% | 177 | 31.07% | 0.97 | 37273 |
 | 2018+ | `buy_and_hold_peso_igual` | 40 | **4.56%** | 46.88% | -45.10% | 0.31 | 0.10 | 100.00% | 0 | - | - | 546 |
-| 2023+ (teste) | `com_prioridade` | 1 | **14.22%** | 61.99% | -33.79% | 0.57 | 0.42 | 99.78% | 65 | 36.92% | 1.53 | 15071 |
-| 2023+ (teste) | `sem_prioridade` | 1 | **1.55%** | 5.72% | -30.02% | 0.22 | 0.05 | 99.78% | 73 | 35.62% | 1.13 | 15071 |
-| 2023+ (teste) | `com_prioridade` | 3 | **-5.79%** | -19.45% | -36.55% | -0.13 | -0.16 | 99.78% | 240 | 27.92% | 0.91 | 13290 |
-| 2023+ (teste) | `sem_prioridade` | 3 | **-5.78%** | -19.43% | -33.32% | -0.13 | -0.17 | 99.78% | 259 | 26.64% | 0.93 | 13290 |
-| 2023+ (teste) | `com_prioridade` | 5 | **-0.27%** | -0.97% | -25.49% | 0.09 | -0.01 | 99.78% | 406 | 28.57% | 1.04 | 11565 |
-| 2023+ (teste) | `sem_prioridade` | 5 | **-6.19%** | -20.68% | -28.75% | -0.20 | -0.22 | 99.78% | 453 | 26.05% | 0.91 | 11565 |
-| 2023+ (teste) | `com_prioridade` | 10 | **-2.47%** | -8.67% | -32.18% | -0.05 | -0.08 | 99.78% | 823 | 26.73% | 0.97 | 7823 |
-| 2023+ (teste) | `sem_prioridade` | 10 | **-2.68%** | -9.40% | -26.17% | -0.06 | -0.10 | 99.78% | 865 | 26.71% | 0.97 | 7823 |
-| 2023+ (teste) | `rsi_acima_de_0_literal` | 5 | **-2.19%** | -7.73% | -28.05% | 0.01 | -0.08 | 99.89% | 427 | 28.34% | 1.01 | 12290 |
+| 2023+ (teste) | `roc3m_sinal_recente` | 1 | **-25.25%** | -65.21% | -69.08% | -0.61 | -0.37 | 98.24% | 87 | 26.44% | 0.65 | 5762 |
+| 2023+ (teste) | `roc3m_sinal_recente_1p` | 1 | **-29.11%** | -71.29% | -75.72% | -0.85 | -0.38 | 94.27% | 102 | 23.53% | 0.58 | 1664 |
+| 2023+ (teste) | `roc3m_sinal_recente_3p` | 1 | **-18.08%** | -51.48% | -56.72% | -0.37 | -0.32 | 96.47% | 92 | 23.91% | 0.77 | 4024 |
+| 2023+ (teste) | `roc3m_sinal_recente_10p` | 1 | **-21.17%** | -57.80% | -67.51% | -0.46 | -0.31 | 98.90% | 81 | 33.33% | 0.67 | 8790 |
+| 2023+ (teste) | `roc3m_prioridade_sinal_recente` | 1 | **-27.32%** | -68.57% | -72.07% | -0.69 | -0.38 | 98.24% | 88 | 26.14% | 0.61 | 5766 |
+| 2023+ (teste) | `roc3m_qualquer_sinal` | 1 | **0.17%** | 0.61% | -47.74% | 0.19 | 0.00 | 99.78% | 72 | 30.56% | 1.17 | 15071 |
+| 2023+ (teste) | `anterior_prioridade_alfabetica` | 1 | **14.22%** | 61.99% | -33.79% | 0.57 | 0.42 | 99.78% | 65 | 36.92% | 1.53 | 15071 |
 | 2023+ (teste) | `buy_and_hold_peso_igual` | 40 | **2.26%** | 8.43% | -22.19% | 0.22 | 0.10 | 100.00% | 0 | - | - | 0 |
+
+## Retorno anual da variante principal (`roc3m_sinal_recente`)
+
+| Ano | Estrategia | Buy and hold peso igual |
+| :--- | ---: | ---: |
+| 2018 | 15.68% | 13.01% |
+| 2019 | 55.02% | 39.29% |
+| 2020 | 74.74% | 16.10% |
+| 2021 | 31.22% | -21.47% |
+| 2022 | -58.07% | -6.15% |
+| 2023 | -18.17% | 11.80% |
+| 2024 | -28.60% | -15.00% |
+| 2025 | 12.26% | 16.13% |
+| 2026 | -37.39% | -1.19% |
 
 ## Efeito da prioridade (todos os trades do sinal, sem limite de vagas)
 
