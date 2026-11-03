@@ -7,14 +7,14 @@ de volatilidade). A carteira apenas segue o sinal:
 - Somente 1 acao por vez (padrao). Todo o patrimonio entra nela e ela fica
   parada ate o sinal de venda; so entao outra acao pode ser escolhida.
 - Entrada somente no PRIMEIRO candle do sinal (RSI > 50, WMA Heikin Ashi
-  subindo e fechamento acima da SMA200): a compra ocorre na abertura
+  subindo e WMA20 Heikin Ashi acima da SMA200): a compra ocorre na abertura
   seguinte a esse candle. Se a vaga estiver ocupada nesse momento, o sinal e
   descartado (nunca ha entrada tardia).
 - Escolha (variante principal ``roc3m_positivo_primeiro_candle``): entre as
   acoes cujo sinal nasceu no ultimo fechamento e cujo ROC de 3 meses (63
   pregoes) e positivo, compra-se a de maior ROC. Sem candidato, fica em caixa.
 - Variantes de comparacao (todas com a mesma regra de primeiro candle): ROC sem
-  exigir positivo, ordem alfabetica entre ROCs positivos, filtro SMA50, sem filtro
+  exigir positivo, ordem alfabetica, fechamento > SMA200, fechamento > SMA50, sem filtro
   e buy and hold de peso igual.
 
 Tambem gera o resultado isolado por ativo (100% do capital em cada ativo, o
@@ -413,9 +413,9 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
         "## Regras testadas\n",
         f"- **Compra**: RSI({context['params']['rsi_period']}) do fechamento acima de {context['params']['rsi_entry']:g} "
         f"e WMA({context['params']['wma_period']}) do fechamento Heikin Ashi subindo (WMA[t] > WMA[t-1]), "
-        f"com o fechamento ACIMA da SMA{context['params']['entry_sma']} (fechamento > SMA).",
+        f"com a WMA({context['params']['wma_period']}) Heikin Ashi ACIMA da SMA{context['params']['entry_sma']} do fechamento.",
         f"- **Venda**: basta um dos dois: RSI abaixo de {context['params']['rsi_exit']:g} ou WMA Heikin Ashi caindo "
-        "(WMA[t] < WMA[t-1]). A SMA so filtra a compra; o preco cair abaixo dela nao vende.",
+        "(WMA[t] < WMA[t-1]). A SMA200 so filtra a compra; a WMA ou o preco cair abaixo dela nao vende.",
         f"- **Selecao**: somente {context['max_positions']} acao por vez. A entrada so ocorre na abertura seguinte ao "
         "PRIMEIRO candle do sinal; se a vaga estiver ocupada, o sinal e descartado (nunca ha entrada tardia). "
         f"So entram sinais novos com ROC de 3 meses ({context['roc_period']} pregoes) acima de {context['min_roc']:g}; "
@@ -530,7 +530,8 @@ def main(argv: list[str] | None = None) -> int:
     test_dates = [d for d in full_dates if d >= args.test_start]
 
     params = {"rsi_period": args.rsi_period, "rsi_entry": args.rsi_entry,
-              "rsi_exit": args.rsi_exit, "wma_period": args.wma_period, "entry_sma": args.entry_sma}
+              "rsi_exit": args.rsi_exit, "wma_period": args.wma_period, "entry_sma": args.entry_sma,
+              "entry_wma_above_sma": True}
 
     def build(parameters: dict[str, object]) -> dict[str, list[int]]:
         return {t: rsi_wma_heikin_ashi(data.candles[t], **parameters) for t in tickers}
@@ -541,16 +542,20 @@ def main(argv: list[str] | None = None) -> int:
                 for t in tickers}
     roc = {t: rate_of_change(data.candles[t], args.roc_period) for t in tickers}
     ages = {t: signal_ages(signals[t]) for t in tickers}
-    # Comparacao: mesmo sinal sem o filtro da SMA na entrada.
     # Comparacoes de filtro de tendencia na compra (mesma regra principal).
     filter_tests = []
-    for period_sma in (50, 0):
-        if period_sma == args.entry_sma:
+    alternatives = [
+        ("filtro_fechamento_sma200", "Comparacao: fechamento acima da SMA200 (regra anterior) no lugar da WMA20 HA.",
+         dict(params, entry_sma=200, entry_wma_above_sma=False)),
+        ("filtro_fechamento_sma50", "Comparacao: fechamento acima da SMA50 no lugar da WMA20 HA acima da SMA200.",
+         dict(params, entry_sma=50, entry_wma_above_sma=False)),
+        ("sem_filtro_sma", "Comparacao: regra principal sem filtro de media na compra.",
+         dict(params, entry_sma=0)),
+    ]
+    for label, text, alt_params in alternatives:
+        if alt_params == params:
             continue
-        alt = build(dict(params, entry_sma=period_sma))
-        label = f"filtro_sma{period_sma}" if period_sma else "sem_filtro_sma"
-        text = (f"Comparacao: regra principal com fechamento acima da SMA{period_sma} no lugar da SMA{args.entry_sma}."
-                if period_sma else f"Comparacao: regra principal sem filtro de media na compra.")
+        alt = build(alt_params)
         filter_tests.append((label, text, alt, {t: signal_ages(alt[t]) for t in tickers}))
 
     common = dict(initial_cash=args.initial_cash, cost_bps=args.cost_bps,

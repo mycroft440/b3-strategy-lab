@@ -18,7 +18,8 @@ class RsiWmaHeikinAshiTests(unittest.TestCase):
         self.assertIn("rsi_wma_heikin_ashi", STRATEGIES)
         self.assertEqual(
             strategy_parameters("rsi_wma_heikin_ashi"),
-            {"rsi_period": 14, "rsi_entry": 50.0, "rsi_exit": 50.0, "wma_period": 20, "entry_sma": 200},
+            {"rsi_period": 14, "rsi_entry": 50.0, "rsi_exit": 50.0, "wma_period": 20, "entry_sma": 200,
+             "entry_wma_above_sma": True},
         )
 
     def test_rsi_matches_catalog_rsi(self) -> None:
@@ -46,7 +47,7 @@ class RsiWmaHeikinAshiTests(unittest.TestCase):
             if signals[index - 1] == 0 and signals[index] == 1:
                 sma200 = sum(closes[index - 199 : index + 1]) / 200
                 self.assertTrue(rsi_values[index] > 50 and rising)
-                self.assertGreater(closes[index], sma200 - 1e-9)
+                self.assertGreater(ha_wma[index], sma200 - 1e-9)
             if signals[index - 1] == 1 and signals[index] == 0:
                 self.assertTrue(rsi_values[index] < 50 or falling)
             if signals[index] == 1:
@@ -195,17 +196,27 @@ class PositiveRocRuleTests(unittest.TestCase):
 
 
 class EntrySmaFilterTests(unittest.TestCase):
-    def test_no_entry_without_close_above_sma200_and_exit_unchanged(self) -> None:
+    def test_no_entry_without_wma20_above_sma200_and_exit_unchanged(self) -> None:
         candles = synthetic_candles()
         closes = [candle.close for candle in candles]
+        ha_wma = wma(heikin_ashi_close(candles), 20)
         filtered = rsi_wma_heikin_ashi(candles)
         unfiltered = rsi_wma_heikin_ashi(candles, entry_sma=0)
         for index in range(1, len(candles)):
             if filtered[index] == 1 and filtered[index - 1] == 0:
                 self.assertGreaterEqual(index, 199)
                 sma200 = sum(closes[index - 199 : index + 1]) / 200
-                self.assertGreater(closes[index], sma200 - 1e-9)
+                self.assertGreater(ha_wma[index], sma200 - 1e-9)
             # O filtro so restringe compras: nunca fica comprado sem o sinal original.
             if filtered[index] == 1:
                 self.assertEqual(unfiltered[index], 1)
         self.assertLess(sum(filtered), sum(unfiltered))
+
+    def test_close_filter_option_keeps_previous_rule(self) -> None:
+        candles = synthetic_candles()
+        closes = [candle.close for candle in candles]
+        signals = rsi_wma_heikin_ashi(candles, entry_wma_above_sma=False)
+        for index in range(1, len(candles)):
+            if signals[index] == 1 and signals[index - 1] == 0:
+                sma200 = sum(closes[index - 199 : index + 1]) / 200
+                self.assertGreater(closes[index], sma200 - 1e-9)

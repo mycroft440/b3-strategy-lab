@@ -62,7 +62,7 @@ _register_strategy(
     "rsi_wma_heikin_ashi",
     family="tendencia",
     description=(
-        "Compra com RSI acima de 50, WMA do fechamento Heikin Ashi subindo e fechamento acima da SMA200; "
+        "Compra com RSI acima de 50, WMA do fechamento Heikin Ashi subindo e WMA Heikin Ashi acima da SMA200; "
         "vende com RSI abaixo de 50 ou WMA Heikin Ashi caindo."
     ),
 )(_rsi_wma_heikin_ashi)
