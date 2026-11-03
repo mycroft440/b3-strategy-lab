@@ -9,12 +9,12 @@ de volatilidade). A carteira apenas segue o sinal:
 - Entrada somente no PRIMEIRO candle do sinal (RSI > 50 e WMA Heikin Ashi
   subindo): a compra ocorre na abertura seguinte a esse candle. Se a vaga
   estiver ocupada nesse momento, o sinal e descartado (nunca ha entrada tardia).
-- Escolha (variante principal ``roc3m_primeiro_candle``): entre as acoes cujo
-  sinal nasceu no ultimo fechamento, compra-se a de maior ROC de 3 meses (63
-  pregoes).
-- Variantes de comparacao (todas com a mesma regra de primeiro candle): ROC
-  positivo obrigatorio, prioridade (fechamento ou SMA20 acima da SMA50) antes
-  do ROC, ordem alfabetica sem ROC e buy and hold de peso igual.
+- Escolha (variante principal ``roc3m_positivo_primeiro_candle``): entre as
+  acoes cujo sinal nasceu no ultimo fechamento e cujo ROC de 3 meses (63
+  pregoes) e positivo, compra-se a de maior ROC. Sem candidato, fica em caixa.
+- Variantes de comparacao (todas com a mesma regra de primeiro candle): ROC sem
+  exigir positivo, prioridade (fechamento ou SMA20 acima da SMA50) antes do
+  ROC, ordem alfabetica entre ROCs positivos e buy and hold de peso igual.
 
 Tambem gera o resultado isolado por ativo (100% do capital em cada ativo, o
 backtest classico de um ativo por vez) e as estatisticas de todos os trades do
@@ -47,6 +47,7 @@ from scripts.research_portfolio_allocation import (  # noqa: E402
 )
 
 STRATEGY = "rsi_wma_heikin_ashi"
+MAIN_VARIANT = "roc3m_positivo_primeiro_candle"
 DEFAULT_UNIVERSE = ROOT / "data/universes/fixed_40_2018.json"
 DEFAULT_OUTPUT_DIR = ROOT / "reports/rsi_wma_heikin_ashi"
 
@@ -98,6 +99,7 @@ def simulate_portfolio(
     signal_age: dict[str, list[int]] | None = None,
     recent_window: int | None = None,
     min_roc: float | None = None,
+    rank_by_roc: bool = True,
 ) -> PortfolioResult:
     """Simula a carteira que segue o sinal.
 
@@ -161,7 +163,8 @@ def simulate_portfolio(
                 continue
             if min_roc is not None and (momentum is None or momentum <= min_roc):
                 continue
-            key = (-(prio if use_priority else 0), -(momentum if momentum is not None else 0.0), ticker)
+            rank = momentum if (rank_by_roc and momentum is not None) else 0.0
+            key = (-(prio if use_priority else 0), -rank, ticker)
             candidates.append((key, ticker, prio, momentum, age))
         candidates.sort()
         free = max_positions - len(positions)
@@ -226,6 +229,32 @@ def signal_ages(signals: list[int]) -> list[int | None]:
         else:
             ages.append(0)
     return ages
+
+
+def filter_signal_runs(
+    signals: list[int],
+    roc: list[float | None],
+    min_roc: float | None,
+) -> list[int]:
+    """Mantem apenas os sinais cujo PRIMEIRO candle tem ROC acima de ``min_roc``.
+
+    Usado no backtest por ativo e nas estatisticas de trades para aplicar a
+    mesma regra de entrada da carteira (o filtro vale so no candle de entrada;
+    a saida continua sendo o sinal de venda).
+    """
+    if min_roc is None:
+        return list(signals)
+    result = [0] * len(signals)
+    keep = False
+    for index, value in enumerate(signals):
+        if value != 1:
+            keep = False
+            continue
+        if index == 0 or signals[index - 1] != 1:
+            momentum = roc[index]
+            keep = momentum is not None and momentum > min_roc
+        result[index] = 1 if keep else 0
+    return result
 
 
 def _closed_trade(ticker: str, pos: Position, exit_date: str, exit_price: float, proceeds: float) -> dict[str, object]:
@@ -386,8 +415,9 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
         f"- **Venda**: RSI abaixo de {context['params']['rsi_exit']:g} ou WMA Heikin Ashi caindo (WMA[t] < WMA[t-1]).",
         f"- **Selecao**: somente {context['max_positions']} acao por vez. A entrada so ocorre na abertura seguinte ao "
         "PRIMEIRO candle do sinal; se a vaga estiver ocupada, o sinal e descartado (nunca ha entrada tardia). "
-        f"Entre os sinais novos do mesmo fechamento, compra-se o de maior ROC de 3 meses ({context['roc_period']} pregoes). "
-        "A posicao fica ate o sinal de venda.",
+        f"So entram sinais novos com ROC de 3 meses ({context['roc_period']} pregoes) acima de {context['min_roc']:g}; "
+        "entre eles, compra-se o de maior ROC. Sem candidato, a carteira fica em caixa. "
+        "A posicao fica ate o sinal de venda (o ROC so e exigido na entrada).",
         "- **Prioridade** (variantes de comparacao): fechamento OU SMA20 acima da SMA50.",
         "- \"RSI acima de 0\" foi lido como RSI centralizado (RSI - 50 > 0), ou seja RSI > 50.",
         "- Sinal no fechamento, execucao na abertura seguinte; "
@@ -410,19 +440,19 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
             f"{r['trades_fechados']} | {_pct(r['taxa_acerto'])} | {_num(r['fator_lucro'])} | {r['sinais_descartados']} |"
         )
 
-    main = [r for r in rows if r["variante"] == "roc3m_primeiro_candle" and r["periodo"] == "2018+"]
+    main = [r for r in rows if r["variante"] == MAIN_VARIANT and r["periodo"] == "2018+"]
     bench = [r for r in rows if r["variante"] == "buy_and_hold_peso_igual" and r["periodo"] == "2018+"]
     if main and bench:
         years_main = json.loads(str(main[0]["retornos_anuais"]))
         years_bench = json.loads(str(bench[0]["retornos_anuais"]))
         lines += [
-            "\n## Retorno anual da variante principal (`roc3m_primeiro_candle`)\n",
+            f"\n## Retorno anual da variante principal (`{MAIN_VARIANT}`)\n",
             "| Ano | Estrategia | Buy and hold peso igual |",
             "| :--- | ---: | ---: |",
             *[f"| {year} | {_pct(value)} | {_pct(years_bench.get(year))} |" for year, value in years_main.items()],
         ]
     lines += [
-        "\n## Efeito da prioridade (todos os trades do sinal, sem limite de vagas)\n",
+        "\n## Efeito da prioridade (todos os trades do sinal com ROC 3m positivo na entrada, sem limite de vagas)\n",
         "| Grupo | Trades | Acerto | Retorno medio | Mediana | Ganho medio | Perda media | Fator lucro | Pregoes medios |",
         "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
@@ -436,7 +466,8 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
     per_asset = context["per_asset"]
     beat = sum(1 for r in per_asset if float(r["excesso_vs_buy_hold"]) > 0)
     lines += [
-        f"\n## Ativo isolado (100% do capital em cada ativo, {context['full_start']} a {context['end']})\n",
+        f"\n## Ativo isolado (100% do capital em cada ativo, entrada so com ROC 3m positivo, "
+        f"{context['full_start']} a {context['end']})\n",
         f"Estrategia superou o buy and hold do proprio ativo em **{beat} de {len(per_asset)}** ativos. "
         f"CAGR mediano da estrategia: **{_pct(statistics.median(float(r['cagr']) for r in per_asset))}**; "
         f"buy and hold mediano: **{_pct(statistics.median(float(r['buy_hold_cagr']) for r in per_asset))}**.\n",
@@ -474,6 +505,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--priority-slow", type=int, default=50)
     parser.add_argument("--max-positions", type=int, default=1, help="acoes simultaneas (padrao: 1 por vez)")
     parser.add_argument("--roc-period", type=int, default=63, help="ROC de 3 meses = 63 pregoes")
+    parser.add_argument("--min-roc", type=float, default=0.0,
+                        help="ROC minimo (exclusivo) no candle de entrada da regra principal")
 
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args(argv)
@@ -505,21 +538,22 @@ def main(argv: list[str] | None = None) -> int:
     common = dict(initial_cash=args.initial_cash, cost_bps=args.cost_bps,
                   slippage_bps=args.slippage_bps, lot_size=args.lot_size)
     slots = args.max_positions
-    main_name = "roc3m_primeiro_candle"
+    main_name = MAIN_VARIANT
     fresh = dict(signal_age=ages, recent_window=1)
     variants: list[tuple[str, str, dict[str, object]]] = [
         (main_name,
-         f"PRINCIPAL. Somente sinais no primeiro candle; maior ROC de {args.roc_period} pregoes.",
+         f"PRINCIPAL. Somente sinais no primeiro candle com ROC de {args.roc_period} pregoes acima de "
+         f"{args.min_roc:g}; entre eles, o maior ROC.",
+         dict(roc=roc, min_roc=args.min_roc, use_priority=False, **fresh)),
+        ("roc3m_primeiro_candle",
+         "Igual a principal, sem exigir ROC positivo (maior ROC mesmo se negativo).",
          dict(roc=roc, use_priority=False, **fresh)),
-        ("roc3m_positivo_primeiro_candle",
-         "Igual a principal, exigindo ROC de 3 meses acima de zero.",
-         dict(roc=roc, min_roc=0.0, use_priority=False, **fresh)),
-        ("prioridade_roc3m_primeiro_candle",
+        ("prioridade_roc3m_positivo_primeiro_candle",
          "Igual a principal, com sinais prioritarios (preco ou SMA20 > SMA50) antes do ROC.",
-         dict(roc=roc, use_priority=True, **fresh)),
-        ("alfabetica_primeiro_candle",
-         "Primeiro candle sem ROC: empate resolvido pela ordem alfabetica (mede o efeito do ROC).",
-         dict(use_priority=False, **fresh)),
+         dict(roc=roc, min_roc=args.min_roc, use_priority=True, **fresh)),
+        ("alfabetica_roc3m_positivo_primeiro_candle",
+         "Igual a principal, mas sem ordenar pelo ROC: empate pela ordem alfabetica (mede o efeito do ranking).",
+         dict(roc=roc, min_roc=args.min_roc, use_priority=False, rank_by_roc=False, **fresh)),
     ]
 
     portfolio_rows: list[dict[str, object]] = []
@@ -552,10 +586,14 @@ def main(argv: list[str] | None = None) -> int:
     variant_descriptions["buy_and_hold_peso_igual"] = (
         "Referencia: as 40 acoes compradas em peso igual (com fracoes de acao), sem rebalancear.")
 
+    # Mesma regra de entrada da carteira (ROC positivo no primeiro candle) aplicada
+    # ao backtest por ativo e as estatisticas de trades.
+    entry_signals = {t: filter_signal_runs(signals[t], roc[t], args.min_roc) for t in tickers}
+
     # Todos os trades do sinal por ativo (sem limite de vagas) e efeito da prioridade.
     all_trades: list[dict[str, object]] = []
     for t in tickers:
-        all_trades += signal_trades(t, data, signals[t], priority[t], args.start, end,
+        all_trades += signal_trades(t, data, entry_signals[t], priority[t], args.start, end,
                                     args.cost_bps, args.slippage_bps)
     priority_stats = {
         "Todos": trade_stats(all_trades),
@@ -569,7 +607,7 @@ def main(argv: list[str] | None = None) -> int:
         candles = data.candles[t]
         first = next(i for i, c in enumerate(candles) if c.date >= args.start)
         last = max(i for i, c in enumerate(candles) if c.date <= end)
-        window_signals = list(signals[t][first:last + 1])
+        window_signals = list(entry_signals[t][first:last + 1])
         # Se o sinal ja estava ativo antes do inicio, espera ele terminar: a entrada
         # so pode ocorrer no primeiro candle de um sinal novo.
         index = 0
@@ -595,15 +633,15 @@ def main(argv: list[str] | None = None) -> int:
     write_csv(out / "ativo_isolado.csv", per_asset)
     write_csv(out / "trades_do_sinal.csv", all_trades)
     if default_result is not None:
-        write_csv(out / "ledger_roc3m_primeiro_candle.csv", default_result.ledger)
-        write_csv(out / "trades_roc3m_primeiro_candle.csv", default_result.trades)
-        write_csv(out / "equity_roc3m_primeiro_candle.csv",
+        write_csv(out / "ledger_regra_principal.csv", default_result.ledger)
+        write_csv(out / "trades_regra_principal.csv", default_result.trades)
+        write_csv(out / "equity_regra_principal.csv",
                   [{"date": d, "equity": e} for d, e in zip(default_result.dates, default_result.equities)])
     context = {
         "params": params, "cost_bps": args.cost_bps, "slippage_bps": args.slippage_bps, "lot_size": args.lot_size,
         "tickers": tickers, "universe_id": universe.get("id", ""), "portfolio_rows": portfolio_rows,
         "priority_stats": priority_stats, "per_asset": per_asset, "full_start": full_dates[0], "end": end,
-        "max_positions": slots, "roc_period": args.roc_period,
+        "max_positions": slots, "roc_period": args.roc_period, "min_roc": args.min_roc,
         "variant_descriptions": variant_descriptions,
     }
     write_markdown(out / "RESUMO.md", context)
@@ -612,7 +650,8 @@ def main(argv: list[str] | None = None) -> int:
         "parametros": params,
         "prioridade": {"sma_rapida": args.priority_fast, "sma_lenta": args.priority_slow},
         "selecao": {"acoes_por_vez": slots, "entrada": "somente no primeiro candle do sinal",
-                    "criterio": "maior ROC entre sinais novos", "roc_pregoes": args.roc_period},
+                    "criterio": "maior ROC entre sinais novos com ROC positivo",
+                    "roc_pregoes": args.roc_period, "roc_minimo": args.min_roc},
         "inicio": full_dates[0], "fim": end, "teste_inicio": test_dates[0] if test_dates else None,
         "capital_inicial_brl": args.initial_cash, "cost_bps": args.cost_bps,
         "slippage_bps": args.slippage_bps, "lot_size": args.lot_size,

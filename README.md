@@ -332,8 +332,9 @@ WMA(20) do fechamento Heikin Ashi aponta para cima, e vende quando o RSI cai
 abaixo de 50 ou a WMA aponta para baixo. Sinais em que o fechamento ou a SMA20
 esta acima da SMA50 sao prioritarios. O teste sem gerenciamento mantem somente
 1 acao por vez e so compra na abertura seguinte ao primeiro candle do sinal
-(nunca depois). Entre os sinais novos do mesmo fechamento, compra o de maior ROC
-de 3 meses (63 pregoes) e segura ate o sinal de venda. Para executar:
+(nunca depois). So entram sinais novos com ROC de 3 meses (63 pregoes)
+positivo; entre eles, compra o de maior ROC e segura ate o sinal de venda.
+Para executar:
 
 ```powershell
 python scripts\backtest_rsi_wma_heikin_ashi.py

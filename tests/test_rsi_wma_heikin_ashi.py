@@ -159,3 +159,34 @@ class SignalTradesFreshEntryTests(unittest.TestCase):
         self.assertEqual(len(trades), 1)
         self.assertEqual(trades[0]["entry_date"], data.candles["AAAA3"][6].date)
         self.assertEqual(trades[0]["exit_date"], data.candles["AAAA3"][-1].date)
+
+
+class PositiveRocRuleTests(unittest.TestCase):
+    def test_filter_keeps_only_runs_starting_with_positive_roc(self) -> None:
+        from scripts.backtest_rsi_wma_heikin_ashi import filter_signal_runs
+
+        signals = [0, 1, 1, 1, 0, 1, 1, 0, 1]
+        roc = [None, 0.05, -0.2, -0.3, 0.1, -0.01, 0.5, 0.2, None]
+        # 1o sinal entra (ROC +5%) e segue mesmo com ROC negativo depois;
+        # 2o sinal nasce com ROC negativo e e descartado; 3o sem ROC e descartado.
+        self.assertEqual(filter_signal_runs(signals, roc, 0.0), [0, 1, 1, 1, 0, 0, 0, 0, 0])
+        self.assertEqual(filter_signal_runs(signals, roc, None), signals)
+
+    def test_portfolio_skips_fresh_signal_with_negative_roc(self) -> None:
+        from scripts.backtest_rsi_wma_heikin_ashi import rate_of_change, signal_ages, simulate_portfolio
+
+        closes = {
+            "AAAA3": [10, 10, 10, 9, 9, 9, 9, 9],      # sinal novo, ROC negativo
+            "BBBB3": [10, 10, 10, 10.5, 10.5, 10.5, 10.5, 10.5],  # sinal novo, ROC positivo
+        }
+        signals = {"AAAA3": [0, 0, 0, 1, 1, 1, 1, 1], "BBBB3": [0, 0, 0, 1, 1, 1, 1, 1]}
+        data = _FakeMarketData({k: [float(v) for v in vals] for k, vals in closes.items()})
+        roc = {t: rate_of_change(data.candles[t], 2) for t in data.tickers}
+        ages = {t: signal_ages(signals[t]) for t in data.tickers}
+        dates = [c.date for c in data.candles["AAAA3"]]
+        result = simulate_portfolio(
+            data, signals, {t: [0] * 8 for t in data.tickers}, dates, name="t", max_positions=1,
+            use_priority=False, initial_cash=1000.0, cost_bps=0.0, slippage_bps=0.0, lot_size=1,
+            roc=roc, signal_age=ages, recent_window=1, min_roc=0.0,
+        )
+        self.assertEqual([row["ticker"] for row in result.ledger if row["side"] == "BUY"], ["BBBB3"])
