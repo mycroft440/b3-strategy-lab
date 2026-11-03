@@ -327,9 +327,10 @@ fechamento de hoje e comprar no proprio fechamento de hoje.
 
 ## RSI + WMA Heikin Ashi sem gerenciamento
 
-A estrategia `rsi_wma_heikin_ashi` compra quando o RSI(14) fica acima de 50 e a
-WMA(20) do fechamento Heikin Ashi aponta para cima, e vende quando o RSI cai
-abaixo de 50 ou a WMA aponta para baixo. Sinais em que o fechamento ou a SMA20
+A estrategia `rsi_wma_heikin_ashi` compra quando o RSI(14) fica acima de 50, a
+WMA(20) do fechamento Heikin Ashi aponta para cima e o fechamento nao esta abaixo
+da SMA50; vende quando o RSI cai abaixo de 50 ou a WMA aponta para baixo (basta
+um dos dois). Sinais em que o fechamento ou a SMA20
 esta acima da SMA50 sao prioritarios. O teste sem gerenciamento mantem somente
 1 acao por vez e so compra na abertura seguinte ao primeiro candle do sinal
 (nunca depois). So entram sinais novos com ROC de 3 meses (63 pregoes)

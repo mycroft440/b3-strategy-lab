@@ -4,9 +4,12 @@ Regras (sinal no fechamento, execucao na abertura seguinte pelo simulador):
 
 - Entrada (compra): RSI do fechamento acima de ``rsi_entry`` e a WMA calculada
   sobre o fechamento Heikin Ashi apontando para cima (WMA[t] > WMA[t-1]).
-  Apenas a media usa Heikin Ashi; RSI e medias de prioridade usam o candle normal.
-- Saida (venda): RSI abaixo de ``rsi_exit`` (linha 50) ou a WMA Heikin Ashi
-  apontando para baixo (WMA[t] < WMA[t-1]).
+  Alem disso, o fechamento nao pode estar abaixo da SMA de ``entry_sma``
+  pregoes (padrao 50). Apenas a WMA usa Heikin Ashi; RSI e SMAs usam o candle
+  normal. Com ``entry_sma=0`` o filtro da SMA e desligado.
+- Saida (venda): basta UM dos dois: RSI abaixo de ``rsi_exit`` (linha 50) ou a
+  WMA Heikin Ashi apontando para baixo (WMA[t] < WMA[t-1]). A SMA so filtra a
+  entrada; o preco cair abaixo dela nao gera venda.
 - Prioridade: quando ha sinal de compra e o preco de fechamento OU a SMA de 20
   esta acima da SMA de 50, o sinal e marcado como prioritario.
 
@@ -96,10 +99,12 @@ def rsi_wma_heikin_ashi(
     rsi_entry: float = 50.0,
     rsi_exit: float = 50.0,
     wma_period: int = 20,
+    entry_sma: int = 50,
 ) -> list[int]:
     closes = [c.close for c in candles]
     rsi_values = _rsi(closes, rsi_period)
     slope = ha_wma_slope(candles, wma_period)
+    trend = sma(closes, entry_sma) if entry_sma > 0 else [None] * len(closes)
     signals: list[int] = []
     position = 0
     for index in range(len(candles)):
@@ -107,7 +112,8 @@ def rsi_wma_heikin_ashi(
         if value is None:
             signals.append(0)
             continue
-        if position == 0 and value > rsi_entry and slope[index] > 0:
+        above_sma = entry_sma <= 0 or (trend[index] is not None and closes[index] >= trend[index])
+        if position == 0 and value > rsi_entry and slope[index] > 0 and above_sma:
             position = 1
         elif position == 1 and (value < rsi_exit or slope[index] < 0):
             position = 0

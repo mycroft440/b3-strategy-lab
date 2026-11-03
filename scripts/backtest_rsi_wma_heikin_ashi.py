@@ -6,19 +6,20 @@ de volatilidade). A carteira apenas segue o sinal:
 - Sinal no fechamento, execucao na abertura do pregao seguinte.
 - Somente 1 acao por vez (padrao). Todo o patrimonio entra nela e ela fica
   parada ate o sinal de venda; so entao outra acao pode ser escolhida.
-- Entrada somente no PRIMEIRO candle do sinal (RSI > 50 e WMA Heikin Ashi
-  subindo): a compra ocorre na abertura seguinte a esse candle. Se a vaga
-  estiver ocupada nesse momento, o sinal e descartado (nunca ha entrada tardia).
+- Entrada somente no PRIMEIRO candle do sinal (RSI > 50, WMA Heikin Ashi
+  subindo e fechamento nao abaixo da SMA50): a compra ocorre na abertura
+  seguinte a esse candle. Se a vaga estiver ocupada nesse momento, o sinal e
+  descartado (nunca ha entrada tardia).
 - Escolha (variante principal ``roc3m_positivo_primeiro_candle``): entre as
   acoes cujo sinal nasceu no ultimo fechamento e cujo ROC de 3 meses (63
   pregoes) e positivo, compra-se a de maior ROC. Sem candidato, fica em caixa.
 - Variantes de comparacao (todas com a mesma regra de primeiro candle): ROC sem
-  exigir positivo, prioridade (fechamento ou SMA20 acima da SMA50) antes do
-  ROC, ordem alfabetica entre ROCs positivos e buy and hold de peso igual.
+  exigir positivo, ordem alfabetica entre ROCs positivos, sem o filtro da SMA50
+  e buy and hold de peso igual.
 
 Tambem gera o resultado isolado por ativo (100% do capital em cada ativo, o
 backtest classico de um ativo por vez) e as estatisticas de todos os trades do
-sinal separados em prioritarios e nao prioritarios.
+sinal.
 """
 
 from __future__ import annotations
@@ -411,14 +412,16 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
         "# RSI + WMA Heikin Ashi - backtest sem gerenciamento de carteira\n",
         "## Regras testadas\n",
         f"- **Compra**: RSI({context['params']['rsi_period']}) do fechamento acima de {context['params']['rsi_entry']:g} "
-        f"e WMA({context['params']['wma_period']}) do fechamento Heikin Ashi subindo (WMA[t] > WMA[t-1]).",
-        f"- **Venda**: RSI abaixo de {context['params']['rsi_exit']:g} ou WMA Heikin Ashi caindo (WMA[t] < WMA[t-1]).",
+        f"e WMA({context['params']['wma_period']}) do fechamento Heikin Ashi subindo (WMA[t] > WMA[t-1]), "
+        f"com o fechamento NAO abaixo da SMA{context['params']['entry_sma']} (fechamento >= SMA).",
+        f"- **Venda**: basta um dos dois: RSI abaixo de {context['params']['rsi_exit']:g} ou WMA Heikin Ashi caindo "
+        "(WMA[t] < WMA[t-1]). A SMA so filtra a compra; o preco cair abaixo dela nao vende.",
         f"- **Selecao**: somente {context['max_positions']} acao por vez. A entrada so ocorre na abertura seguinte ao "
         "PRIMEIRO candle do sinal; se a vaga estiver ocupada, o sinal e descartado (nunca ha entrada tardia). "
         f"So entram sinais novos com ROC de 3 meses ({context['roc_period']} pregoes) acima de {context['min_roc']:g}; "
         "entre eles, compra-se o de maior ROC. Sem candidato, a carteira fica em caixa. "
         "A posicao fica ate o sinal de venda (o ROC so e exigido na entrada).",
-        "- **Prioridade** (variantes de comparacao): fechamento OU SMA20 acima da SMA50.",
+        "- **Prioridade** (fechamento OU SMA20 acima da SMA50): ficou redundante, pois a compra ja exige fechamento >= SMA50.",
         "- \"RSI acima de 0\" foi lido como RSI centralizado (RSI - 50 > 0), ou seja RSI > 50.",
         "- Sinal no fechamento, execucao na abertura seguinte; "
         f"custos {context['cost_bps']} bps + slippage {context['slippage_bps']} bps por ordem; lote de {context['lot_size']} acao.",
@@ -452,7 +455,9 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
             *[f"| {year} | {_pct(value)} | {_pct(years_bench.get(year))} |" for year, value in years_main.items()],
         ]
     lines += [
-        "\n## Efeito da prioridade (todos os trades do sinal com ROC 3m positivo na entrada, sem limite de vagas)\n",
+        "\n## Todos os trades do sinal (mesma regra de entrada, sem limite de vagas)\n",
+        "Com o filtro de fechamento >= SMA50 na compra, todo sinal ja atende a prioridade "
+        "(preco ou SMA20 acima da SMA50); por isso a prioridade deixou de diferenciar sinais.\n",
         "| Grupo | Trades | Acerto | Retorno medio | Mediana | Ganho medio | Perda media | Fator lucro | Pregoes medios |",
         "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
@@ -501,6 +506,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rsi-entry", type=float, default=50.0)
     parser.add_argument("--rsi-exit", type=float, default=50.0)
     parser.add_argument("--wma-period", type=int, default=20)
+    parser.add_argument("--entry-sma", type=int, default=50,
+                        help="nao compra com fechamento abaixo desta SMA (0 desliga o filtro)")
     parser.add_argument("--priority-fast", type=int, default=20)
     parser.add_argument("--priority-slow", type=int, default=50)
     parser.add_argument("--max-positions", type=int, default=1, help="acoes simultaneas (padrao: 1 por vez)")
@@ -523,7 +530,7 @@ def main(argv: list[str] | None = None) -> int:
     test_dates = [d for d in full_dates if d >= args.test_start]
 
     params = {"rsi_period": args.rsi_period, "rsi_entry": args.rsi_entry,
-              "rsi_exit": args.rsi_exit, "wma_period": args.wma_period}
+              "rsi_exit": args.rsi_exit, "wma_period": args.wma_period, "entry_sma": args.entry_sma}
 
     def build(parameters: dict[str, object]) -> dict[str, list[int]]:
         return {t: rsi_wma_heikin_ashi(data.candles[t], **parameters) for t in tickers}
@@ -534,6 +541,9 @@ def main(argv: list[str] | None = None) -> int:
                 for t in tickers}
     roc = {t: rate_of_change(data.candles[t], args.roc_period) for t in tickers}
     ages = {t: signal_ages(signals[t]) for t in tickers}
+    # Comparacao: mesmo sinal sem o filtro da SMA na entrada.
+    unfiltered = build(dict(params, entry_sma=0))
+    unfiltered_ages = {t: signal_ages(unfiltered[t]) for t in tickers}
 
     common = dict(initial_cash=args.initial_cash, cost_bps=args.cost_bps,
                   slippage_bps=args.slippage_bps, lot_size=args.lot_size)
@@ -548,9 +558,6 @@ def main(argv: list[str] | None = None) -> int:
         ("roc3m_primeiro_candle",
          "Igual a principal, sem exigir ROC positivo (maior ROC mesmo se negativo).",
          dict(roc=roc, use_priority=False, **fresh)),
-        ("prioridade_roc3m_positivo_primeiro_candle",
-         "Igual a principal, com sinais prioritarios (preco ou SMA20 > SMA50) antes do ROC.",
-         dict(roc=roc, min_roc=args.min_roc, use_priority=True, **fresh)),
         ("alfabetica_roc3m_positivo_primeiro_candle",
          "Igual a principal, mas sem ordenar pelo ROC: empate pela ordem alfabetica (mede o efeito do ranking).",
          dict(roc=roc, min_roc=args.min_roc, use_priority=False, rank_by_roc=False, **fresh)),
@@ -567,8 +574,12 @@ def main(argv: list[str] | None = None) -> int:
             portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
             if period == "2018+" and name == main_name:
                 default_result = res
-        # Diagnostico: mesma regra principal sem custos/slippage, para medir o peso dos custos.
         main_options = variants[0][2]
+        res = simulate_portfolio(data, unfiltered, priority, dates, name=f"{main_name}_sem_filtro_sma",
+                                 max_positions=slots,
+                                 **dict(main_options, signal_age=unfiltered_ages), **common)
+        portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
+        # Diagnostico: mesma regra principal sem custos/slippage, para medir o peso dos custos.
         res = simulate_portfolio(data, signals, priority, dates, name=f"{main_name}_sem_custos",
                                  max_positions=slots, **main_options,
                                  **dict(common, cost_bps=0.0, slippage_bps=0.0))
@@ -581,6 +592,8 @@ def main(argv: list[str] | None = None) -> int:
         portfolio_rows.append(portfolio_row(res, args.initial_cash, period))
         print(f"Periodo {period} concluido.", flush=True)
     variant_descriptions = {name: text for name, text, _ in variants}
+    variant_descriptions[f"{main_name}_sem_filtro_sma"] = (
+        f"Comparacao: regra principal sem o filtro de fechamento >= SMA{args.entry_sma} (regra anterior).")
     variant_descriptions[f"{main_name}_sem_custos"] = (
         "Diagnostico: regra principal com custos e slippage zerados (mostra quanto os custos pesam).")
     variant_descriptions["buy_and_hold_peso_igual"] = (
@@ -595,11 +608,14 @@ def main(argv: list[str] | None = None) -> int:
     for t in tickers:
         all_trades += signal_trades(t, data, entry_signals[t], priority[t], args.start, end,
                                     args.cost_bps, args.slippage_bps)
-    priority_stats = {
-        "Todos": trade_stats(all_trades),
-        "Prioritarios (preco ou SMA20 > SMA50)": trade_stats([t for t in all_trades if t["priority"] == 1]),
-        "Nao prioritarios": trade_stats([t for t in all_trades if t["priority"] == 0]),
-    }
+    priority_stats = {"Todos": trade_stats(all_trades)}
+    non_priority = [t for t in all_trades if t["priority"] == 0]
+    # Com o filtro fechamento >= SMA50 na entrada, todo sinal ja e prioritario
+    # (preco acima da SMA50); a separacao so aparece se houver nao prioritarios.
+    if non_priority:
+        priority_stats["Prioritarios (preco ou SMA20 > SMA50)"] = trade_stats(
+            [t for t in all_trades if t["priority"] == 1])
+        priority_stats["Nao prioritarios"] = trade_stats(non_priority)
 
     # Ativo isolado: backtest classico de um ativo por vez.
     per_asset: list[dict[str, object]] = []

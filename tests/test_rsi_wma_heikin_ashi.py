@@ -18,7 +18,7 @@ class RsiWmaHeikinAshiTests(unittest.TestCase):
         self.assertIn("rsi_wma_heikin_ashi", STRATEGIES)
         self.assertEqual(
             strategy_parameters("rsi_wma_heikin_ashi"),
-            {"rsi_period": 14, "rsi_entry": 50.0, "rsi_exit": 50.0, "wma_period": 20},
+            {"rsi_period": 14, "rsi_entry": 50.0, "rsi_exit": 50.0, "wma_period": 20, "entry_sma": 50},
         )
 
     def test_rsi_matches_catalog_rsi(self) -> None:
@@ -44,7 +44,9 @@ class RsiWmaHeikinAshiTests(unittest.TestCase):
             rising = ha_wma[index] > ha_wma[index - 1]
             falling = ha_wma[index] < ha_wma[index - 1]
             if signals[index - 1] == 0 and signals[index] == 1:
+                sma50 = sum(closes[index - 49 : index + 1]) / 50
                 self.assertTrue(rsi_values[index] > 50 and rising)
+                self.assertGreaterEqual(closes[index], sma50 - 1e-9)
             if signals[index - 1] == 1 and signals[index] == 0:
                 self.assertTrue(rsi_values[index] < 50 or falling)
             if signals[index] == 1:
@@ -190,3 +192,19 @@ class PositiveRocRuleTests(unittest.TestCase):
             roc=roc, signal_age=ages, recent_window=1, min_roc=0.0,
         )
         self.assertEqual([row["ticker"] for row in result.ledger if row["side"] == "BUY"], ["BBBB3"])
+
+
+class EntrySmaFilterTests(unittest.TestCase):
+    def test_no_entry_with_close_below_sma50_and_exit_unchanged(self) -> None:
+        candles = synthetic_candles()
+        closes = [candle.close for candle in candles]
+        filtered = rsi_wma_heikin_ashi(candles)
+        unfiltered = rsi_wma_heikin_ashi(candles, entry_sma=0)
+        for index in range(1, len(candles)):
+            if filtered[index] == 1 and filtered[index - 1] == 0:
+                sma50 = sum(closes[index - 49 : index + 1]) / 50
+                self.assertGreaterEqual(closes[index], sma50 - 1e-9)
+            # O filtro so restringe compras: nunca fica comprado sem o sinal original.
+            if filtered[index] == 1:
+                self.assertEqual(unfiltered[index], 1)
+        self.assertLess(sum(filtered), sum(unfiltered))
