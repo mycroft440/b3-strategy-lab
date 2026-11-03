@@ -496,9 +496,9 @@ class MatrixParallelDeterminismTests(unittest.TestCase):
             self.assertEqual(serial_annual.read_bytes(), parallel_annual.read_bytes())
             manifest = json.loads(serial.with_suffix("").with_suffix(".manifest.json").read_text(encoding="utf-8"))
             self.assertFalse(manifest["catalog_complete"])
-            self.assertEqual(manifest["catalog_strategy_count"], 249)
+            self.assertEqual(manifest["catalog_strategy_count"], 250)
             self.assertEqual(manifest["catalog_management_count"], 478)
-            self.assertEqual(manifest["catalog_combination_count"], 119_022)
+            self.assertEqual(manifest["catalog_combination_count"], 119_500)
             self.assertEqual(
                 manifest["signal_execution_policy"],
                 "designated_basket_binary_signal_changes_execute_next_open_without_intraperiod_reranking",

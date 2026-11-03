@@ -54,3 +54,15 @@ for _item in (*_INDICATOR_STRATEGIES, *_SMI_ERGODIC_STRATEGIES, *_TREND_STRATEGI
         family=_item.family,
         description=_item.description,
     )(_function)
+
+
+from .rsi_wma_heikin_ashi import rsi_wma_heikin_ashi as _rsi_wma_heikin_ashi
+
+_register_strategy(
+    "rsi_wma_heikin_ashi",
+    family="tendencia",
+    description=(
+        "Compra com RSI acima de 50 e WMA do fechamento Heikin Ashi subindo; "
+        "vende com RSI abaixo de 50 ou WMA Heikin Ashi caindo."
+    ),
+)(_rsi_wma_heikin_ashi)

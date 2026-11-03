@@ -61,8 +61,8 @@ class StrategyInterfaceTests(unittest.TestCase):
         self.assertEqual(len(INDICATOR_STRATEGIES), 24)
         self.assertEqual(len(SMI_ERGODIC_STRATEGIES), 15)
         self.assertEqual(len(TREND_STRATEGIES), 20)
-        self.assertEqual(len(sweep_strategies()), 248)
-        self.assertEqual(len(portfolio_strategies()), 249)
+        self.assertEqual(len(sweep_strategies()), 249)
+        self.assertEqual(len(portfolio_strategies()), 250)
 
         groups = [
             {strategy.name for strategy in ADDITIONAL_STRATEGIES},

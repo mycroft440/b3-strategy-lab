@@ -325,6 +325,20 @@ Novas estrategias e indicadores podem ser adicionados apenas com decorators em
 O simulador executa sinais no `open` do candle seguinte. Isso evita olhar o
 fechamento de hoje e comprar no proprio fechamento de hoje.
 
+## RSI + WMA Heikin Ashi sem gerenciamento
+
+A estrategia `rsi_wma_heikin_ashi` compra quando o RSI(14) fica acima de 50 e a
+WMA(20) do fechamento Heikin Ashi aponta para cima, e vende quando o RSI cai
+abaixo de 50 ou a WMA aponta para baixo. Sinais em que o fechamento ou a SMA20
+esta acima da SMA50 sao prioritarios. Para testa-la seguindo apenas o sinal,
+sem nenhum dos gerenciamentos de carteira:
+
+```powershell
+python scripts\backtest_rsi_wma_heikin_ashi.py
+```
+
+O resultado fica em [reports/rsi_wma_heikin_ashi/RESUMO.md](reports/rsi_wma_heikin_ashi/RESUMO.md).
+
 ## Cuidados de interpretacao
 
 - `sweep` e in-sample: bom para explorar, ruim para concluir.
