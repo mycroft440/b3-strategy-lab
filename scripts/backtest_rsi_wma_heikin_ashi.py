@@ -6,12 +6,15 @@ de volatilidade). A carteira apenas segue o sinal:
 - Sinal no fechamento, execucao na abertura do pregao seguinte.
 - Somente 1 acao por vez (padrao). Todo o patrimonio entra nela e ela fica
   parada ate o sinal de venda; so entao outra acao pode ser escolhida.
-- Escolha (variante principal ``roc3m_sinal_recente``): entre as acoes cujo
-  sinal de compra comecou ha menos de ``recent_window`` pregoes, compra-se a de
-  maior ROC de 3 meses (63 pregoes) no fechamento da decisao.
-- Variantes de comparacao: outras janelas de "sinal recente", ROC sem filtro de
-  recencia, prioridade (fechamento ou SMA20 acima da SMA50) antes do ROC, a
-  regra anterior (prioridade + ordem alfabetica) e buy and hold de peso igual.
+- Entrada somente no PRIMEIRO candle do sinal (RSI > 50 e WMA Heikin Ashi
+  subindo): a compra ocorre na abertura seguinte a esse candle. Se a vaga
+  estiver ocupada nesse momento, o sinal e descartado (nunca ha entrada tardia).
+- Escolha (variante principal ``roc3m_primeiro_candle``): entre as acoes cujo
+  sinal nasceu no ultimo fechamento, compra-se a de maior ROC de 3 meses (63
+  pregoes).
+- Variantes de comparacao (todas com a mesma regra de primeiro candle): ROC
+  positivo obrigatorio, prioridade (fechamento ou SMA20 acima da SMA50) antes
+  do ROC, ordem alfabetica sem ROC e buy and hold de peso igual.
 
 Tambem gera o resultado isolado por ativo (100% do capital em cada ativo, o
 backtest classico de um ativo por vez) e as estatisticas de todos os trades do
@@ -94,6 +97,7 @@ def simulate_portfolio(
     roc: dict[str, list[float | None]] | None = None,
     signal_age: dict[str, list[int]] | None = None,
     recent_window: int | None = None,
+    min_roc: float | None = None,
 ) -> PortfolioResult:
     """Simula a carteira que segue o sinal.
 
@@ -154,6 +158,8 @@ def simulate_portfolio(
                 continue
             momentum = roc[ticker][index] if roc is not None else None
             if roc is not None and momentum is None:
+                continue
+            if min_roc is not None and (momentum is None or momentum <= min_roc):
                 continue
             key = (-(prio if use_priority else 0), -(momentum if momentum is not None else 0.0), ticker)
             candidates.append((key, ticker, prio, momentum, age))
@@ -337,7 +343,7 @@ def portfolio_row(result: PortfolioResult, initial_cash: float, period: str) -> 
         "retorno_medio_trade": stats.get("retorno_medio"),
         "fator_lucro": stats.get("fator_lucro"),
         "trades_prioritarios": prio.get("trades", 0),
-        "dias_sinal_sem_vaga": result.missed_entries,
+        "sinais_descartados": result.missed_entries,
         "taxas_brl": result.fees,
         "slippage_brl": result.slippage,
         "retornos_anuais": json.dumps({str(k): round(v, 4) for k, v in yearly.items()}),
@@ -375,9 +381,10 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
         f"- **Compra**: RSI({context['params']['rsi_period']}) do fechamento acima de {context['params']['rsi_entry']:g} "
         f"e WMA({context['params']['wma_period']}) do fechamento Heikin Ashi subindo (WMA[t] > WMA[t-1]).",
         f"- **Venda**: RSI abaixo de {context['params']['rsi_exit']:g} ou WMA Heikin Ashi caindo (WMA[t] < WMA[t-1]).",
-        f"- **Selecao**: somente {context['max_positions']} acao por vez. Entre as acoes com sinal de compra recente "
-        f"(iniciado ha menos de {context['recent_window']} pregoes no fechamento da decisao), compra-se a de maior "
-        f"ROC de 3 meses ({context['roc_period']} pregoes). A posicao fica ate o sinal de venda; so depois outra e escolhida.",
+        f"- **Selecao**: somente {context['max_positions']} acao por vez. A entrada so ocorre na abertura seguinte ao "
+        "PRIMEIRO candle do sinal; se a vaga estiver ocupada, o sinal e descartado (nunca ha entrada tardia). "
+        f"Entre os sinais novos do mesmo fechamento, compra-se o de maior ROC de 3 meses ({context['roc_period']} pregoes). "
+        "A posicao fica ate o sinal de venda.",
         "- **Prioridade** (variantes de comparacao): fechamento OU SMA20 acima da SMA50.",
         "- \"RSI acima de 0\" foi lido como RSI centralizado (RSI - 50 > 0), ou seja RSI > 50.",
         "- Sinal no fechamento, execucao na abertura seguinte; "
@@ -390,23 +397,23 @@ def write_markdown(path: Path, context: dict[str, object]) -> None:
         *[f"- `{name}`: {text}" for name, text in context["variant_descriptions"].items()],
         "",
         "## Carteira seguindo o sinal\n",
-        "| Periodo | Variante | Vagas | CAGR | Retorno total | Max DD | Sharpe | Calmar | Exposicao | Trades | Acerto | Fator lucro | Dias-sinal sem vaga |",
+        "| Periodo | Variante | Vagas | CAGR | Retorno total | Max DD | Sharpe | Calmar | Exposicao | Trades | Acerto | Fator lucro | Sinais descartados |",
         "| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for r in rows:
         lines.append(
             f"| {r['periodo']} | `{r['variante']}` | {r['max_posicoes']} | **{_pct(r['cagr'])}** | {_pct(r['retorno_total'])} | "
             f"{_pct(r['max_drawdown'])} | {_num(r['sharpe'])} | {_num(r['calmar'])} | {_pct(r['exposicao'])} | "
-            f"{r['trades_fechados']} | {_pct(r['taxa_acerto'])} | {_num(r['fator_lucro'])} | {r['dias_sinal_sem_vaga']} |"
+            f"{r['trades_fechados']} | {_pct(r['taxa_acerto'])} | {_num(r['fator_lucro'])} | {r['sinais_descartados']} |"
         )
 
-    main = [r for r in rows if r["variante"] == "roc3m_sinal_recente" and r["periodo"] == "2018+"]
+    main = [r for r in rows if r["variante"] == "roc3m_primeiro_candle" and r["periodo"] == "2018+"]
     bench = [r for r in rows if r["variante"] == "buy_and_hold_peso_igual" and r["periodo"] == "2018+"]
     if main and bench:
         years_main = json.loads(str(main[0]["retornos_anuais"]))
         years_bench = json.loads(str(bench[0]["retornos_anuais"]))
         lines += [
-            "\n## Retorno anual da variante principal (`roc3m_sinal_recente`)\n",
+            "\n## Retorno anual da variante principal (`roc3m_primeiro_candle`)\n",
             "| Ano | Estrategia | Buy and hold peso igual |",
             "| :--- | ---: | ---: |",
             *[f"| {year} | {_pct(value)} | {_pct(years_bench.get(year))} |" for year, value in years_main.items()],
@@ -464,9 +471,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--priority-slow", type=int, default=50)
     parser.add_argument("--max-positions", type=int, default=1, help="acoes simultaneas (padrao: 1 por vez)")
     parser.add_argument("--roc-period", type=int, default=63, help="ROC de 3 meses = 63 pregoes")
-    parser.add_argument("--recent-window", type=int, default=5,
-                        help="sinal recente = iniciado ha menos de N pregoes no fechamento da decisao")
-    parser.add_argument("--recent-window-tests", type=int, nargs="*", default=[1, 3, 10])
+
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args(argv)
 
@@ -497,27 +502,21 @@ def main(argv: list[str] | None = None) -> int:
     common = dict(initial_cash=args.initial_cash, cost_bps=args.cost_bps,
                   slippage_bps=args.slippage_bps, lot_size=args.lot_size)
     slots = args.max_positions
-    main_name = "roc3m_sinal_recente"
+    main_name = "roc3m_primeiro_candle"
+    fresh = dict(signal_age=ages, recent_window=1)
     variants: list[tuple[str, str, dict[str, object]]] = [
         (main_name,
-         f"PRINCIPAL. Sinal iniciado ha menos de {args.recent_window} pregoes; maior ROC {args.roc_period}.",
-         dict(roc=roc, signal_age=ages, recent_window=args.recent_window, use_priority=False)),
-    ]
-    for window in args.recent_window_tests:
-        if window != args.recent_window:
-            variants.append((f"roc3m_sinal_recente_{window}p",
-                             f"Igual a principal, com sinal iniciado ha menos de {window} pregoes.",
-                             dict(roc=roc, signal_age=ages, recent_window=window, use_priority=False)))
-    variants += [
-        ("roc3m_prioridade_sinal_recente",
-         "Igual a principal, mas sinais prioritarios (preco ou SMA20 > SMA50) antes do ROC.",
-         dict(roc=roc, signal_age=ages, recent_window=args.recent_window, use_priority=True)),
-        ("roc3m_qualquer_sinal",
-         "Maior ROC entre todos os sinais ativos, sem exigir sinal recente.",
-         dict(roc=roc, use_priority=False)),
-        ("anterior_prioridade_alfabetica",
-         "Regra anterior: prioritarios primeiro e empate pela ordem alfabetica, sem ROC.",
-         dict(use_priority=True)),
+         f"PRINCIPAL. Somente sinais no primeiro candle; maior ROC de {args.roc_period} pregoes.",
+         dict(roc=roc, use_priority=False, **fresh)),
+        ("roc3m_positivo_primeiro_candle",
+         "Igual a principal, exigindo ROC de 3 meses acima de zero.",
+         dict(roc=roc, min_roc=0.0, use_priority=False, **fresh)),
+        ("prioridade_roc3m_primeiro_candle",
+         "Igual a principal, com sinais prioritarios (preco ou SMA20 > SMA50) antes do ROC.",
+         dict(roc=roc, use_priority=True, **fresh)),
+        ("alfabetica_primeiro_candle",
+         "Primeiro candle sem ROC: empate resolvido pela ordem alfabetica (mede o efeito do ROC).",
+         dict(use_priority=False, **fresh)),
     ]
 
     portfolio_rows: list[dict[str, object]] = []
@@ -574,15 +573,15 @@ def main(argv: list[str] | None = None) -> int:
     write_csv(out / "ativo_isolado.csv", per_asset)
     write_csv(out / "trades_do_sinal.csv", all_trades)
     if default_result is not None:
-        write_csv(out / "ledger_roc3m_sinal_recente.csv", default_result.ledger)
-        write_csv(out / "trades_roc3m_sinal_recente.csv", default_result.trades)
-        write_csv(out / "equity_roc3m_sinal_recente.csv",
+        write_csv(out / "ledger_roc3m_primeiro_candle.csv", default_result.ledger)
+        write_csv(out / "trades_roc3m_primeiro_candle.csv", default_result.trades)
+        write_csv(out / "equity_roc3m_primeiro_candle.csv",
                   [{"date": d, "equity": e} for d, e in zip(default_result.dates, default_result.equities)])
     context = {
         "params": params, "cost_bps": args.cost_bps, "slippage_bps": args.slippage_bps, "lot_size": args.lot_size,
         "tickers": tickers, "universe_id": universe.get("id", ""), "portfolio_rows": portfolio_rows,
         "priority_stats": priority_stats, "per_asset": per_asset, "full_start": full_dates[0], "end": end,
-        "max_positions": slots, "recent_window": args.recent_window, "roc_period": args.roc_period,
+        "max_positions": slots, "roc_period": args.roc_period,
         "variant_descriptions": variant_descriptions,
     }
     write_markdown(out / "RESUMO.md", context)
@@ -590,8 +589,8 @@ def main(argv: list[str] | None = None) -> int:
         "estrategia": STRATEGY,
         "parametros": params,
         "prioridade": {"sma_rapida": args.priority_fast, "sma_lenta": args.priority_slow},
-        "selecao": {"acoes_por_vez": slots, "criterio": "maior ROC entre sinais recentes",
-                    "roc_pregoes": args.roc_period, "sinal_recente_pregoes": args.recent_window},
+        "selecao": {"acoes_por_vez": slots, "entrada": "somente no primeiro candle do sinal",
+                    "criterio": "maior ROC entre sinais novos", "roc_pregoes": args.roc_period},
         "inicio": full_dates[0], "fim": end, "teste_inicio": test_dates[0] if test_dates else None,
         "capital_inicial_brl": args.initial_cash, "cost_bps": args.cost_bps,
         "slippage_bps": args.slippage_bps, "lot_size": args.lot_size,

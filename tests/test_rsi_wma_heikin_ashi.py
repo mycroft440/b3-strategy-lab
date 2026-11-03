@@ -109,7 +109,7 @@ class OneStockRocSelectionTests(unittest.TestCase):
         self.assertAlmostEqual(values[3], 15 / 11 - 1)
         self.assertEqual(signal_ages([0, 1, 1, 0, 1]), [None, 0, 1, None, 0])
 
-    def test_picks_single_stock_with_best_roc_among_recent_signals(self) -> None:
+    def test_enters_only_on_first_signal_candle_with_best_roc(self) -> None:
         from scripts.backtest_rsi_wma_heikin_ashi import rate_of_change, signal_ages, simulate_portfolio
 
         closes = {
@@ -130,7 +130,7 @@ class OneStockRocSelectionTests(unittest.TestCase):
         result = simulate_portfolio(
             data, signals, priority, dates, name="t", max_positions=1, use_priority=False,
             initial_cash=1000.0, cost_bps=0.0, slippage_bps=0.0, lot_size=1,
-            roc=roc, signal_age=ages, recent_window=2,
+            roc=roc, signal_age=ages, recent_window=1,
         )
         buys = [row for row in result.ledger if row["side"] == "BUY"]
         sells = [row for row in result.ledger if row["side"] == "SELL"]
@@ -142,6 +142,6 @@ class OneStockRocSelectionTests(unittest.TestCase):
         for row in result.ledger:
             held += 1 if row["side"] == "BUY" else -1
             self.assertLessEqual(held, 1)
-        # BBBB3 sai no pregao 7; CCCC3 ja tem sinal antigo (idade >= 2), entao fica em caixa.
+        # BBBB3 sai no pregao 7; CCCC3 nao esta mais no primeiro candle do sinal, entao nunca entra.
         self.assertEqual(sells[0]["date"], dates[7])
         self.assertEqual(len(buys), 1)

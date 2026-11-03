@@ -331,9 +331,9 @@ A estrategia `rsi_wma_heikin_ashi` compra quando o RSI(14) fica acima de 50 e a
 WMA(20) do fechamento Heikin Ashi aponta para cima, e vende quando o RSI cai
 abaixo de 50 ou a WMA aponta para baixo. Sinais em que o fechamento ou a SMA20
 esta acima da SMA50 sao prioritarios. O teste sem gerenciamento mantem somente
-1 acao por vez: entre os sinais de compra recentes (iniciados ha menos de 5
-pregoes), compra a de maior ROC de 3 meses (63 pregoes) e segura ate o sinal de
-venda. Para executar:
+1 acao por vez e so compra na abertura seguinte ao primeiro candle do sinal
+(nunca depois). Entre os sinais novos do mesmo fechamento, compra o de maior ROC
+de 3 meses (63 pregoes) e segura ate o sinal de venda. Para executar:
 
 ```powershell
 python scripts\backtest_rsi_wma_heikin_ashi.py
